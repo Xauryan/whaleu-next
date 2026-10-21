@@ -1,0 +1,88 @@
+:host {
+  --dock-bg: #ffffff;
+  --dock-ink: #6e6e73;
+  --dock-selected: #222222;
+}
+.tab-safe-space {
+  height: calc(100rpx + env(safe-area-inset-bottom));
+}
+.tab-dock {
+  position: fixed;
+  z-index: 100;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0 0 env(safe-area-inset-bottom);
+  background: var(--dock-bg);
+  border-top: 0;
+}
+.tab-items {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+.tab {
+  flex: 1;
+  min-height: 88rpx;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--dock-ink);
+  border-radius: 18rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.tab::after {
+  border: 0;
+}
+.tab.selected {
+  color: var(--dock-selected);
+  font-weight: 600;
+}
+.tab wu-icon {
+  display: flex;
+  opacity: 0.65;
+}
+.tab.selected wu-icon {
+  opacity: 1;
+}
+.compose-symbol {
+  width: 88rpx;
+  height: 68rpx;
+  border-radius: 20rpx;
+  background: #ff2442;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.compose-symbol wu-icon {
+  opacity: 1;
+}
+.compose-tab {
+  padding-top: 0;
+  gap: 4rpx;
+}
+.compose-label {
+  font-size: 18rpx;
+}
+.navigation-error {
+  color: #b42318;
+  text-align: center;
+  font-size: 24rpx;
+  padding: 10rpx;
+}
+@media (prefers-color-scheme: dark) {
+  :host {
+    --dock-bg: #000000;
+    --dock-ink: #77777c;
+    --dock-selected: #f5f5f7;
+  }
+  .compose-symbol {
+    background: #ff2442;
+  }
+}

@@ -1,3 +1,4 @@
+import { createRatingEmittedBridge } from '../test/rating-native-emitted-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -470,7 +471,12 @@ export async function smokeRatingsScoped({ app, dist }) {
   );
   const tree = parse(source),
     templates = Object.fromEntries(
-      ['ratings/common.wxml', 'ratings/target-cover.wxml']
+      [
+        'ratings/common.wxml',
+        'ratings/product.wxml',
+        'ratings/framework7-product.wxml',
+        'ratings/target-cover.wxml',
+      ]
         .flatMap(
           (file) => parse(readFileSync(path.join(dist, file), 'utf8')).children,
         )
@@ -489,16 +495,21 @@ export async function smokeRatingsScoped({ app, dist }) {
       native.data = { ...native.data, ...patch };
     };
     for (const [, handler] of source.matchAll(
-      /bind(?:tap|input)="([A-Za-z]+)"/g,
+      /bind(?::(?:press|input)|tap|input)="([A-Za-z]+)"/g,
     ))
       assert.equal(typeof native[handler], 'function', handler);
+    native.__ratingEmittedBridge = createRatingEmittedBridge({
+      page: native,
+      pageFile: path.join(dist, 'pages/rating-scoped/rating-scoped'),
+      dist,
+    });
     pages.push(native);
     native.onLoad(route);
     native.onShow();
     return native;
   };
   const tap = (native, handler, dataset = {}) =>
-    native[handler]({ currentTarget: { dataset } });
+    native.__ratingEmittedBridge.tap(handler, dataset);
   try {
     globalThis.getApp = () => localApp;
     globalThis.wx = {

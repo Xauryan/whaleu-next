@@ -1,0 +1,31 @@
+:host {
+  display: inline-flex;
+  flex: 0 0 auto;
+  vertical-align: middle;
+  line-height: 0;
+}
+.wu-icon {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+.wu-icon-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  flex-shrink: 0;
+}
+.wu-icon-dark {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  .wu-icon-light {
+    display: none;
+  }
+  .wu-icon-dark {
+    display: block;
+  }
+}

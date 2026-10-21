@@ -10,7 +10,7 @@ import {
 type Tap = { currentTarget: { dataset: { id?: string } } };
 export function registerMajorDirectoryPage(mode: MajorMode): void {
   Page({
-    data: { ...initialMajorDirectoryView(), mode },
+    data: { ...initialMajorDirectoryView(), mode, uiPanel: '' },
     majorId: null as string | null,
     validRoute: false,
     controller: undefined as MajorDirectoryController | undefined,
@@ -28,6 +28,7 @@ export function registerMajorDirectoryPage(mode: MajorMode): void {
           : null;
     },
     onShow() {
+      this.setData({ uiPanel: '' });
       this.onHide();
       const runtime = getApp<WhaleuApp>().community;
       if (!runtime || !this.validRoute) {
@@ -52,19 +53,37 @@ export function registerMajorDirectoryPage(mode: MajorMode): void {
             current.credentials?.accountId !== owner.credentials?.accountId
           ) {
             owner = current;
+            this.setData({ uiPanel: '' });
             this.navigator?.dispose();
           }
         }),
         runtime.privateViews?.subscribe((account) => {
-          if (account === undefined) this.navigator?.dispose();
+          if (account === undefined) {
+            this.setData({ uiPanel: '' });
+            this.navigator?.dispose();
+          }
         }),
-        runtime.safetyChanges?.subscribe(() => this.navigator?.dispose()),
+        runtime.safetyChanges?.subscribe(() => {
+          this.setData({ uiPanel: '' });
+          this.navigator?.dispose();
+        }),
       ];
       this.unsubscribe = () => stops.forEach((stop) => stop?.());
       this.controller = new MajorDirectoryController(runtime, mode, (view) =>
-        this.setData({ ...view }),
+        this.setData({
+          ...view,
+          ...(!view.hasSession || !view.loaded ? { uiPanel: '' } : {}),
+        }),
       );
       void this.controller.load(this.majorId);
+    },
+    onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+      const panel = event.currentTarget.dataset.panel;
+      if (panel !== 'options') return;
+      this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+    },
+    onClosePanel() {
+      this.setData({ uiPanel: '' });
     },
     onRefresh() {
       this.navigator?.dispose();
@@ -101,6 +120,7 @@ export function registerMajorDirectoryPage(mode: MajorMode): void {
       this.controller?.cancel();
     },
     onHide() {
+      this.setData({ uiPanel: '' });
       this.unsubscribe?.();
       this.unsubscribe = undefined;
       this.navigator?.dispose();

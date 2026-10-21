@@ -1,0 +1,30 @@
+<template name="errand-status">
+  <view class="errand-status-row">
+    <view wx:if="{{status &amp;&amp; status !== '已到当前范围末尾' &amp;&amp; status !== '已加载订单，可继续浏览' &amp;&amp; status !== '已核验当前订单；联系方式仅在进行中向双方显示' &amp;&amp; status !== '文字跑腿：发布需有效身份与内容审核；可选择其他地区' &amp;&amp; status !== '已解析浏览校园的目标地区'}}" class="errand-status" aria-role="status">{{status}}</view>
+    <button class="errand-icon-button" aria-label="刷新订单" bindtap="onRefresh" disabled="{{busy}}"><wu-icon name="refresh" size="18" /></button>
+  </view>
+  <view wx:if="{{error}}" class="errand-error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="errand-footnote">{{receiptStatus}}</view>
+  <view wx:if="{{frozen}}" class="errand-recovery">
+    <view class="errand-section-title">{{recoveryOperation}}结果待确认</view>
+    <view class="errand-footnote">先确认上次结果，请勿重新下单。重试会保留原编号和内容。</view>
+    <view class="errand-inline-actions"><button class="errand-primary" bindtap="onRecover" disabled="{{busy}}">查询原回执</button><button class="errand-text-button" bindtap="onRetry" disabled="{{busy}}">重试完全相同的请求</button></view>
+  </view>
+  <button wx:if="{{busy}}" class="errand-text-button" bindtap="onCancel">停止等待</button>
+  <button wx:if="{{confirmedOrderId}}" class="errand-text-button" data-id="{{confirmedOrderId}}" bindtap="onOrder" disabled="{{busy}}">查看已确认订单</button>
+</template>
+<template name="errand-campus">
+  <button class="errand-campus-switch" data-field="campus" bindtap="onTogglePanel" disabled="{{busy || frozen}}"><wu-icon name="location" size="20" /><text>{{regionLabel || '选择目标校园'}}</text><wu-icon name="chevron-down" size="14" /></button>
+  <view wx:if="{{uiPanels.campus || !regionLabel}}" class="errand-campus-picker">
+    <view class="errand-search-row"><input value="{{campusQuery}}" bindinput="onCampusQuery" bindconfirm="onCampusSearch" maxlength="100" placeholder="搜索学校或校区" disabled="{{busy || frozen}}" /><button class="errand-text-button" bindtap="onCampusSearch" disabled="{{busy || frozen || !configured}}">搜索</button></view>
+    <button wx:for="{{campuses}}" wx:key="id" class="errand-campus-result" data-id="{{item.id}}" bindtap="onCampus" disabled="{{busy || frozen || !item.isActive}}"><text>{{item.fullName}}{{item.isActive ? '' : '（不可用）'}}</text><wu-icon name="chevron-right" size="14" /></button>
+    <view class="errand-footnote">可选择其他地区发布，不会更改你的身份校区。</view>
+  </view>
+</template>
+<template name="errand-summary">
+  <view class="errand-order-heading"><view class="errand-order-title">{{order.title}}</view><view class="errand-reward"><text class="errand-currency">¥</text>{{order.reward}}</view></view>
+  <view class="errand-order-status state-{{order.state}}">{{errandStateLabels[order.state]}}</view>
+  <view class="errand-order-excerpt">{{order.publicText}}</view>
+  <view class="errand-order-meta"><wu-icon name="location" size="14" /><text>{{order.targetRegion.label}}</text><text class="errand-meta-divider">·</text><text>{{order.expectedTimeText}}</text></view>
+  <view wx:if="{{order.publicMedia &amp;&amp; order.publicMedia.length}}" class="errand-media-count"><wu-icon name="image" size="14" /><text>{{order.publicMedia.length}} 张图片</text></view>
+</template>

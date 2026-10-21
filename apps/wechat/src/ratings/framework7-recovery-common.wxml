@@ -1,0 +1,25 @@
+<template name="rating-status">
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录与会话管理 →</navigator>
+  <view wx:if="{{frozen}}" class="card recovery">
+    <view class="section-title">{{recoveryOperation || '原操作'}}结果待确认</view>
+    <view class="notice">未查到回执也不能创建替代请求。这里只恢复原编号和原意图；当前内容、评分、点赞与订阅状态需重新读取。</view>
+    <wu-f7-button bind:press="onRecover" disabled="{{busy}}" variant="tonal">查询原回执</wu-f7-button>
+    <wu-f7-button bind:press="onRetry" disabled="{{busy}}" variant="tonal">重试原请求</wu-f7-button>
+    <navigator class="link" url="/pages/rating-category-manage/rating-category-manage?scope=global">分类管理原请求：预览、确认与取消 →</navigator>
+    <navigator class="link" url="/pages/rating-category-create/rating-category-create">分类创建申请恢复与撤销 →</navigator>
+    <navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=recovery">校园范围创建与编辑恢复、取消 →</navigator>
+  </view>
+  <wu-f7-button bind:press="onRefresh" disabled="{{busy}}" loading="{{busy}}" variant="tonal">{{needsRefresh ? '刷新后重新确认' : '重新加载'}}</wu-f7-button>
+  <wu-f7-button wx:if="{{busy}}" bind:press="onCancel" variant="tonal">停止等待</wu-f7-button>
+</template>
+
+<template name="rating-like">
+  <block wx:if="{{state &amp;&amp; state.status === 'known'}}">
+    <view class="meta">{{state.count}} 赞</view>
+    <wu-f7-button data-id="{{id}}" bind:press="onLike" disabled="{{busy || frozen}}" variant="tonal">{{state.liked ? '取消赞' : '赞'}}</wu-f7-button>
+  </block>
+  <view wx:else class="notice">赞数和自己的点赞状态暂时未知，请刷新后再试。</view>
+</template>

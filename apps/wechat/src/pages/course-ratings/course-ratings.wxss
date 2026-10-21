@@ -1,1 +1,5 @@
 @import '../../course-ratings/course-ratings.wxss';
+
+@import '../../ratings/product.wxss';
+
+@import '../../course-ratings/framework7-product.wxss';

@@ -1,3 +1,6 @@
+import { SocialUpdatesModule } from './notifications/social/module.js';
+import { PersonalTimetableModule } from './personal-timetable/module.js';
+import { ProfileDetailsModule } from './profile-details/module.js';
 import { OfficialAccountOperationsModule } from './official-account-operations/module.js';
 import { RatingGroupPromotionModule } from './ratings/group-promotion/module.js';
 import { CampusToolsModule } from './campus-tools/module.js';
@@ -73,6 +76,9 @@ export class AppModule {
         OfficialAccountOperationsModule,
         IdentityCampusModule,
         ProfileModule,
+        ProfileDetailsModule,
+        PersonalTimetableModule,
+        SocialUpdatesModule,
         ProfileModerationModule,
         SchoolAdminManagementModule,
         SchoolIdentityModule,

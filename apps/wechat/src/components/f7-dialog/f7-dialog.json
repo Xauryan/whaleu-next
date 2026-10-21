@@ -1,0 +1,7 @@
+{
+  "component": true,
+  "usingComponents": {
+    "f7-button": "../f7-button/f7-button",
+    "f7-input": "../f7-input/f7-input"
+  }
+}

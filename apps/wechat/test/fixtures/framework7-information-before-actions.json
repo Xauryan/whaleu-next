@@ -1,0 +1,981 @@
+{
+  "src/pages/organizations/organizations.wxml": {
+    "sourceSha256": "6d998824f920f90a0212eec8233e68308648fc222386b3044bc85a481dc01426",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "create-link",
+          "url": "/pages/organization-editor/organization-editor"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "aria-label": "刷新组织列表",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tab {{mode === 'mine' ? 'active' : ''}}",
+          "bindtap": "onMine"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{management !== 'none'}}",
+          "class": "tab {{mode === 'review' ? 'active' : ''}}",
+          "bindtap": "onReviews"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onCampusInput",
+          "placeholder": "搜索要管理的学校"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'review' && management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "text-button",
+          "bindtap": "onFindCampus",
+          "disabled": "{{selecting}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'review' && management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "class": "campus-result",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChooseCampus",
+          "disabled": "{{selecting}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'review' && management === 'global'}}"
+          },
+          {
+            "wx:for": "{{campuses}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "organization-link",
+          "url": "/pages/organization-editor/organization-editor?id={{item.id}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{more}}",
+          "class": "quiet-button",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{more}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "utility-row directory-link",
+          "url": "/pages/directory-hub/directory-hub"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/organization-editor/organization-editor.wxml": {
+    "sourceSha256": "8b704b5ec18406ab065461d790aded7d4420195131d50ac2787a4f560f980362",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "aria-label": "重新加载组织资料",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary-button",
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet-button",
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet-button",
+          "bindtap": "onCancelPending",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{publicDetail.management.available}}",
+          "class": "utility-row",
+          "url": "/pages/organization-editor/organization-editor?id={{id}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{publicDetail}}"
+          },
+          {
+            "wx:if": "{{publicDetail.management.available}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "segment {{form.kind === 'school' ? 'selected' : ''}}",
+          "data-kind": "school",
+          "bindtap": "onKind"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{!id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "segment {{form.kind === 'org' ? 'selected' : ''}}",
+          "data-kind": "org",
+          "bindtap": "onKind"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{!id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "segment {{form.kind === 'official' ? 'selected' : ''}}",
+          "data-kind": "official",
+          "bindtap": "onKind"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{!id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "segment {{form.platform === 'qq' ? 'selected' : ''}}",
+          "data-platform": "qq",
+          "bindtap": "onPlatform"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{!id}}"
+          },
+          {
+            "wx:if": "{{form.kind !== 'official'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "segment {{form.platform === 'wechat' ? 'selected' : ''}}",
+          "data-platform": "wechat",
+          "bindtap": "onPlatform"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{!id}}"
+          },
+          {
+            "wx:if": "{{form.kind !== 'official'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "category-option {{form.categoryId === item.id ? 'selected' : ''}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCategory"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{!id}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{moreCategories}}",
+          "class": "quiet-button",
+          "bindtap": "onMoreCategories"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{!id}}"
+          },
+          {
+            "wx:if": "{{moreCategories}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "class": "name-input",
+          "data-field": "name",
+          "value": "{{form.name}}",
+          "bindinput": "onField",
+          "maxlength": "20",
+          "placeholder": "给组织起个名字，最多10字",
+          "disabled": "{{busy || pending || (detail && !detail.permissions.edit)}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "data-field": "introText",
+          "value": "{{form.introText}}",
+          "bindinput": "onField",
+          "maxlength": "2000",
+          "placeholder": "介绍活动、成员和加入方式，最多1000字",
+          "disabled": "{{busy || pending || (detail && !detail.permissions.edit)}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "wx:if": "{{form.platform === 'qq'}}",
+          "data-field": "qqGroupNumber",
+          "value": "{{form.qqGroupNumber}}",
+          "bindinput": "onField",
+          "maxlength": "16",
+          "placeholder": "填写5–16位群号",
+          "disabled": "{{busy || pending || (detail && !detail.permissions.edit)}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{form.platform === 'qq'}}"
+          },
+          {
+            "wx:if": "{{form.platform === 'qq'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary-button",
+          "bindtap": "onSave",
+          "loading": "{{busy}}",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form && (!detail || detail.permissions.edit)}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{detail && detail.permissions.submit}}",
+          "class": "quiet-button",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{form && (!detail || detail.permissions.edit)}}"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.submit}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet-button",
+          "data-slot": "{{item.slot}}",
+          "data-revision": "{{item.applicationRevision}}",
+          "data-action": "recover",
+          "bindtap": "onPendingImage",
+          "disabled": "{{busy || pending || upload.status === 'working'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pendingImages.length}}"
+          },
+          {
+            "wx:for": "{{pendingImages}}",
+            "wx:key": "key"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet-button",
+          "data-slot": "{{item.slot}}",
+          "data-revision": "{{item.applicationRevision}}",
+          "data-action": "cancel",
+          "bindtap": "onPendingImage",
+          "disabled": "{{busy || pending || upload.status === 'working'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pendingImages.length}}"
+          },
+          {
+            "wx:for": "{{pendingImages}}",
+            "wx:key": "key"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleMediaSection"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{slots.length && !publicRead}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.configured}}",
+          "class": "text-button",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onPreviewImage"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{publicRead || showMedia}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{item.configured}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onToggleMedia"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{publicRead || showMedia}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.edit && !publicRead}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary-button",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onPickImage",
+          "disabled": "{{busy || pending || upload.status === 'working'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{publicRead || showMedia}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.edit && !publicRead}}"
+          },
+          {
+            "wx:if": "{{expandedMedia[item.slot]}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet-button",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onRecoverImage",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{publicRead || showMedia}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.edit && !publicRead}}"
+          },
+          {
+            "wx:if": "{{expandedMedia[item.slot]}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet-button",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onCancelImage",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{publicRead || showMedia}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.edit && !publicRead}}"
+          },
+          {
+            "wx:if": "{{expandedMedia[item.slot]}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "danger-button",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onRemoveImage",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{publicRead || showMedia}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.edit && !publicRead}}"
+          },
+          {
+            "wx:if": "{{expandedMedia[item.slot]}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet-button",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onKeepImage",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{publicRead || showMedia}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.edit && !publicRead}}"
+          },
+          {
+            "wx:if": "{{expandedMedia[item.slot]}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet-button",
+          "bindtap": "onCloseImage"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.src}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "bindinput": "onReason",
+          "maxlength": "500",
+          "placeholder": "拒绝理由（拒绝时必填）"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{detail && detail.permissions.review}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary-button",
+          "bindtap": "onApprove",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{detail && detail.permissions.review}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "danger-button",
+          "bindtap": "onReject",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{detail && detail.permissions.review}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleMembers"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{detail && (detail.members.length || detail.permissions.manageMembers)}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{detail && detail.permissions.manageMembers && item.profile && item.role !== 'organization_owner'}}",
+          "class": "danger-button",
+          "data-id": "{{item.profile.profileId}}",
+          "bindtap": "onRemoveAdmin",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showMembers}}"
+          },
+          {
+            "wx:if": "{{detail && detail.members.length}}"
+          },
+          {
+            "wx:for": "{{detail.members}}",
+            "wx:key": "grantId"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.manageMembers && item.profile && item.role !== 'organization_owner'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{lookupInput}}",
+          "bindinput": "onLookupInput",
+          "placeholder": "对方公开主页ID"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showMembers}}"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.manageMembers}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary-button",
+          "bindtap": "onLookup",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showMembers}}"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.manageMembers}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet-button",
+          "bindtap": "onAddAdmin",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showMembers}}"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.manageMembers}}"
+          },
+          {
+            "wx:if": "{{person}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "danger-button",
+          "bindtap": "onTransfer",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showMembers}}"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.manageMembers}}"
+          },
+          {
+            "wx:if": "{{person}}"
+          },
+          {
+            "wx:if": "{{detail && detail.permissions.transferOwner}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleInfo"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{stateLabel}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "utility-row organizations-link",
+          "url": "/pages/organizations/organizations"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/announcements/announcements.wxml": {
+    "sourceSha256": "644fb115bf1aa32cd340a055986f89eac442a7bc38e40652bfe527bb8a927a05",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tab {{source === 'native' ? 'active' : ''}}",
+          "data-source": "native",
+          "bindtap": "onSource",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tab {{source === 'accepted' ? 'active' : ''}}",
+          "data-source": "accepted",
+          "bindtap": "onSource",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "class": "text-button manage-button",
+          "bindtap": "onManage"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "aria-label": "{{restartRequired ? '重新开始浏览' : '刷新公告'}}",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet-button",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "announcement-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onAnnouncement",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canPrevious}}",
+          "class": "text-button",
+          "bindtap": "onPrevious",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canPrevious}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "class": "text-button",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleInfo"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/announcement-detail/announcement-detail.wxml": {
+    "sourceSha256": "f19b796a9086190fd144ba9834feeb085915bddb9eea886344b3e0b4b3dd22ec",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "aria-label": "{{restartRequired ? '重新开始浏览' : '刷新公告'}}",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet-button",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{detail.media.items}}",
+          "wx:key": "bindingId",
+          "class": "image-link",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onImage"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{detail.media.status === 'available'}}"
+          },
+          {
+            "wx:for": "{{detail.media.items}}",
+            "wx:key": "bindingId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleInfo"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      }
+    ]
+  }
+}

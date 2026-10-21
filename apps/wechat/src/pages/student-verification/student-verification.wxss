@@ -1,8 +1,37 @@
-@import '../../profile/forms.wxss';
-.evidence {
-  width: 100%;
-  max-height: 720rpx;
+@import '../profile/framework7-profile-verification.wxss';
+.application-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
 }
-.selected {
-  border: 2rpx solid #247668;
+.choice-main {
+  flex: 1;
+  min-width: 0;
+}
+.application-section .section-label {
+  margin-left: 0;
+  margin-right: 0;
+}
+.evidence-guide {
+  padding: 20px 16px;
+  border-radius: 12px;
+  text-align: center;
+  background: var(--f7-page-bg-color);
+}
+.evidence-guide .section-title {
+  margin-top: 12px;
+}
+.evidence {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+/* Unclamped text is essential for the privacy purpose and access deadline. */
+.privacy-note,
+.caption {
+  white-space: normal;
+  overflow: visible;
 }

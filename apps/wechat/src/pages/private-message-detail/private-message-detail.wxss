@@ -1,1 +1,337 @@
-@import '../../messaging/messaging.wxss';
+/* Framework7 v9.2.0 native controls; existing native chat, media and overlay lifecycle retained. */
+@import '../../design/framework7-ios.wxss';
+
+.chat-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100vh;
+  overflow: hidden;
+  color: var(--wu-text);
+  background: var(--wu-bg);
+}
+.chat-page button {
+  margin: 0;
+  font-weight: 400;
+}
+.chat-heading {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 112rpx;
+  padding: 8rpx 24rpx 8rpx 36rpx;
+  background: var(--wu-surface);
+  box-sizing: border-box;
+}
+.chat-heading-copy {
+  min-width: 0;
+  flex: 1;
+}
+.chat-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.chat-identity {
+  margin-top: 4rpx;
+  color: var(--wu-secondary);
+  font-size: 23rpx;
+}
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88rpx;
+  min-height: 88rpx;
+  padding: 0;
+  background: transparent;
+}
+.chat-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  flex: 0 0 auto;
+  padding: 14rpx 28rpx;
+  font-size: 24rpx;
+  color: var(--wu-secondary);
+  background: var(--wu-surface);
+  line-height: 1.6;
+}
+.chat-notice button {
+  flex: 0 0 auto;
+  min-height: 64rpx;
+  padding: 0 12rpx;
+  color: var(--wu-accent);
+  font-size: 24rpx;
+  line-height: 64rpx;
+  background: transparent;
+}
+.chat-notice.error {
+  color: var(--wu-danger);
+}
+.notice-action {
+  color: var(--wu-accent);
+}
+.history {
+  flex: 1;
+  min-height: 0;
+  height: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+.history-empty {
+  padding: 90rpx 32rpx;
+  color: var(--wu-secondary);
+  font-size: 25rpx;
+  text-align: center;
+}
+.message-row {
+  padding: 0 28rpx;
+  margin-top: 18rpx;
+}
+.message-time {
+  padding: 26rpx 0 22rpx;
+  text-align: center;
+  font-size: 21rpx;
+  color: var(--wu-tertiary);
+}
+.message-content {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 6rpx;
+}
+.message-bubble {
+  display: block;
+  box-sizing: border-box;
+  max-width: 78%;
+  padding: 20rpx 26rpx;
+  border-radius: 28rpx 28rpx 28rpx 8rpx;
+  background: var(--wu-surface);
+  font-size: 30rpx;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.self .message-content {
+  flex-direction: row-reverse;
+}
+.self .message-bubble {
+  background: var(--wu-tint);
+  border-radius: 28rpx 28rpx 8rpx 28rpx;
+}
+
+.message-system-text {
+  padding: 16rpx 0;
+  text-align: center;
+  font-size: 23rpx;
+  color: var(--wu-tertiary);
+}
+.message-menu {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin: 10rpx 0 0;
+}
+.self .message-menu {
+  justify-content: flex-end;
+}
+.message-media {
+  overflow: hidden;
+  max-width: 78%;
+  border-radius: 24rpx;
+  background: var(--wu-surface);
+}
+.private-message-image {
+  display: block;
+  width: 420rpx;
+  max-width: 100%;
+}
+.image-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  width: 340rpx;
+  padding: 30rpx 24rpx;
+  min-height: 150rpx;
+  color: var(--wu-secondary);
+  background: transparent;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+.private-message-image + .image-open {
+  width: 100%;
+  min-height: 64rpx;
+  padding: 8rpx 18rpx;
+  font-size: 21rpx;
+}
+.private-message-image + .image-open wu-icon {
+  display: none;
+}
+.history-bottom {
+  height: 28rpx;
+}
+.composer {
+  flex: 0 0 auto;
+  padding: 12rpx 20rpx max(12rpx, env(safe-area-inset-bottom));
+  background: var(--wu-surface);
+  border-top: 1rpx solid var(--wu-separator);
+}
+.composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12rpx;
+}
+.composer-input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  min-height: 46rpx;
+  max-height: 200rpx;
+  padding: 21rpx 24rpx;
+  border-radius: 28rpx;
+  color: var(--wu-text);
+  background: var(--wu-bg);
+  font-size: 29rpx;
+  line-height: 46rpx;
+}
+.send-reason,
+.image-status {
+  padding: 4rpx 18rpx 12rpx;
+  color: var(--wu-secondary);
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+.empty-state,
+.open-conversation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  padding: 100rpx 48rpx 56rpx;
+  text-align: center;
+}
+.empty-title {
+  font-size: 33rpx;
+  font-weight: 600;
+}
+.open-note {
+  color: var(--wu-secondary);
+  font-size: 26rpx;
+  line-height: 1.7;
+}
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20rpx 20rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.26);
+  box-sizing: border-box;
+}
+.action-sheet {
+  padding: 24rpx 28rpx 0;
+  border-radius: 28rpx;
+  background: var(--wu-elevated);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.sheet-title {
+  padding: 10rpx 0 18rpx;
+  font-size: 31rpx;
+  font-weight: 600;
+  text-align: center;
+}
+.sheet-note,
+.identity-detail {
+  padding: 4rpx 12rpx 24rpx;
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  text-align: center;
+  line-height: 1.65;
+}
+.identity-detail text {
+  display: block;
+}
+.sheet-action {
+  display: block;
+  text-align: center;
+  width: 100%;
+  min-height: 96rpx;
+  padding: 22rpx 8rpx;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  line-height: 1.7;
+  color: var(--wu-accent);
+  background: transparent;
+  border-top: 1rpx solid var(--wu-separator);
+  border-radius: 0;
+}
+.sheet-action.secondary {
+  color: var(--wu-secondary);
+}
+.danger {
+  color: var(--wu-danger);
+}
+.confirm-backdrop {
+  z-index: 90;
+}
+
+.system-more {
+  min-height: 76rpx;
+  padding: 0 16rpx;
+  line-height: 76rpx;
+  color: var(--wu-secondary);
+  background: transparent;
+  font-size: 23rpx;
+}
+
+/* Preserve native scroll/composer sizing without styling through isolation. */
+.chat-notice wu-f7-button {
+  flex: 0 0 auto;
+}
+.history-more {
+  margin: 6px 16px;
+}
+.message-menu wu-f7-button {
+  min-width: 64px;
+}
+.latest-button {
+  position: absolute;
+  bottom: calc(154rpx + env(safe-area-inset-bottom));
+  right: 14px;
+  min-width: 160px;
+}
+.composer-attachment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+}
+.send-button {
+  flex: 0 0 44px;
+  width: 44px;
+}
+.primary-button {
+  display: block;
+  width: 100%;
+}
+.full-action {
+  white-space: normal;
+  line-height: 1.6;
+  color: var(--wu-accent);
+}
+wu-f7-button.sheet-action {
+  min-height: 48px;
+  padding: 0;
+}

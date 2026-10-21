@@ -3,6 +3,8 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { normalizeFramework7ActionNode } from './framework7-action-parity';
+import { renderNativeListItemText } from './framework7-rating-recovery-render';
 import { initialMajorDiscussionView } from '../src/major-discussion/controller';
 import { item, own, rootId } from './major-discussion-helpers';
 type Node =
@@ -19,37 +21,63 @@ const nativeRequire = createRequire(__filename),
   root = path.resolve(__dirname, '../src');
 const flatten = (n: Node[]): Node[] =>
   n.flatMap((i) => (typeof i === 'string' ? [i] : [i, ...flatten(i.children)]));
-const common = model.parse(
-    readFileSync(path.join(root, 'major-discussion/common.wxml'), 'utf8'),
-  ),
-  templates: Record<string, Exclude<Node, string>> = {};
-for (const n of common.children)
-  if (typeof n !== 'string' && n.attrs['name']) templates[n.attrs['name']] = n;
+function discussionTemplates(name: string) {
+  const pageFile = path.join(root, `pages/${name}/${name}.wxml`);
+  const pageSource = readFileSync(pageFile, 'utf8');
+  const templates: Record<string, Exclude<Node, string>> = {};
+  for (const [, source] of pageSource.matchAll(/<import src="([^"]+)"/g)) {
+    const tree = model.parse(
+      readFileSync(path.resolve(path.dirname(pageFile), source!), 'utf8'),
+    );
+    for (const node of tree.children)
+      if (typeof node !== 'string' && node.attrs.name)
+        templates[node.attrs.name] = node;
+  }
+  return templates;
+}
 function render(name: string, patch: Record<string, unknown>) {
   const tree = model.parse(
     readFileSync(path.join(root, `pages/${name}/${name}.wxml`), 'utf8'),
   );
-  return flatten(
+  const nodes = flatten(
     model.render(
       tree.children,
-      { ...initialMajorDiscussionView(), ...patch },
-      templates,
+      {
+        ...initialMajorDiscussionView(),
+        uiPanel: '',
+        timeLabels: {},
+        ...patch,
+      },
+      discussionTemplates(name),
     ),
+  );
+  return nodes.map((node) =>
+    typeof node === 'string' ? node : normalizeFramework7ActionNode(node),
   );
 }
 const buttons = (n: Node[], handler: string) =>
     n.filter(
       (i) =>
         typeof i !== 'string' &&
-        i.tag === 'button' &&
-        i.attrs['bindtap'] === handler,
+        normalizeFramework7ActionNode(i).tag === 'button' &&
+        normalizeFramework7ActionNode(i).attrs['bindtap'] === handler,
     ),
-  text = (n: Node[]) => n.filter((i) => typeof i === 'string').join(' ');
+  text = (n: Node[]) =>
+    n
+      .map((i) =>
+        typeof i === 'string'
+          ? i
+          : i.tag === 'wu-f7-list-item'
+            ? renderNativeListItemText(i)
+            : '',
+      )
+      .join(' ');
 test('real WXML renders named root/reply and reversible likes without score or media controls', () => {
   const nodes = render('major-discussion', {
     loaded: true,
     items: [item()],
     hasSession: true,
+    uiPanel: 'compose',
   });
   assert.match(text(nodes), /合成用户/);
   assert.equal(buttons(nodes, 'onLike').length, 1);
@@ -169,7 +197,7 @@ test('independent Major native contracts, keys and pages contain no Window creat
 });
 test('Major directory and detail WXML display source metadata, named summaries and explicit related/read routes', () => {
   const source = model.parse(
-    readFileSync(path.join(root, 'majors/common.wxml'), 'utf8'),
+    readFileSync(path.join(root, 'majors/framework7-product.wxml'), 'utf8'),
   );
   const directoryTemplates: Record<string, Exclude<Node, string>> = {};
   for (const n of source.children)
@@ -210,8 +238,8 @@ test('Major directory and detail WXML display source metadata, named summaries a
   assert.match(text(nodes), /合成专业/);
   assert.match(text(nodes), /合成学院/);
   assert.match(text(nodes), /110系/);
-  assert.match(text(nodes), /暂无可靠讨论摘要/);
-  assert.doesNotMatch(text(nodes), /0 条主评论/);
+  assert.match(text(nodes), /讨论摘要暂不可用/);
+  assert.doesNotMatch(text(nodes), /0 个主题/);
   assert.equal(buttons(nodes, 'onDetail').length, 1);
   assert.equal(buttons(nodes, 'onSearch').length, 1);
   const known = flatten(
@@ -233,7 +261,7 @@ test('Major directory and detail WXML display source metadata, named summaries a
       directoryTemplates,
     ),
   );
-  assert.match(text(known), /2 条主评论/);
+  assert.match(text(known), /2 个主题/);
   assert.match(text(known), /已核验热评/);
   assert.match(text(known), /3 个赞/);
   const app = JSON.parse(readFileSync(path.join(root, 'app.json'), 'utf8')) as {

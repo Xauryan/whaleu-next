@@ -167,7 +167,7 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
     if (this.view.busy || !this.available()) return;
     if (!this.gateway || !this.store) {
       this.update({
-        error: '当前构建尚未配置评论/回复管理 API 环境',
+        error: '当前构建尚未配置回复管理 API 环境',
         configured: false,
       });
       return;
@@ -226,7 +226,7 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
           status:
             management.version === 3
               ? '已核验当前浏览地区的删除权限；此操作不包含账号处罚'
-              : '已核验此评论/回复所属帖子的原发布地区管理权限',
+              : '已核验此回复所属帖子的原发布地区管理权限',
         });
       },
       (error) =>
@@ -382,7 +382,7 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
           error: communityError(error),
           applied: true,
           receiptStatus:
-            '已确认评论/回复删除；本机回执清理失败，请保留数据并继续查询原回执',
+            '已确认回复删除；本机回执清理失败，请保留数据并继续查询原回执',
         });
         this.runtime.safetyChanges?.invalidate(account);
         this.onSettled();
@@ -404,10 +404,10 @@ export class AdminDiscussionRemovalController extends CommunityController<AdminD
         receipt.outcome === 'applied' && receipt.version === 2
           ? `已确认删除及${receipt.punishment?.kind === 'access_suspension' ? '封号' : '禁言'}；作者已收到私有删除通知和处罚通知`
           : receipt.outcome === 'applied'
-            ? '已确认删除评论/回复；不会通知作者，不禁言，没有恢复此内容的管理入口'
+            ? '已确认删除回复；不会通知作者，不禁言，没有恢复此内容的管理入口'
             : receipt.code === 'ADMIN_DISCUSSION_REMOVAL_STALE'
-              ? '评论/回复状态已变化，原请求未删除新状态，请重新加载并确认'
-              : '原管理员删除请求已取消；已经删除的评论/回复不会恢复',
+              ? '回复状态已变化，原请求未删除新状态，请重新加载并确认'
+              : '原管理员删除请求已取消；已经删除的回复不会恢复',
     });
     // Clear pooled media, identity overlays and list snapshots before fresh reads.
     this.runtime.safetyChanges?.invalidate(account);

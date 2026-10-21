@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "昵称管理",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon"
+  }
+}

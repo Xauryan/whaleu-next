@@ -66,7 +66,7 @@ export const publicExperienceDisplay = (
 export const anonymous = (): Author => ({
   kind: 'anonymous',
   personaId: otherId,
-  displayName: '合成匿名鲸鱼',
+  displayName: '合成分身鲸鱼',
   avatar: null,
   isPostAuthor: true,
 });
@@ -100,7 +100,7 @@ export const post = (overrides: Partial<Post> = {}): Post => ({
 export const comment = (overrides: Partial<Comment> = {}): Comment => ({
   id: commentId,
   postId,
-  text: '合成测试评论',
+  text: '合成测试回复',
   images: [],
   author: anonymous(),
   createdAt,

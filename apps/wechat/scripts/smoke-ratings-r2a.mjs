@@ -1,3 +1,4 @@
+import { createRatingEmittedBridge } from '../test/rating-native-emitted-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -534,7 +535,10 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
       path.join(dist, `pages/rating-${mode}/rating-${mode}.wxml`),
       'utf8',
     );
-  const common = readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8');
+  const common =
+    readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8') +
+    readFileSync(path.join(dist, 'ratings/product.wxml'), 'utf8') +
+    readFileSync(path.join(dist, 'ratings/framework7-product.wxml'), 'utf8');
   const templates = Object.fromEntries(
     parse(common)
       .children.filter((n) => typeof n !== 'string')
@@ -549,7 +553,8 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
     );
   const buttons = (mode, page, handler) =>
     nodes(presented(mode, page)).filter(
-      (node) => node.attrs.bindtap === handler,
+      (node) =>
+        node.attrs.bindtap === handler || node.attrs['bind:press'] === handler,
     );
   const mount = (mode, route = {}) => {
     let page;
@@ -569,19 +574,24 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
     };
     for (const [, handler] of (
       source(mode) + (source(mode).includes('<template') ? common : '')
-    ).matchAll(/bind(?:tap|input)="([^"]+)"/g))
+    ).matchAll(/bind(?::(?:press|input)|tap|input)="([^"]+)"/g))
       assert.equal(
         typeof page[handler],
         'function',
         `emitted ${mode}.${handler}`,
       );
+    page.__ratingEmittedBridge = createRatingEmittedBridge({
+      page,
+      pageFile: path.join(dist, `pages/rating-${mode}/rating-${mode}`),
+      dist,
+    });
     pages.push(page);
     page.onLoad(route);
     page.onShow();
     return page;
   };
   const tap = (page, handler, dataset = {}) =>
-    page[handler]({ currentTarget: { dataset } });
+    page.__ratingEmittedBridge.tap(handler, dataset);
   const thread = (route = {}) =>
     mount('thread', { targetId, rootId, ...route });
   const routeFrom = (url) =>
@@ -640,7 +650,7 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
         /<image|rich-text|requestSubscribeMessage|requestPayment|bindtap="[^"]*(?:Like|Upload|Image)/i,
       );
     }
-    assert.match(source('detail'), /bindtap="onDiscussion"/);
+    assert.match(source('detail'), /bind:press="onDiscussion"/);
     assert.match(
       readFileSync(
         path.join(dist, 'pages/community-updates/community-updates.wxml'),
@@ -648,7 +658,7 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
       ),
       /\/pages\/rating-updates\/rating-updates/,
     );
-    assert.match(source('updates'), /未接入微信外部推送/);
+    assert.match(source('updates'), /浏览列表不会清空未读/);
 
     // R1's root entry is an actual emitted handler; route ancestry stays explicit.
     let detail = mount('detail', { targetId });
@@ -671,9 +681,22 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
     );
     assert.equal(
       buttons('thread', page, 'onDelete').length,
-      2,
-      'only server-authorized own rows are deletable',
+      0,
+      'row deletion starts in a contextual menu',
     );
+    const deletable = page.data.replies.filter(
+      (reply) => reply.isMine && reply.allowedActions.delete,
+    );
+    assert.equal(deletable.length, 2);
+    for (const reply of page.data.replies) {
+      tap(page, 'onTogglePanel', { panel: `reply:${reply.id}` });
+      assert.equal(
+        buttons('thread', page, 'onDelete').length,
+        reply.isMine && reply.allowedActions.delete ? 1 : 0,
+        'only the open server-authorized own row is deletable',
+      );
+    }
+    page.onClosePanel();
     tap(page, 'onReply', { id: blockedReply });
     assert.equal(page.data.composerOpen, false);
     tap(page, 'onDelete', { id: blockedReply });
@@ -877,14 +900,12 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
     page.onUnload();
     state.positionMore = false;
 
-    // Source resolves only. Receiving page resolves again, reads position, applies it, then acknowledges exactly that notice.
+    // Source and destination resolve current authority without acknowledging. Only the source explicit action reads the exact notice.
     let updates = mount('updates');
     await flush();
     assert.equal(updates.data.items.length, 2);
     assert.equal(updates.data.unreadCount, 2);
-    assert.ok(
-      visible('updates', updates).includes('此条评分更新的内容当前不可查看'),
-    );
+    assert.ok(visible('updates', updates).includes('这条内容暂不可查看'));
     let readsBefore = readRequests.length;
     tap(updates, 'onOpen', { id: noticeId });
     await flush();
@@ -900,10 +921,19 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
     await release('position');
     assert.equal(page.data.loaded, true);
     assert.equal(page.data.anchorReplyId, secondReply);
-    assert.equal(readRequests.length, readsBefore + 1);
-    assert.ok(
-      events.lastIndexOf('position:return') <
-        events.lastIndexOf(`read:${noticeId}`),
+    assert.equal(readRequests.length, readsBefore);
+    assert.ok(events.includes('position:return'));
+    page.onRefresh();
+    await flush();
+    page.onCollapse();
+    page.onExpand();
+    await flush();
+    assert.equal(page.data.loaded, true);
+    assert.equal(page.data.anchorReplyId, secondReply);
+    assert.equal(
+      readRequests.length,
+      readsBefore,
+      'render, refresh and expand are not read evidence',
     );
     assert.equal(
       updates.data.items[0].readAt,
@@ -913,6 +943,11 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
     page.onUnload();
     updates.onRefresh();
     await flush();
+    assert.equal(updates.data.items[0].readAt, null);
+    tap(updates, 'onRead', { id: noticeId });
+    await flush();
+    assert.equal(readRequests.length, readsBefore + 1);
+    assert.ok(readRequests.at(-1).url.endsWith(`/updates/${noticeId}/read`));
     assert.equal(updates.data.items[0].readAt, now);
     tap(updates, 'onRead', { id: unavailableNotice });
     tap(updates, 'onRead', { id: unavailableNotice });
@@ -940,7 +975,10 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
     state.noticeAvailable = false;
     tap(updates, 'onOpen', { id: noticeId });
     await flush();
-    assert.deepEqual(updates.data.items[0], notice());
+    const { timeLabel: noticeTimeLabel, ...rawNotice } = updates.data.items[0];
+    assert.deepEqual(rawNotice, notice());
+    assert.equal(typeof noticeTimeLabel, 'string');
+    assert.ok(noticeTimeLabel.length > 0);
     assert.equal(readRequests.length, readsBefore);
     state.noticeAvailable = true;
     state.badTarget = true;
@@ -1124,24 +1162,22 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
       );
       updates.onUnload();
       login();
-      // A read already sent by the receiving page can commit, but a late acknowledgment
-      // cannot restore its body, quoted identity, unread state, or a newer account's view.
-      holds.set('read', deferred());
-      page = thread(noticeRoute);
+      // A user-requested source acknowledgment may commit, but its late receipt
+      // must never restore metadata or counters across an owner boundary.
+      state.read.clear();
+      updates = mount('updates');
       await flush();
-      assert.equal(
-        page.data.loaded,
-        true,
-        `${label}: position applied before read`,
-      );
+      holds.set('read', deferred());
+      tap(updates, 'onRead', { id: noticeId });
+      await flush();
       const readRequest = requests.at(-1);
-      assert.ok(readRequest.url.endsWith('/read'));
-      interrupt(page);
-      clearThread(page, `${label}: pending read`);
+      assert.ok(readRequest.url.endsWith(`/updates/${noticeId}/read`));
+      interrupt(updates);
+      clearUpdates(updates, `${label}: explicit pending read`);
       assert.equal(readRequest.cancellation.isCancelled, true);
       await release('read');
-      clearThread(page, `${label}: late read`);
-      page.onUnload();
+      clearUpdates(updates, `${label}: explicit late read`);
+      updates.onUnload();
       login();
     }
     // Newer navigation invalidates a position response owned by the earlier route.
@@ -1157,19 +1193,21 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
     assert.equal(page.data.anchorReplyId, '');
     assert.equal(readRequests.length, readsBefore);
     page.onUnload();
-    // Already-sent read may commit, but its late result cannot repopulate a hidden page.
-    holds.set('read', deferred());
-    page = thread(noticeRoute);
+    // Explicit already-sent read may commit, but cannot repopulate a hidden source page.
+    state.read.clear();
+    updates = mount('updates');
     await flush();
-    assert.equal(page.data.loaded, true);
-    assert.ok(requests.at(-1).url.endsWith('/read'));
+    holds.set('read', deferred());
+    tap(updates, 'onRead', { id: noticeId });
+    await flush();
+    assert.ok(requests.at(-1).url.endsWith(`/updates/${noticeId}/read`));
     const pendingRead = requests.at(-1);
-    page.onHide();
-    clearThread(page);
+    updates.onHide();
+    clearUpdates(updates);
     assert.equal(pendingRead.cancellation.isCancelled, true);
     await release('read');
-    clearThread(page);
-    page.onUnload();
+    clearUpdates(updates);
+    updates.onUnload();
 
     // Uncertain v2 publication blocks R1 and retries byte-identical intent; recovery never renders journal body.
     seed();
@@ -1463,6 +1501,6 @@ export async function smokeRatingsR2A({ app, dist, flush }) {
     login();
   }
   console.log(
-    'Ratings R2A emitted handlers + real ApiClient/strict gateways + bounded WXML smoke passed: root/reply publication, exact mode/text boundaries, non-cascading deletion, root-unavailable clearing, scan/position/collapse, receiving-page read acknowledgment, lifecycle late-response suppression, immutable uncertain retry, and v1/v2 coordination (synthetic only; no device/provider/PostgreSQL/push proof).',
+    'Ratings R2A emitted handlers + real ApiClient/strict gateways + bounded WXML smoke passed: root/reply publication, exact mode/text boundaries, non-cascading deletion, root-unavailable clearing, scan/position/collapse, nonmutating receiving-page loads plus explicit source acknowledgment, lifecycle late-response suppression, immutable uncertain retry, and v1/v2 coordination (synthetic only; no device/provider/PostgreSQL/push proof).',
   );
 }

@@ -17,7 +17,11 @@ import {
   type Post,
 } from '../../community/contract';
 import type { CommunityRuntime } from '../../community/runtime';
+import type { FeedQuery } from '../../community/gateway';
+import type { Cancellation } from '../../platform/contracts';
 export interface FeedView extends CommunityView {
+  readonly following: boolean;
+  readonly followingAvailable: boolean;
   readonly relatedCampusDistribution: 'complete' | 'unavailable' | '';
   readonly campuses: readonly Campus[];
   readonly campusName: string;
@@ -34,6 +38,8 @@ export interface FeedView extends CommunityView {
 }
 export const initialFeedView = (): FeedView => ({
   ...initialCommunityView(),
+  following: false,
+  followingAvailable: false,
   relatedCampusDistribution: '',
   campuses: [],
   campusName: '',
@@ -59,6 +65,7 @@ export class FeedController extends CommunityController<FeedView> {
     ) => void,
   ) {
     super(runtime, initialFeedView, render);
+    this.update({ followingAvailable: !!runtime.following });
   }
   protected override resetPrivate(): void {
     this.nextCursor = null;
@@ -68,6 +75,10 @@ export class FeedController extends CommunityController<FeedView> {
     this.update({ query });
   }
   protected override onSafetyInvalidated(previous: FeedView): void {
+    this.update({
+      following: previous.following,
+      followingAvailable: !!this.runtime.following,
+    });
     if (!previous.space || !previous.campusId) {
       void this.load();
       return;
@@ -88,7 +99,7 @@ export class FeedController extends CommunityController<FeedView> {
       'campusId' | 'campusName' | 'category' | 'tradingSubtype'
     > & { readonly spaceId: string },
   ): Promise<void> {
-    if (!this.available(false)) return;
+    if (!this.feedAvailable()) return;
     await this.run(
       async (cancel) => {
         const spaces = await this.runtime.gateway!.spaces(
@@ -100,7 +111,7 @@ export class FeedController extends CommunityController<FeedView> {
             (item) => item?.id === selected.spaceId && item.isActive,
           ) ?? null;
         const feed = space
-          ? await this.runtime.gateway!.feed(
+          ? await this.readFeed(
               {
                 spaceId: space.id,
                 ...(selected.category !== 'all'
@@ -140,7 +151,7 @@ export class FeedController extends CommunityController<FeedView> {
   }
   async load(): Promise<void> {
     this.browsingContext?.(undefined);
-    if (!this.available(false) || !this.runtime.profiles) return;
+    if (!this.feedAvailable() || !this.runtime.profiles) return;
     const owner = this.owner;
     const previousCampusId = this.view.campusId;
     this.nextCursor = null;
@@ -199,7 +210,7 @@ export class FeedController extends CommunityController<FeedView> {
             : '尚未解析可用社区地区',
         });
         const feed = space
-          ? await this.runtime.gateway!.feed({ spaceId: space.id }, cancel)
+          ? await this.readFeed({ spaceId: space.id }, cancel)
           : null;
         return { catalog, campus, spaces, space, feed };
       },
@@ -247,7 +258,7 @@ export class FeedController extends CommunityController<FeedView> {
     );
   }
   async chooseCampus(campusId: string): Promise<void> {
-    if (!this.available(false)) return;
+    if (!this.feedAvailable()) return;
     const campus = this.view.campuses.find((item) => item.id === campusId);
     if (!campus?.isActive) return;
     this.runtime.browsingScopeChanges?.clear();
@@ -282,7 +293,7 @@ export class FeedController extends CommunityController<FeedView> {
             : '尚未解析可用社区地区',
         });
         const feed = space
-          ? await this.runtime.gateway!.feed({ spaceId: space.id }, cancel)
+          ? await this.readFeed({ spaceId: space.id }, cancel)
           : null;
         return { spaces, space, feed };
       },
@@ -338,7 +349,7 @@ export class FeedController extends CommunityController<FeedView> {
     await this.refresh();
   }
   async refresh(): Promise<void> {
-    if (!this.available(false) || !this.view.space) return;
+    if (!this.feedAvailable() || !this.view.space) return;
     this.nextCursor = null;
     this.update({
       posts: [],
@@ -353,7 +364,7 @@ export class FeedController extends CommunityController<FeedView> {
       this.view.busy ||
       !this.nextCursor ||
       this.view.continuation !== 'available' ||
-      !this.available()
+      !this.feedAvailable(true)
     )
       return;
     await this.read(true);
@@ -365,7 +376,7 @@ export class FeedController extends CommunityController<FeedView> {
       after = append ? this.nextCursor : null;
     await this.run(
       (cancel) =>
-        this.runtime.gateway!.feed(
+        this.readFeed(
           {
             spaceId: space.id,
             ...(category !== 'all' ? { category } : {}),
@@ -394,7 +405,9 @@ export class FeedController extends CommunityController<FeedView> {
               ? '已展示本次可核验内容；关联学校范围待核验'
               : result.items.length || append
                 ? '已加载'
-                : '此分类暂无可查看的帖子',
+                : this.view.following
+                  ? '此范围暂无关注作者的公开动态'
+                  : '此分类暂无可查看的帖子',
         });
       },
       () => {
@@ -407,5 +420,96 @@ export class FeedController extends CommunityController<FeedView> {
         });
       },
     );
+  }
+  async setFollowing(following: boolean): Promise<void> {
+    if (following === this.view.following) return;
+    this.stop();
+    this.nextCursor = null;
+    this.update({
+      following,
+      followingAvailable: !!this.runtime.following,
+      busy: false,
+      posts: [],
+      loaded: false,
+      canLoadMore: false,
+      continuation: 'end',
+      relatedCampusDistribution: '',
+      error: '',
+      status: following ? '正在加载关注动态' : '正在加载校园动态',
+    });
+    if (!this.feedAvailable()) return;
+    if (this.view.space) await this.refresh();
+    else
+      this.update({
+        status: '请先选择可用的校园社区，再查看关注动态',
+      });
+  }
+  /** Resolve source and scope in one transition. Switching away from Following
+   * must never fetch (or wait for) the old hidden community first. */
+  async showCommunity(kind: 'regional' | 'global'): Promise<void> {
+    const space =
+      kind === 'regional'
+        ? this.regional?.isActive
+          ? this.regional
+          : null
+        : this.view.space?.kind === 'global' && this.view.space.isActive
+          ? this.view.space
+          : this.view.globalSpaces.length === 1
+            ? this.view.globalSpaces[0]!
+            : null;
+    if (!this.view.following && space?.id === this.view.space?.id) return;
+    const sameScope = space?.id === this.view.space?.id;
+    this.stop();
+    this.nextCursor = null;
+    this.update({
+      following: false,
+      followingAvailable: !!this.runtime.following,
+      space,
+      category: sameScope
+        ? this.view.category
+        : kind === 'global'
+          ? 'discussion'
+          : 'all',
+      tradingSubtype: sameScope ? this.view.tradingSubtype : '',
+      busy: false,
+      posts: [],
+      loaded: !space,
+      canLoadMore: false,
+      continuation: 'end',
+      relatedCampusDistribution: '',
+      error: '',
+      status: space
+        ? '正在加载当前社区'
+        : kind === 'global'
+          ? '请选择可用的校际社区'
+          : '此校园尚未配置可用的地区社区',
+    });
+    if (space) await this.refresh();
+  }
+  private feedAvailable(requireLogin = false): boolean {
+    const following = this.view.following;
+    this.update({ followingAvailable: !!this.runtime.following });
+    if (!this.available(following || requireLogin)) return false;
+    if (following && !this.runtime.following) {
+      this.update({
+        error: '关注服务暂未连接，不会用其他帖子代替',
+        status: '关注暂不可用',
+      });
+      return false;
+    }
+    return true;
+  }
+  private async readFeed(query: FeedQuery, cancel: Cancellation) {
+    if (cancel.isCancelled)
+      throw new ClientError('cancelled', 'Feed request replaced');
+    if (!this.view.following) return this.runtime.gateway!.feed(query, cancel);
+    // A missing authenticated Following gateway must never fall back to campus
+    // recommendations. Its projection contains named public identities only.
+    if (!this.accountId() || !this.runtime.following)
+      throw new ClientError('auth-required', 'Following requires login');
+    const result = await this.runtime.following.feed(query, cancel);
+    if (result.items.some((item) => item.author.kind !== 'named'))
+      throw new ClientError('protocol', 'Anonymous post in following feed');
+    return result;
   }
 }

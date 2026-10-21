@@ -1,3 +1,12 @@
+import {
+  ContentReferenceController,
+  initialReferenceView,
+  type ReferencePress,
+} from '../../content-references/controller';
+import { HttpContentReferencesGateway } from '../../content-references/gateway';
+import { detailReferenceRows } from '../../content-references/detail-rows';
+import { nativeBrowsingHistory } from '../../browsing-history/native';
+import { historyObservationSink } from '../../browsing-history/observer';
 import { RatingLinkNavigator } from '../../community/rating-link-navigation';
 import {
   CategoryReclassificationController,
@@ -84,8 +93,51 @@ import {
   initialPollView,
 } from '../../community/poll-controller';
 Page({
+  referenceController: undefined as ContentReferenceController | undefined,
+  onReferencePress(event: { detail: ReferencePress }) {
+    if (this.referenceInteractionBlocked()) return;
+    void this.referenceController?.open(event.detail);
+  },
+  onReferenceThread(event: { detail: ReferencePress }) {
+    if (this.referenceInteractionBlocked()) return;
+    this.referenceController?.openThread(event.detail);
+  },
+  referenceInteractionBlocked() {
+    return (
+      this.data.busy ||
+      this.data.needsReload ||
+      !this.data.loaded ||
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen ||
+      this.data.interaction.busy ||
+      this.data.interaction.frozen ||
+      this.data.categoryManagement.frozen ||
+      this.data.ownerVisibility.frozen ||
+      this.data.uiExpandedMenu !== '' ||
+      this.data.uiShowPreferences ||
+      this.data.uiShowSafety ||
+      this.data.deleteTarget !== null ||
+      this.data.postPin.confirming !== null ||
+      this.data.categoryManagement.confirming !== null ||
+      this.data.ownerVisibility.confirming !== null ||
+      this.data.report.confirmation !== null ||
+      this.data.juryVote.confirmation !== null ||
+      this.data.block.confirmSource !== null ||
+      this.data.namedAvatar.opened ||
+      this.data.mediaRead.expanded ||
+      this.data.mediaGallery.expanded ||
+      (this.data.mediaGallery.groupId !== '' &&
+        this.data.mediaGallery.groupKind !== 'post')
+    );
+  },
   ratingLinkNavigator: undefined as RatingLinkNavigator | undefined,
   data: {
+    references: initialReferenceView(),
+    uiExpandedMenu: '',
+    uiShowPreferences: false,
+    uiShowSafety: false,
     categoryManagement: initialCategoryReclassificationView(),
     reclassificationLabels,
     ownerVisibility: initialOwnerVisibilityView(),
@@ -110,6 +162,19 @@ Page({
     postLikeMutation: initialPostLikeMutationView(),
     tradingMutation: initialTradingMutationView(),
     tradingContacts: initialTradingContactsView(),
+  },
+  onToggleMenu(event: { currentTarget: { dataset: { menu: string } } }) {
+    const menu = event.currentTarget.dataset.menu;
+    this.setData({
+      uiExpandedMenu: this.data.uiExpandedMenu === menu ? '' : menu,
+    });
+  },
+  onTogglePanel(event: { currentTarget: { dataset: { panel: string } } }) {
+    if (event.currentTarget.dataset.panel === 'preferences') {
+      this.setData({ uiShowPreferences: !this.data.uiShowPreferences });
+    } else if (event.currentTarget.dataset.panel === 'safety') {
+      this.setData({ uiShowSafety: !this.data.uiShowSafety });
+    }
   },
   categoryController: undefined as
     CategoryReclassificationController | undefined,
@@ -224,6 +289,7 @@ Page({
   },
   authorNavigator: undefined as AuthorNavigator | undefined,
   viewObserver: undefined as ViewObserver | undefined,
+  historyObserver: undefined as ViewObserver | undefined,
   messagingEntry: undefined as MessagingEntryNavigator | undefined,
   pinController: undefined as PinDetailController | undefined,
   onPinCreate() {
@@ -260,6 +326,8 @@ Page({
     void this.pinController?.confirmCancellation();
   },
   onShow() {
+    this.referenceController?.dispose();
+    this.referenceController = undefined;
     this.ratingLinkNavigator?.dispose();
     const linkRuntime = getApp<WhaleuApp>().community;
     this.ratingLinkNavigator = linkRuntime
@@ -297,6 +365,8 @@ Page({
     );
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
+    this.historyObserver?.dispose();
+    this.historyObserver = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = new AuthorNavigator(
       wx,
@@ -332,11 +402,21 @@ Page({
       this.setData({ error: '帖子地址无效或环境尚未初始化' });
       return;
     }
+    const referenceApi = getApp<WhaleuApp>().identity?.api;
+    this.referenceController = new ContentReferenceController(
+      runtime,
+      referenceApi ? new HttpContentReferencesGateway(referenceApi) : undefined,
+      wx,
+      (view) => this.setData({ references: view }),
+      this.viewSpaceId || undefined,
+      () => !this.referenceInteractionBlocked(),
+    );
     this.categoryController = new CategoryReclassificationController(
       runtime,
       (view) => {
         this.setData({ categoryManagement: view });
         if (view.frozen) {
+          this.referenceController?.suspend();
           this.pinController?.clear();
           this.mediaGalleryController?.clear();
           this.namedAvatarController?.clear();
@@ -358,7 +438,10 @@ Page({
       runtime,
       (view) => {
         this.setData({ ownerVisibility: view });
-        if (view.frozen) this.pinController?.clear();
+        if (view.frozen) {
+          this.referenceController?.suspend();
+          this.pinController?.clear();
+        }
       },
       () => {
         if (!runtime.safetyChanges) {
@@ -370,6 +453,16 @@ Page({
       },
     );
     void this.ownerVisibilityController.load(this.postId);
+    this.historyObserver = new ViewObserver(
+      wx,
+      this,
+      systemClock,
+      historyObservationSink(
+        runtime.sessions,
+        nativeBrowsingHistory(runtime.sessions),
+      ),
+      'detail_visit',
+    );
     if (runtime.views)
       this.viewObserver = new ViewObserver(
         wx,
@@ -384,6 +477,7 @@ Page({
       (view) => {
         this.setData({ report: view });
         if (view.busy || view.frozen) {
+          this.referenceController?.suspend();
           this.mediaGalleryController?.clear();
           this.namedAvatarController?.clear();
           this.identityOverlay?.clear();
@@ -408,6 +502,7 @@ Page({
     this.blockMutations = new BlockMutationController(runtime, (view) => {
       this.setData({ block: view });
       if (view.busy || view.frozen) {
+        this.referenceController?.suspend();
         this.mediaGalleryController?.clear();
         this.namedAvatarController?.clear();
         this.identityOverlay?.clear();
@@ -511,6 +606,7 @@ Page({
       (view) => {
         this.setData({ interaction: view });
         if (view.busy || view.frozen) {
+          this.referenceController?.suspend();
           this.mediaGalleryController?.clear();
           this.namedAvatarController?.clear();
           this.identityOverlay?.clear();
@@ -586,6 +682,10 @@ Page({
       runtime,
       this.postId,
       (view) => {
+        this.referenceController?.reconcile(
+          detailReferenceRows(view),
+          this.controller?.readGeneration ?? 0,
+        );
         this.mediaGalleryController?.reconcile(
           view.busy || !view.loaded || view.needsReload || !view.post
             ? null
@@ -600,7 +700,14 @@ Page({
         );
         if (view.busy || view.needsReload || !view.post)
           this.namedAvatarController?.clear();
-        this.setData({ ...view }, presented);
+        const historyPresented = this.historyObserver?.render(
+          view.loaded && view.post && !view.needsReload ? [view.post.id] : [],
+          this.postId,
+        );
+        this.setData({ ...view }, () => {
+          presented?.();
+          historyPresented?.();
+        });
         if (view.busy || !view.loaded || view.needsReload)
           this.tradingContactsController?.load(null);
         else if (
@@ -1276,13 +1383,13 @@ Page({
     this.identityOverlay?.clear();
     this.overlayTargets = '';
     if (!wx.navigateTo) {
-      this.setData({ error: '当前环境不能打开评论/回复管理，请重试' });
+      this.setData({ error: '当前环境不能打开回复管理，请重试' });
       return;
     }
     wx.navigateTo({
       success: () => undefined,
       url: `/pages/admin-discussion-removal/admin-discussion-removal?kind=${kind}&id=${encodeURIComponent(selected.id)}${this.viewSpaceId && this.viewSpaceId !== this.data.post?.space.id ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
-      fail: () => this.setData({ error: '暂不能打开评论/回复管理，请重试' }),
+      fail: () => this.setData({ error: '暂不能打开回复管理，请重试' }),
     });
   },
   onDeleteComment(event: { currentTarget: { dataset: { id: string } } }) {
@@ -1331,6 +1438,13 @@ Page({
     this.ratingLinkNavigator?.open(this.data.post);
   },
   onHide() {
+    this.referenceController?.dispose();
+    this.referenceController = undefined;
+    this.setData({
+      uiExpandedMenu: '',
+      uiShowPreferences: false,
+      uiShowSafety: false,
+    });
     this.ratingLinkNavigator?.dispose();
     this.ratingLinkNavigator = undefined;
     this.categoryController?.dispose();
@@ -1349,6 +1463,8 @@ Page({
     this.messagingEntry = undefined;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
+    this.historyObserver?.dispose();
+    this.historyObserver = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.reportMutations?.dispose();
@@ -1384,6 +1500,8 @@ Page({
     this.formationIdentityOverlay = undefined;
   },
   onUnload() {
+    this.referenceController?.dispose();
+    this.referenceController = undefined;
     this.ratingLinkNavigator?.dispose();
     this.ratingLinkNavigator = undefined;
     this.categoryController?.dispose();
@@ -1402,6 +1520,8 @@ Page({
     this.messagingEntry = undefined;
     this.viewObserver?.dispose();
     this.viewObserver = undefined;
+    this.historyObserver?.dispose();
+    this.historyObserver = undefined;
     this.authorNavigator?.dispose();
     this.authorNavigator = undefined;
     this.reportMutations?.dispose();

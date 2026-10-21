@@ -1,1 +1,2 @@
-@import '../../community/forms.wxss';
+@import './moderation.wxss';
+@import '../safety-appeal-management/framework7-moderation.wxss';

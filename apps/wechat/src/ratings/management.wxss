@@ -1,0 +1,301 @@
+/* Scoped native management surfaces; public rating and approved tab pages are unchanged. */
+.management-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
+  background: var(--wu-surface);
+  color: var(--wu-text);
+}
+.management-context {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  padding: 12rpx 0 26rpx;
+}
+.management-context-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84rpx;
+  height: 84rpx;
+  flex: 0 0 84rpx;
+  border-radius: 24rpx;
+  background: var(--wu-tint);
+}
+.management-context-copy {
+  min-width: 0;
+}
+.management-page .context-title {
+  font-size: 34rpx;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.5rpx;
+  overflow-wrap: anywhere;
+}
+.management-page .section-title {
+  font-size: 29rpx;
+  line-height: 1.45;
+  font-weight: 600;
+  margin: 0 0 14rpx;
+}
+.management-page .card,
+.management-page .management-section,
+.management-page .management-history {
+  border: 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+  border-radius: 0;
+  padding: 30rpx 0;
+  margin: 0;
+  background: transparent;
+}
+.management-page .card .card {
+  border: 0;
+}
+.management-page .notice,
+.management-page .status,
+.management-page .empty {
+  padding: 8rpx 0;
+  font-size: 25rpx;
+  line-height: 1.6;
+  color: var(--wu-secondary);
+}
+.management-page .status:empty {
+  display: none;
+}
+.management-page .meta {
+  margin: 8rpx 0;
+  font-size: 23rpx;
+  line-height: 1.5;
+  color: var(--wu-secondary);
+  overflow-wrap: anywhere;
+}
+.management-page .body {
+  margin: 12rpx 0;
+  font-size: 28rpx;
+  line-height: 1.65;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.management-page .error {
+  margin: 12rpx 0;
+  padding: 20rpx 24rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: var(--wu-danger);
+  background: var(--wu-danger-bg);
+  border: 0;
+  border-radius: 20rpx;
+}
+.management-page button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  min-height: 88rpx;
+  box-sizing: border-box;
+  margin: 12rpx 0 0;
+  padding: 20rpx 24rpx;
+  border: 0;
+  border-radius: 20rpx;
+  background: var(--wu-bg);
+  color: var(--wu-accent);
+  font-size: 27rpx;
+  line-height: 1.45;
+  font-weight: 500;
+  white-space: normal;
+}
+.management-page button::after {
+  border: 0;
+}
+.management-page button[disabled] {
+  color: var(--wu-secondary);
+  opacity: 0.5;
+}
+.management-page button.management-primary {
+  background: var(--wu-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.management-page button.management-destructive {
+  background: var(--wu-danger-bg);
+  color: var(--wu-danger);
+  font-weight: 600;
+}
+.management-page button.management-quiet {
+  background: transparent;
+  color: var(--wu-secondary);
+}
+.management-page .management-choice {
+  display: inline-flex;
+  min-width: 112rpx;
+  max-width: 100%;
+  margin-right: 12rpx;
+  background: var(--wu-bg);
+  color: var(--wu-text);
+  font-size: 25rpx;
+}
+.management-page .management-choice.is-selected {
+  background: var(--wu-tint);
+  color: var(--wu-accent);
+}
+.management-page .management-link {
+  display: flex;
+  min-height: 88rpx;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+  font-size: 27rpx;
+  line-height: 1.5;
+  color: var(--wu-text);
+}
+.management-page .management-link wu-icon {
+  flex-shrink: 0;
+}
+.management-page input,
+.management-page textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 22rpx 24rpx;
+  font-size: 29rpx;
+  line-height: 1.55;
+  border: 0;
+  border-radius: 18rpx;
+  background: var(--wu-bg);
+  color: var(--wu-text);
+}
+.management-page input {
+  height: 96rpx;
+  min-height: 88rpx;
+  margin: 14rpx 0;
+}
+.management-page textarea {
+  min-height: 210rpx;
+  margin: 14rpx 0 24rpx;
+}
+.management-page .category-node,
+.management-page .history-row,
+.management-page .order-row {
+  margin: 0;
+  padding: 26rpx 0;
+  border: 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+  border-radius: 0;
+}
+.management-page .category-node input,
+.management-page .category-node textarea {
+  padding: 22rpx 24rpx;
+  border-radius: 18rpx;
+  background: var(--wu-bg);
+}
+.management-page .management-confirmation,
+.management-page .card.confirmation,
+.management-page .confirmation {
+  border: 0;
+  border-radius: 22rpx;
+  background: var(--wu-tint);
+  padding: 24rpx;
+  margin: 20rpx 0;
+}
+.management-page .management-confirmation .notice {
+  color: var(--wu-text);
+}
+.management-page .management-scope {
+  background: transparent;
+}
+.management-page .scope-id {
+  display: inline-block;
+  margin: 6rpx 12rpx 6rpx 0;
+  font-size: 23rpx;
+  color: var(--wu-secondary);
+  overflow-wrap: anywhere;
+}
+.management-page .chips {
+  display: flex;
+  gap: 12rpx;
+  margin: 20rpx 0;
+}
+.management-page .chips button {
+  flex: 1;
+  margin: 0;
+}
+.management-page .management-category > .management-action {
+  display: inline-flex;
+  font-size: 25rpx;
+  padding: 18rpx;
+  margin-right: 10rpx;
+}
+.management-page .management-post {
+  padding: 30rpx 0;
+}
+.management-page .author {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+.management-page .management-post > button {
+  display: inline-flex;
+  margin-right: 12rpx;
+  padding: 18rpx 22rpx;
+  font-size: 25rpx;
+}
+.management-page .management-image-row {
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+  font-size: 26rpx;
+}
+.management-page .management-image-row button {
+  display: inline-flex;
+  margin-right: 12rpx;
+}
+.management-page .modal-mask {
+  padding: 24rpx;
+}
+.management-page .modal,
+.management-page .gallery-card {
+  background: var(--wu-elevated);
+  color: var(--wu-text);
+  border: 0;
+  border-radius: 28rpx;
+  padding: 26rpx;
+}
+.management-page .discussion-image {
+  width: 100%;
+  height: 58vh;
+}
+.management-page .discussion-gallery {
+  padding: 24rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+}
+.management-page .category-icon-preview {
+  width: 100%;
+  height: 320rpx;
+  object-fit: contain;
+}
+.management-page .management-history {
+  margin-top: 28rpx;
+}
+.management-page .management-history > .card {
+  border-bottom: 0;
+}
+@media (prefers-color-scheme: dark) {
+  .management-page .management-context-icon,
+  .management-page .management-confirmation {
+    background: var(--wu-tint);
+  }
+  .management-page input,
+  .management-page textarea,
+  .management-page button.management-action,
+  .management-page .management-choice {
+    background: var(--wu-elevated);
+  }
+  .management-page .management-choice.is-selected {
+    background: var(--wu-tint);
+  }
+  .management-page .modal,
+  .management-page .gallery-card {
+    background: var(--wu-elevated);
+  }
+}

@@ -1,0 +1,40 @@
+<template name="errand-admin-command">
+  <view wx:if="{{command.error}}" class="error" aria-role="alert">{{command.error}}</view>
+  <view wx:if="{{command.receiptStatus}}" class="notice">{{command.receiptStatus}}</view>
+  <view wx:if="{{command.frozen}}" class="card recovery">
+    <view class="section-title">原{{command.recoveryOperation}}请求待确认</view>
+    <view class="meta">{{command.recoveryTarget}}</view>
+    <view class="notice">结果未知时保留原编号、目标和完整内容。查询及重试均重新核验当前管理权限；暂未查到回执也不能换编号重发。</view>
+    <view>{{command.status}}</view>
+    <button bindtap="onAdminRecover" disabled="{{command.busy}}">重新核验并查询原回执</button>
+    <button bindtap="onAdminRetry" disabled="{{command.busy}}">重新核验并重试完全相同的请求</button>
+  </view>
+  <button wx:if="{{command.busy}}" bindtap="onAdminCancel">停止等待管理结果</button>
+  <view wx:if="{{command.modal}}" class="modal-mask"><view class="modal">
+    <view class="section-title">{{command.modal.operation === 'admin_delete' ? '确认管理删除' : command.modal.operation === 'restrict_accepter' ? '确认限制接单者' : command.modal.operation === 'issue' ? '确认签发全局限制' : '确认解除此项限制'}}</view>
+    <view class="body">{{command.modal.title}}</view>
+    <view wx:if="{{command.modal.orderId}}" class="meta">订单：{{command.modal.orderId}} · 目标地区：{{command.modal.regionId}}</view>
+    <view wx:if="{{command.modal.participantLabel}}">目标账号：{{command.modal.participantLabel}}</view>
+    <view wx:if="{{command.modal.targetProfileId}}" class="meta">公开资料编号：{{command.modal.targetProfileId}}</view>
+    <view wx:if="{{command.modal.restrictionId}}" class="meta">此项限制编号：{{command.modal.restrictionId}}</view>
+    <view wx:if="{{command.modal.operation === 'admin_delete'}}">
+      <view class="notice">删除后订单将不再公开显示，原生命周期记录会保留。</view>
+      <view><switch checked="{{command.publisherRestriction}}" bindchange="onAdminPublisherRestriction" disabled="{{command.busy}}" />同时限制发布者的跑腿功能（可选，默认不选）</view>
+      <view wx:if="{{command.publisherRestriction}}" class="notice">本次删除与发布者限制将一起确认。限制发布及接取跑腿，对所有地区生效。</view>
+    </view>
+    <view wx:if="{{command.modal.operation === 'restrict_accepter'}}" class="notice">将限制此订单保存的接单者发布及接取跑腿，对所有地区生效。此操作不改变订单生命周期。</view>
+    <view wx:if="{{command.modal.operation === 'issue'}}">
+      <input value="{{command.targetProfileId}}" bindinput="onAdminTarget" placeholder="目标公开资料 UUID" maxlength="36" disabled="{{command.busy}}" />
+      <view class="chips"><button wx:for="{{actionOptions}}" wx:key="value" class="chip {{command.action === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onAdminAction" disabled="{{command.busy}}">{{item.label}}</button></view>
+      <view class="notice">{{actionLabels[command.action]}}限制对所有地区生效；服务端会重新核验目标与权限。</view>
+    </view>
+    <view wx:if="{{command.modal.operation === 'release'}}" class="notice">仅解除这一条{{actionLabels[command.modal.action]}}限制。该账号可能仍有其他发布、接单或全部功能限制。</view>
+    <textarea value="{{command.reason}}" bindinput="onAdminReason" maxlength="-1" placeholder="填写原因；限制及解除必填，最多255字；仅删除可留空，最多500字" disabled="{{command.busy}}" />
+    <view wx:if="{{command.modal.operation === 'issue' || command.modal.operation === 'restrict_accepter' || command.publisherRestriction}}">
+      <picker range="{{durationLabels}}" value="{{command.durationIndex === -1 ? 0 : command.durationIndex}}" bindchange="onAdminDuration" disabled="{{command.busy}}"><view class="link">限制期限：{{command.durationIndex === -1 ? '请选择期限或永久' : durationLabels[command.durationIndex]}}</view></picker>
+      <view class="meta">有限期限从服务端实际签发时间开始；永久限制没有自动结束时间。</view>
+    </view>
+    <button bindtap="onAdminConfirm" disabled="{{command.busy || command.frozen}}" loading="{{command.busy}}">确认{{command.modal.operation === 'admin_delete' ? (command.publisherRestriction ? '删除并限制发布者' : '仅删除订单') : command.modal.operation === 'release' ? '仅解除此项限制' : '签发限制'}}</button>
+    <button bindtap="onAdminDismiss">关闭确认</button>
+  </view></view>
+</template>

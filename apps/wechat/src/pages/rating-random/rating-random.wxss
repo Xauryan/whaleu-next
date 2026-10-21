@@ -1,1 +1,5 @@
 @import '../../ratings/ratings.wxss';
+
+@import '../../ratings/product.wxss';
+
+@import '../../ratings/framework7-recovery.wxss';

@@ -5,9 +5,30 @@ import {
 } from '../../experience/controller';
 import type { ExperienceOperation } from '../../experience/contract';
 Page({
-  data: { ...initialExperienceView() },
+  data: {
+    ...initialExperienceView(),
+    experiencePanels: { appearance: false, records: false, redemption: false },
+  },
   controller: undefined as ExperienceController | undefined,
+  onToggleSection(event: { currentTarget: { dataset: { field: string } } }) {
+    const field = event.currentTarget.dataset.field;
+    if (field !== 'appearance' && field !== 'records' && field !== 'redemption')
+      return;
+    this.setData({
+      experiencePanels: {
+        ...this.data.experiencePanels,
+        [field]: !this.data.experiencePanels[field],
+      },
+    });
+  },
   onShow() {
+    this.setData({
+      experiencePanels: {
+        appearance: false,
+        records: false,
+        redemption: false,
+      },
+    });
     this.controller?.dispose();
     this.controller = undefined;
     const runtime = getApp<WhaleuApp>().experience;
@@ -77,11 +98,17 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.setData({
+      experiencePanels: {
+        appearance: false,
+        records: false,
+        redemption: false,
+      },
+    });
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
-    this.controller?.dispose();
-    this.controller = undefined;
+    this.onHide();
   },
 });

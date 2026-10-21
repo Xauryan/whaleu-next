@@ -1,1 +1,2 @@
-@import '../../major-discussion/major-discussion.wxss';
+@import "../../majors/product.wxss";
+@import "../../majors/framework7-product.wxss";

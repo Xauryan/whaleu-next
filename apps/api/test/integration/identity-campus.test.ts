@@ -1706,12 +1706,21 @@ test(
             const rotation = runtime
               .get(IdentityService)
               .refresh(actor.refreshToken);
+            const blockerPid = (
+              await blocker.query<{ pid: number }>('SELECT pg_backend_pid() pid')
+            ).rows[0]!.pid;
             let waiting = false;
             for (let attempt = 0; attempt < 100; attempt++) {
               waiting = (
                 await pool.query<{ waiting: boolean }>(
-                  "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE query LIKE $1 AND wait_event_type='Lock') waiting",
-                  ['%r.consumed_at%'],
+                  `SELECT EXISTS(SELECT 1 FROM pg_stat_activity
+                   WHERE datname=current_database() AND pid<>pg_backend_pid()
+                   AND query=$1 AND wait_event_type='Lock'
+                   AND $2::integer=ANY(pg_blocking_pids(pid))) waiting`,
+                  [
+                    'SELECT id FROM whaleu_identity.sessions WHERE id=$1 AND account_id=$2 FOR UPDATE',
+                    blockerPid,
+                  ],
                 )
               ).rows[0]!.waiting;
               if (waiting) break;

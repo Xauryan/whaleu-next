@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 const deferred = () => {
   let resolve;
@@ -97,13 +98,20 @@ function render(nodes, scope, templates) {
   }
   return result;
 }
-export async function smokeErrands({ app, dist, flush }) {
-  const { ApiClient } = require(path.join(dist, 'api/client.js'));
-  const { HttpErrandsGateway } = require(path.join(dist, 'errands/gateway.js'));
-  const { PendingErrandStore } = require(path.join(dist, 'errands/pending.js'));
-  const { HttpProfileGateway } = require(path.join(dist, 'profile/gateway.js'));
+export async function smokeErrands({ app, dist, flush, extension = 'js' }) {
+  assert.ok(['js', 'ts'].includes(extension));
+  const { ApiClient } = require(path.join(dist, `api/client.${extension}`));
+  const { HttpErrandsGateway } = require(
+    path.join(dist, `errands/gateway.${extension}`),
+  );
+  const { PendingErrandStore } = require(
+    path.join(dist, `errands/pending.${extension}`),
+  );
+  const { HttpProfileGateway } = require(
+    path.join(dist, `profile/gateway.${extension}`),
+  );
   const { HttpErrandNoticesGateway } = require(
-    path.join(dist, 'errands/notices.js'),
+    path.join(dist, `errands/notices.${extension}`),
   );
   const original = {
     notices: app.community.errandNotices,
@@ -376,37 +384,176 @@ export async function smokeErrands({ app, dist, flush }) {
   );
   app.community.newRequestId = async () => requestId();
   globalThis.wx.navigateTo = (options) => navigation.push(options);
-  const templates = Object.fromEntries(
-    parse(readFileSync(path.join(dist, 'errands/common.wxml'), 'utf8'))
-      .children.filter((n) => typeof n !== 'string')
-      .map((n) => [n.attrs.name, n]),
-  );
+  // Resolve the actual page imports; product pages and administrator pages have
+  // distinct templates. Never substitute stale markup for the emitted UI.
+  const templatesFor = (file, templates = {}) => {
+    for (const node of parse(readFileSync(file, 'utf8')).children) {
+      if (typeof node === 'string') continue;
+      if (node.tag === 'import')
+        templatesFor(
+          path.resolve(path.dirname(file), node.attrs.src),
+          templates,
+        );
+      if (node.tag === 'template' && node.attrs.name)
+        templates[node.attrs.name] = node;
+    }
+    return templates;
+  };
   const source = (mode) =>
     readFileSync(
       path.join(dist, `pages/errand-${mode}/errand-${mode}.wxml`),
       'utf8',
     );
   const presented = (mode, page) =>
-    JSON.stringify(render(parse(source(mode)).children, page.data, templates));
+    JSON.stringify(
+      render(
+        parse(source(mode)).children,
+        page.data,
+        templatesFor(
+          path.join(dist, `pages/errand-${mode}/errand-${mode}.wxml`),
+        ),
+      ),
+    );
+  const bridges = new WeakMap(),
+    modes = new WeakMap();
   const mount = (mode, route = {}) => {
     let page;
     const old = globalThis.Page;
     globalThis.Page = (definition) => {
       page = definition;
     };
-    const module = path.join(dist, `pages/errand-${mode}/errand-${mode}.js`);
+    const module = path.join(
+      dist,
+      `pages/errand-${mode}/errand-${mode}.${extension}`,
+    );
     delete require.cache[require.resolve(module)];
     require(module);
     globalThis.Page = old;
+    const bridge = createNativePressBridge({
+      page,
+      pageFile: path.join(dist, `pages/errand-${mode}/errand-${mode}`),
+      dist,
+      extension,
+    });
+    bridges.set(page, bridge);
+    modes.set(page, mode);
     page.setData = (data) => {
       page.data = { ...page.data, ...data };
+      bridge.sync();
+    };
+    for (const method of ['onHide', 'onUnload']) {
+      const original = page[method];
+      page[method] = function (...args) {
+        bridge.lifecycle(method === 'onHide' ? 'hide' : 'detach');
+        return original?.apply(this, args);
+      };
+    }
+    const show = page.onShow;
+    page.onShow = function (...args) {
+      const result = show.apply(this, args);
+      bridge.lifecycle('show');
+      return result;
     };
     page.onLoad?.(route);
     page.onShow();
     return page;
   };
-  const input = (page, field, value) =>
-    page.onForm({ currentTarget: { dataset: { field } }, detail: { value } });
+  const press = (page, handler, dataset = {}) => {
+    const handle = bridges.get(page).capture(handler, dataset);
+    const fired = handle.press();
+    handle.detach();
+    assert.equal(fired, true, `Visible native Component→Page ${handler}`);
+  };
+  const flatten = (nodes) =>
+    nodes.flatMap((node) =>
+      typeof node === 'string' ? [] : [node, ...flatten(node.children)],
+    );
+  const input = (page, field, value, handler = 'onForm') => {
+    const mode = modes.get(page);
+    const file = path.join(dist, `pages/errand-${mode}/errand-${mode}`);
+    const nodes = flatten(
+      render(
+        parse(source(mode)).children,
+        page.data,
+        templatesFor(file + '.wxml'),
+      ),
+    );
+    const host = nodes.find(
+      (n) =>
+        (n.attrs['bind:input'] === handler || n.attrs.bindinput === handler) &&
+        n.attrs['data-field'] === field,
+    );
+    assert.ok(host, `Visible editor ${handler}/${field}`);
+    const event = {
+      currentTarget: { dataset: { field } },
+      detail: { value, cursor: value.length, keyCode: 229 },
+    };
+    if (host.tag === 'textarea') {
+      assert.notEqual(host.attrs.disabled, 'true');
+      page[handler](event); // Intentional native multiline platform exception.
+      return;
+    }
+    assert.equal(host.tag, 'wu-f7-input');
+    const config = JSON.parse(readFileSync(file + '.json', 'utf8'));
+    const component = path.resolve(
+      path.dirname(file),
+      config.usingComponents[host.tag],
+    );
+    let definition;
+    const previous = globalThis.Component;
+    globalThis.Component = (value) => {
+      definition = value;
+    };
+    try {
+      const module = `${component}.${extension}`;
+      delete require.cache[require.resolve(module)];
+      require(module);
+    } finally {
+      globalThis.Component = previous;
+    }
+    assert.ok(
+      readFileSync(component + '.wxml', 'utf8').includes(
+        'catchinput="onInput"',
+      ),
+    );
+    const properties = Object.fromEntries(
+      Object.entries(definition.properties).map(([key, prop]) => {
+        const raw =
+          host.attrs[
+            key.replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase())
+          ];
+        return [
+          key,
+          raw === undefined
+            ? structuredClone(prop.value)
+            : prop.type === Boolean
+              ? raw === 'true'
+              : prop.type === Number
+                ? Number(raw)
+                : raw,
+        ];
+      }),
+    );
+    let emitted = 0;
+    const instance = {
+      properties,
+      data: structuredClone(definition.data),
+      ...definition.methods,
+      setData(patch) {
+        Object.assign(this.data, patch);
+      },
+      triggerEvent(name, detail, options) {
+        assert.equal(name, 'input');
+        assert.deepEqual(options, { bubbles: false, composed: false });
+        emitted++;
+        page[handler]({ ...event, detail });
+      },
+    };
+    definition.lifetimes.attached.call(instance);
+    definition.methods.onInput.call(instance, event);
+    definition.lifetimes.detached.call(instance);
+    assert.equal(emitted, 1);
+  };
   for (const mode of ['list', 'mine', 'detail', 'compose', 'notices']) {
     // Both registered owners use their bounded local-file preview only. No
     // arbitrary remote image URLs, payment or external group dispatch is admitted.
@@ -434,8 +581,9 @@ export async function smokeErrands({ app, dist, flush }) {
       /<image|rich-text|chooseImage|requestPayment|subscribeMessage|eventChannel/i,
     );
   }
+  // Product navigation moved from the feed to the catalog-backed Campus hub.
   const feed = readFileSync(
-    path.join(dist, 'pages/community-feed/community-feed.wxml'),
+    path.join(dist, `pages/campus-hub/campus-hub.${extension}`),
     'utf8',
   );
   assert.match(feed, /\/pages\/errand-list\/errand-list/);
@@ -443,6 +591,10 @@ export async function smokeErrands({ app, dist, flush }) {
   await flush();
   assert.equal(page.data.loaded, true);
   assert.equal(page.data.regionId, regionId);
+  press(page, 'onTogglePanel', { field: 'sort' });
+  assert.equal(page.data.uiPanels.sort, true);
+  page.onTogglePanel({ currentTarget: { dataset: { field: 'unknown' } } });
+  assert.equal(page.data.uiPanels.sort, true);
   assert.ok(presented('list', page).includes(publicText));
   assert.ok(!presented('list', page).includes(privateText));
   assert.equal(page.data.canMore, false);
@@ -450,7 +602,7 @@ export async function smokeErrands({ app, dist, flush }) {
   page.onMore();
   await flush();
   assert.equal(requests.length, endReads);
-  page.onOrder({ currentTarget: { dataset: { id: orderId } } });
+  press(page, 'onOrder', { id: orderId });
   page.onOrder({ currentTarget: { dataset: { id: orderId } } });
   assert.equal(navigation.length, 1);
   assert.equal(
@@ -458,6 +610,9 @@ export async function smokeErrands({ app, dist, flush }) {
     `/pages/errand-detail/errand-detail?orderId=${orderId}`,
   );
   page.onHide();
+  assert.ok(
+    Object.values(page.data.uiPanels).every((value) => value === false),
+  );
   navigation[0].fail();
   assert.equal(page.data.error, '');
   assert.deepEqual(page.data.items, []);
@@ -472,28 +627,25 @@ export async function smokeErrands({ app, dist, flush }) {
   await flush();
   assert.ok(!presented('detail', page).includes(privateText));
   state.holdHistory = deferred();
-  page.onAccept();
+  press(page, 'onAccept');
   await flush();
   assert.equal(page.data.acceptModal, true);
-  page.onCloseAccept();
+  press(page, 'onCloseAccept');
   state.holdHistory.resolve();
   await flush();
   state.holdHistory = null;
   assert.equal(page.data.acceptModal, false);
   assert.deepEqual(page.data.contacts, { wechat: '', phone: '' });
-  page.onAccept();
+  press(page, 'onAccept');
   await flush();
   assert.equal(page.data.contacts.wechat, 'synthetic-remembered');
-  page.onToggleLast();
+  press(page, 'onToggleLast');
   assert.equal(page.data.contacts.wechat, '');
-  page.onContact({
-    currentTarget: { dataset: { field: 'wechat' } },
-    detail: { value: 'synthetic-new-runner' },
-  });
+  input(page, 'wechat', 'synthetic-new-runner', 'onContact');
   state.holdCommand = deferred();
   state.loseReply = true;
-  page.onConfirmAccept();
-  page.onConfirmAccept();
+  press(page, 'onConfirmAccept');
+  page.onConfirmAccept(); // Deliberately bypass UI to retain the original controller duplicate probe.
   await flush();
   assert.equal(commands.length, 1);
   const originalCommand = {
@@ -508,7 +660,7 @@ export async function smokeErrands({ app, dist, flush }) {
   assert.ok(presented('detail', page).includes('重试完全相同的请求'));
   assert.ok(!presented('detail', page).includes(privateWechat));
   state.loseReply = false;
-  page.onRetry();
+  press(page, 'onRetry');
   await flush();
   assert.equal(commands.length, 2);
   assert.deepEqual(commands[1].body, originalCommand.body);
@@ -521,7 +673,7 @@ export async function smokeErrands({ app, dist, flush }) {
   assert.ok(!text.includes('data-action":"complete'));
   assert.ok(text.includes('只有发布者可以取消'));
   state.lifecycle = 'completed';
-  page.onRefresh();
+  press(page, 'onRefresh');
   await flush();
   text = presented('detail', page);
   assert.ok(text.includes(privateText));
@@ -533,10 +685,10 @@ export async function smokeErrands({ app, dist, flush }) {
   page = mount('detail', { orderId });
   await flush();
   assert.ok(presented('detail', page).includes(privateWechat));
-  page.onConfirm({ currentTarget: { dataset: { action: 'complete' } } });
+  press(page, 'onConfirm', { action: 'complete' });
   assert.equal(page.data.confirmAction, 'complete');
-  page.onConfirmCommand();
-  page.onConfirmCommand();
+  press(page, 'onConfirmCommand');
+  page.onConfirmCommand(); // Original duplicate-controller probe.
   await flush();
   assert.equal(commands.length, 3);
   assert.equal(page.data.detail.state, 'completed');
@@ -548,6 +700,7 @@ export async function smokeErrands({ app, dist, flush }) {
   // Publish snapshots exact canonical text/decimal/contact intent and persists before sending.
   page = mount('compose', { regionId });
   await flush();
+  press(page, 'onTogglePanel', { field: 'private' });
   for (const [field, value] of Object.entries({
     title: ' 合成新订单 ',
     publicText: ' 合成公开\r\n说明 ',
@@ -560,15 +713,15 @@ export async function smokeErrands({ app, dist, flush }) {
     input(page, field, value);
   state.failStorage = true;
   const beforePublish = commands.length;
-  page.onPublish();
+  press(page, 'onPublish');
   await flush();
   assert.equal(commands.length, beforePublish);
   assert.ok(page.data.error);
   state.failStorage = false;
   state.holdCommand = deferred();
   state.loseReply = true;
-  page.onPublish();
-  page.onPublish();
+  press(page, 'onPublish');
+  page.onPublish(); // Original duplicate-controller probe.
   await flush();
   assert.equal(commands.length, beforePublish + 1);
   const publish = commands.at(-1).body;
@@ -591,7 +744,7 @@ export async function smokeErrands({ app, dist, flush }) {
   );
   assert.equal(commands.length, beforePublish + 1);
   assert.equal(page.data.frozen, false);
-  page.onPublisherContacts();
+  press(page, 'onPublisherContacts');
   assert.equal(page.data.form.wechat, 'synthetic-publisher');
   page.onUnload();
   // Late private detail after root hide and same-account relogin is discarded.
@@ -609,12 +762,17 @@ export async function smokeErrands({ app, dist, flush }) {
   page = mount('detail', { orderId });
   await flush();
   assert.ok(page.data.detail.oppositeContact);
+  press(page, 'onTogglePanel', { field: 'details' });
+  assert.equal(page.data.uiPanels.details, true);
   app.identity.sessions.completeLogin(
     app.identity.sessions.beginLogin(),
     original.credentials,
   );
   assert.equal(page.data.detail, null);
   assert.equal(page.data.form.wechat, '');
+  assert.ok(
+    Object.values(page.data.uiPanels).every((value) => value === false),
+  );
   page.onUnload();
   // Own histories work without profile/current identity reads and finish at the actual end.
   const ownStart = requests.length;
@@ -638,7 +796,7 @@ export async function smokeErrands({ app, dist, flush }) {
   assert.equal(page.data.unreadCount, 1);
   assert.ok(presented('notices', page).includes('你发布的跑腿已有人接单'));
   assert.ok(!presented('notices', page).includes(privateWechat));
-  page.onOrder({ currentTarget: { dataset: { id: revision } } });
+  press(page, 'onOrder', { id: revision });
   page.onOrder({ currentTarget: { dataset: { id: revision } } });
   assert.equal(navigation.length, 2);
   assert.equal(
@@ -647,8 +805,8 @@ export async function smokeErrands({ app, dist, flush }) {
   );
   state.holdNotice = deferred();
   const noticeReads = requests.filter((r) => r.method === 'PUT').length;
-  page.onRead({ currentTarget: { dataset: { id: revision } } });
-  page.onRead({ currentTarget: { dataset: { id: revision } } });
+  press(page, 'onRead', { id: revision });
+  page.onRead({ currentTarget: { dataset: { id: revision } } }); // Original duplicate-controller probe.
   await flush();
   assert.equal(
     requests.filter((r) => r.method === 'PUT').length,
@@ -675,7 +833,7 @@ export async function smokeErrands({ app, dist, flush }) {
   page = mount('notices');
   await flush();
   assert.equal(page.data.items.length, 1);
-  page.onRead({ currentTarget: { dataset: { id: revision } } });
+  press(page, 'onRead', { id: revision });
   await flush();
   assert.equal(page.data.loaded, false);
   assert.deepEqual(page.data.items, []);
@@ -691,7 +849,7 @@ export async function smokeErrands({ app, dist, flush }) {
   app.community.newRequestId = original.newRequestId;
   globalThis.wx.navigateTo = original.navigateTo;
   console.log(
-    'Errand emitted smoke passed: native text publish, exact decimal/contact snapshots, campus operating-region resolution, home/foreign-own discovery, current participant/private/contact branches, modal dismissal, repeated commands, frozen identical recovery, storage failure, publisher completion, own histories, local accepted/completed notice navigation/read/unread, session/root-hide clearing; synthetic WXML model, not device acceptance',
+    'Errand native Component→Page→controller smoke passed: native text publish, exact decimal/contact snapshots, campus operating-region resolution, home/foreign-own discovery, current participant/private/contact branches, modal dismissal, repeated commands, frozen identical recovery, storage failure, publisher completion, own histories, local accepted/completed notice navigation/read/unread, session/root-hide clearing; synthetic WXML model, not device acceptance',
   );
 }
 

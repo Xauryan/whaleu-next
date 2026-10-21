@@ -1,0 +1,139 @@
+{
+  "list": {
+    "busy": false,
+    "loaded": true,
+    "hasSession": true,
+    "error": "",
+    "status": "等待加载",
+    "pending": false,
+    "items": [
+      {
+        "id": "55555555-5555-4555-8555-555555555555",
+        "conversation": {
+          "id": "55555555-5555-4555-8555-555555555555",
+          "self": {
+            "mode": "named",
+            "displayName": "自己",
+            "profileId": "12345678-1234-4123-8123-123456789abc"
+          },
+          "peer": {
+            "mode": "named",
+            "displayName": "示例同学 A",
+            "profileId": "99999999-9999-4999-8999-999999999999"
+          },
+          "source": null,
+          "unreadCount": 2,
+          "hidden": false,
+          "sendAvailability": "available",
+          "blockScope": "named",
+          "blockedByYou": false
+        },
+        "latest": {
+          "id": "66666666-6666-4666-8666-666666666666",
+          "sequence": "1",
+          "sender": "peer",
+          "state": "text",
+          "text": "这是仅用于界面预览的合成消息。",
+          "createdAt": "2026-10-09T18:00:00.000Z",
+          "canRecall": false
+        },
+        "updatedAt": "2026-10-20T11:08:00Z"
+      },
+      {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "conversation": {
+          "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "self": {
+            "mode": "named",
+            "displayName": "自己",
+            "profileId": "12345678-1234-4123-8123-123456789abc"
+          },
+          "peer": {
+            "mode": "named",
+            "displayName": "示例同学 B",
+            "profileId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+          },
+          "source": null,
+          "unreadCount": 0,
+          "hidden": false,
+          "sendAvailability": "available",
+          "blockScope": "named",
+          "blockedByYou": false
+        },
+        "latest": {
+          "id": "66666666-6666-4666-8666-666666666666",
+          "sequence": "1",
+          "sender": "peer",
+          "state": "text",
+          "text": "晚一点见！这条消息也是示例数据。",
+          "createdAt": "2026-10-09T18:00:00.000Z",
+          "canRecall": false
+        },
+        "updatedAt": "2026-10-20T10:28:00Z"
+      }
+    ],
+    "coverage": "local",
+    "canMore": false,
+    "unread": null,
+    "confirmHide": null,
+    "browsingOlder": false,
+    "needsRestart": false
+  },
+  "rows": [
+    {
+      "key": "dm:55555555-5555-4555-8555-555555555555",
+      "kind": "person",
+      "name": "示例同学 A",
+      "initial": "示",
+      "icon": "person",
+      "tone": "person",
+      "summary": "这是仅用于界面预览的合成消息。",
+      "timestamp": "2026-10-20T11:08:00Z",
+      "timeLabel": "04:08",
+      "unread": 2,
+      "unreadLabel": "2",
+      "hasUnread": true,
+      "anonymous": false,
+      "url": "/pages/private-message-detail/private-message-detail?conversationId=55555555-5555-4555-8555-555555555555"
+    },
+    {
+      "key": "sender:system",
+      "kind": "sender",
+      "name": "系统消息",
+      "initial": "",
+      "icon": "bell",
+      "tone": "system",
+      "summary": "内容处理结果已更新",
+      "timestamp": "2026-10-20T10:54:00Z",
+      "timeLabel": "03:54",
+      "unread": null,
+      "unreadLabel": "",
+      "hasUnread": true,
+      "anonymous": false,
+      "url": "/pages/system-notices/system-notices"
+    },
+    {
+      "key": "dm:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "kind": "person",
+      "name": "示例同学 B",
+      "initial": "示",
+      "icon": "person",
+      "tone": "person",
+      "summary": "晚一点见！这条消息也是示例数据。",
+      "timestamp": "2026-10-20T10:28:00Z",
+      "timeLabel": "03:28",
+      "unread": 0,
+      "unreadLabel": "",
+      "hasUnread": false,
+      "anonymous": false,
+      "url": "/pages/private-message-detail/private-message-detail?conversationId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    }
+  ],
+  "hasSession": true,
+  "noticesBusy": false,
+  "navigationError": "",
+  "searchOpen": false,
+  "searchQuery": "",
+  "chatHelpOpen": false,
+  "filteredRows": []
+}

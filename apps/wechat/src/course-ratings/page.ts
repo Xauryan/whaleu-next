@@ -26,6 +26,7 @@ export function registerCourseRatingPage(mode: CourseMode): void {
   Page({
     data: {
       ...initialCourseRatingView(),
+      uiPanel: '',
       scores: courseScoreChoices,
       departmentLabels: departments.map((id) =>
         id === null
@@ -62,6 +63,7 @@ export function registerCourseRatingPage(mode: CourseMode): void {
           current.credentials?.accountId !== owner.credentials?.accountId
         ) {
           owner = current;
+          this.setData({ uiPanel: '' });
           this.navigator?.dispose();
           if (this.controller)
             this.navigator = new DirectoryNavigator(wx, () =>
@@ -74,6 +76,7 @@ export function registerCourseRatingPage(mode: CourseMode): void {
       });
     },
     onShow() {
+      this.setData({ uiPanel: '' });
       this.controller?.dispose();
       this.navigator?.dispose();
       this.controller = undefined;
@@ -94,6 +97,7 @@ export function registerCourseRatingPage(mode: CourseMode): void {
       this.controller = new CourseRatingController(runtime, mode, (view) =>
         this.setData({
           ...view,
+          ...(!view.hasSession || !view.loaded ? { uiPanel: '' } : {}),
           departmentIndex: Math.max(
             0,
             departments.indexOf(view.departmentDraft),
@@ -101,6 +105,15 @@ export function registerCourseRatingPage(mode: CourseMode): void {
         }),
       );
       void this.controller.load(this.courseId);
+    },
+    onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+      const panel = event.currentTarget.dataset.panel;
+      if (typeof panel !== 'string' || !/^[a-zA-Z0-9:_-]{1,100}$/.test(panel))
+        return;
+      this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+    },
+    onClosePanel() {
+      this.setData({ uiPanel: '' });
     },
     onRefresh() {
       void this.controller?.reload();
@@ -156,6 +169,7 @@ export function registerCourseRatingPage(mode: CourseMode): void {
       void this.controller?.submit();
     },
     onHide() {
+      this.setData({ uiPanel: '' });
       this.navigator?.dispose();
       this.controller?.dispose();
       this.navigator = undefined;

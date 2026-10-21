@@ -138,7 +138,12 @@ process.once('message', async (input) => {
         'original journal retained',
         h,
       );
+    const openPanel = (h, panel) => {
+      if (h.page.data.uiPanel !== panel) h.tap('onTogglePanel', { panel });
+      assert.equal(h.page.data.uiPanel, panel);
+    };
     const choose = (h, score) => {
+      openPanel(h, 'score');
       h.tap('onScore', { score });
       h.tap('onConfirm');
       assert.equal(h.page.data.confirming, 'score');
@@ -173,6 +178,7 @@ process.once('message', async (input) => {
     assert.equal(list.page.data.pageNumber, 2);
     assert.ok(list.page.data.items.every((item) => !firstIds.has(item.id)));
     assert.equal(list.page.data.canNext, false);
+    openPanel(list, 'filter');
     list.tap('onCanteen', { id: input.canteenId });
     const secondCanteen = list.page.data.catalog.canteens.find(
       (item) => item.id !== input.canteenId,
@@ -211,10 +217,14 @@ process.once('message', async (input) => {
     close(list);
     let h = mount('window-rating-detail', { windowId: input.windowId });
     await loaded(h);
+    openPanel(h, 'score');
     const scoreButtons = h
       .nodes()
       .filter(
-        (node) => typeof node !== 'string' && node.attrs.bindtap === 'onScore',
+        (node) =>
+          typeof node !== 'string' &&
+          node.tag === 'wu-f7-button' &&
+          node.attrs['bind:press'] === 'onScore',
       );
     assert.equal(scoreButtons.length, 21);
     assert.deepEqual(
@@ -222,7 +232,25 @@ process.once('message', async (input) => {
       Array.from({ length: 21 }, (_, i) => i - 10),
     );
     assert.equal(h.page.data.detail.myScore.kind, 'not_submitted');
-    assert.match(text(h), /暂无均分/);
+    assert.deepEqual(h.page.data.detail.window.summary, {
+      kind: 'known',
+      ratingCount: 0,
+      mean: null,
+    });
+    assert.match(text(h), /暂无评分/);
+    assert.match(text(h), /还没有评分记录/);
+    assert.match(text(h), /还未评分/);
+    assert.equal(
+      h
+        .nodes()
+        .some(
+          (node) =>
+            typeof node !== 'string' &&
+            (node.attrs.class ?? '').split(/\s+/).includes('dp-score-value'),
+        ),
+      false,
+      'Empty summary must not render a numeric mean, including zero',
+    );
     choose(h, -10);
     transport.dropSuccess = { path: scorePath, method: 'POST' };
     h.tap('onSubmit');
@@ -349,7 +377,8 @@ process.once('message', async (input) => {
     assert.equal(h.page.data.detail.myScore.score, -4);
     const filtered = mount('window-ratings');
     await loaded(filtered);
-    filtered.event('bindinput', 'onMinimum', { value: '0' });
+    openPanel(filtered, 'filter');
+    filtered.event('bind:input', 'onMinimum', { value: '0' });
     filtered.tap('onSearch');
     await loaded(filtered);
     assert.equal(
@@ -357,11 +386,13 @@ process.once('message', async (input) => {
         .summary.mean,
       -4,
     );
-    filtered.event('bindinput', 'onMinimum', { value: '1' });
+    openPanel(filtered, 'filter');
+    filtered.event('bind:input', 'onMinimum', { value: '1' });
     filtered.tap('onSearch');
     await loaded(filtered);
     assert.deepEqual(filtered.page.data.items, []);
-    filtered.event('bindinput', 'onMinimum', { value: '-10' });
+    openPanel(filtered, 'filter');
+    filtered.event('bind:input', 'onMinimum', { value: '-10' });
     filtered.tap('onSearch');
     await loaded(filtered);
     assert.equal(
@@ -427,7 +458,7 @@ process.once('message', async (input) => {
     assert.equal(unknown.page.data.canScore, false);
     assert.equal(unknown.page.data.detail.myScore.kind, 'unavailable');
     assert.match(text(unknown), /历史评分暂不能确认/);
-    assert.doesNotMatch(text(unknown), /当前已确认尚未评分/);
+    assert.doesNotMatch(text(unknown), /还未评分/);
     close(unknown);
     await send({
       event: 'done',

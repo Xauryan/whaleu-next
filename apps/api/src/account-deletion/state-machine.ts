@@ -1,0 +1,9 @@
+import { COOLING_MS, REREGISTRATION_MS, DeletionError } from './contracts.js';
+import type { CancellationPolicy, DeletionStatus } from './contracts.js';
+function instant(now:number){if(!Number.isSafeInteger(now)||now<0)throw new DeletionError('INVALID_CLOCK');}
+export function requested(requestId:string,now:number):DeletionStatus {instant(now);return {requestId,phase:'cooling',revision:'1',requestedAt:now,eligibleAt:now+COOLING_MS,irreversibleAt:null,completedAt:null,reregisterAfter:null,pending:[]};}
+export function explicitlyCancel(state:DeletionStatus,expectedRevision:string,now:number,policy:CancellationPolicy):DeletionStatus {instant(now);if(state.phase!=='cooling'||state.revision!==expectedRevision)throw new DeletionError('CANCELLATION_STALE');if(policy.cutoff==='deadline'&&now>=state.eligibleAt)throw new DeletionError('CANCELLATION_TOO_LATE');return {...state,phase:'cancelled',revision:String(BigInt(state.revision)+1n),pending:[]};}
+export function claim(state:DeletionStatus,now:number):DeletionStatus {instant(now);if(state.phase!=='cooling'||now<state.eligibleAt)throw new DeletionError('COOLING_NOT_FINISHED');return {...state,phase:'erasing',revision:String(BigInt(state.revision)+1n),irreversibleAt:now};}
+export function complete(state:DeletionStatus,now:number):DeletionStatus {instant(now);if(state.phase==='completed')return state;if(!['erasing','waiting'].includes(state.phase)||state.irreversibleAt===null||now<state.irreversibleAt)throw new DeletionError('COMPLETION_NOT_READY');return {...state,phase:'completed',revision:String(BigInt(state.revision)+1n),completedAt:now,reregisterAfter:now+REREGISTRATION_MS,pending:[]};}
+/** Login, refresh, polling and opening a page have no transition at all. */
+export function observe(state:DeletionStatus):DeletionStatus{return {...state,pending:[...state.pending]};}

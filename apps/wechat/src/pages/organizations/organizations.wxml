@@ -1,10 +1,91 @@
-<view class="screen"><view class="eyebrow">WHALEU · 组织</view><view class="title">我管理的组织</view>
- <navigator class="link" url="/pages/organization-editor/organization-editor">申请新组织、群聊或公众号 →</navigator>
- <button bindtap="onMine">我的管理与申请</button><button wx:if="{{management !== 'none'}}" bindtap="onReviews">学校待审申请</button>
- <view wx:if="{{mode === 'review'}}" class="notice">学校：{{regionName || '尚未选择'}}。仅显示当前实际管理地区的待审申请。</view>
- <view wx:if="{{mode === 'review' &amp;&amp; management === 'global'}}" class="card"><input value="{{campusQuery}}" bindinput="onCampusInput" placeholder="搜索要管理的学校" /><button bindtap="onFindCampus" disabled="{{selecting}}">搜索学校</button><button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onChooseCampus" disabled="{{selecting}}">{{item.fullName}}</button></view>
- <view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{status}}" class="notice">{{status}}</view><button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新</button>
- <view wx:for="{{items}}" wx:key="id" class="card"><view class="section-title">{{item.data.name}}</view><view>{{organizationStateLabels[item.state]}} · {{organizationRoleLabels[item.role]}}</view><view>{{item.data.introText}}</view><navigator url="/pages/organization-editor/organization-editor?id={{item.id}}">{{mode === 'review' ? '查看申请与审核' : '查看和管理'}} →</navigator></view>
- <view wx:if="{{loaded &amp;&amp; !items.length}}" class="notice">当前没有{{mode === 'review' ? '待审申请' : '组织或申请'}}。</view><button wx:if="{{more}}" bindtap="onMore" disabled="{{busy}}">下一批</button>
- <navigator url="/pages/directory-hub/directory-hub">返回校园目录 →</navigator>
+<view class="information-screen f7-ios-theme f7-information-screen">
+  <wu-f7-block spacing="compact" class="f7-information-header">
+    <view class="toolbar">
+      <navigator class="create-link" url="/pages/organization-editor/organization-editor">
+        <wu-icon name="plus" tone="accent" size="19" />
+        <text>
+          申请新组织
+        </text>
+      </navigator>
+      <wu-f7-button class="icon-button" aria-label="刷新组织列表" disabled="{{busy}}" loading="{{busy}}" bind:press="onRefresh">
+        <wu-icon name="refresh" size="19" />
+      </wu-f7-button>
+    </view>
+    <view class="tabs">
+      <wu-f7-button class="tab {{mode === 'mine' ? 'active' : ''}}" bind:press="onMine" variant="{{mode === 'mine' ? 'tonal' : 'plain'}}">
+        我的组织与申请
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{management !== 'none'}}" class="tab {{mode === 'review' ? 'active' : ''}}" bind:press="onReviews" variant="{{mode === 'review' ? 'tonal' : 'plain'}}">
+        待我审核
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{mode === 'review'}}" class="scope-caption review-scope">
+      <wu-icon name="location" size="16" />
+      <text>
+        {{regionName || '请选择审核学校'}}
+      </text>
+    </view>
+    <view wx:if="{{mode === 'review' &amp;&amp; management === 'global'}}" class="campus-search">
+      <view class="search-field">
+        <wu-icon name="search" size="18" />
+        <wu-f7-input value="{{campusQuery}}" placeholder="搜索要管理的学校" bind:input="onCampusInput" aria-label="搜索要管理的学校" />
+        <wu-f7-button class="text-button" disabled="{{selecting}}" bind:press="onFindCampus">
+          搜索
+        </wu-f7-button>
+      </view>
+      <wu-f7-list-item wx:for="{{campuses}}" wx:key="id" class="campus-result" data-id="{{item.id}}" disabled="{{selecting}}" bind:press="onChooseCampus" link="{{true}}" title-slot="{{true}}" aria-label="{{item.fullName}}">
+        <view slot="title" class="f7-information-row-label">
+          {{item.fullName}}
+          <wu-icon name="chevron-right" size="14" />
+        </view>
+      </wu-f7-list-item>
+    </view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">
+      {{error}}
+    </view>
+    <view wx:if="{{status}}" class="status" aria-role="status">
+      {{status}}
+    </view>
+  </wu-f7-block>
+  <wu-f7-list spacing="compact" strong="{{true}}">
+    <view wx:for="{{items}}" wx:key="id" class="organization-row">
+      <navigator class="organization-link" url="/pages/organization-editor/organization-editor?id={{item.id}}">
+        <wu-f7-list-item media="{{true}}" title-slot="{{true}}">
+          <view slot="media" class="organization-symbol">
+            <wu-icon name="{{item.data.kind === 'official' ? 'post' : item.data.kind === 'school' ? 'message' : 'people'}}" size="29" />
+          </view>
+          <view slot="title">
+            <view class="organization-heading">
+              <text>
+                {{item.data.name}}
+              </text>
+              <wu-icon name="chevron-right" size="14" />
+            </view>
+            <view class="organization-intro">
+              {{item.data.introText}}
+            </view>
+            <view class="organization-meta">
+              {{organizationStateLabels[item.state]}} · {{organizationRoleLabels[item.role]}}
+            </view>
+          </view>
+        </wu-f7-list-item>
+      </navigator>
+    </view>
+  </wu-f7-list>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">
+    <wu-icon name="people" size="40" />
+    <view class="empty-title">
+      {{mode === 'review' ? '暂时没有待审申请' : '还没有组织或申请'}}
+    </view>
+  </view>
+  <wu-f7-button wx:if="{{more}}" class="quiet-button" disabled="{{busy}}" bind:press="onMore">
+    加载更多
+  </wu-f7-button>
+  <navigator class="utility-row directory-link" url="/pages/directory-hub/directory-hub">
+    <wu-icon name="campus" size="22" />
+    <text>
+      浏览校园目录
+    </text>
+    <wu-icon name="chevron-right" size="14" />
+  </navigator>
 </view>

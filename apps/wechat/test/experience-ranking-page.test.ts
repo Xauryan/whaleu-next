@@ -139,7 +139,7 @@ test('native registration, events, explicit bounded coverage and entry preserve 
     ),
   );
   for (const event of ['onRefresh', 'onCancel', 'onProfile'])
-    assert.match(template, new RegExp(`bindtap="${event}"`));
+    assert.match(template, new RegExp(`bind:press="${event}"`));
   assert.match(template, /历史覆盖不完整/);
   assert.match(template, /scan_limited/);
   assert.match(template, /public-experience-display/);

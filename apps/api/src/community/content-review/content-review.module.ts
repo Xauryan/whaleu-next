@@ -1,3 +1,4 @@
+import { ProfileCoverReviewFacade } from './profile-cover-review.facade.js';
 import { CurrentRatingLinkDependency } from '../rating-target-link/dependency.js';
 import { CommunityDistributionService } from '../related-sync/service.js';
 import { MajorDiscussionMediaReviewFacade } from './major-discussion-media-review.facade.js';
@@ -44,6 +45,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     RatingCategoryIconReviewFacade,
     TextReviewRuntime,
     ProfileAvatarReviewFacade,
+    ProfileCoverReviewFacade,
     {
       provide: MediaContentSnapshotFacade,
       useClass: UnavailableMediaContentSnapshotFacade,
@@ -72,6 +74,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     RatingCategoryIconReviewFacade,
     TextReviewRuntime,
     ProfileAvatarReviewFacade,
+    ProfileCoverReviewFacade,
     MediaContentSnapshotFacade,
     DmContentReviewFacade,
     RatingContentReviewFacade,

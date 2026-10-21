@@ -1,0 +1,133 @@
+<view class="screen ops-page ops-school-identity-management">
+  <view class="ops-context">
+    <view class="ops-context-icon">
+      <wu-icon name="graduation" size="23" tone="accent" />
+    </view>
+    <view class="ops-context-title">
+      更正学校归属
+    </view>
+  </view>
+  <view class="notice">
+    仅超级管理员可更正当前已验证的学校归属，或明确补发符合条件的校内 UID。
+  </view>
+  <view aria-role="status">
+    {{status}}
+  </view>
+  <view wx:if="{{addressError || error}}" class="error" aria-role="alert">
+    {{addressError || error}}
+  </view>
+  <view wx:if="{{receiptStatus}}" class="notice">
+    {{receiptStatus}}
+  </view>
+  <button bindtap="onReload" disabled="{{busy}}" class="ops-quiet">
+    重新核验当前状态与原请求
+  </button>
+  <button wx:if="{{busy}}" bindtap="onStopWaiting" class="ops-quiet">
+    停止等待
+  </button>
+  <view wx:if="{{!frozen}}" class="card ops-section">
+    <input class="input" value="{{targetProfileId}}" placeholder="已知公开主页 ID" maxlength="36" bindinput="onTargetInput" disabled="{{busy}}" />
+    <button bindtap="onReload" disabled="{{busy || !targetProfileId}}" class="ops-quiet">
+      核验此公开主页
+    </button>
+  </view>
+  <view wx:if="{{management &amp;&amp; !frozen}}" class="card ops-section ops-identity">
+    <view class="ops-person-title">
+      {{management.target.displayName}}
+    </view>
+    <view>
+      当前认证学校：{{management.current.school ? management.current.school.name : '不可确认'}}
+    </view>
+    <view wx:if="{{management.current.schoolUid.status === 'assigned'}}">
+      当前校内 UID：{{management.current.schoolUid.formattedUid}}
+    </view>
+    <view wx:else>
+      校内 UID {{management.current.schoolUid.status === 'unassigned' ? '尚未分配' : '暂不可用'}}
+    </view>
+    <view wx:if="{{management.actions.correctSchool}}">
+      <input class="input" value="{{campusQuery}}" placeholder="搜索目标学校或校区" bindinput="onCampusQuery" disabled="{{busy}}" />
+      <button bindtap="onSearchCampuses" disabled="{{busy}}">
+        搜索目标校区
+      </button>
+      <button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onSelectCampus" disabled="{{busy}}" class="ops-choice">
+        {{item.institutionName}} · {{item.fullName}}
+      </button>
+      <button wx:if="{{campusPage &gt; 1}}" bindtap="onPreviousCampuses" disabled="{{busy}}">
+        上一页
+      </button>
+      <button wx:if="{{campusPage * 20 &lt; campusTotal}}" bindtap="onNextCampuses" disabled="{{busy}}">
+        下一页
+      </button>
+      <view wx:if="{{management.destination}}">
+        目标学校：{{management.destination.school.name}} · {{management.destination.campusName}}
+      </view>
+      <button wx:if="{{management.destination}}" data-action="correct_school" bindtap="onRequest" disabled="{{busy}}">
+        预览并确认学校更正
+      </button>
+    </view>
+    <button wx:if="{{management.actions.completeUid}}" data-action="complete_uid" bindtap="onRequest" disabled="{{busy}}">
+      补发当前学校的 UID
+    </button>
+  </view>
+  <view wx:if="{{confirming &amp;&amp; confirming !== 'cancel' &amp;&amp; management &amp;&amp; !frozen}}" class="card ops-section ops-confirmation" aria-role="alert">
+    <view>
+      确认{{confirming === 'complete_uid' ? '补发当前学校 UID' : '学校归属更正'}}？
+    </view>
+    <view>
+      对象：{{management.target.displayName}}
+    </view>
+    <view>
+      当前学校：{{management.current.school.name}}
+    </view>
+    <view wx:if="{{confirming === 'correct_school'}}">
+      目标学校：{{management.destination.school.name}}
+    </view>
+    <view wx:if="{{confirming === 'correct_school' &amp;&amp; management.current.school.code === management.destination.school.code}}" class="notice">
+      这是同一学校，将确认无需变更，不重新分配 UID。
+    </view>
+    <view wx:elif="{{confirming === 'correct_school'}}" class="notice">
+      如有原学校 UID，其号码永久保留在历史中，不能重新使用；目标学校分配新 UID。具体号码以提交结果后的当前查询为准。现有认证有效期不会延长，身份校区需要本人重新明确选择。
+    </view>
+    <view class="notice" wx:else>
+      仅补发当前学校 UID，现有审核结果与学校归属不变。已有有效号码不会重复分配。
+    </view>
+    <button bindtap="onSubmit" disabled="{{busy}}" class="ops-primary">
+      确认提交此操作
+    </button>
+    <button bindtap="onClose" disabled="{{busy}}" class="ops-quiet">
+      返回
+    </button>
+  </view>
+  <view wx:if="{{frozen}}" class="card ops-section ops-recovery">
+    <view>
+      原{{pendingAction === 'correct_school' ? '学校更正' : 'UID 补发'}}请求待确认 · {{pendingPhase === 'cancel' ? '取消中' : '提交中'}}
+    </view>
+    <view class="notice">
+      查询不到回执不代表失败。停止等待、返回或关闭页面都不会取消服务端请求；新会话仍由原账号恢复同一请求。
+    </view>
+    <button bindtap="onRecover" disabled="{{busy || !pendingRequestId}}">
+      查询原请求回执
+    </button>
+    <button bindtap="onRetry" disabled="{{busy || !pendingRequestId}}">
+      查询并重试原请求
+    </button>
+    <button bindtap="onCancelRequest" disabled="{{busy || !pendingRequestId}}">
+      取消原请求
+    </button>
+  </view>
+  <view wx:if="{{confirming === 'cancel'}}" class="card ops-section ops-confirmation" aria-role="alert">
+    <view>
+      确认取消尚未完成的原请求？如果已完成，将返回原结果，不回滚更正或 UID。
+    </view>
+    <button bindtap="onConfirmCancel" disabled="{{busy}}" class="ops-primary">
+      确认取消原请求
+    </button>
+    <button bindtap="onClose" disabled="{{busy}}" class="ops-quiet">
+      返回
+    </button>
+  </view>
+  <navigator class="ops-link" url="/pages/school-uid-lookup/school-uid-lookup">
+    按学校与 UID 查询
+    <wu-icon name="chevron-right" size="17" tone="muted" />
+  </navigator>
+</view>

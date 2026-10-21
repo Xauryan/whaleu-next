@@ -1,0 +1,88 @@
+<template name="product-course-status">
+  <view
+    wx:if="{{!loaded || busy || restartRequired}}"
+    class="status"
+    aria-role="status"
+    >{{status}}</view
+  >
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login"
+    >登录后继续</navigator
+  >
+  <navigator
+    wx:if="{{hasSession &amp;&amp; error === '请先完成手机号验证，再重新加载课程评分'}}"
+    class="link"
+    url="/pages/phone-binding/phone-binding"
+    >验证手机号</navigator
+  >
+  <view wx:if="{{frozen}}" class="product-recovery">
+    <view class="section-title">上次评分结果待确认</view>
+    <view wx:if="{{recoveryCourseId}}" class="meta"
+      >原课程编号：{{recoveryCourseId}}</view
+    >
+    <view class="notice">请查询或重试原请求。确认结果前不能重新评分。</view>
+    <view wx:if="{{recoveryScores}}" class="body"
+      >得分 {{recoveryScores.gradeScore}} · 能力 {{recoveryScores.abilityScore}}
+      · 综合 {{recoveryScores.overallScore}}</view
+    >
+    <wu-f7-button bind:press="onRecover" disabled="{{busy}}" variant="tonal"
+      >查询原回执</wu-f7-button
+    >
+    <wu-f7-button bind:press="onRetry" disabled="{{busy}}" variant="tonal"
+      >重试原请求</wu-f7-button
+    >
+  </view>
+  <wu-f7-button
+    class="plain-button"
+    bind:press="onRefresh"
+    disabled="{{busy}}"
+    loading="{{busy}}"
+    variant="plain"
+  >
+    重新加载{{restartRequired ? '，从第一页开始' : ''}}
+  </wu-f7-button>
+  <wu-f7-button
+    class="plain-button"
+    wx:if="{{busy}}"
+    bind:press="onCancel"
+    variant="plain"
+  >
+    停止等待
+  </wu-f7-button>
+</template>
+<template name="product-course-facts">
+  <view class="section-title">{{course.name}}</view>
+  <view class="meta"
+    >{{course.campusLabel}} · 院系 {{course.department}}<text
+      wx:if="{{course.category !== null}}"
+    >
+      · {{course.category}}</text
+    ></view
+  >
+  <view wx:if="{{course.nature !== null || course.code !== null}}" class="meta"
+    ><text wx:if="{{course.nature !== null}}">{{course.nature}}</text
+    ><text wx:if="{{course.code !== null}}"> · {{course.code}}</text></view
+  >
+</template>
+<template name="product-course-summary">
+  <block wx:if="{{summary.kind === 'known'}}">
+    <block wx:if="{{summary.count &gt; 0}}">
+      <view class="product-score-grid"
+        ><view class="product-score-axis"
+          ><view class="value">{{summary.gradeScore}}</view
+          ><view class="label">得分</view></view
+        ><view class="product-score-axis"
+          ><view class="value">{{summary.abilityScore}}</view
+          ><view class="label">能力</view></view
+        ><view class="product-score-axis"
+          ><view class="value">{{summary.overallScore}}</view
+          ><view class="label">综合</view></view
+        ></view
+      >
+      <view class="meta">{{summary.count}} 人评分</view>
+    </block>
+    <view wx:else class="meta">暂无评分</view>
+  </block>
+  <view wx:else class="notice">评分数据暂不可用</view>
+</template>

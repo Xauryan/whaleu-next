@@ -8,15 +8,25 @@ import {
   type SearchRoute,
 } from './controller';
 
+/** View-only date label. Original timestamps stay on the DTO for all actions. */
+function displayDate(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 Page({
   data: {
+    showInfo: false,
+    showFilters: false,
     ...initialSearchView(),
     tradingCategories,
     searchTypes: [
-      { key: 'all', label: '全部内容' },
-      { key: 'post', label: '帖子' },
-      { key: 'comment', label: '评论' },
-      { key: 'reply', label: '回复' },
+      { key: 'all', label: '全部' },
+      { key: 'post', label: '主题' },
+      { key: 'comment', label: '直接回复' },
+      { key: 'reply', label: '后续回复' },
     ],
     categoryLabels: {
       discussion: '校园日常',
@@ -79,6 +89,9 @@ Page({
         this.resume = this.controller?.snapshot() ?? this.resume;
     });
   },
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
+  },
   onShow() {
     const resume = this.controller?.snapshot() ?? this.resume;
     this.controller?.dispose();
@@ -89,9 +102,18 @@ Page({
     }
     this.resume = null;
     this.controller = new SearchController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        hits: view.hits.map((item) => ({
+          ...item,
+          createdAtLabel: displayDate(item.createdAt),
+        })),
+      }),
     );
     void this.controller.load(resume?.route ?? this.route, resume ?? undefined);
+  },
+  onToggleFilters() {
+    this.setData({ showFilters: !this.data.showFilters });
   },
   onMode(event: { currentTarget: { dataset: { mode: string } } }) {
     void this.controller?.setMode(event.currentTarget.dataset.mode);

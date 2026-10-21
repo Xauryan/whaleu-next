@@ -1,63 +1,171 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 学校管理</view>
-  <view class="title">学校管理员管理</view>
-  <view class="notice">仅当前具有超级管理员权限的账号可任命、改派或撤权。请使用已知公开主页 ID，不能通过匿名内容定位账号。</view>
-  <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{addressError || error}}" class="error" aria-role="alert">{{addressError || error}}</view>
-  <view wx:if="{{receiptStatus}}" class="notice" aria-role="status">{{receiptStatus}}</view>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator>
-  <button bindtap="onReload" disabled="{{busy}}">重新核验权限、目标与原请求</button>
-  <button wx:if="{{busy}}" bindtap="onStopWaiting">停止等待</button>
-  <view wx:if="{{hasSession &amp;&amp; !frozen}}" class="card">
-    <label class="field-label" for="target-profile">公开主页 ID</label>
-    <input id="target-profile" class="input" value="{{targetProfileId}}" placeholder="已知公开主页的 UUID" maxlength="36" disabled="{{busy}}" bindinput="onTargetInput" />
-    <button bindtap="onReload" disabled="{{busy || !targetProfileId}}">核验此公开主页</button>
-  </view>
-  <view wx:if="{{management &amp;&amp; !frozen}}" class="card">
-    <view class="section-title">{{management.target.displayName}}</view>
-    <view class="meta" selectable="true">公开主页 ID：{{management.target.profileId}}</view>
-    <view wx:if="{{management.currentAssignment}}">原管理地区：{{management.currentAssignment.name}}</view>
-    <view wx:else>尚无学校管理地区</view>
-    <view wx:if="{{management.currentAssignment &amp;&amp; management.currentAssignment.status === 'future'}}" class="notice">原分配尚未生效。改派会明确取代这条分配。</view>
-    <view wx:if="{{management.currentAssignment &amp;&amp; management.currentAssignment.status === 'expired'}}" class="notice">原分配已经过期。改派会明确取代这条分配。</view>
-    <view wx:if="{{management.currentAssignment &amp;&amp; management.currentAssignment.status === 'unavailable'}}" class="notice">原地区当前不可用。原分配仍存在，可按当前核验结果撤权。</view>
-    <view wx:if="{{management.eligibility.status === 'protected'}}" class="notice">此目标具有受保护的全局管理身份，不能从此页面降级。</view>
-    <view wx:if="{{management.eligibility.status === 'unverified'}}" class="notice">目标当前没有有效学校认证，不能任命或改派。已有学校管理权限仍可按核验结果撤销。</view>
-    <view wx:if="{{management.eligibility.status === 'unavailable'}}" class="notice">认证学校关联地区来源暂不能确认，请稍后重新核验；不会用浏览校园或同校猜测管理范围。</view>
-    <view wx:if="{{management.eligibility.status === 'known' &amp;&amp; !management.eligibility.regions.length}}" class="notice">已核验地区来源，当前没有可选管理地区。</view>
-    <view wx:if="{{management.eligibility.regions.length}}" class="section-title">明确选择管理地区</view>
-    <view wx:for="{{management.eligibility.regions}}" wx:key="id" class="region-option">
-      <button data-id="{{item.id}}" bindtap="onSelectRegion" disabled="{{busy}}">{{item.name}}{{selectedRegionId === item.id ? ' · 已选择' : ''}}</button>
-      <view wx:if="{{management.eligibility.defaultRegionId === item.id}}" class="meta">默认提示，仍需明确选择</view>
+<view class="screen ops-page ops-school-admin-management f7-ios-theme ops-native">
+  <view class="ops-context">
+    <view class="ops-context-icon">
+      <wu-icon name="shield" size="23" tone="accent" />
     </view>
-    <button wx:if="{{management.actions.appoint}}" data-action="appoint" bindtap="onRequest" disabled="{{busy || !selectedRegionId}}">任命学校管理员</button>
-    <button wx:if="{{management.actions.reassign}}" data-action="reassign" bindtap="onRequest" disabled="{{busy || !selectedRegionId}}">改派或确认管理地区</button>
-    <button wx:if="{{management.actions.revoke}}" data-action="revoke" bindtap="onRequest" disabled="{{busy}}">撤销学校管理权限</button>
+    <view class="ops-context-title">
+      管理账号与地区
+    </view>
   </view>
-  <view wx:if="{{confirming &amp;&amp; confirming !== 'cancel' &amp;&amp; management &amp;&amp; !frozen}}" class="card" aria-role="alert">
-    <view class="section-title">确认{{confirming === 'revoke' ? '撤权' : confirming === 'reassign' ? '改派' : '任命'}}？</view>
-    <view>目标：{{management.target.displayName}}</view>
-    <view class="meta">公开主页 ID：{{management.target.profileId}}</view>
-    <view>原地区：{{management.currentAssignment ? management.currentAssignment.name : '无'}}</view>
-    <view>新地区：{{confirming === 'revoke' ? '无，撤销学校管理权限' : selectedRegionName}}</view>
-    <view class="notice">管理地区固定，不随目标身份校区或浏览校园变化。任命及改派可补发可选「管理员」头衔，不会自动佩戴。撤权保留已获得头衔；头衔不代表当前权限。此操作不修改学校认证、身份校区或其他角色，不发送通知。</view>
-    <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认此操作</button>
-    <button bindtap="onClose" disabled="{{busy}}">返回</button>
+  <view class="notice">
+    仅当前具有超级管理员权限的账号可任命、改派或撤权。请使用已知公开主页 ID，不能通过分身内容定位账号。
   </view>
-  <view wx:if="{{frozen}}" class="card">
-    <view class="section-title">原学校管理员管理请求待确认</view>
-    <view wx:if="{{pendingTargetProfileId}}" class="meta">公开主页 ID：{{pendingTargetProfileId}}</view>
-    <view>{{pendingAction === 'appoint' ? '任命' : pendingAction === 'reassign' ? '改派' : pendingAction === 'revoke' ? '撤权' : ''}} · {{pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
-    <view class="notice">查询不到回执不代表失败。原请求确认完成或取消前不能新建请求，请保留本机数据。离开页面、停止等待不会取消服务端处理；失去当前管理权限后仍可由原账号查询回执。</view>
-    <button bindtap="onRecover" disabled="{{busy || !pendingRequestId}}">查询原请求回执</button>
-    <button bindtap="onRetry" disabled="{{busy || !pendingRequestId}}">查询并重试原请求</button>
-    <button bindtap="onCancelRequest" disabled="{{busy || !pendingRequestId}}">取消原请求</button>
+  <view class="status" aria-role="status" wx:if="{{status}}">
+    {{status}}
   </view>
-  <view wx:if="{{confirming === 'cancel'}}" class="card" aria-role="alert">
-    <view>确认取消尚未完成的原请求？如果操作已完成，返回既有结果，不会回滚任命、改派或撤权。</view>
-    <button bindtap="onConfirmCancel" disabled="{{busy}}">确认取消原请求</button>
-    <button bindtap="onClose" disabled="{{busy}}">返回</button>
+  <view wx:if="{{addressError || error}}" class="error" aria-role="alert">
+    {{addressError || error}}
   </view>
-  <view class="notice">「管理员」是可选头衔，头衔不代表当前权限。撤权后保留已获得头衔。当前权限必须重新核验。</view>
-  <navigator class="link" url="/pages/profile/profile">返回我的资料 →</navigator>
+  <view wx:if="{{receiptStatus}}" class="notice" aria-role="status">
+    {{receiptStatus}}
+  </view>
+  <navigator wx:if="{{!hasSession}}" class="ops-link" url="/pages/login/login">
+    登录后继续
+    <wu-icon name="chevron-right" size="17" tone="muted" />
+  </navigator>
+  <wu-f7-button bind:press="onReload" disabled="{{busy}}" class="ops-quiet" variant="plain">
+    重新核验权限、目标与原请求
+  </wu-f7-button>
+  <wu-f7-button wx:if="{{busy}}" bind:press="onStopWaiting" class="ops-quiet" variant="plain">
+    停止等待
+  </wu-f7-button>
+  <wu-f7-block wx:if="{{hasSession &amp;&amp; !frozen}}" class="card ops-section ops-search-section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <label class="field-label" for="target-profile">
+      公开主页 ID
+    </label>
+    <input id="target-profile" class="input" value="{{targetProfileId}}" placeholder="已知公开主页的 UUID" maxlength="36" disabled="{{busy}}" bindinput="onTargetInput" />
+    <wu-f7-button bind:press="onReload" disabled="{{busy || !targetProfileId}}" class="ops-quiet" variant="plain">
+      核验此公开主页
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{management &amp;&amp; !frozen}}" class="card ops-section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">
+      {{management.target.displayName}}
+    </view>
+    <wu-f7-button class="ops-disclosure" data-panel="target" bind:press="onToggleUiPanel" aria-expanded="{{uiPanel === 'target'}}" variant="plain">
+      <text>
+        查看公开主页编号
+      </text>
+      <wu-icon name="{{uiPanel === 'target' ? 'chevron-up' : 'chevron-down'}}" size="17" tone="muted" />
+    </wu-f7-button>
+    <view wx:if="{{uiPanel === 'target'}}" class="ops-details">
+      <view class="meta" selectable="true">
+        公开主页 ID：{{management.target.profileId}}
+      </view>
+    </view>
+    <view wx:if="{{management.currentAssignment}}">
+      原管理地区：{{management.currentAssignment.name}}
+    </view>
+    <view wx:else>
+      尚无学校管理地区
+    </view>
+    <view wx:if="{{management.currentAssignment &amp;&amp; management.currentAssignment.status === 'future'}}" class="notice">
+      原分配尚未生效。改派会明确取代这条分配。
+    </view>
+    <view wx:if="{{management.currentAssignment &amp;&amp; management.currentAssignment.status === 'expired'}}" class="notice">
+      原分配已经过期。改派会明确取代这条分配。
+    </view>
+    <view wx:if="{{management.currentAssignment &amp;&amp; management.currentAssignment.status === 'unavailable'}}" class="notice">
+      原地区当前不可用。原分配仍存在，可按当前核验结果撤权。
+    </view>
+    <view wx:if="{{management.eligibility.status === 'protected'}}" class="notice">
+      此目标具有受保护的全局管理身份，不能从此页面降级。
+    </view>
+    <view wx:if="{{management.eligibility.status === 'unverified'}}" class="notice">
+      目标当前没有有效学校认证，不能任命或改派。已有学校管理权限仍可按核验结果撤销。
+    </view>
+    <view wx:if="{{management.eligibility.status === 'unavailable'}}" class="notice">
+      认证学校关联地区来源暂不能确认，请稍后重新核验；不会用浏览校园或同校猜测管理范围。
+    </view>
+    <view wx:if="{{management.eligibility.status === 'known' &amp;&amp; !management.eligibility.regions.length}}" class="notice">
+      已核验地区来源，当前没有可选管理地区。
+    </view>
+    <view wx:if="{{management.eligibility.regions.length}}" class="section-title">
+      明确选择管理地区
+    </view>
+    <view wx:for="{{management.eligibility.regions}}" wx:key="id" class="region-option ops-select-row">
+      <wu-f7-button data-id="{{item.id}}" bind:press="onSelectRegion" disabled="{{busy}}" variant="tonal">
+        {{item.name}}{{selectedRegionId === item.id ? ' · 已选择' : ''}}
+      </wu-f7-button>
+      <view wx:if="{{management.eligibility.defaultRegionId === item.id}}" class="meta">
+        默认提示，仍需明确选择
+      </view>
+    </view>
+    <wu-f7-button wx:if="{{management.actions.appoint}}" data-action="appoint" bind:press="onRequest" disabled="{{busy || !selectedRegionId}}" variant="tonal">
+      任命学校管理员
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{management.actions.reassign}}" data-action="reassign" bind:press="onRequest" disabled="{{busy || !selectedRegionId}}" variant="tonal">
+      改派或确认管理地区
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{management.actions.revoke}}" data-action="revoke" bind:press="onRequest" disabled="{{busy}}" class="ops-destructive" tone="danger" variant="tonal">
+      撤销学校管理权限
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{confirming &amp;&amp; confirming !== 'cancel' &amp;&amp; management &amp;&amp; !frozen}}" class="card ops-section ops-confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">
+      确认{{confirming === 'revoke' ? '撤权' : confirming === 'reassign' ? '改派' : '任命'}}？
+    </view>
+    <view>
+      目标：{{management.target.displayName}}
+    </view>
+    <view class="meta">
+      公开主页 ID：{{management.target.profileId}}
+    </view>
+    <view>
+      原地区：{{management.currentAssignment ? management.currentAssignment.name : '无'}}
+    </view>
+    <view>
+      新地区：{{confirming === 'revoke' ? '无，撤销学校管理权限' : selectedRegionName}}
+    </view>
+    <view class="notice">
+      管理地区固定，不随目标身份校区或浏览校园变化。任命及改派可补发可选「管理员」头衔，不会自动佩戴。撤权保留已获得头衔；头衔不代表当前权限。此操作不修改学校认证、身份校区或其他角色，不发送通知。
+    </view>
+    <wu-f7-button bind:press="onSubmit" disabled="{{busy || frozen}}" class="ops-primary" variant="fill" size="large">
+      确认此操作
+    </wu-f7-button>
+    <wu-f7-button bind:press="onClose" disabled="{{busy}}" class="ops-quiet" variant="plain">
+      返回
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{frozen}}" class="card ops-section ops-recovery" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">
+      原学校管理员管理请求待确认
+    </view>
+    <view wx:if="{{pendingTargetProfileId}}" class="meta">
+      公开主页 ID：{{pendingTargetProfileId}}
+    </view>
+    <view>
+      {{pendingAction === 'appoint' ? '任命' : pendingAction === 'reassign' ? '改派' : pendingAction === 'revoke' ? '撤权' : ''}} · {{pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}
+    </view>
+    <view class="notice">
+      查询不到回执不代表失败。原请求确认完成或取消前不能新建请求，请保留本机数据。离开页面、停止等待不会取消服务端处理；失去当前管理权限后仍可由原账号查询回执。
+    </view>
+    <wu-f7-button bind:press="onRecover" disabled="{{busy || !pendingRequestId}}" variant="tonal">
+      查询原请求回执
+    </wu-f7-button>
+    <wu-f7-button bind:press="onRetry" disabled="{{busy || !pendingRequestId}}" variant="tonal">
+      查询并重试原请求
+    </wu-f7-button>
+    <wu-f7-button bind:press="onCancelRequest" disabled="{{busy || !pendingRequestId}}" variant="tonal">
+      取消原请求
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{confirming === 'cancel'}}" class="card ops-section ops-confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view>
+      确认取消尚未完成的原请求？如果操作已完成，返回既有结果，不会回滚任命、改派或撤权。
+    </view>
+    <wu-f7-button bind:press="onConfirmCancel" disabled="{{busy}}" class="ops-primary" variant="fill" size="large">
+      确认取消原请求
+    </wu-f7-button>
+    <wu-f7-button bind:press="onClose" disabled="{{busy}}" class="ops-quiet" variant="plain">
+      返回
+    </wu-f7-button>
+  </wu-f7-block>
+  <view class="notice ops-footnote">
+    「管理员」头衔不代表当前权限。
+  </view>
+  <navigator class="ops-link" url="/pages/profile/profile">
+    返回我的资料
+    <wu-icon name="chevron-right" size="17" tone="muted" />
+  </navigator>
 </view>

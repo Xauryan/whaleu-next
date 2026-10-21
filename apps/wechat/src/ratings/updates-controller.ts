@@ -1,4 +1,8 @@
 import {
+  guardNoticeRead,
+  type NoticeReadGuard,
+} from '../notifications/notice-read-guard';
+import {
   decodeRatingSubscriptionNoticeTarget,
   decodeRatingSubscriptionUpdatesPage,
   type RatingSubscriptionNotice,
@@ -277,10 +281,10 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
           this.update({
             status:
               this.view.category === 'subscription'
-                ? '打开后会重新定位；成功读取订阅内容才确认这条订阅更新已读'
+                ? '打开后会重新定位；不会自动标记已读，请返回列表明确确认'
                 : this.view.category === 'like'
-                  ? '打开后会重新定位；成功读取被赞内容才确认这条赞已读'
-                  : '打开回复后会重新定位；成功读取当前回复才确认这条更新已读',
+                  ? '打开后会重新定位；不会自动标记已读，请返回列表明确确认'
+                  : '打开回复后会重新定位；不会自动标记已读，请返回列表明确确认',
           });
       },
       (error) => {
@@ -297,7 +301,7 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
       },
     );
   }
-  async acknowledge(noticeId: string): Promise<void> {
+  async acknowledge(noticeId: string, guard?: NoticeReadGuard): Promise<void> {
     if (
       !this.available() ||
       this.view.busy ||
@@ -308,29 +312,71 @@ export class RatingUpdatesController extends CommunityController<RatingUpdatesVi
       )
     )
       return;
-    await this.run(
-      (cancel) => this.gateway()!.markRead(noticeId, cancel),
-      (raw) => {
-        const result = decodeRatingNoticeRead(raw);
-        if (result.noticeId !== noticeId) invalidRating();
-        this.update({
-          items: this.view.items.map((item) =>
-            item.noticeId === noticeId
-              ? { ...item, readAt: result.readAt }
-              : item,
-          ),
-          unreadCount: result.unreadCount,
-          status: '这条评分更新已标记已读',
-        });
-      },
-      (error) => {
-        this.clear();
-        this.update({
-          error: ratingError(error),
-          status: '这条更新的已读状态尚未确认，请重新加载',
-        });
-      },
-    );
+    const exposedItems = guard ? this.view.items : undefined;
+    const exposedContent = guard ? JSON.stringify(exposedItems) : undefined;
+    let scopeChanged = false;
+    const invalidate = (accountId?: string) => {
+      if (
+        accountId === undefined ||
+        accountId === this.owner.credentials?.accountId
+      )
+        scopeChanged = true;
+    };
+    const unsubscribe = guard
+      ? [
+          this.runtime.privateViews,
+          this.runtime.safetyChanges,
+          this.runtime.browsingScopeChanges,
+          this.runtime.directoryScopeChanges,
+        ].map((changes) => changes?.subscribe(invalidate))
+      : [];
+    try {
+      await this.run(
+        (cancel) =>
+          this.gateway()!.markRead(noticeId, guardNoticeRead(cancel, guard)),
+        (raw) => {
+          const result = decodeRatingNoticeRead(raw);
+          if (result.noticeId !== noticeId) invalidRating();
+          this.update({
+            items: this.view.items.map((item) =>
+              item.noticeId === noticeId
+                ? { ...item, readAt: result.readAt }
+                : item,
+            ),
+            unreadCount: result.unreadCount,
+            status: '这条评分更新已标记已读',
+          });
+        },
+        (error) => {
+          // The base error render invalidates exposure, not the owner's exact row.
+          // Cancellation may happen before dispatch or after an unknown remote commit.
+          if (
+            exposedItems &&
+            !scopeChanged &&
+            this.view.loaded &&
+            this.view.items === exposedItems &&
+            JSON.stringify(this.view.items) === exposedContent &&
+            ['network', 'timeout', 'cancelled'].includes(error.kind) &&
+            error.details.httpStatus === undefined &&
+            error.details.serverCode === undefined
+          ) {
+            this.update({
+              unreadCount: null,
+              error: '已读结果尚未确认，请手动重试或重新加载',
+              status: '保留原消息，未推定已读；不会自动重试',
+            });
+            return;
+          }
+          this.clear();
+          this.update({
+            error: ratingError(error),
+            status: '这条更新的已读状态尚未确认，请重新加载',
+          });
+        },
+      );
+    } finally {
+      unsubscribe.forEach((stop) => stop?.());
+    }
   }
   override cancel(): void {
     this.stop();

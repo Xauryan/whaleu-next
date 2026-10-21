@@ -1,0 +1,2729 @@
+{
+  "campus-hub": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/campus-tools/campus-tools"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-kind": "{{item.kind}}",
+        "bindtap": "onTool",
+        "disabled": "{{campus.busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/campus-tools/campus-tools"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRetry"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "{{item.url}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "{{item.url}}"
+      }
+    }
+  ],
+  "compose-entry": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "disabled": "{{busy || !item.isActive}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onCampus"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{campusId}}",
+        "bindtap": "onRegional",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onGlobal",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onContinue",
+        "disabled": "{{!space || busy || opening || !hasSession}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!space && !busy}}",
+        "bindtap": "onRetry"
+      }
+    }
+  ],
+  "community-compose": [
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "wechat",
+        "value": "{{feedbackDraft.wechat}}",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy}}",
+        "bindinput": "onFeedbackField"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "qq",
+        "value": "{{feedbackDraft.qq}}",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy}}",
+        "bindinput": "onFeedbackField"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "phone",
+        "value": "{{feedbackDraft.phone}}",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy}}",
+        "bindinput": "onFeedbackField"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{feedbackDraft.consent}}",
+        "disabled": "{{frozen || busy}}",
+        "bindchange": "onFeedbackConsent"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{text}}",
+        "bindinput": "onText",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{ratingLinkLabel}}",
+        "bindinput": "onRatingLabel",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onGenerateRatingLabel",
+        "wx:if": "{{!frozen}}",
+        "disabled": "{{busy || assistance.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRemoveRatingLink",
+        "wx:if": "{{!frozen}}",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{assistance.canAdopt}}",
+        "bindtap": "onAdoptRatingLabel",
+        "disabled": "{{frozen || busy || assistance.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{assistance.canRecover}}",
+        "bindtap": "onRecoverAssistance",
+        "disabled": "{{assistance.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{assistance.canCancel}}",
+        "bindtap": "onCancelAssistance",
+        "disabled": "{{assistance.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{assistance.canDismiss}}",
+        "bindtap": "onDismissAssistance",
+        "disabled": "{{assistance.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.memberId}}",
+        "data-direction": "-1",
+        "bindtap": "onMoveImage",
+        "disabled": "{{frozen || busy || mediaBusy || !mediaCanEdit || index === 0}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.memberId}}",
+        "data-direction": "1",
+        "bindtap": "onMoveImage",
+        "disabled": "{{frozen || busy || mediaBusy || !mediaCanEdit || index + 1 === mediaSelected}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.memberId}}",
+        "bindtap": "onReplaceImage",
+        "disabled": "{{frozen || busy || mediaBusy || !mediaCanEdit}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.memberId}}",
+        "bindtap": "onRemoveImage",
+        "disabled": "{{frozen || busy || mediaBusy || !mediaCanEdit}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSelectImage",
+        "disabled": "{{frozen || busy || mediaBusy || !canSelectImage}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecoverImage",
+        "disabled": "{{busy || mediaBusy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancelImage",
+        "disabled": "{{busy || mediaBusy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSelectImage",
+        "disabled": "{{frozen || busy || mediaBusy || (mediaStatus !== 'idle' && mediaStatus !== 'terminal' && mediaStatus !== 'bound_history')}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecoverImage"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancelImage"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "named",
+        "bindtap": "onMode",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "anonymous",
+        "bindtap": "onMode",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{hasSession && !busy && canOpenIdentityCampus}}",
+        "url": "/pages/identity-campus/identity-campus"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{syncToRelatedCampuses}}",
+        "bindchange": "onRelatedCampusSync",
+        "disabled": "{{frozen || busy || !loaded || !canChooseRelatedCampusSync}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{allowAnonymousDm}}",
+        "bindchange": "onAllowAnonymousDm",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{commentsPolicy === 'restricted'}}",
+        "bindchange": "onRestricted",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-key": "{{item.key}}",
+        "bindtap": "onTradingSubtype",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "type": "text",
+        "value": "{{tradingDraft.price}}",
+        "data-field": "price",
+        "bindinput": "onTradingField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-key": "urgent",
+        "bindtap": "onTradingUrgency",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-key": "normal",
+        "bindtap": "onTradingUrgency",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{tradingDraft.location}}",
+        "data-field": "location",
+        "bindinput": "onTradingField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{tradingDraft.wechat}}",
+        "data-field": "wechat",
+        "bindinput": "onTradingField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{tradingDraft.qq}}",
+        "data-field": "qq",
+        "bindinput": "onTradingField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{tradingDraft.phone}}",
+        "data-field": "phone",
+        "bindinput": "onTradingField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{tradingDraft.contactConsent}}",
+        "bindchange": "onContactConsent",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{pollDraft.enabled}}",
+        "bindchange": "onPollEnabled",
+        "disabled": "{{frozen || busy || !loaded || formationDraft.enabled}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{pollDraft.question}}",
+        "bindinput": "onPollQuestion",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "single",
+        "bindtap": "onPollMode",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "multiple",
+        "bindtap": "onPollMode",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{item}}",
+        "data-index": "{{index}}",
+        "bindinput": "onPollOption",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-index": "{{index}}",
+        "bindtap": "onRemovePollOption",
+        "disabled": "{{frozen || busy || pollDraft.options.length <= 2}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onAddPollOption",
+        "disabled": "{{frozen || busy || pollDraft.options.length + (pollDraft.finalOption ? 1 : 0) >= 5}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{pollDraft.finalOption}}",
+        "bindchange": "onPollFinal",
+        "disabled": "{{frozen || busy}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{formationDraft.enabled}}",
+        "bindchange": "onFormationEnabled",
+        "disabled": "{{frozen || busy || !loaded || pollDraft.enabled}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{formationDraft.theme}}",
+        "data-field": "theme",
+        "bindinput": "onFormationField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "type": "number",
+        "value": "{{formationDraft.capacity}}",
+        "data-field": "capacity",
+        "bindinput": "onFormationField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{formationDraft.wechat}}",
+        "data-field": "wechat",
+        "bindinput": "onFormationField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{formationDraft.qq}}",
+        "data-field": "qq",
+        "bindinput": "onFormationField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{formationDraft.phone}}",
+        "data-field": "phone",
+        "bindinput": "onFormationField",
+        "maxlength": "-1",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{formationDraft.contactConsent}}",
+        "bindchange": "onFormationConsent",
+        "disabled": "{{frozen || busy || !loaded}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!frozen}}",
+        "bindtap": "onSubmit",
+        "disabled": "{{!canSubmit || busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{frozen}}",
+        "bindtap": "onReceipt",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{frozen}}",
+        "bindtap": "onRetry",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{frozen && canCancelReview}}",
+        "bindtap": "onCancelReview",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{resourcePostId && !resourceRootCommentId}}",
+        "url": "/pages/community-detail/community-detail?postId={{resourcePostId}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{resourceRootCommentId && resourceReplyId}}",
+        "url": "/pages/community-thread/community-thread?postId={{resourcePostId}}&rootCommentId={{resourceRootCommentId}}&replyId={{resourceReplyId}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{resourceRootCommentId && !resourceReplyId}}",
+        "url": "/pages/community-detail/community-detail?postId={{resourcePostId}}&rootCommentId={{resourceRootCommentId}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!busy}}",
+        "bindtap": "onReload"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-mine/community-mine"
+      }
+    }
+  ],
+  "community-detail": [
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.author.kind === 'named'}}",
+        "data-kind": "comment",
+        "data-id": "{{item.id}}",
+        "bindtap": "onAuthorAvatar",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "text",
+      "attrs": {
+        "wx:if": "{{item.author.kind === 'named'}}",
+        "data-kind": "comment",
+        "data-id": "{{item.id}}",
+        "bindtap": "onAuthor"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.images.length}}",
+        "data-kind": "comment",
+        "data-id": "{{item.id}}",
+        "bindtap": "onSelectGallery",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onLikeComment",
+        "disabled": "{{busy || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-menu": "{{'comment:' + item.id}}",
+        "bindtap": "onToggleMenu"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!item.viewer.isSelf}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onReportComment",
+        "disabled": "{{busy || report.busy || report.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!item.viewer.isSelf}}",
+        "data-kind": "comment",
+        "data-id": "{{item.id}}",
+        "bindtap": "onPrivateMessage",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!item.viewer.isSelf}}",
+        "data-surface": "root",
+        "data-kind": "comment",
+        "data-id": "{{item.id}}",
+        "bindtap": "onAdminDiscussionRemoval",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/report-progress/report-progress?kind=comment&id={{item.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{item.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "url": "/pages/profile-moderation/profile-moderation?kind=comment&id={{item.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{item.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "bindtap": "onAvatarModerationNavigate",
+        "url": "/pages/profile-avatar-moderation/profile-avatar-moderation?kind=comment&id={{item.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.author.kind === 'named' && !item.viewer.isSelf}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onBlockComment",
+        "disabled": "{{busy || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.viewer.canPin}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onPinComment",
+        "disabled": "{{busy || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.viewer.canComment && item.text}}",
+        "url": "/pages/community-compose/community-compose?postId={{post.id}}&copyCommentId={{item.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.viewer.canDelete}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onDeleteComment",
+        "disabled": "{{busy || interaction.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named'}}",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onAuthorAvatar",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "text",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named'}}",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onAuthor"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-thread/community-thread?postId={{post.id}}&rootCommentId={{item.id}}&replyId={{reply.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{reply.images.length}}",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onSelectGallery",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-menu": "{{'reply:' + reply.id}}",
+        "bindtap": "onToggleMenu"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!reply.viewer.isSelf}}",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onReportReply",
+        "disabled": "{{busy || report.busy || report.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!reply.viewer.isSelf}}",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onPrivateMessage",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!reply.viewer.isSelf}}",
+        "data-surface": "preview",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onAdminDiscussionRemoval",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/report-progress/report-progress?kind=reply&id={{reply.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "url": "/pages/profile-moderation/profile-moderation?kind=reply&id={{reply.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "bindtap": "onAvatarModerationNavigate",
+        "url": "/pages/profile-avatar-moderation/profile-avatar-moderation?kind=reply&id={{reply.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named' && !reply.viewer.isSelf}}",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onBlockReply",
+        "disabled": "{{busy || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.replyPreview.nextCursor}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onMoreReplies",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-thread/community-thread?postId={{post.id}}&rootCommentId={{item.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReload",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{post.author.kind === 'named'}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "bindtap": "onAuthorAvatar",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "text",
+      "attrs": {
+        "wx:if": "{{post.author.kind === 'named'}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "bindtap": "onAuthor"
+      }
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "wx:if": "{{mediaRead.status === 'ready' && mediaRead.localSrc}}",
+        "data-src": "{{mediaRead.localSrc}}",
+        "bindtap": "onOpenMedia",
+        "binderror": "onMediaError"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{mediaRead.expanded}}",
+        "bindtap": "onCloseMedia"
+      }
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "wx:if": "{{item.status === 'ready' && item.localSrc}}",
+        "data-index": "{{item.index}}",
+        "data-src": "{{item.localSrc}}",
+        "data-view-id": "{{item.viewId}}",
+        "bindtap": "onGalleryOpen",
+        "binderror": "onGalleryError"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.status === 'unavailable'}}",
+        "data-index": "{{item.index}}",
+        "bindtap": "onGalleryRetry"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-index": "{{mediaGallery.selected - 1}}",
+        "bindtap": "onGalleryOpen",
+        "disabled": "{{mediaGallery.selected === 0}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-index": "{{mediaGallery.selected + 1}}",
+        "bindtap": "onGalleryOpen",
+        "disabled": "{{mediaGallery.selected + 1 >= mediaGallery.total}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onGalleryClose"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-start": "{{mediaGallery.start - 3}}",
+        "bindtap": "onGalleryWindow",
+        "disabled": "{{mediaGallery.start < 3}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-start": "{{mediaGallery.start + 3}}",
+        "bindtap": "onGalleryWindow",
+        "disabled": "{{mediaGallery.start + 3 >= mediaGallery.total}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{post.images.length && mediaGallery.groupKind !== 'post'}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "bindtap": "onSelectGallery",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post && post.feedback && post.feedback.hasContacts}}",
+        "url": "/pages/feedback-contacts/feedback-contacts?postId={{post.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onLike",
+        "disabled": "{{busy || needsReload || postLikeMutation.busy || postLikeMutation.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSavedToggle",
+        "disabled": "{{busy || needsReload || savedMutation.busy || savedMutation.frozen || !post.viewer.canSave}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.viewer.canComment}}",
+        "url": "/pages/community-compose/community-compose?postId={{post.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-menu": "post",
+        "bindtap": "onToggleMenu"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!post.viewer.isSelf}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "bindtap": "onPrivateMessage",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!post.viewer.isSelf && post.author.kind === 'named' && post.allowAnonymousDm}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "data-mode": "anonymous",
+        "bindtap": "onPrivateMessage",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!post.viewer.isSelf}}",
+        "bindtap": "onReportPost",
+        "disabled": "{{busy || report.busy || report.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/report-progress/report-progress?kind=post&id={{post.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{post.author.kind === 'named' && !post.viewer.isSelf}}",
+        "bindtap": "onBlockPost",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "url": "/pages/profile-moderation/profile-moderation?kind=post&id={{post.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "bindtap": "onAvatarModerationNavigate",
+        "url": "/pages/profile-avatar-moderation/profile-avatar-moderation?kind=post&id={{post.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!post.viewer.isSelf}}",
+        "bindtap": "onAdminPostRemoval",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{post.viewer.canDelete}}",
+        "bindtap": "onDeletePost",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{post.trading.viewer.canSetResolution}}",
+        "bindtap": "onTradingResolution",
+        "disabled": "{{busy || needsReload || tradingMutation.busy || tradingMutation.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onTradingContacts",
+        "disabled": "{{busy || !tradingContacts.enabled || tradingContacts.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "wechat",
+        "bindtap": "onCopyTradingContact",
+        "disabled": "{{tradingContacts.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "qq",
+        "bindtap": "onCopyTradingContact",
+        "disabled": "{{tradingContacts.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "phone",
+        "bindtap": "onCopyTradingContact",
+        "disabled": "{{tradingContacts.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onTradingReceipt",
+        "disabled": "{{tradingMutation.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onTradingRetry",
+        "disabled": "{{tradingMutation.busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{tradingMutation.recoveryPostId && tradingMutation.recoveryPostId !== postId}}",
+        "url": "/pages/community-detail/community-detail?postId={{tradingMutation.recoveryPostId}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{tradingMutation.busy}}",
+        "bindtap": "onTradingCancel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.author.kind === 'named'}}",
+        "data-kind": "member",
+        "data-id": "{{item.id}}",
+        "bindtap": "onAuthorAvatar",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "text",
+      "attrs": {
+        "wx:if": "{{item.author.kind === 'named'}}",
+        "data-kind": "member",
+        "data-id": "{{item.id}}",
+        "bindtap": "onAuthor"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "wechat",
+        "bindinput": "onFormationContact",
+        "value": "{{formationView.contacts.wechat}}",
+        "maxlength": "-1",
+        "disabled": "{{formationView.busy}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "qq",
+        "bindinput": "onFormationContact",
+        "value": "{{formationView.contacts.qq}}",
+        "maxlength": "-1",
+        "disabled": "{{formationView.busy}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "phone",
+        "bindinput": "onFormationContact",
+        "value": "{{formationView.contacts.phone}}",
+        "maxlength": "-1",
+        "disabled": "{{formationView.busy}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "bindchange": "onFormationConsent",
+        "checked": "{{formationView.contactConsent}}",
+        "disabled": "{{formationView.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onFormationJoin",
+        "disabled": "{{formationView.busy || !formationView.contactConsent}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{formationContacts.enabled}}",
+        "bindtap": "onFormationContacts",
+        "disabled": "{{formationContacts.busy || formationView.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onFormationReceipt",
+        "disabled": "{{formationView.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onFormationRetry",
+        "disabled": "{{formationView.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onFormationOwn",
+        "disabled": "{{formationView.busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{formationView.recoveryPostId && formationView.recoveryPostId !== postId}}",
+        "url": "/pages/community-detail/community-detail?postId={{formationView.recoveryPostId}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{formationView.busy}}",
+        "bindtap": "onFormationCancel"
+      }
+    },
+    {
+      "tag": "view",
+      "attrs": {
+        "wx:if": "{{formationContacts.open}}",
+        "bindtap": "onDismissFormationContacts"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissFormationContacts"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.membershipId}}",
+        "data-field": "wechat",
+        "bindtap": "onCopyFormationContact",
+        "disabled": "{{formationContacts.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.membershipId}}",
+        "data-field": "qq",
+        "bindtap": "onCopyFormationContact",
+        "disabled": "{{formationContacts.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.membershipId}}",
+        "data-field": "phone",
+        "bindtap": "onCopyFormationContact",
+        "disabled": "{{formationContacts.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onPollOption",
+        "disabled": "{{pollView.busy || !pollView.canVote || pollView.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{pollView.poll.selectionMode === 'multiple' && pollView.canVote}}",
+        "bindtap": "onPollSubmit",
+        "disabled": "{{pollView.busy || !pollView.canSubmit}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPollReceipt",
+        "disabled": "{{pollView.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPollRetry",
+        "disabled": "{{pollView.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPollOwnStatus",
+        "disabled": "{{pollView.busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{pollView.recoveryPostId && pollView.recoveryPostId !== post.id}}",
+        "url": "/pages/community-detail/community-detail?postId={{pollView.recoveryPostId}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{pollView.busy}}",
+        "bindtap": "onPollCancel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmDelete",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissDelete",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-thread/community-thread?postId={{post.id}}&rootCommentId={{locatedComment.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{locatedComment.images.length}}",
+        "data-kind": "comment",
+        "data-id": "{{locatedComment.id}}",
+        "bindtap": "onSelectGallery",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!locatedComment.viewer.isSelf}}",
+        "data-id": "{{locatedComment.id}}",
+        "bindtap": "onReportComment",
+        "disabled": "{{busy || report.busy || report.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!locatedComment.viewer.isSelf}}",
+        "data-kind": "comment",
+        "data-id": "{{locatedComment.id}}",
+        "bindtap": "onPrivateMessage",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!locatedComment.viewer.isSelf}}",
+        "data-surface": "located-comment",
+        "data-kind": "comment",
+        "data-id": "{{locatedComment.id}}",
+        "bindtap": "onAdminDiscussionRemoval",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/report-progress/report-progress?kind=comment&id={{locatedComment.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{locatedComment.author.kind === 'named' && !locatedComment.viewer.isSelf}}",
+        "data-id": "{{locatedComment.id}}",
+        "bindtap": "onBlockComment",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{locatedComment.viewer.canDelete}}",
+        "data-id": "{{locatedComment.id}}",
+        "bindtap": "onDeleteComment",
+        "disabled": "{{busy || interaction.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!locatedReply.viewer.isSelf}}",
+        "data-surface": "located-reply",
+        "data-kind": "reply",
+        "data-id": "{{locatedReply.id}}",
+        "bindtap": "onAdminDiscussionRemoval",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{locatedReplyId}}",
+        "url": "/pages/community-thread/community-thread?postId={{post.id}}&rootCommentId={{locatedComment.id}}&replyId={{locatedReplyId}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "likes",
+        "data-order": "desc",
+        "bindtap": "onOrder",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "likes",
+        "data-order": "asc",
+        "bindtap": "onOrder",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "time",
+        "data-order": "desc",
+        "bindtap": "onOrder",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "time",
+        "data-order": "asc",
+        "bindtap": "onOrder",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canPrevious}}",
+        "bindtap": "onPrevious",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canLoadMore}}",
+        "bindtap": "onMore",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-panel": "preferences",
+        "bindtap": "onTogglePanel"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "data-channel": "saved",
+        "bindchange": "onSavedPreference",
+        "checked": "{{savedMutation.preferences.savedUpdatesEnabled}}",
+        "disabled": "{{busy || needsReload || savedMutation.busy || savedMutation.frozen || !savedMutation.preferences.canSetPreference || !post.viewer.canSetUpdatePreference}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "data-channel": "external",
+        "bindchange": "onSavedPreference",
+        "checked": "{{savedMutation.preferences.externalUpdatesEnabled}}",
+        "disabled": "{{busy || needsReload || savedMutation.busy || savedMutation.frozen || !savedMutation.preferences.canSetPreference || !post.viewer.canSetUpdatePreference}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-updates/community-updates"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-saved/community-saved"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-panel": "safety",
+        "bindtap": "onTogglePanel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{postPin.detail.canPin}}",
+        "bindtap": "onPinCreate",
+        "disabled": "{{postPin.busy || postPin.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{postPin.detail.canUnpin}}",
+        "bindtap": "onPinUnpin",
+        "disabled": "{{postPin.busy || postPin.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-hours": "1",
+        "bindtap": "onPinDuration"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-hours": "6",
+        "bindtap": "onPinDuration"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-hours": "12",
+        "bindtap": "onPinDuration"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-hours": "24",
+        "bindtap": "onPinDuration"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "type": "number",
+        "value": "{{postPin.durationHours}}",
+        "bindinput": "onPinHours",
+        "maxlength": "3"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-level": "1",
+        "bindtap": "onPinLevel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-level": "2",
+        "bindtap": "onPinLevel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPinSubmit",
+        "disabled": "{{postPin.busy || postPin.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPinClose",
+        "disabled": "{{postPin.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPinRecover",
+        "disabled": "{{postPin.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPinRetry",
+        "disabled": "{{postPin.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPinCancel",
+        "disabled": "{{postPin.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPinConfirmCancel",
+        "disabled": "{{postPin.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPinClose"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-feed/community-feed"
+      }
+    },
+    {
+      "tag": "view",
+      "attrs": {
+        "wx:if": "{{mediaGallery.groupId && mediaGallery.groupKind !== 'post'}}",
+        "bindtap": "onGalleryDismiss",
+        "catchtouchmove": "onGalleryTouchMove"
+      }
+    },
+    {
+      "tag": "view",
+      "attrs": {
+        "wx:if": "{{mediaGallery.groupId && mediaGallery.groupKind !== 'post'}}",
+        "catchtouchmove": "onGalleryTouchMove"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onGalleryDismiss"
+      }
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "wx:if": "{{item.status === 'ready' && item.localSrc}}",
+        "data-index": "{{item.index}}",
+        "data-src": "{{item.localSrc}}",
+        "data-view-id": "{{item.viewId}}",
+        "bindtap": "onGalleryOpen",
+        "binderror": "onGalleryError"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.status === 'unavailable'}}",
+        "data-index": "{{item.index}}",
+        "bindtap": "onGalleryRetry"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-index": "{{mediaGallery.selected - 1}}",
+        "bindtap": "onGalleryOpen",
+        "disabled": "{{mediaGallery.selected === 0}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-index": "{{mediaGallery.selected + 1}}",
+        "bindtap": "onGalleryOpen",
+        "disabled": "{{mediaGallery.selected + 1 >= mediaGallery.total}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onGalleryClose"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-start": "{{mediaGallery.start - 3}}",
+        "bindtap": "onGalleryWindow",
+        "disabled": "{{mediaGallery.start < 3}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-start": "{{mediaGallery.start + 3}}",
+        "bindtap": "onGalleryWindow",
+        "disabled": "{{mediaGallery.start + 3 >= mediaGallery.total}}"
+      }
+    }
+  ],
+  "community-thread": [
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named'}}",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onAuthorAvatar",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "text",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named'}}",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onAuthor"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{reply.target.status === 'available' && reply.target.author.kind === 'named'}}",
+        "data-kind": "reply_target",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onAuthorAvatar",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "text",
+      "attrs": {
+        "wx:if": "{{reply.target.status === 'available' && reply.target.author.kind === 'named'}}",
+        "data-kind": "reply_target",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onAuthor"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{reply.images.length}}",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onSelectGallery",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!reply.viewer.isSelf}}",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onReportReply",
+        "disabled": "{{busy || report.busy || report.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!reply.viewer.isSelf}}",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onPrivateMessage",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!reply.viewer.isSelf}}",
+        "data-kind": "reply",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onAdminDiscussionRemoval",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/report-progress/report-progress?kind=reply&id={{reply.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "url": "/pages/profile-moderation/profile-moderation?kind=reply&id={{reply.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "bindtap": "onAvatarModerationNavigate",
+        "url": "/pages/profile-avatar-moderation/profile-avatar-moderation?kind=reply&id={{reply.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{reply.author.kind === 'named' && !reply.viewer.isSelf}}",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onBlockReply",
+        "disabled": "{{busy || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{reply.id}}",
+        "bindtap": "onLikeReply",
+        "disabled": "{{busy || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.viewer.canComment}}",
+        "url": "/pages/community-compose/community-compose?postId={{post.id}}&rootCommentId={{root.id}}&targetReplyId={{reply.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.viewer.canComment && reply.text && reply.target.status === 'available' && reply.target.kind === 'comment'}}",
+        "url": "/pages/community-compose/community-compose?postId={{post.id}}&rootCommentId={{root.id}}&copyReplyId={{reply.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.viewer.canComment && reply.text && reply.target.status === 'available' && reply.target.kind === 'reply'}}",
+        "url": "/pages/community-compose/community-compose?postId={{post.id}}&rootCommentId={{root.id}}&targetReplyId={{reply.target.id}}&copyReplyId={{reply.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{reply.viewer.canDelete}}",
+        "data-id": "{{reply.id}}",
+        "bindtap": "onDeleteReply",
+        "disabled": "{{busy || interaction.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReload",
+        "disabled": "{{busy || interaction.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{root.author.kind === 'named'}}",
+        "data-kind": "comment",
+        "data-id": "{{root.id}}",
+        "bindtap": "onAuthorAvatar",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "text",
+      "attrs": {
+        "wx:if": "{{root.author.kind === 'named'}}",
+        "data-kind": "comment",
+        "data-id": "{{root.id}}",
+        "bindtap": "onAuthor"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{root.images.length}}",
+        "data-kind": "comment",
+        "data-id": "{{root.id}}",
+        "bindtap": "onSelectGallery",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!root.viewer.isSelf}}",
+        "bindtap": "onReportRoot",
+        "disabled": "{{busy || report.busy || report.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!root.viewer.isSelf}}",
+        "data-kind": "comment",
+        "data-id": "{{root.id}}",
+        "bindtap": "onPrivateMessage",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!root.viewer.isSelf}}",
+        "data-kind": "comment",
+        "data-id": "{{root.id}}",
+        "bindtap": "onAdminDiscussionRemoval",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/report-progress/report-progress?kind=comment&id={{root.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{root.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "url": "/pages/profile-moderation/profile-moderation?kind=comment&id={{root.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{root.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "bindtap": "onAvatarModerationNavigate",
+        "url": "/pages/profile-avatar-moderation/profile-avatar-moderation?kind=comment&id={{root.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{root.author.kind === 'named' && !root.viewer.isSelf}}",
+        "bindtap": "onBlockRoot",
+        "disabled": "{{busy || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onLikeRoot",
+        "disabled": "{{busy || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{root.viewer.canPin}}",
+        "bindtap": "onPinRoot",
+        "disabled": "{{busy || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.viewer.canComment}}",
+        "url": "/pages/community-compose/community-compose?postId={{post.id}}&rootCommentId={{root.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canLoadMore}}",
+        "bindtap": "onMore",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmDelete",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissDelete",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{post.author.kind === 'named'}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "bindtap": "onAuthorAvatar",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "text",
+      "attrs": {
+        "wx:if": "{{post.author.kind === 'named'}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "bindtap": "onAuthor"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onBlockPost",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{post.images.length}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "bindtap": "onSelectGallery",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!post.viewer.isSelf}}",
+        "bindtap": "onReportPost",
+        "disabled": "{{busy || report.busy || report.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!post.viewer.isSelf}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "bindtap": "onPrivateMessage",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!post.viewer.isSelf && post.author.kind === 'named' && post.allowAnonymousDm}}",
+        "data-kind": "post",
+        "data-id": "{{post.id}}",
+        "data-mode": "anonymous",
+        "bindtap": "onPrivateMessage",
+        "disabled": "{{busy || needsReload || block.busy || block.frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/report-progress/report-progress?kind=post&id={{post.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "url": "/pages/profile-moderation/profile-moderation?kind=post&id={{post.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post.author.kind === 'named' && !busy && !needsReload && !block.busy && !block.frozen}}",
+        "bindtap": "onAvatarModerationNavigate",
+        "url": "/pages/profile-avatar-moderation/profile-avatar-moderation?kind=post&id={{post.id}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{post}}",
+        "url": "/pages/community-detail/community-detail?postId={{post.id}}&rootCommentId={{root.id}}{{viewSpaceQuery}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-mine/community-mine"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "view",
+      "attrs": {
+        "wx:if": "{{mediaGallery.groupId}}",
+        "bindtap": "onGalleryDismiss",
+        "catchtouchmove": "onGalleryTouchMove"
+      }
+    },
+    {
+      "tag": "view",
+      "attrs": {
+        "wx:if": "{{mediaGallery.groupId}}",
+        "catchtouchmove": "onGalleryTouchMove"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onGalleryDismiss"
+      }
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "wx:if": "{{item.status === 'ready' && item.localSrc}}",
+        "data-index": "{{item.index}}",
+        "data-src": "{{item.localSrc}}",
+        "data-view-id": "{{item.viewId}}",
+        "bindtap": "onGalleryOpen",
+        "binderror": "onGalleryError"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.status === 'unavailable'}}",
+        "data-index": "{{item.index}}",
+        "bindtap": "onGalleryRetry"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-index": "{{mediaGallery.selected - 1}}",
+        "bindtap": "onGalleryOpen",
+        "disabled": "{{mediaGallery.selected === 0}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-index": "{{mediaGallery.selected + 1}}",
+        "bindtap": "onGalleryOpen",
+        "disabled": "{{mediaGallery.selected + 1 >= mediaGallery.total}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onGalleryClose"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-start": "{{mediaGallery.start - 3}}",
+        "bindtap": "onGalleryWindow",
+        "disabled": "{{mediaGallery.start < 3}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-start": "{{mediaGallery.start + 3}}",
+        "bindtap": "onGalleryWindow",
+        "disabled": "{{mediaGallery.start + 3 >= mediaGallery.total}}"
+      }
+    }
+  ],
+  "profile": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{hasSession && !profileDirty && !preferencesDirty && !details.dirty && !loading && !saving}}",
+        "url": "/pages/public-profile/public-profile"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onOpenAvatar",
+        "disabled": "{{avatarRead.status !== 'ready'}}"
+      }
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "wx:if": "{{avatarRead.localSrc}}",
+        "binderror": "onAvatarImageError"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onToggleAvatarTools"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onToggleAvatarTools"
+      }
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "binderror": "onAvatarImageError"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseAvatar"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onChooseCustomAvatar",
+        "disabled": "{{!avatar.canChoose || avatar.busy || loading || saving || profileDirty || preferencesDirty}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-item": "{{item.itemId}}",
+        "bindtap": "onAvatarCatalog",
+        "disabled": "{{loading || saving || profileDirty || preferencesDirty}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onClearAvatar",
+        "disabled": "{{!avatar.loaded || avatar.busy || loading || saving || profileDirty || preferencesDirty}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{avatar.canSave}}",
+        "bindtap": "onSaveAvatar",
+        "disabled": "{{avatar.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{avatar.busy}}",
+        "bindtap": "onStopAvatar"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{avatar.needsRecovery}}",
+        "bindtap": "onRecoverAvatar",
+        "disabled": "{{avatar.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{avatar.needsRecovery}}",
+        "bindtap": "onRetryAvatar",
+        "disabled": "{{avatar.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{avatar.needsRecovery}}",
+        "bindtap": "onCancelAvatarCommand",
+        "disabled": "{{avatar.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{avatar.needsRecovery}}",
+        "bindtap": "onCancelAvatarEdit",
+        "disabled": "{{avatar.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReloadAvatar",
+        "disabled": "{{avatar.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{loading || saving}}",
+        "bindtap": "onCancelOperation"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!loading && !saving && (!loaded || error)}}",
+        "bindtap": "onReload",
+        "disabled": "{{!hasSession || !configured}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login",
+        "open-type": "reLaunch"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{nickname}}",
+        "maxlength": "-1",
+        "disabled": "{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}",
+        "bindinput": "onNickname"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onToggleCoverTools"
+      }
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "wx:if": "{{coverRead.localSrc}}",
+        "binderror": "onCoverImageError"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{bio}}",
+        "maxlength": "-1",
+        "disabled": "{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}",
+        "bindinput": "onBio"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{profileDirty || saving}}",
+        "bindtap": "onSaveProfile",
+        "disabled": "{{!profileDirty || loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{cover.uploadAvailable}}",
+        "bindtap": "onChooseCover",
+        "disabled": "{{!cover.canChoose || cover.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{cover.loaded}}",
+        "bindtap": "onClearCover",
+        "disabled": "{{cover.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{cover.canSave}}",
+        "bindtap": "onSaveCover",
+        "disabled": "{{cover.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{cover.busy}}",
+        "bindtap": "onStopCover"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{cover.needsRecovery}}",
+        "bindtap": "onRecoverCover",
+        "disabled": "{{cover.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{cover.needsRecovery}}",
+        "bindtap": "onRetryCover",
+        "disabled": "{{cover.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{cover.needsRecovery}}",
+        "bindtap": "onCancelCoverCommand",
+        "disabled": "{{cover.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{cover.needsRecovery}}",
+        "bindtap": "onCancelCoverEdit",
+        "disabled": "{{cover.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{coverConfigured && !cover.busy && (!cover.loaded || cover.needsReload || cover.error)}}",
+        "bindtap": "onReloadCover"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{details.regionInput}}",
+        "maxlength": "80",
+        "bindinput": "onDetailsRegion",
+        "disabled": "{{details.busy || details.needsReload}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{details.showRegion}}",
+        "data-key": "showRegion",
+        "bindchange": "onDetailsVisibility",
+        "disabled": "{{details.busy || details.needsReload}}"
+      }
+    },
+    {
+      "tag": "picker",
+      "attrs": {
+        "value": "{{details.gender === 'female' ? 1 : details.gender === 'male' ? 2 : 0}}",
+        "bindchange": "onDetailsGender",
+        "disabled": "{{details.busy || details.needsReload}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{details.showGender}}",
+        "data-key": "showGender",
+        "bindchange": "onDetailsVisibility",
+        "disabled": "{{details.busy || details.needsReload}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "type": "number",
+        "value": "{{details.ageInput}}",
+        "maxlength": "3",
+        "bindinput": "onDetailsAge",
+        "disabled": "{{details.busy || details.needsReload}}"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{details.showAge}}",
+        "data-key": "showAge",
+        "bindchange": "onDetailsVisibility",
+        "disabled": "{{details.busy || details.needsReload}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSaveDetails",
+        "disabled": "{{!details.dirty || details.busy || details.needsReload}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{details.dirty && !details.needsReload}}",
+        "bindtap": "onCancelDetails",
+        "disabled": "{{details.busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!details.busy && (!details.loaded || details.error || details.needsReload)}}",
+        "bindtap": "onReloadDetails"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/school-services/school-services"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!profileDirty && !preferencesDirty && !loading && !saving}}",
+        "url": "/pages/campus/campus"
+      }
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{item.checked}}",
+        "data-key": "{{item.key}}",
+        "disabled": "{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}",
+        "bindchange": "onPreference"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSavePreferences",
+        "disabled": "{{!preferencesDirty || loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{profileDirty || preferencesDirty}}",
+        "bindtap": "onCancelEdits",
+        "disabled": "{{loading || saving}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onToggleMoreTools"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!profileDirty && !preferencesDirty && !loading && !saving}}",
+        "url": "/pages/verification/verification"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{hasSession && !profileDirty && !preferencesDirty && !loading && !saving}}",
+        "url": "/pages/community-blocks/community-blocks"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{hasSession && !profileDirty && !preferencesDirty && !loading && !saving}}",
+        "url": "/pages/identity-campus/identity-campus"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{hasSession && !profileDirty && !preferencesDirty && !loading && !saving}}",
+        "url": "/pages/public-profile/public-profile"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{hasSession && !profileDirty && !preferencesDirty && !loading && !saving}}",
+        "url": "/pages/community-liked/community-liked"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{hasSession && !profileDirty && !preferencesDirty && !loading && !saving}}",
+        "url": "/pages/experience/experience"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/school-uid-lookup/school-uid-lookup"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/school-identity-management/school-identity-management"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/safety-punishment-management/safety-punishment-management"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/safety-appeal-management/safety-appeal-management"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/account-status/account-status"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/school-admin-management/school-admin-management"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/organizations/organizations"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/feedback/feedback"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/private-message-list/private-message-list"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-recovery/rating-recovery"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/report-progress/report-progress"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/system-notices/system-notices"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/campus-tools/campus-tools"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login",
+        "open-type": "reLaunch"
+      }
+    }
+  ]
+}

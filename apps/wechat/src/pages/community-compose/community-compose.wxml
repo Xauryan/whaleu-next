@@ -1,97 +1,190 @@
-<view class="screen">
-  <view wx:if="{{isFeedback}}" class="card"><view class="title">全站意见建议</view><view class="notice">这是公开专题。实名或分身、正文、已审核图片与认证学校会在全站展示；需要私密帮助时请勿在此填写敏感信息。</view>
+<view class="screen compose-screen f7-ios-theme f7-composer-screen">
+  <view class="composer-heading">{{frozen ? '发布进度' : (isTrading ? '发布交易' : maxText === 500 ? '写回复' : isFeedback ? '意见与建议' : '发布主题')}}</view>
+  <view class="status page-status" aria-role="status" wx:if="{{status &amp;&amp; (busy || frozen || !loaded)}}">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+
+  <view wx:if="{{hasSession}}" class="composer-content">
+    <wu-f7-block class="card writing-card" spacing="compact">
+      <view wx:if="{{replyTargetName}}" class="scope">回复：{{replyTargetName}}</view>
+      <textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="{{isTrading ? '介绍一下物品、成色或你的需求…' : maxText === 500 ? '写下你的回复…' : '分享你的校园生活…'}}" class="writing-canvas" placeholder-class="input-placeholder" />
+      <view class="canvas-counter">最多 {{maxText}} 字</view>
+    </wu-f7-block>
+    <wu-f7-block wx:if="{{hasRatingLink}}" class="card" spacing="compact">
+      <view class="section-title">关联评分</view>
+      <view wx:if="{{ratingLinkName}}">{{ratingLinkName}}</view>
+      <view wx:else class="notice">显示名称需重新核验；原标签不代替当前对象资料</view>
+      <wu-f7-input value="{{ratingLinkLabel}}" bind:input="onRatingLabel" maxlength="-1" disabled="{{frozen || busy}}" placeholder="卡片标签（1–12 字）" placeholder-class="input-placeholder" />
+      <view class="notice">标签与帖子正文独立；支持本地区普通文字讨论。</view>
+      <wu-f7-button bind:press="onGenerateRatingLabel" wx:if="{{!frozen}}" disabled="{{busy || assistance.busy}}">生成标签建议</wu-f7-button>
+      <wu-f7-button bind:press="onRemoveRatingLink" wx:if="{{!frozen}}" disabled="{{busy}}">移除评分卡片</wu-f7-button>
+    </wu-f7-block>
+    <wu-f7-block wx:if="{{assistance.requestId || assistance.status}}" class="card" spacing="compact">
+      <view>{{assistance.status}}</view>
+      <view wx:if="{{assistance.preview}}">{{assistance.preview}}</view>
+      <wu-f7-button wx:if="{{assistance.canAdopt}}" bind:press="onAdoptRatingLabel" disabled="{{frozen || busy || assistance.busy}}">采用此标签</wu-f7-button>
+      <wu-f7-button wx:if="{{assistance.canRecover}}" bind:press="onRecoverAssistance" disabled="{{assistance.busy}}">查询原建议请求</wu-f7-button>
+      <wu-f7-button wx:if="{{assistance.canCancel}}" bind:press="onCancelAssistance" disabled="{{assistance.busy}}">取消原建议请求</wu-f7-button>
+      <wu-f7-button wx:if="{{assistance.canDismiss}}" bind:press="onDismissAssistance" disabled="{{assistance.busy}}">关闭此建议</wu-f7-button>
+    </wu-f7-block>
+    <wu-f7-block class="card media-card" spacing="compact">
+      <view class="media-heading"><text>图片</text><text>{{mediaSelected}} / {{maxImages}}</text></view>
+      <view class="notice" wx:if="{{mediaNotice}}">{{mediaNotice}}</view>
+      <view wx:if="{{batchMode}}" class="media-batch">
+        <view wx:for="{{mediaMembers}}" wx:key="memberId" class="media-batch-member">
+          <text>第 {{index + 1}} 张 · {{item.status}}</text>
+          <button size="mini" data-id="{{item.memberId}}" data-direction="-1" bindtap="onMoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit || index === 0}}">前移</button>
+          <button size="mini" data-id="{{item.memberId}}" data-direction="1" bindtap="onMoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit || index + 1 === mediaSelected}}">后移</button>
+          <button size="mini" data-id="{{item.memberId}}" bindtap="onReplaceImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit}}">替换</button>
+          <button size="mini" data-id="{{item.memberId}}" bindtap="onRemoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit}}">移除</button>
+        </view>
+        <button bindtap="onSelectImage" disabled="{{frozen || busy || mediaBusy || !canSelectImage}}" class="attachment-add">添加原图 · {{mediaSelected}} / {{maxImages}}</button>
+        <button bindtap="onRecoverImage" disabled="{{busy || mediaBusy}}">确认整批图片状态</button>
+        <button bindtap="onCancelImage" disabled="{{busy || mediaBusy}}">取消整批图片（需服务器确认）</button>
+      </view>
+      <view wx:elif="{{canSelectImage}}"><button bindtap="onSelectImage" disabled="{{frozen || busy || mediaBusy || (mediaStatus !== 'idle' &amp;&amp; mediaStatus !== 'terminal' &amp;&amp; mediaStatus !== 'bound_history')}}" class="attachment-add"><wu-icon name="plus" size="26" /><text>添加图片</text></button>
+        <button wx:if="{{uiPanel === 'media' || (mediaStatus !== 'idle' &amp;&amp; mediaStatus !== 'terminal' &amp;&amp; mediaStatus !== 'bound_history')}}" bindtap="onRecoverImage">查询原图片操作</button>
+        <button wx:if="{{uiPanel === 'media' || (mediaStatus !== 'idle' &amp;&amp; mediaStatus !== 'terminal' &amp;&amp; mediaStatus !== 'bound_history')}}" bindtap="onCancelImage">取消原图片操作（需服务器确认）</button>
+      </view>
+          <wu-f7-button class="media-options" data-panel="media" bind:press="onToggleComposePanel" aria-label="图片恢复选项"><wu-icon name="more" size="20" tone="muted" /></wu-f7-button>
+    </wu-f7-block>
+    <wu-f7-block class="card identity-card" spacing="compact">
+      <wu-f7-list spacing="compact"><wu-f7-list-item class="composer-option" data-panel="identity" bind:press="onToggleComposePanel" link="{{true}}" last="{{true}}" aria-label="发布身份"><view class="f7-composer-disclosure"><wu-icon name="person" size="21" /><text>发布身份</text><text class="option-value">{{authorMode === 'anonymous' ? '分身' : '公开身份'}}</text></view></wu-f7-list-item></wu-f7-list>
+      <view wx:if="{{uiPanel === 'identity'}}" class="option-content">
+      <view class="identity-summary">{{effectiveIdentity || '正在检查当前身份权限'}}</view>
+      <view wx:if="{{!frozen &amp;&amp; !identityForced}}" class="chips identity-segment">
+        <wu-f7-button class="chip {{authorMode === 'named' ? 'active' : ''}}" data-mode="named" bind:press="onMode" disabled="{{frozen || busy || !loaded}}" variant="{{authorMode === 'named' ? 'tonal' : 'plain'}}">公开身份</wu-f7-button>
+        <wu-f7-button class="chip {{authorMode === 'anonymous' ? 'active' : ''}}" data-mode="anonymous" bind:press="onMode" disabled="{{frozen || busy || !loaded}}" variant="{{authorMode === 'anonymous' ? 'tonal' : 'plain'}}">分身</wu-f7-button>
+      </view>
+      <navigator wx:if="{{hasSession &amp;&amp; !busy &amp;&amp; canOpenIdentityCampus}}" class="link settings-link" url="/pages/identity-campus/identity-campus">身份与校区设置（返回后需再次点击发送）<wu-icon name="chevron-right" size="16" /></navigator>
+      <view wx:if="{{canChooseRelatedCampusSync || syncToRelatedCampuses}}" class="row">
+        <text>同步到关联学校</text>
+        <switch checked="{{syncToRelatedCampuses}}" bindchange="onRelatedCampusSync" disabled="{{frozen || busy || !loaded || !canChooseRelatedCampusSync}}" color="#007aff" />
+      </view>
+      <view wx:if="{{relatedCampusSyncNotice}}" class="notice">{{relatedCampusSyncNotice}}</view>
+      <view wx:if="{{canChooseAnonymousDm &amp;&amp; authorMode === 'named'}}" class="row">
+        <text>允许别人通过此帖以分身私信我</text>
+        <switch checked="{{allowAnonymousDm}}" bindchange="onAllowAnonymousDm" disabled="{{frozen || busy || !loaded}}" color="#007aff" />
+      </view>
+      <view wx:if="{{canChooseAnonymousDm &amp;&amp; authorMode === 'named'}}" class="notice">此选择仅随本次帖子一同审核，个人默认偏好不会改变已发布帖子。</view>
+      <view wx:if="{{(canDisableComments || commentsPolicy === 'restricted') &amp;&amp; !frozen}}" class="row">
+        <text>限制普通回复</text>
+        <switch checked="{{commentsPolicy === 'restricted'}}" bindchange="onRestricted" disabled="{{busy}}" color="#007aff" />
+      </view>
+          </view>
+    </wu-f7-block>
+  <wu-f7-block wx:if="{{isFeedback}}" class="card feedback-card" spacing="compact">
+    <view class="section-title">公开反馈</view>
+    <view class="notice">这是公开专题。实名或分身、正文、已审核图片与认证学校会在全站展示；需要私密帮助时请勿在此填写敏感信息。</view>
     <view class="field-label">联系方式（选填）</view>
-    <input data-field="wechat" value="{{feedbackDraft.wechat}}" placeholder="微信（最多 50 字节）" maxlength="-1" disabled="{{frozen || busy}}" bindinput="onFeedbackField" />
-    <input data-field="qq" value="{{feedbackDraft.qq}}" placeholder="QQ（最多 50 字节）" maxlength="-1" disabled="{{frozen || busy}}" bindinput="onFeedbackField" />
-    <input data-field="phone" value="{{feedbackDraft.phone}}" placeholder="电话（最多 50 字节）" maxlength="-1" disabled="{{frozen || busy}}" bindinput="onFeedbackField" />
-    <label><switch checked="{{feedbackDraft.consent}}" disabled="{{frozen || busy}}" bindchange="onFeedbackConsent" />填写联系方式后，同意登录且有权查看此帖的人主动查看；联系方式可能识别分身背后的你。</label>
-  </view><view class="eyebrow">WHALEU · 写下此刻</view><view class="title">{{frozen ? '确认原发布结果' : (isTrading ? '发布校园交易' : maxText === 500 ? '写一条评论' : '分享校园里的事')}}</view>
-  <view class="subtitle">本地草稿与已提交内容分别保存。结果未确认前，原请求不会被修改或替换。</view>
-  <view class="notice">显示身份选项不代表已取得发布资格或内容已获审核。可另行确认身份校区。开发环境启用文字审核后，需等待明确审核结果，再主动确认发布原请求；发布不可用时，仍可查询本账号的原请求回执。</view>
-  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <navigator wx:if="{{hasSession &amp;&amp; !busy &amp;&amp; canOpenIdentityCampus}}" class="link" url="/pages/identity-campus/identity-campus">查看身份校区状态与可选校区（返回后需再次点击发送）→</navigator>
-  <view wx:if="{{hasSession}}" class="card"><view wx:if="{{recoveryOperation}}" class="meta">待确认类型：{{recoveryOperation}}</view><view wx:if="{{replyTargetName}}" class="scope">回复：{{replyTargetName}}</view><view class="label">正文 · 最多 {{maxText}} 字</view><view wx:if="{{hasRatingLink}}" class="card">
-    <view class="section-title">评分对象卡片</view><view wx:if="{{ratingLinkName}}">{{ratingLinkName}}</view>
-    <view wx:else class="notice">显示名称需重新核验；原标签不代替当前对象资料</view>
-    <input value="{{ratingLinkLabel}}" bindinput="onRatingLabel" maxlength="-1" disabled="{{frozen || busy}}" placeholder="卡片标签（1–12 字）" />
-    <view class="notice">标签与帖子正文独立；支持本地区普通文字讨论。</view>
-    <button bindtap="onGenerateRatingLabel" wx:if="{{!frozen}}" disabled="{{busy || assistance.busy}}">生成标签建议</button>
-    <button bindtap="onRemoveRatingLink" wx:if="{{!frozen}}" disabled="{{busy}}">移除评分卡片</button>
-  </view>
-  <view wx:if="{{assistance.requestId || assistance.status}}" class="card">
-    <view>{{assistance.status}}</view><view wx:if="{{assistance.preview}}">{{assistance.preview}}</view>
-    <button wx:if="{{assistance.canAdopt}}" bindtap="onAdoptRatingLabel" disabled="{{frozen || busy || assistance.busy}}">采用此标签</button>
-    <button wx:if="{{assistance.canRecover}}" bindtap="onRecoverAssistance" disabled="{{assistance.busy}}">查询原建议请求</button>
-    <button wx:if="{{assistance.canCancel}}" bindtap="onCancelAssistance" disabled="{{assistance.busy}}">取消原建议请求</button>
-    <button wx:if="{{assistance.canDismiss}}" bindtap="onDismissAssistance" disabled="{{assistance.busy}}">关闭此建议</button>
-  </view>
-  <textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="说说你想分享的事…" />
-    <view class="scope">发送时展示：{{effectiveIdentity || '请等待当前身份权限检查'}}</view><view wx:if="{{!frozen &amp;&amp; !identityForced}}" class="chips"><view class="chip {{authorMode === 'named' ? 'active' : ''}}" data-mode="named" bindtap="onMode">公开身份</view><view class="chip {{authorMode === 'anonymous' ? 'active' : ''}}" data-mode="anonymous" bindtap="onMode">匿名</view></view>
-    <view wx:if="{{canChooseRelatedCampusSync || syncToRelatedCampuses}}" class="row"><text>同步到关联学校</text><switch checked="{{syncToRelatedCampuses}}" bindchange="onRelatedCampusSync" disabled="{{frozen || busy || !loaded || !canChooseRelatedCampusSync}}" /></view>
-    <view wx:if="{{relatedCampusSyncNotice}}" class="notice">{{relatedCampusSyncNotice}}</view>
-    <view wx:if="{{canChooseAnonymousDm &amp;&amp; authorMode === 'named'}}" class="row"><text>允许别人通过此帖以分身私信我</text><switch checked="{{allowAnonymousDm}}" bindchange="onAllowAnonymousDm" disabled="{{frozen || busy || !loaded}}" /></view><view wx:if="{{canChooseAnonymousDm &amp;&amp; authorMode === 'named'}}" class="notice">此选择仅随本次帖子一同审核，个人默认偏好不会改变已发布帖子。</view>
-    <view wx:if="{{(canDisableComments || commentsPolicy === 'restricted') &amp;&amp; !frozen}}" class="row"><text>限制普通评论</text><switch checked="{{commentsPolicy === 'restricted'}}" bindchange="onRestricted" disabled="{{busy}}" /></view>
-    <view wx:if="{{isTrading}}" class="trading-composer">
-      <view class="section-title">交易信息 · 仅公开身份、地区社区</view>
-      <view class="chips"><button wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingDraft.subtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype" disabled="{{frozen || busy || !loaded}}">{{item.label}}</button></view>
-      <view class="label">价格（元，大于零且不超过 99999）</view><input type="text" value="{{tradingDraft.price}}" data-field="price" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="如 12.345，不会四舍五入" />
-      <view wx:if="{{tradingDraft.subtype !== 'qiugou'}}" class="chips"><button class="chip {{tradingDraft.urgency === 'urgent' ? 'active' : ''}}" data-key="urgent" bindtap="onTradingUrgency" disabled="{{frozen || busy || !loaded}}">低价急出</button><button class="chip {{tradingDraft.urgency === 'normal' ? 'active' : ''}}" data-key="normal" bindtap="onTradingUrgency" disabled="{{frozen || busy || !loaded}}">普通出售</button></view>
+    <wu-f7-input data-field="wechat" value="{{feedbackDraft.wechat}}" placeholder="微信（最多 50 字节）" maxlength="-1" disabled="{{frozen || busy}}" bind:input="onFeedbackField" placeholder-class="input-placeholder" />
+    <wu-f7-input data-field="qq" value="{{feedbackDraft.qq}}" placeholder="QQ（最多 50 字节）" maxlength="-1" disabled="{{frozen || busy}}" bind:input="onFeedbackField" placeholder-class="input-placeholder" />
+    <wu-f7-input data-field="phone" value="{{feedbackDraft.phone}}" placeholder="电话（最多 50 字节）" maxlength="-1" disabled="{{frozen || busy}}" bind:input="onFeedbackField" placeholder-class="input-placeholder" />
+    <label>
+      <switch checked="{{feedbackDraft.consent}}" disabled="{{frozen || busy}}" bindchange="onFeedbackConsent" color="#007aff" />
+      填写联系方式后，同意登录且有权查看此帖的人主动查看；联系方式可能识别分身背后的你。
+    </label>
+  </wu-f7-block>
+    <wu-f7-block wx:if="{{isTrading}}" class="card trading-composer" spacing="compact">
+      <view class="section-title">交易信息 · 公开身份</view>
+      <view class="chips">
+        <wu-f7-button wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingDraft.subtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bind:press="onTradingSubtype" disabled="{{frozen || busy || !loaded}}" variant="{{tradingDraft.subtype === item.key ? 'tonal' : 'plain'}}">{{item.label}}</wu-f7-button>
+      </view>
+      <view class="label">价格（元，大于零且不超过 99999）</view>
+      <wu-f7-input type="text" value="{{tradingDraft.price}}" data-field="price" bind:input="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="如 12.345，不会四舍五入" placeholder-class="input-placeholder" />
+      <view wx:if="{{tradingDraft.subtype !== 'qiugou'}}" class="chips">
+        <wu-f7-button class="chip {{tradingDraft.urgency === 'urgent' ? 'active' : ''}}" data-key="urgent" bind:press="onTradingUrgency" disabled="{{frozen || busy || !loaded}}" variant="{{tradingDraft.urgency === 'urgent' ? 'tonal' : 'plain'}}">低价急出</wu-f7-button>
+        <wu-f7-button class="chip {{tradingDraft.urgency === 'normal' ? 'active' : ''}}" data-key="normal" bind:press="onTradingUrgency" disabled="{{frozen || busy || !loaded}}" variant="{{tradingDraft.urgency === 'normal' ? 'tonal' : 'plain'}}">普通出售</wu-f7-button>
+      </view>
       <view class="notice">{{tradingDraft.subtype === 'qiugou' ? '求购使用普通模式' : '普通出售可进入普通社区浏览；急出在交易分类中浏览。急出群推送尚未接入'}}。售出／解决状态与急出模式互不影响。</view>
-      <view class="label">交易地点／校区（必填）</view><input value="{{tradingDraft.location}}" data-field="location" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="手动填写，不使用身份校区代填" />
+      <view class="label">交易地点／校区（必填）</view>
+      <wu-f7-input value="{{tradingDraft.location}}" data-field="location" bind:input="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="手动填写，不使用身份校区代填" placeholder-class="input-placeholder" />
       <view class="label">自愿发布的联系方式（至少一项）</view>
-      <input value="{{tradingDraft.wechat}}" data-field="wechat" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="微信" />
-      <input value="{{tradingDraft.qq}}" data-field="qq" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="QQ" />
-      <input value="{{tradingDraft.phone}}" data-field="phone" bindinput="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="联系电话" />
+      <wu-f7-input value="{{tradingDraft.wechat}}" data-field="wechat" bind:input="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="微信" placeholder-class="input-placeholder" />
+      <wu-f7-input value="{{tradingDraft.qq}}" data-field="qq" bind:input="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="QQ" placeholder-class="input-placeholder" />
+      <wu-f7-input value="{{tradingDraft.phone}}" data-field="phone" bind:input="onTradingField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="联系电话" placeholder-class="input-placeholder" />
       <view class="notice">以上联系方式会供有权查看此帖的用户展示和复制，不表示号码已认证。成功发布后会在本机当前账号下记住你填写的地点与整组联系方式，下次仍需确认公开。请勿填写他人的私密资料。这里不提供付款、担保、配送或交易订单。</view>
-      <view class="row"><text>我愿意公开以上联系方式</text><switch checked="{{tradingDraft.contactConsent}}" bindchange="onContactConsent" disabled="{{frozen || busy || !loaded}}" /></view>
-    </view>
-    <view wx:if="{{canAddPoll}}" class="poll-composer">
-      <view class="row"><text>添加投票</text><switch checked="{{pollDraft.enabled}}" bindchange="onPollEnabled" disabled="{{frozen || busy || !loaded || formationDraft.enabled}}" /></view>
+      <view class="row">
+        <text>我愿意公开以上联系方式</text>
+        <switch checked="{{tradingDraft.contactConsent}}" bindchange="onContactConsent" disabled="{{frozen || busy || !loaded}}" color="#007aff" />
+      </view>
+    </wu-f7-block>
+    <wu-f7-block wx:if="{{canAddPoll}}" class="card poll-composer" spacing="compact">
+      <wu-f7-list spacing="compact"><wu-f7-list-item class="composer-option" data-panel="poll" bind:press="onToggleComposePanel" link="{{true}}" last="{{true}}" aria-label="投票"><view class="f7-composer-disclosure"><wu-icon name="chart" size="21" /><text>投票</text><text class="option-value">{{pollDraft.enabled ? '已添加' : ''}}</text></view></wu-f7-list-item></wu-f7-list>
+      <view wx:if="{{uiPanel === 'poll' || pollDraft.enabled}}" class="option-content">
+      <view class="row">
+        <text>添加投票</text>
+        <switch checked="{{pollDraft.enabled}}" bindchange="onPollEnabled" disabled="{{frozen || busy || !loaded || formationDraft.enabled}}" color="#007aff" />
+      </view>
       <view wx:if="{{pollDraft.enabled}}">
-        <view class="label">独立投票问题 · 最多 255 字</view><input value="{{pollDraft.question}}" bindinput="onPollQuestion" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="你想问大家什么？" />
-        <view class="chips"><button class="chip {{pollDraft.selectionMode === 'single' ? 'active' : ''}}" data-mode="single" bindtap="onPollMode" disabled="{{frozen || busy || !loaded}}">单选</button><button class="chip {{pollDraft.selectionMode === 'multiple' ? 'active' : ''}}" data-mode="multiple" bindtap="onPollMode" disabled="{{frozen || busy || !loaded}}">多选</button></view>
-        <view wx:for="{{pollDraft.options}}" wx:key="index" class="row"><input value="{{item}}" data-index="{{index}}" bindinput="onPollOption" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="选项 {{index + 1}} · 最多 255 字" /><button data-index="{{index}}" bindtap="onRemovePollOption" disabled="{{frozen || busy || pollDraft.options.length &lt;= 2}}">删除</button></view>
-        <button class="secondary" bindtap="onAddPollOption" disabled="{{frozen || busy || pollDraft.options.length + (pollDraft.finalOption ? 1 : 0) >= 5}}">添加普通选项</button>
-        <view class="row"><text>最后添加吃瓜🍉</text><switch checked="{{pollDraft.finalOption}}" bindchange="onPollFinal" disabled="{{frozen || busy}}" /></view>
+        <view class="label">投票问题 · 最多 255 字</view>
+        <wu-f7-input value="{{pollDraft.question}}" bind:input="onPollQuestion" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="你想问大家什么？" placeholder-class="input-placeholder" />
+        <view class="chips">
+          <wu-f7-button class="chip {{pollDraft.selectionMode === 'single' ? 'active' : ''}}" data-mode="single" bind:press="onPollMode" disabled="{{frozen || busy || !loaded}}" variant="{{pollDraft.selectionMode === 'single' ? 'tonal' : 'plain'}}">单选</wu-f7-button>
+          <wu-f7-button class="chip {{pollDraft.selectionMode === 'multiple' ? 'active' : ''}}" data-mode="multiple" bind:press="onPollMode" disabled="{{frozen || busy || !loaded}}" variant="{{pollDraft.selectionMode === 'multiple' ? 'tonal' : 'plain'}}">多选</wu-f7-button>
+        </view>
+        <view wx:for="{{pollDraft.options}}" wx:key="index" class="row">
+          <wu-f7-input value="{{item}}" data-index="{{index}}" bind:input="onPollOption" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="选项 {{index + 1}} · 最多 255 字" placeholder-class="input-placeholder" />
+          <wu-f7-button data-index="{{index}}" bind:press="onRemovePollOption" disabled="{{frozen || busy || pollDraft.options.length &lt;= 2}}">删除</wu-f7-button>
+        </view>
+        <wu-f7-button class="secondary" bind:press="onAddPollOption" disabled="{{frozen || busy || pollDraft.options.length + (pollDraft.finalOption ? 1 : 0) &gt;= 5}}" variant="tonal">添加普通选项</wu-f7-button>
+        <view class="row">
+          <text>最后添加吃瓜🍉</text>
+          <switch checked="{{pollDraft.finalOption}}" bindchange="onPollFinal" disabled="{{frozen || busy}}" color="#007aff" />
+        </view>
         <view class="notice">至少两个普通选项，总共最多五个；吃瓜🍉同样可被选择并占一个名额。单选点选即投，多选需要确认；每人仅可投一次，作者也可参与。本次新建投票不设截止时间。</view>
       </view>
       <view class="meta">投票、组队和内部链接只能选一个。请先关闭当前组件再切换，未提交的填写内容会保留。内部链接仍待接入。</view>
-    </view>
-    <view wx:if="{{canAddFormation}}" class="formation-composer">
-      <view class="row"><text>添加组队</text><switch checked="{{formationDraft.enabled}}" bindchange="onFormationEnabled" disabled="{{frozen || busy || !loaded || pollDraft.enabled}}" /></view>
+          </view>
+    </wu-f7-block>
+    <wu-f7-block wx:if="{{canAddFormation}}" class="card formation-composer" spacing="compact">
+      <wu-f7-list spacing="compact"><wu-f7-list-item class="composer-option" data-panel="formation" bind:press="onToggleComposePanel" link="{{true}}" last="{{true}}" aria-label="组队"><view class="f7-composer-disclosure"><wu-icon name="people" size="21" /><text>组队</text><text class="option-value">{{formationDraft.enabled ? '已添加' : ''}}</text></view></wu-f7-list-item></wu-f7-list>
+      <view wx:if="{{uiPanel === 'formation' || formationDraft.enabled}}" class="option-content">
+      <view class="row">
+        <text>添加组队</text>
+        <switch checked="{{formationDraft.enabled}}" bindchange="onFormationEnabled" disabled="{{frozen || busy || !loaded || pollDraft.enabled}}" color="#007aff" />
+      </view>
       <view wx:if="{{formationDraft.enabled}}">
-        <view class="label">活动主题 · 最多 12 字</view><input value="{{formationDraft.theme}}" data-field="theme" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="一起做什么？" />
-        <view class="label">总人数 · 1–20 人，包含发起人</view><input type="number" value="{{formationDraft.capacity}}" data-field="capacity" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="填写整数人数，不会自动修正" />
+        <view class="label">活动主题 · 最多 12 字</view>
+        <wu-f7-input value="{{formationDraft.theme}}" data-field="theme" bind:input="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="一起做什么？" placeholder-class="input-placeholder" />
+        <view class="label">总人数 · 1–20 人，包含发起人</view>
+        <wu-f7-input type="number" value="{{formationDraft.capacity}}" data-field="capacity" bind:input="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="填写整数人数，不会自动修正" placeholder-class="input-placeholder" />
         <view class="notice">发布成功后你会立即加入并占一个名额。{{formationDraft.capacity === '1' ? '人数设为 1，发布时即满员。' : '最后一个名额加入后即满员。'}}</view>
         <view class="label">提供给组内成员的联系方式 · 至少一项</view>
-        <input value="{{formationDraft.wechat}}" data-field="wechat" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="微信（最多 100 UTF-8 字节）" />
-        <input value="{{formationDraft.qq}}" data-field="qq" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="QQ（最多 50 UTF-8 字节）" />
-        <input value="{{formationDraft.phone}}" data-field="phone" bindinput="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="联系电话（最多 20 UTF-8 字节）" />
+        <wu-f7-input value="{{formationDraft.wechat}}" data-field="wechat" bind:input="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="微信（最多 100 UTF-8 字节）" placeholder-class="input-placeholder" />
+        <wu-f7-input value="{{formationDraft.qq}}" data-field="qq" bind:input="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="QQ（最多 50 UTF-8 字节）" placeholder-class="input-placeholder" />
+        <wu-f7-input value="{{formationDraft.phone}}" data-field="phone" bind:input="onFormationField" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="联系电话（最多 20 UTF-8 字节）" placeholder-class="input-placeholder" />
         <view class="formation-disclosure">以上联系方式仅供有权查看此帖的组内成员查看和复制，不会显示在普通帖子列表、详情或成员名单中。联系方式由你自行填写，不表示号码已认证，也不会从个人资料、认证手机号或交易偏好中代填。</view>
-        <view class="formation-disclosure">匿名发起时，帖子和成员名单公开展示匿名形象；组内成员仍可能通过你填写的联系方式识别你的真实身份。请勿填写他人的私密资料。</view>
-        <view class="row"><text>我已了解并同意以上联系方式向符合权限的组内成员提供</text><switch checked="{{formationDraft.contactConsent}}" bindchange="onFormationConsent" disabled="{{frozen || busy || !loaded}}" /></view>
+        <view class="formation-disclosure">分身发起时，帖子和成员名单公开展示分身形象；组内成员仍可能通过你填写的联系方式识别你的真实身份。请勿填写他人的私密资料。</view>
+        <view class="row">
+          <text>我已了解并同意以上联系方式向符合权限的组内成员提供</text>
+          <switch checked="{{formationDraft.contactConsent}}" bindchange="onFormationConsent" disabled="{{frozen || busy || !loaded}}" color="#007aff" />
+        </view>
       </view>
-    </view>
-    <view class="notice">{{mediaNotice}}</view>
-    <view wx:if="{{batchMode}}" class="media-batch">
-      <view wx:for="{{mediaMembers}}" wx:key="memberId" class="media-batch-member">
-        <text>第 {{index + 1}} 张 · {{item.status}}</text>
-        <button size="mini" data-id="{{item.memberId}}" data-direction="-1" bindtap="onMoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit || index === 0}}">前移</button>
-        <button size="mini" data-id="{{item.memberId}}" data-direction="1" bindtap="onMoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit || index + 1 === mediaSelected}}">后移</button>
-        <button size="mini" data-id="{{item.memberId}}" bindtap="onReplaceImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit}}">替换</button>
-        <button size="mini" data-id="{{item.memberId}}" bindtap="onRemoveImage" disabled="{{frozen || busy || mediaBusy || !mediaCanEdit}}">移除</button>
-      </view>
-      <button bindtap="onSelectImage" disabled="{{frozen || busy || mediaBusy || !canSelectImage}}">添加一张原图（{{mediaSelected}}/{{maxImages}}）</button>
-      <button bindtap="onRecoverImage" disabled="{{busy || mediaBusy}}">确认整批图片状态</button>
-      <button bindtap="onCancelImage" disabled="{{busy || mediaBusy}}">取消整批图片（需服务器确认）</button>
-    </view>
-    <view wx:elif="{{canSelectImage}}"><button bindtap="onSelectImage" disabled="{{frozen || busy || mediaBusy || (mediaStatus !== 'idle' &amp;&amp; mediaStatus !== 'terminal' &amp;&amp; mediaStatus !== 'bound_history')}}">选择一张原图并上传</button><button bindtap="onRecoverImage">查询原图片操作</button><button bindtap="onCancelImage">取消原图片操作（需服务器确认）</button></view>
-    <view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
-    <view wx:if="{{!frozen &amp;&amp; canSubmit &amp;&amp; authorMode === 'named' &amp;&amp; mediaSelected === 0 &amp;&amp; !isTrading &amp;&amp; !pollDraft.enabled &amp;&amp; !formationDraft.enabled &amp;&amp; commentsPolicy === 'open' &amp;&amp; !allowAnonymousDm}}" class="hint">实名纯文字先提交给本环境指定审核操作者查看；通过后还需确认发布。</view>
-    <button wx:if="{{!frozen}}" class="primary" bindtap="onSubmit" disabled="{{!canSubmit || busy}}" loading="{{busy}}">确认以上身份并提交内容</button><button wx:if="{{frozen}}" class="primary" bindtap="onReceipt" disabled="{{busy}}" loading="{{busy}}">查询原请求回执与审核</button><button wx:if="{{frozen}}" class="secondary" bindtap="onRetry" disabled="{{busy}}">{{reviewStatus === 'approved' ? '审核已通过，确认发布原请求' : reviewStatus === 'rejected' ? '取得原请求拒绝回执' : reviewStatus === 'unavailable' ? '重试完全相同的原内容审核' : '重试完全相同的原请求'}}</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待（不撤销发布）</button>
-    <button wx:if="{{frozen &amp;&amp; canCancelReview}}" class="secondary" bindtap="onCancelReview" disabled="{{busy}}">取消原待审请求（需服务器确认）</button>
-    <view wx:if="{{receiptStatus}}" class="status">{{receiptStatus}}</view><navigator wx:if="{{resourcePostId &amp;&amp; !resourceRootCommentId}}" class="link" url="/pages/community-detail/community-detail?postId={{resourcePostId}}{{viewSpaceQuery}}">查看已确认的帖子 →</navigator><navigator wx:if="{{resourceRootCommentId &amp;&amp; resourceReplyId}}" class="link" url="/pages/community-thread/community-thread?postId={{resourcePostId}}&amp;rootCommentId={{resourceRootCommentId}}&amp;replyId={{resourceReplyId}}{{viewSpaceQuery}}">查看已确认的回复 →</navigator><navigator wx:if="{{resourceRootCommentId &amp;&amp; !resourceReplyId}}" class="link" url="/pages/community-detail/community-detail?postId={{resourcePostId}}&amp;rootCommentId={{resourceRootCommentId}}{{viewSpaceQuery}}">查看已确认的评论 →</navigator>
+          </view>
+    </wu-f7-block>
+    <wu-f7-block class="card publish-card" spacing="compact">
+
+      <view wx:if="{{recoveryOperation}}" class="meta">待确认操作：{{recoveryOperation}}</view>
+      <view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
+      <view wx:if="{{uiPanel === 'recovery' || frozen}}" class="notice">发布需通过身份校区与内容审核；审核通过后，仍需主动确认发布原请求。</view>
+      <view wx:if="{{!frozen &amp;&amp; canSubmit &amp;&amp; authorMode === 'named' &amp;&amp; mediaSelected === 0 &amp;&amp; !isTrading &amp;&amp; !pollDraft.enabled &amp;&amp; !formationDraft.enabled &amp;&amp; commentsPolicy === 'open' &amp;&amp; !allowAnonymousDm}}" class="notice review-notice">实名纯文字先提交给本环境指定审核操作者查看；通过后还需确认发布。</view>
+
+      <wu-f7-button wx:if="{{frozen}}" class="primary" bind:press="onReceipt" disabled="{{busy}}" loading="{{busy}}" variant="fill" size="large" round="{{true}}">查询原请求回执与审核</wu-f7-button>
+      <wu-f7-button wx:if="{{frozen}}" class="secondary" bind:press="onRetry" disabled="{{busy}}" variant="tonal">{{reviewStatus === 'approved' ? '审核已通过，确认发布原请求' : reviewStatus === 'rejected' ? '取得原请求拒绝回执' : reviewStatus === 'unavailable' ? '重试完全相同的原内容审核' : '重试完全相同的原请求'}}</wu-f7-button>
+      <wu-f7-button wx:if="{{busy}}" bind:press="onCancel">停止等待（不撤销发布）</wu-f7-button>
+      <wu-f7-button wx:if="{{frozen &amp;&amp; canCancelReview}}" class="secondary" bind:press="onCancelReview" disabled="{{busy}}" variant="tonal">取消原待审请求（需服务器确认）</wu-f7-button>
+      <view wx:if="{{receiptStatus}}" class="status">{{receiptStatus}}</view>
+      <navigator wx:if="{{resourcePostId &amp;&amp; !resourceRootCommentId}}" class="link" url="/pages/community-detail/community-detail?postId={{resourcePostId}}{{viewSpaceQuery}}">查看已确认的帖子 <wu-icon name="chevron-right" size="16" /></navigator>
+      <navigator wx:if="{{resourceRootCommentId &amp;&amp; resourceReplyId}}" class="link" url="/pages/community-thread/community-thread?postId={{resourcePostId}}&amp;rootCommentId={{resourceRootCommentId}}&amp;replyId={{resourceReplyId}}{{viewSpaceQuery}}">查看已确认的回复 <wu-icon name="chevron-right" size="16" /></navigator>
+      <navigator wx:if="{{resourceRootCommentId &amp;&amp; !resourceReplyId}}" class="link" url="/pages/community-detail/community-detail?postId={{resourcePostId}}&amp;rootCommentId={{resourceRootCommentId}}{{viewSpaceQuery}}">查看已确认的回复 <wu-icon name="chevron-right" size="16" /></navigator>
+    </wu-f7-block>
   </view>
-  <button wx:if="{{!busy}}" class="secondary" bindtap="onReload">重新检查草稿与待确认记录</button><navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续</navigator><navigator class="link" url="/pages/community-mine/community-mine">我的发布与结果恢复 →</navigator>
-  <view class="notice">关闭页面或换账号会清空页面内容，但原账号草稿与待确认请求仍保留在本机。请勿在结果未确认前清除小程序数据。</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续</navigator>
+  <wu-f7-list spacing="compact"><wu-f7-list-item class="composer-option recovery-disclosure" data-panel="recovery" bind:press="onToggleComposePanel" link="{{true}}" last="{{true}}" aria-label="草稿与发布记录"><view class="f7-composer-disclosure"><wu-icon name="clock" size="20" tone="muted" /><text>草稿与发布记录</text></view></wu-f7-list-item></wu-f7-list>
+  <view wx:if="{{uiPanel === 'recovery' || frozen}}" class="draft-footer">
+    <wu-f7-button wx:if="{{!busy}}" class="text-button" bind:press="onReload">检查草稿与待确认记录</wu-f7-button>
+    <navigator class="link" url="/pages/community-mine/community-mine">我的发布与结果恢复 <wu-icon name="chevron-right" size="16" /></navigator>
+    <view class="notice">关闭页面或切换账号后，草稿与待确认请求仍保留在本机原账号下。结果未确认前，请勿清除小程序数据。</view>
+  </view>
+  <view wx:if="{{hasSession &amp;&amp; !frozen}}" class="compose-submit-bar"><wu-f7-button wx:if="{{!frozen}}" class="primary" bind:press="onSubmit" disabled="{{!canSubmit || busy}}" loading="{{busy}}" variant="fill" size="large" round="{{true}}">确认发布</wu-f7-button></view>
 </view>

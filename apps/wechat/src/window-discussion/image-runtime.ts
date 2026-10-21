@@ -34,7 +34,7 @@ import {
   type DiscussionV2CancelTarget,
   type DiscussionV2Receipt,
 } from './v2-contract';
-import { windowDiscussionError } from './controller';
+import { windowDiscussionError } from './errors';
 export interface WindowDiscussionComposition {
   readonly windowId: string;
   readonly catalogRevision: string;

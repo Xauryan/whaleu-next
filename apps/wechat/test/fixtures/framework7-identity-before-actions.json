@@ -1,0 +1,857 @@
+{
+  "login": {
+    "sourceSha256": "19a491147985c4f4f0ed6fee249ee87c30438e37e55dfa61d981b4f5122d4ea7",
+    "typescriptSha256": "c9d747b7a82ecf4f57ad0b9fe2bfcdc420a187080a22041831ccf509dd8f8cab",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!hasLocalSession && !signingIn}}",
+          "class": "primary",
+          "bindtap": "onLogin",
+          "disabled": "{{!configured || busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasLocalSession && !signingIn}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{hasLocalSession}}",
+          "class": "primary",
+          "bindtap": "onCheckSession",
+          "disabled": "{{!configured || busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasLocalSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{verified && !busy}}",
+          "class": "link-row",
+          "url": "/pages/profile/profile"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{verified && !busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{verified && !busy}}",
+          "class": "link-row",
+          "url": "/pages/campus/campus"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{verified && !busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "browse-link",
+          "url": "/pages/community-feed/community-feed",
+          "open-type": "reLaunch"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{hasLocalSession || signingIn}}",
+          "class": "quiet",
+          "bindtap": "onLogout"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasLocalSession || signingIn}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/account-status/account-status"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/announcements/announcements"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "phone-binding": {
+    "sourceSha256": "6f572fe6e409383002fc313e69bca20e7f7ac983c3038ed751199f42e2b69561",
+    "typescriptSha256": "697257a13b2cf1e6c44d943d17710f2551ab62be58f789febae82ddc6314f154",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{phase === 'idle' || phase === 'not_found'}}",
+          "class": "primary",
+          "bindtap": "onPrepare",
+          "disabled": "{{busy || !hasSession || !configured}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{phase === 'idle' || phase === 'not_found'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{phase === 'unknown' || phase === 'expired' || phase === 'closed'}}",
+          "class": "secondary",
+          "bindtap": "onPrepare",
+          "disabled": "{{busy || !hasSession}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{phase === 'unknown' || phase === 'expired' || phase === 'closed'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{phase === 'verified'}}",
+          "class": "secondary",
+          "bindtap": "onPrepare",
+          "disabled": "{{busy || !hasSession}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{phase === 'verified'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{phase === 'reserved'}}",
+          "class": "primary",
+          "open-type": "getPhoneNumber",
+          "bindgetphonenumber": "onPhone",
+          "disabled": "{{busy || !hasSession}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{phase === 'reserved'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{requestId}}",
+          "class": "secondary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !hasSession}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{requestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{phase === 'reserved' || phase === 'unknown' || phase === 'expired'}}",
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{phase === 'reserved' || phase === 'unknown' || phase === 'expired'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/verification/verification"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "text-link",
+          "url": "/pages/login/login",
+          "open-type": "reLaunch"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      }
+    ]
+  },
+  "campus": {
+    "sourceSha256": "2207a20e6f9ad8a820717eb9736c34cbc530bd508e802035e1fc775248708438",
+    "typescriptSha256": "f315c6dad08732a3c9f211bec0ea6bb7c96e5d788458575d9e932314d2cea4fc",
+    "actions": [
+      {
+        "tag": "input",
+        "attrs": {
+          "id": "campus-search",
+          "value": "{{q}}",
+          "placeholder": "搜索学校或校区",
+          "maxlength": "100",
+          "confirm-type": "search",
+          "bindinput": "onQuery",
+          "bindconfirm": "onSearch",
+          "disabled": "{{loading || saving}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "id": "district-search",
+          "class": "input",
+          "value": "{{district}}",
+          "placeholder": "缩小搜索范围",
+          "maxlength": "100",
+          "confirm-type": "search",
+          "bindinput": "onDistrict",
+          "bindconfirm": "onSearch",
+          "disabled": "{{loading || saving}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSearch",
+          "disabled": "{{!hasSession || !configured || loading || saving}}",
+          "loading": "{{loading}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{loading || saving}}",
+          "class": "quiet",
+          "bindtap": "onCancelOperation"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loading || saving}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!loading && !saving && (!loaded || error)}}",
+          "class": "secondary",
+          "bindtap": "onReload",
+          "disabled": "{{!hasSession || !configured}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!loading && !saving && (!loaded || error)}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "text-link",
+          "url": "/pages/login/login",
+          "open-type": "reLaunch"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "choice {{candidateId === item.id ? 'selected' : ''}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChoose",
+          "disabled": "{{!item.isActive || loading || saving || needsReload || searchDirty}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onPrevious",
+          "disabled": "{{!hasPrevious || loading || saving || searchDirty}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onNext",
+          "disabled": "{{!hasNext || loading || saving || searchDirty}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSave",
+          "loading": "{{saving}}",
+          "disabled": "{{candidateId === selectedId || loading || saving || needsReload || searchDirty}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{candidateId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onCancelSelection",
+          "disabled": "{{saving}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{candidateId}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/community-feed/community-feed"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "text-link",
+          "open-type": "navigateBack"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "identity-campus": {
+    "sourceSha256": "a06cda92edd5ff5c9935bd98335c88f32db777372d9bc2ee13aa353a9215eec0",
+    "typescriptSha256": "86f15fa741789a5e5553b312344d875b7c11267b947ae19a58d05de8b47724a9",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "text-link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onReceipt",
+          "disabled": "{{busy || !hasSession}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !hasSession}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{state.options.items}}",
+          "wx:key": "id",
+          "class": "choice {{selectedId === item.id ? 'selected' : ''}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChoose",
+          "disabled": "{{busy || !state.canSelect}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && state && !frozen}}"
+          },
+          {
+            "wx:if": "{{state.options.status === 'known' && state.options.items.length > 0}}"
+          },
+          {
+            "wx:for": "{{state.options.items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRequestConfirmation",
+          "disabled": "{{busy || !state.canSelect || !selectedId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && state && !frozen}}"
+          },
+          {
+            "wx:if": "{{state.options.status === 'known' && state.options.items.length > 0}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && state && !frozen}}"
+          },
+          {
+            "wx:if": "{{confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onDismissConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && state && !frozen}}"
+          },
+          {
+            "wx:if": "{{confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!busy && !frozen}}",
+          "class": "quiet",
+          "bindtap": "onReload",
+          "disabled": "{{!hasSession || !configured}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!busy && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/verification/verification"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "verification": {
+    "sourceSha256": "452f9f83c47c8e90b9f739aea2c2b9bf56f7fac152b02ba62a690f74a3a9f3c7",
+    "typescriptSha256": "24942d9c38c9151c78f93d3442df94d2095c541878d9cc38dbbadb0100146ddf",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "text-link",
+          "url": "/pages/login/login",
+          "open-type": "reLaunch"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{loading}}",
+          "class": "quiet",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loading}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onReload",
+          "disabled": "{{!hasSession || !configured}}",
+          "wx:else": ""
+        },
+        "scopes": [
+          {
+            "wx:else": ""
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "class": "link-row",
+          "url": "/pages/student-verification/student-verification"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "class": "link-row",
+          "url": "/pages/institutional-verification/institutional-verification"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "class": "link-row",
+          "url": "/pages/phone-binding/phone-binding"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "class": "link-row",
+          "url": "/pages/identity-campus/identity-campus"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "class": "link-row",
+          "url": "/pages/student-verification-notices/student-verification-notices"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "class": "link-row",
+          "url": "/pages/student-verification-review/student-verification-review"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "text-link",
+          "url": "/pages/profile/profile"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "text-link",
+          "url": "/pages/login/login",
+          "open-type": "reLaunch"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "institutional-verification": {
+    "sourceSha256": "1604ebaad124a5b4c6e5eb0f28048990a573e0ab497f3589582e05b937fd0c1e",
+    "typescriptSha256": "f6daf4b23d3bc089445358323b09bdd3cc9b01598b6a43b3dd154fa093fcf466",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "text-link",
+          "url": "/pages/login/login",
+          "open-type": "reLaunch"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "placeholder": "搜索学校或校园",
+          "bindinput": "onSearchInput",
+          "disabled": "{{busy}}",
+          "maxlength": "100"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "class": "choice {{campusId === item.id ? 'selected' : ''}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChooseCampus",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession && !frozen}}"
+          },
+          {
+            "wx:for": "{{campuses}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "checkbox-group",
+        "attrs": {
+          "bindchange": "onConsent"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession && !frozen}}"
+          },
+          {
+            "wx:if": "{{capability}}"
+          },
+          {
+            "wx:if": "{{capability.state === 'eligible' && nativeAvailable}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onPrepare",
+          "disabled": "{{busy || !consentAccepted}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession && !frozen}}"
+          },
+          {
+            "wx:if": "{{capability}}"
+          },
+          {
+            "wx:if": "{{capability.state === 'eligible' && nativeAvailable}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canAuthorize}}",
+          "class": "primary",
+          "bindtap": "onAuthorize",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{canAuthorize}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onBack"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "text-link",
+          "url": "/pages/verification/verification",
+          "open-type": "reLaunch"
+        },
+        "scopes": []
+      }
+    ]
+  }
+}

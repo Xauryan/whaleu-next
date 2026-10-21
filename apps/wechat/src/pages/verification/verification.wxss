@@ -1,11 +1,1 @@
-@import '../../profile/forms.wxss';
-.verification-value {
-  margin: 18rpx 0;
-  color: #183b5c;
-  font-size: 32rpx;
-  font-weight: 600;
-}
-.pending-feature {
-  border: 2rpx solid #dfcfa6;
-  background: #fffaf0;
-}
+@import './framework7-identity.wxss';

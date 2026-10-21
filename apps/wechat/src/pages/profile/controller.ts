@@ -28,12 +28,12 @@ const labels: Record<PreferenceKey, readonly [string, string]> = {
   showErrandGroupNotice: ['跑腿群提示', '显示跑腿接单群提示'],
   defaultAnonymousEnabled: ['默认分身发布', '新建内容时默认使用分身'],
   defaultCommentAnonymousEnabled: [
-    '评论默认使用分身',
-    '与「评论默认不使用分身」互斥',
+    '回复默认使用分身',
+    '与「回复默认不使用分身」互斥',
   ],
   defaultCommentNonAnonymousEnabled: [
-    '评论默认不使用分身',
-    '两项均关闭时不强制评论身份',
+    '回复默认不使用分身',
+    '两项均关闭时不强制回复身份',
   ],
   defaultAllowAnonymousDm: ['默认允许分身私信', '作为后续发布功能的默认偏好'],
   hideProfilePosts: [

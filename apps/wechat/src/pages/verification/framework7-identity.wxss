@@ -1,0 +1,161 @@
+/* Framework7 v9.2.0 iOS native identity composition, MIT.
+ * Copyright (c) 2014 Vladimir Kharlampidi. See docs/vendor/framework7-v9.2.0/LICENSE.
+ * List/Block/Input geometry is owned by the native components. Permissions stay
+ * on real native controls: the getPhoneNumber button is not a F7 proxy. */
+@import '../../design/framework7-ios.wxss';
+.f7-identity-screen {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 1px 0 calc(24px + env(safe-area-inset-bottom));
+  background: var(--f7-page-bg-color);
+  color: var(--f7-text-color);
+}
+.f7-identity-screen .section-title {
+  margin-bottom: var(--f7-block-title-margin-bottom);
+  font-size: var(--f7-block-title-font-size);
+  font-weight: var(--f7-block-title-font-weight);
+  line-height: var(--f7-block-title-line-height);
+}
+.f7-identity-screen .section-label {
+  margin: var(--f7-block-title-margin-bottom) var(--f7-block-padding-horizontal);
+  color: var(--f7-block-title-text-color);
+  font-size: var(--f7-block-title-font-size);
+  font-weight: var(--f7-block-title-font-weight);
+}
+.f7-identity-screen .body-copy,
+.f7-identity-screen .consent-note {
+  margin: 10px 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.f7-identity-screen .status-line,
+.f7-identity-screen .caption,
+.f7-identity-screen .privacy-note,
+.f7-identity-screen .request-id,
+.f7-identity-screen .preview-note {
+  margin: 10px 0;
+  color: var(--f7-block-footer-text-color);
+  font-size: var(--f7-block-footer-font-size);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.f7-identity-screen .error {
+  margin: 10px 0;
+  color: var(--f7-input-error-text-color);
+  font-size: var(--f7-block-footer-font-size);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.f7-identity-screen .primary,
+.f7-identity-screen .secondary,
+.f7-identity-screen .quiet {
+  display: block;
+  margin-top: 10px;
+}
+.f7-identity-screen .identity-input-row {
+  position: relative;
+  padding: var(--f7-list-item-padding-vertical)
+    var(--f7-list-item-padding-horizontal);
+}
+.f7-identity-screen .identity-input-row + .identity-input-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--f7-list-item-padding-horizontal);
+  right: 0;
+  height: 1px;
+  background: var(--f7-list-item-border-color);
+  transform: scaleY(calc(1 / var(--f7-device-pixel-ratio)));
+  transform-origin: 50% 0;
+}
+.f7-identity-screen .summary-value,
+.f7-identity-screen .current-campus-name,
+.f7-identity-screen .uid-value {
+  margin-top: 4px;
+  color: var(--f7-text-color);
+  font-size: var(--f7-list-item-subtitle-font-size);
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.f7-identity-screen .summary-detail,
+.f7-identity-screen .choice-meta {
+  margin-top: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.f7-identity-screen .summary-detail {
+  /* Full legal/status context must not inherit the two-line media clamp. */
+  display: block;
+  overflow: visible;
+  max-height: none;
+}
+.f7-identity-screen .link-row {
+  display: block;
+  color: var(--f7-text-color);
+}
+.f7-identity-screen .text-link,
+.f7-identity-screen .browse-link,
+.f7-identity-screen .login-footer navigator {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--f7-theme-color);
+  font-size: var(--f7-button-font-size);
+}
+.f7-identity-screen .browse-link {
+  justify-content: center;
+}
+.f7-identity-screen .pagination,
+.f7-identity-screen .session-note,
+.f7-identity-screen .inline-icon,
+.f7-identity-screen .login-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.f7-identity-screen .pagination,
+.f7-identity-screen .login-footer {
+  justify-content: space-between;
+}
+.f7-identity-screen .pagination .quiet {
+  flex: 1;
+}
+.f7-identity-screen .page-count {
+  color: var(--f7-block-footer-text-color);
+  font-size: var(--f7-block-footer-font-size);
+}
+.f7-identity-screen .consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0;
+  line-height: 1.5;
+}
+.f7-identity-screen .consent checkbox {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+}
+/* Native permission target, using the pinned Button large/fill tokens.
+ * This is the real WeChat authorization surface, not a wrapped press event. */
+.f7-identity-screen button.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--f7-button-large-height);
+  box-sizing: border-box;
+  padding: 0 var(--f7-button-padding-horizontal);
+  border: 0;
+  border-radius: var(--f7-button-border-radius);
+  background: var(--f7-theme-color);
+  color: var(--f7-button-fill-text-color);
+  font-family: var(--f7-font-family);
+  font-size: var(--f7-button-large-font-size);
+  font-weight: var(--f7-button-large-font-weight);
+  line-height: var(--f7-line-height);
+}
+.f7-identity-screen button.primary[disabled] {
+  opacity: 0.55;
+}

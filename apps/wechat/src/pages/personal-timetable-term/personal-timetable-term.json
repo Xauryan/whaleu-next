@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "学期设置",
+  "usingComponents": {
+    "wu-f7-button": "../../components/f7-button/f7-button",
+    "wu-f7-input": "../../components/f7-input/f7-input",
+    "wu-f7-block": "../../components/f7-block/f7-block",
+    "wu-icon": "../../components/icon/icon",
+    "wu-f7-list-item": "../../components/f7-list-item/f7-list-item"
+  }
+}

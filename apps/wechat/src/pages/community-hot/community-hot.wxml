@@ -1,44 +1,91 @@
-<import src="../../community/rating-link-card.wxml" />
+<import src="../community-hot/rating-link-card.wxml" />
 <import src="../../experience/public-display.wxml" />
 <import src="../../community/trading-summary.wxml" />
-<view class="screen"><view wx:if="{{relatedCampusDistribution === 'unavailable'}}" class="notice">关联学校展示范围暂不可确认，当前仅展示已核验内容，不能据此判断关联学校没有帖子。请稍后刷新。</view>
-  <view class="eyebrow">WHALEU · 社区热门</view>
-  <view class="title">看看大家关注的话题</view>
-  <view class="subtitle">热度持续更新，翻页内容可能变化，也可能再次遇到看过的帖子。</view>
-  <view class="card">
-    <view class="scope">{{space ? (space.kind === 'global' ? '全站社区 · ' : '地区社区 · ') + space.name : selectedSpaceId ? '已选择的社区' : '尚未选择社区'}}</view>
-    <view class="chips">
-      <view wx:for="{{hotRanges}}" wx:key="key" class="chip {{range === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onRange">{{item.label}}</view>
+<view class="screen home-screen hot-screen f7-ios-theme f7-collection-screen">
+  <wu-f7-block class="f7-collection-header" spacing="compact">
+    <view class="toolbar">
+      <text class="scope-caption">正在被讨论</text>
+      <wu-f7-button class="icon-button" aria-label="刷新热榜" disabled="{{busy}}" loading="{{busy}}" bind:press="onRefresh">
+        <wu-icon name="refresh" size="19" />
+      </wu-f7-button>
     </view>
-    <view class="meta">时间范围按帖子发布时间筛选，热度来自累计互动。按当前社区范围查看，不含急出和已完成的交易。</view>
-    <view wx:if="{{space &amp;&amp; space.kind === 'regional'}}" class="meta">当前地区社区各分类合并查看。</view>
-    <view wx:if="{{space &amp;&amp; space.kind === 'global'}}" class="meta">仅查看这个全站社区的话题，不合并各地区社区。</view>
-  </view>
-  <view class="notice">当前仅覆盖具备完整热度记录并已更新的帖子，尚未覆盖历史导入内容。“全部时间”也只在这个范围内查看。</view>
-  <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <button class="secondary" bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新热门</button>
-  <button wx:if="{{busy}}" class="secondary" bindtap="onCancel">停止加载</button>
-  <navigator class="link" url="/pages/community-feed/community-feed">返回社区选择范围 →</navigator>
-  <navigator class="link" open-type="navigateBack">返回上一页</navigator>
-  <view wx:for="{{posts}}" wx:key="id" id="view-{{item.id}}" class="card">
-    <view class="author"><text wx:if="{{item.author.kind === 'named'}}" class="link" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}} →</text><text wx:else>{{item.author.displayName}}</text><template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" /><text class="badge">{{item.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text><text wx:if="{{item.viewer.isSelf}}" class="badge">我</text></view>
-    <view class="meta">{{item.space.name}} · {{item.publishedAt}}</view>
-    <view wx:if="{{item.isRelatedCampusSync}}" class="badge">来自 {{item.sourceRegion.name}} · 关联学校同步</view><view class="body">{{item.text}}</view><template is="rating-target-link-card" data="{{component:item.component,postId:item.id,busy}}" />
-    <template wx:if="{{item.trading}}" is="trading-summary" data="{{listing:item.trading,tradingLabels}}" />
-    <view wx:if="{{item.component.kind === 'poll'}}" class="scope">投票 · {{item.component.poll.selectionMode === 'single' ? '单选' : '多选'}} · {{item.component.poll.question}}<view class="meta">{{item.component.poll.expired ? '已结束' : '进入帖子参与'}}</view></view>
-    <view wx:if="{{item.component.kind === 'formation'}}" class="notice">组队：{{item.component.formation.theme}} · {{item.component.formation.memberCount}} / {{item.component.formation.capacity}} 人 · {{item.component.formation.status === 'full' ? '已满员' : '进入帖子查看'}}</view>
-    <view wx:if="{{item.images.length}}" class="notice">图片暂不可用，等待安全下载接入</view>
-    <view class="meta">{{item.likeCount}} 赞 · {{item.saveCount}} 收藏{{item.viewer.isSaved ? '（已收藏）' : ''}} · {{item.commentCount}} 条根评论</view>
-    <navigator wx:if="{{hasSession}}" class="link" url="/pages/community-detail/community-detail?postId={{item.id}}&amp;viewSpaceId={{selectedSpaceId}}">查看讨论与收藏设置 →</navigator>
-    <navigator wx:else class="link" url="/pages/login/login">登录后刷新热门并查看详情 →</navigator>
+    <view class="hot-scope">
+      <view class="hot-scope-name">{{space ? space.name : selectedSpaceId ? '已选择的社区' : '尚未选择社区'}}</view>
+      <navigator class="quiet-link" open-type="reLaunch" url="/pages/community-feed/community-feed">切换社区 <wu-icon name="chevron-right" tone="accent" size="13" /></navigator>
+    </view>
+    <scroll-view scroll-x="{{true}}" enhanced="{{true}}" class="category-scroll hot-range-scroll" show-scrollbar="{{false}}">
+      <view class="category-list">
+        <wu-f7-button wx:for="{{hotRanges}}" wx:key="key" class="category-pill {{range === item.key ? 'active' : ''}}" data-key="{{item.key}}" disabled="{{busy}}" bind:press="onRange" variant="{{range === item.key ? 'fill' : 'tonal'}}">{{item.label}}</wu-f7-button>
+      </view>
+    </scroll-view>
+    <view wx:if="{{relatedCampusDistribution === 'unavailable'}}" class="notice coverage-notice">关联学校展示范围暂不可确认，当前仅展示已核验内容，不能据此判断关联学校没有帖子。请稍后刷新。</view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{busy || !loaded || !posts.length}}" class="status" aria-role="status">{{status}}</view>
+    <wu-f7-button wx:if="{{busy}}" class="cancel-button" bind:press="onCancel" variant="tonal">停止加载</wu-f7-button>
+  </wu-f7-block>
+  <view wx:for="{{posts}}" wx:key="id" id="view-{{item.id}}" class="card post-card">
+    <wu-f7-block strong="{{true}}" inset="{{true}}" spacing="compact">
+      <view class="post-header">
+        <view class="post-avatar {{item.author.kind === 'anonymous' ? 'anonymous-avatar' : ''}}">
+          <wu-icon wx:if="{{item.author.kind === 'anonymous'}}" name="person" size="24" />
+          <block wx:else>
+            <wu-icon name="person" tone="accent" size="25" />
+          </block>
+        </view>
+        <view class="post-author-info">
+          <view class="author">
+            <text wx:if="{{item.author.kind === 'named'}}" class="author-name" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}}</text>
+            <text class="author-name" wx:else>{{item.author.displayName}}</text>
+            <text wx:if="{{item.viewer.isSelf}}" class="self-label">我</text>
+          </view>
+          <view class="post-meta">{{item.author.kind === 'anonymous' ? '分身 · ' : ''}}{{item.space.name}}</view>
+        </view>
+      </view>
+      <template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" />
+      <view wx:if="{{item.isRelatedCampusSync}}" class="source-label">来自 {{item.sourceRegion.name}} · 关联学校同步</view>
+      <view class="body post-body">{{item.text}}</view>
+      <template is="rating-target-link-card" data="{{component:item.component,postId:item.id,busy}}" />
+      <template wx:if="{{item.trading}}" is="trading-summary" data="{{listing:item.trading,tradingLabels}}" />
+      <view wx:if="{{item.component.kind === 'poll'}}" class="post-attachment">
+        <view class="attachment-label">投票 · {{item.component.poll.selectionMode === 'single' ? '单选' : '多选'}}</view>
+        <view>{{item.component.poll.question}}</view>
+        <view class="meta">{{item.component.poll.expired ? '已结束' : '进入帖子参与'}}</view>
+      </view>
+      <view wx:if="{{item.component.kind === 'formation'}}" class="post-attachment">
+        <view class="attachment-label">一起组队</view>
+        <view>{{item.component.formation.theme}}</view>
+        <view class="meta">{{item.component.formation.memberCount}} / {{item.component.formation.capacity}} 人 · {{item.component.formation.status === 'full' ? '已满员' : '进入帖子查看'}}</view>
+      </view>
+      <view wx:if="{{item.images.length}}" class="media-unavailable">{{item.images.length}} 张图片 · 图片暂不可用</view>
+      <view class="post-time">{{item.publishedAtLabel}}</view>
+      <view class="post-footer">
+        <view class="post-stat" aria-label="{{item.likeCount}} 个赞"><wu-icon name="heart" size="19" />{{item.likeCount}}</view>
+        <view class="post-stat" aria-label="{{item.commentCount === null ? '回复数量暂不可用' : item.commentCount + ' 条根回复'}}"><wu-icon name="message" size="18" />{{item.commentCount === null ? '—' : item.commentCount}}</view>
+        <view class="post-stat {{item.viewer.isSaved ? 'is-saved' : ''}}" aria-label="{{item.saveCount}} 次收藏{{item.viewer.isSaved ? '，已收藏' : ''}}"><wu-icon name="bookmark" tone="{{item.viewer.isSaved ? 'accent' : 'default'}}" size="18" />{{item.saveCount}}</view>
+        <navigator wx:if="{{hasSession}}" class="post-open" url="/pages/community-detail/community-detail?postId={{item.id}}&amp;viewSpaceId={{selectedSpaceId}}">查看主题 <wu-icon name="chevron-right" size="13" /></navigator>
+        <navigator class="post-open" url="/pages/login/login" wx:else>登录查看 <wu-icon name="chevron-right" size="13" /></navigator>
+      </view>
+    </wu-f7-block>
   </view>
   <view wx:if="{{continuation === 'scan_pending'}}" class="notice">本批尚未查完，暂时没有显示帖子也不代表已到末尾。请继续查看。</view>
-  <view wx:if="{{continuation === 'login_required'}}" class="notice">访客可预览首批帖子；继续查看需要登录及手机号验证。这不表示后面一定有可查看的帖子。</view>
-  <navigator wx:if="{{continuation === 'login_required'}}" class="link" url="/pages/login/login">前往登录 →</navigator>
-  <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">继续查看需要手机号验证。可前往授权验证；服务需环境单独启用，完成后请刷新热门。</view>
-  <view wx:if="{{loaded}}" class="meta">翻页会重新核验当前可查看内容；刷新会从当前热门开头重新查看。</view>
-  <view class="actions"><button wx:if="{{canPrevious}}" class="secondary" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canNext}}" class="secondary" bindtap="onNext" disabled="{{busy}}">{{continuation === 'scan_pending' ? '继续查看' : '下一页'}}</button></view>
+  <view wx:if="{{continuation === 'login_required'}}" class="notice">访客可预览首批帖子；继续查看需要登录及手机号验证。这不表示后面一定有可查看的帖子。<navigator class="quiet-link" url="/pages/login/login">前往登录 <wu-icon name="chevron-right" tone="accent" size="13" /></navigator></view>
+  <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">继续查看需要手机号验证。可前往授权验证；服务需环境单独启用，完成后请刷新热门。<navigator class="quiet-link" url="/pages/phone-binding/phone-binding">前往手机号授权验证 <wu-icon name="chevron-right" tone="accent" size="13" /></navigator></view>
+  <view class="hot-pagination">
+    <wu-f7-button wx:if="{{canPrevious}}" class="secondary" disabled="{{busy}}" bind:press="onPrevious" variant="tonal">上一页</wu-f7-button>
+    <wu-f7-button wx:if="{{canNext}}" class="secondary" disabled="{{busy}}" bind:press="onNext" variant="tonal">{{continuation === 'scan_pending' ? '继续查看' : '下一页'}}</wu-f7-button>
+  </view>
+  <wu-f7-list class="reading-notes" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <wu-f7-list-item bind:press="onToggleInfo" link="{{true}}" title-slot="{{true}}" aria-label="关于热榜" last="{{true}}">
+      <view slot="title" class="f7-disclosure-label">关于热榜 <wu-icon name="{{showInfo ? 'chevron-up' : 'chevron-down'}}" size="14" /></view>
+    </wu-f7-list-item>
+    <view wx:if="{{showInfo}}" class=" f7-reading-copy">
+      <view class="meta">时间范围按帖子发布时间筛选，热度来自累计互动。按当前社区范围查看，不含急出和已完成的交易。</view>
+      <view wx:if="{{space &amp;&amp; space.kind === 'regional'}}" class="meta">当前地区社区各分类合并查看。</view>
+      <view wx:if="{{space &amp;&amp; space.kind === 'global'}}" class="meta">仅查看这个全站社区的话题，不合并各地区社区。</view>
+      <view class="meta">当前仅覆盖具备完整热度记录并已更新的帖子，尚未覆盖历史导入内容。“全部时间”也只在这个范围内查看。</view>
+      <view class="meta">热度持续更新，翻页内容可能变化，也可能再次遇到看过的帖子。翻页会重新核验当前可查看内容；刷新会从当前热门开头重新查看。</view>
+    </view>
+  </wu-f7-list>
+  <navigator class="hot-back" open-type="navigateBack">返回上一页</navigator>
 </view>
-
-<navigator wx:if="{{continuation === 'phone_verification_required'}}" class="text-link" url="/pages/phone-binding/phone-binding">前往手机号授权验证</navigator>
+<wu-tab-bar selected="hot" space-id="{{selectedSpaceId}}" />

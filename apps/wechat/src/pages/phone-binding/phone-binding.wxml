@@ -1,16 +1,106 @@
-<view class="screen">
- <view class="title">手机号授权验证</view>
- <view class="notice">仅在你主动同意微信授权后，服务端才会把本次授权码发送至微信官方接口，确认手机号授权事实。不会保存或展示手机号，也不会将其作为学生认证。原请求编号保存在设备上，用于恢复结果。</view>
- <view class="notice">此能力需服务端单独启用，并具备微信所要求的账号资格和隐私声明；当前版本尚未完成真机验收。</view>
- <view class="notice" aria-role="status">{{message}}</view>
- <view wx:if="{{requestId}}" selectable="true">原请求：{{requestId}}</view>
- <button wx:if="{{phase === 'idle' || phase === 'not_found'}}" bindtap="onPrepare" disabled="{{busy || !hasSession || !configured}}">同意上述用途并准备授权</button>
- <button wx:if="{{phase === 'unknown' || phase === 'expired' || phase === 'closed'}}" bindtap="onPrepare" disabled="{{busy || !hasSession}}">结束原请求，重新准备新授权</button>
- <button wx:if="{{phase === 'verified'}}" bindtap="onPrepare" disabled="{{busy || !hasSession}}">另行准备新的微信授权验证</button>
- <button wx:if="{{phase === 'reserved'}}" open-type="getPhoneNumber" bindgetphonenumber="onPhone" disabled="{{busy || !hasSession}}">同意微信手机号授权并验证</button>
- <button wx:if="{{requestId}}" bindtap="onRecover" disabled="{{busy || !hasSession}}">只查询原请求结果</button>
- <button wx:if="{{phase === 'reserved' || phase === 'unknown' || phase === 'expired'}}" bindtap="onClose" disabled="{{busy}}">关闭原请求</button>
- <view wx:if="{{phase === 'processing'}}" class="notice">处理中不能重新授权。请稍后查询原请求；结果未知时也不会自动重发授权码。</view>
- <navigator url="/pages/verification/verification">返回认证状态</navigator>
- <navigator wx:if="{{!hasSession}}" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
+<view class="account-page f7-ios-theme f7-identity-screen">
+  <wu-f7-block spacing="compact">
+    <view class="status-line" aria-role="status"> {{message}} </view>
+    <view class="consent-note">
+      你同意后，授权码会发送至微信官方接口，用于验证手机号归属。鲸语不保存或展示手机号，不以此确认学生身份。
+    </view>
+    <view class="caption">
+      设备只保留原请求编号以恢复结果。服务需单独启用并满足微信账号资格、隐私声明要求，目前尚未完成真机验收。
+    </view>
+    <view wx:if="{{requestId}}" class="request-id" selectable="true">
+      原请求：{{requestId}}
+    </view>
+    <wu-f7-button
+      wx:if="{{phase === 'idle' || phase === 'not_found'}}"
+      class="primary"
+      disabled="{{busy || !hasSession || !configured}}"
+      bind:press="onPrepare"
+      variant="fill"
+      size="large"
+    >
+      同意用途，准备授权
+    </wu-f7-button>
+    <wu-f7-button
+      wx:if="{{phase === 'unknown' || phase === 'expired' || phase === 'closed'}}"
+      class="secondary"
+      disabled="{{busy || !hasSession}}"
+      bind:press="onPrepare"
+      variant="tonal"
+      size="normal"
+    >
+      结束原请求，准备新授权
+    </wu-f7-button>
+    <wu-f7-button
+      wx:if="{{phase === 'verified'}}"
+      class="secondary"
+      disabled="{{busy || !hasSession}}"
+      bind:press="onPrepare"
+      variant="tonal"
+      size="normal"
+    >
+      准备新的微信授权
+    </wu-f7-button>
+    <button
+      wx:if="{{phase === 'reserved'}}"
+      class="primary"
+      open-type="getPhoneNumber"
+      bindgetphonenumber="onPhone"
+      disabled="{{busy || !hasSession}}"
+    >
+      同意微信手机号授权并验证
+    </button>
+    <wu-f7-button
+      wx:if="{{requestId}}"
+      class="secondary"
+      disabled="{{busy || !hasSession}}"
+      bind:press="onRecover"
+      variant="tonal"
+      size="normal"
+    >
+      查询原请求结果
+    </wu-f7-button>
+    <wu-f7-button
+      wx:if="{{phase === 'reserved' || phase === 'unknown' || phase === 'expired'}}"
+      class="quiet"
+      disabled="{{busy}}"
+      bind:press="onClose"
+      variant="plain"
+      size="normal"
+    >
+      关闭原请求
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block
+    wx:if="{{phase === 'processing'}}"
+    class="surface"
+    strong="{{true}}"
+    inset="{{true}}"
+    spacing="compact"
+  >
+    <view class="inline-icon">
+      <wu-icon name="clock" tone="accent" size="22" />
+      <view class="section-title"> 正在确认授权 </view>
+    </view>
+    <view class="body-copy">
+      请稍后查询原请求。处理中不能重新授权，结果未知时也不会重发授权码。
+    </view>
+  </wu-f7-block>
+  <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+    <navigator class="link-row" url="/pages/verification/verification">
+      <wu-f7-list-item title-slot="{{true}}" after-slot="{{true}}">
+        <text class="link-label" slot="title"> 返回认证状态 </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact">
+    <navigator
+      wx:if="{{!hasSession}}"
+      class="text-link"
+      url="/pages/login/login"
+      open-type="reLaunch"
+    >
+      前往登录
+    </navigator>
+  </wu-f7-block>
 </view>

@@ -1,4 +1,145 @@
 <import src="../../owner-post-visibility/management.wxml" />
 <import src="../../experience/public-display.wxml" />
 <import src="../../community/trading-summary.wxml" />
-<view class="screen"><navigator class="link" url="/pages/admin-discussion-removal/admin-discussion-removal">恢复本账号原管理员评论/回复删除请求 →</navigator><navigator class="link" url="/pages/admin-post-removal/admin-post-removal">恢复本账号原管理员删帖请求 →</navigator><navigator class="link" url="/pages/profile-avatar-moderation/profile-avatar-moderation">恢复本账号原头像管理请求 →</navigator><navigator class="link" url="/pages/profile-moderation/profile-moderation">恢复本账号原昵称管理请求 →</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/public-profile/public-profile">我的公开主页 →</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-liked/community-liked">我的点赞历史 →</navigator><navigator class="link" url="/pages/report-progress/report-progress">举报与陪审结果恢复 →</navigator><navigator class="link" url="/pages/system-notices/system-notices">我的系统通知 →</navigator><navigator class="link" url="/pages/community-blocks/community-blocks">我的拉黑与结果恢复 →</navigator><navigator class="link" url="/pages/community-saved/community-saved">我的收藏与收藏结果恢复 →</navigator><navigator wx:if="{{savedRecoveryPostId}}" class="link" url="/pages/community-detail/community-detail?postId={{savedRecoveryPostId}}">恢复原收藏或更新偏好请求 →</navigator><view class="eyebrow">WHALEU · 我的发布</view><view class="title">每一次发布都有回音</view><view class="subtitle">全部发布仅展示状态与作者可见性管理。作者隐藏可以撤回；审核隐藏与删除仍受原限制。我的交易仅展示当前公开内容。</view><navigator class="link" url="/pages/community-compose/community-compose">检查本账号待确认的帖子、评论或回复 →</navigator><navigator wx:if="{{formationRecoveryPostId}}" class="link" url="/pages/community-detail/community-detail?postId={{formationRecoveryPostId}}">恢复本账号待确认的加入组队 →</navigator><navigator wx:if="{{ballotRecoveryPostId}}" class="link" url="/pages/community-detail/community-detail?postId={{ballotRecoveryPostId}}">恢复本账号待确认的投票 →</navigator><navigator wx:if="{{discussionRecoveryPostId}}" class="link" url="/pages/community-thread/community-thread?postId={{discussionRecoveryPostId}}&amp;rootCommentId={{discussionRecoveryRootCommentId}}">恢复待确认的讨论点赞或置顶 →</navigator><navigator wx:if="{{tradingRecoveryPostId}}" class="link" url="/pages/community-detail/community-detail?postId={{tradingRecoveryPostId}}">恢复本账号待确认的交易状态 →</navigator><template is="owner-post-visibility" data="{{visibility:ownerVisibility}}" /><view class="chips"><button class="chip {{!onlyTrading ? 'active' : ''}}" bindtap="onAllPublications">全部发布记录</button><button class="chip {{onlyTrading ? 'active' : ''}}" bindtap="onOwnTrading">我的交易（含急出）</button></view><view wx:if="{{onlyTrading}}" class="chips"><view class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bindtap="onTradingSubtype">全部交易</view><view wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype">{{item.label}}</view></view><view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view><button class="secondary" bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">重新加载发布记录</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button><navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看</navigator><view wx:for="{{publications}}" wx:key="id" class="card"><view class="label">{{item.status === 'published' ? '已发布' : (item.status === 'hidden' ? '已隐藏' : '已删除')}}</view><view class="meta">{{item.publishedAt}}</view><view wx:if="{{item.ownerVisibility}}" class="notice">{{item.ownerVisibility.ownerHidden ? '作者已隐藏，公开列表不展示' : '未设置作者隐藏'}} · 版本 {{item.ownerVisibility.version}}</view><button wx:if="{{item.ownerVisibility.canChange &amp;&amp; !item.ownerVisibility.ownerHidden}}" data-id="{{item.id}}" bindtap="onOwnerVisibilityHide" disabled="{{busy || ownerVisibility.busy || ownerVisibility.frozen}}">隐藏我的帖子</button><button wx:if="{{item.ownerVisibility.canChange &amp;&amp; item.ownerVisibility.ownerHidden}}" data-id="{{item.id}}" bindtap="onOwnerVisibilityUnhide" disabled="{{busy || ownerVisibility.busy || ownerVisibility.frozen}}">取消个人隐藏</button><navigator wx:if="{{item.status === 'published'}}" class="link" url="/pages/community-detail/community-detail?postId={{item.id}}">查看帖子 →</navigator><view wx:else class="notice">此记录不包含正文、图片或身份资料</view></view><view wx:for="{{tradingPosts}}" wx:key="id" class="card"><view class="author"><text wx:if="{{item.author.kind === 'named'}}" class="link" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}} →</text><text wx:else>{{item.author.displayName}}</text><template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" /></view><view class="body">{{item.text}}</view><template is="trading-summary" data="{{listing:item.trading,tradingLabels}}" /><view wx:if="{{item.images.length}}" class="notice">图片暂不可用，等待安全下载接入</view><navigator class="link" url="/pages/community-detail/community-detail?postId={{item.id}}">查看交易详情 →</navigator></view><view wx:if="{{loaded &amp;&amp; !publications.length &amp;&amp; !tradingPosts.length}}" class="empty">暂无发布记录</view><button wx:if="{{canLoadMore}}" class="secondary" bindtap="onMore" disabled="{{busy}}">加载更多</button><navigator class="link" url="/pages/community-feed/community-feed">返回校园社区 →</navigator></view>
+<view class="screen collection-screen f7-ios-theme f7-collection-screen">
+  <wu-f7-block class="f7-collection-header" spacing="compact">
+    <view class="tabs collection-tabs">
+      <navigator class="tab" url="/pages/community-saved/community-saved">收藏</navigator>
+      <navigator wx:if="{{hasSession}}" class="tab" url="/pages/community-liked/community-liked">赞过</navigator>
+      <view class="tab active">发布</view>
+    </view>
+    <view class="toolbar">
+      <view class="segmented">
+        <wu-f7-button class="segment {{!onlyTrading ? 'active' : ''}}" bind:press="onAllPublications" variant="{{!onlyTrading ? 'fill' : 'tonal'}}">主题记录</wu-f7-button>
+        <wu-f7-button class="segment {{onlyTrading ? 'active' : ''}}" bind:press="onOwnTrading" variant="{{onlyTrading ? 'fill' : 'tonal'}}">我的交易</wu-f7-button>
+      </view>
+      <wu-f7-button class="icon-button" aria-label="刷新发布记录" disabled="{{busy}}" loading="{{busy}}" bind:press="onReload">
+        <wu-icon name="refresh" size="19" />
+      </wu-f7-button>
+    </view>
+    <scroll-view scroll-x="{{true}}" wx:if="{{onlyTrading}}" class="tab-scroll" show-scrollbar="{{false}}">
+      <view class="chips nowrap">
+        <wu-f7-button class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bind:press="onTradingSubtype" variant="{{!tradingSubtype ? 'fill' : 'tonal'}}">全部交易</wu-f7-button>
+        <wu-f7-button wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bind:press="onTradingSubtype" variant="{{tradingSubtype === item.key ? 'fill' : 'tonal'}}">{{item.label}}</wu-f7-button>
+      </view>
+    </scroll-view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{savedRecoveryPostId || formationRecoveryPostId || ballotRecoveryPostId || discussionRecoveryPostId || tradingRecoveryPostId}}" class="pending-section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">有结果待确认</view>
+    <navigator wx:if="{{savedRecoveryPostId}}" class="utility-row" url="/pages/community-detail/community-detail?postId={{savedRecoveryPostId}}">
+      <text>收藏或更新设置</text>
+      <wu-icon name="chevron-right" size="14" />
+    </navigator>
+    <navigator wx:if="{{formationRecoveryPostId}}" class="utility-row" url="/pages/community-detail/community-detail?postId={{formationRecoveryPostId}}">
+      <text>加入组队</text>
+      <wu-icon name="chevron-right" size="14" />
+    </navigator>
+    <navigator wx:if="{{ballotRecoveryPostId}}" class="utility-row" url="/pages/community-detail/community-detail?postId={{ballotRecoveryPostId}}">
+      <text>投票</text>
+      <wu-icon name="chevron-right" size="14" />
+    </navigator>
+    <navigator wx:if="{{discussionRecoveryPostId}}" class="utility-row" url="/pages/community-thread/community-thread?postId={{discussionRecoveryPostId}}&amp;rootCommentId={{discussionRecoveryRootCommentId}}">
+      <text>回复点赞或置顶</text>
+      <wu-icon name="chevron-right" size="14" />
+    </navigator>
+    <navigator wx:if="{{tradingRecoveryPostId}}" class="utility-row" url="/pages/community-detail/community-detail?postId={{tradingRecoveryPostId}}">
+      <text>交易状态</text>
+      <wu-icon name="chevron-right" size="14" />
+    </navigator>
+  </wu-f7-block>
+  <template is="owner-post-visibility" data="{{visibility:ownerVisibility}}" />
+  <view wx:if="{{busy || !loaded}}" class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <wu-f7-button wx:if="{{busy}}" class="quiet-button" bind:press="onCancel" variant="tonal">停止加载</wu-f7-button>
+  <navigator wx:if="{{!hasSession}}" class="login-link" url="/pages/login/login">登录后查看发布<wu-icon name="chevron-right" tone="accent" size="15" /></navigator>
+  <wu-f7-block wx:for="{{publications}}" wx:key="id" class="publication-row" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="f7-publication-layout">
+      <view class="publication-symbol">
+        <wu-icon name="{{item.status === 'published' ? 'post' : 'lock'}}" size="23" tone="{{item.status === 'published' ? 'accent' : 'default'}}" />
+      </view>
+      <view class="publication-main">
+        <view class="row-top">
+          <text class="publication-status">{{item.status === 'published' ? '已发布' : (item.status === 'hidden' ? '已隐藏' : '已删除')}}</text>
+          <text class="meta">{{item.publishedAtLabel}}</text>
+        </view>
+        <view wx:if="{{item.ownerVisibility}}" class="meta">{{item.ownerVisibility.ownerHidden ? '你已设为隐藏' : '未设置个人隐藏'}}</view>
+        <view class="row-actions">
+          <navigator wx:if="{{item.status === 'published'}}" class="detail-link" url="/pages/community-detail/community-detail?postId={{item.id}}">查看主题<wu-icon name="chevron-right" tone="accent" size="13" /></navigator>
+          <view class="meta" wx:else>正文不可查看</view>
+          <wu-f7-button wx:if="{{item.ownerVisibility.canChange &amp;&amp; !item.ownerVisibility.ownerHidden}}" class="text-button muted" data-id="{{item.id}}" disabled="{{busy || ownerVisibility.busy || ownerVisibility.frozen}}" bind:press="onOwnerVisibilityHide">隐藏</wu-f7-button>
+          <wu-f7-button wx:if="{{item.ownerVisibility.canChange &amp;&amp; item.ownerVisibility.ownerHidden}}" class="text-button" data-id="{{item.id}}" disabled="{{busy || ownerVisibility.busy || ownerVisibility.frozen}}" bind:press="onOwnerVisibilityUnhide">取消隐藏</wu-f7-button>
+        </view>
+      </view>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:for="{{tradingPosts}}" wx:key="id" class="content-row" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="author">
+      <text wx:if="{{item.author.kind === 'named'}}" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}}</text>
+      <text wx:else>{{item.author.displayName}}</text>
+      <text wx:if="{{item.author.kind === 'anonymous'}}" class="identity-label">分身</text>
+    </view>
+    <template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" />
+    <navigator class="body content-body" url="/pages/community-detail/community-detail?postId={{item.id}}">{{item.text}}</navigator>
+    <view class="attachment">
+      <template is="trading-summary" data="{{listing:item.trading,tradingLabels}}" />
+    </view>
+    <view wx:if="{{item.images.length}}" class="media-state"><wu-icon name="image" size="16" />图片暂不可用</view>
+    <navigator class="detail-link" url="/pages/community-detail/community-detail?postId={{item.id}}">查看交易详情<wu-icon name="chevron-right" tone="accent" size="13" /></navigator>
+  </wu-f7-block>
+  <view wx:if="{{loaded &amp;&amp; !publications.length &amp;&amp; !tradingPosts.length}}" class="empty">
+    <wu-icon name="post" size="34" />
+    <view class="empty-title">{{onlyTrading ? '暂无可查看的交易' : '还没有发布记录'}}</view>
+  </view>
+  <wu-f7-button wx:if="{{canLoadMore}}" class="more-button" disabled="{{busy}}" bind:press="onMore" variant="tonal">加载更多</wu-f7-button>
+  <navigator wx:if="{{hasSession}}" class="utility-row" url="/pages/public-profile/public-profile">
+    <wu-icon name="person" size="20" />
+    <text>我的公开主页</text>
+    <wu-icon name="chevron-right" size="14" />
+  </navigator>
+  <wu-f7-list class="reading-notes" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <wu-f7-list-item class="disclosure" bind:press="onToggleTools" link="{{true}}" title-slot="{{true}}" aria-label="发布与账户管理" last="{{true}}">
+      <view slot="title" class="f7-disclosure-label">发布与账户管理<wu-icon name="{{showTools ? 'chevron-up' : 'chevron-down'}}" size="13" /></view>
+    </wu-f7-list-item>
+    <view wx:if="{{showTools}}" class="utility-list f7-reading-copy">
+      <navigator class="utility-row" url="/pages/community-compose/community-compose">
+        <text>查看待确认的主题与回复</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+      <navigator class="utility-row" url="/pages/community-saved/community-saved">
+        <text>收藏与结果恢复</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+      <navigator class="utility-row" url="/pages/report-progress/report-progress">
+        <text>举报与陪审结果</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+      <navigator class="utility-row" url="/pages/system-notices/system-notices">
+        <text>系统通知</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+      <navigator class="utility-row" url="/pages/community-blocks/community-blocks">
+        <text>拉黑管理与结果恢复</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+      <view class="filter-heading">原管理请求恢复</view>
+      <navigator class="utility-row" url="/pages/admin-discussion-removal/admin-discussion-removal">
+        <text>回复删除</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+      <navigator class="utility-row" url="/pages/admin-post-removal/admin-post-removal">
+        <text>主题删除</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+      <navigator class="utility-row" url="/pages/profile-avatar-moderation/profile-avatar-moderation">
+        <text>头像管理</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+      <navigator class="utility-row" url="/pages/profile-moderation/profile-moderation">
+        <text>昵称管理</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+      <view class="meta">主题记录仅展示发布状态；我的交易仅展示当前公开内容，包含急出。发布记录不包含隐藏或已删除内容的正文、图片与身份。作者隐藏可以撤回，审核隐藏与删除仍受原限制。</view>
+    </view>
+  </wu-f7-list>
+  <navigator class="back-link" url="/pages/community-feed/community-feed">返回校园社区</navigator>
+</view>

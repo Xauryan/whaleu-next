@@ -257,10 +257,15 @@ export async function smokeDirectory({ app, dist, mountPage, flush }) {
     const source = pageSource(mode);
     const legacySource =
       mode === 'detail'
-        ? source.split('<view class="screen" wx:if="{{managed}}">')[0]
+        ? source.split(
+            /<view class="[^"]*\bscreen\b[^"]*" wx:if="\{\{managed\}\}">/,
+          )[0]
         : source;
     if (mode === 'detail') {
-      assert.ok(source.includes('<view class="screen" wx:if="{{managed}}">'));
+      assert.match(
+        source,
+        /<view class="[^"]*\bscreen\b[^"]*" wx:if="\{\{managed\}\}">/,
+      );
       assert.ok(source.includes('<image src="{{nativeImage.src}}"'));
       assert.equal(/<image(?! src="{{nativeImage.src}}")/.test(source), false);
     }
@@ -295,7 +300,7 @@ export async function smokeDirectory({ app, dist, mountPage, flush }) {
       const list = mount('list', { regionId, kind, categoryId });
       await flush();
       assert.equal(list.data.entries[0].platform, platform);
-      assert.ok(presented('list', list).includes('官方推广标记'));
+      assert.ok(presented('list', list).includes('官方推广'));
       list.onEntry({ currentTarget: { dataset: { id: entryId } } });
       const path = navigated.at(-1).url;
       assert.ok(
@@ -307,6 +312,8 @@ export async function smokeDirectory({ app, dist, mountPage, flush }) {
       list.onHide();
       const page = mount('detail', route());
       await flush();
+      assert.equal(page.data.showInfo, false);
+      page.onToggleInfo();
       const content = presented('detail', page);
       assert.equal(content.includes('qq-group-layout'), platform === 'qq');
       assert.equal(
@@ -318,11 +325,9 @@ export async function smokeDirectory({ app, dist, mountPage, flush }) {
         platform === 'official',
       );
       for (const text of [
-        '时间未知',
-        '访问次数：暂不可用',
-        '管理员资料：暂不可用',
-        '管理功能：暂不可用',
-        '暂不可确认或展示',
+        '未知时间',
+        '访问次数、管理员资料和管理功能暂不可用',
+        '官方推广标记不改变条目平台',
       ])
         assert.ok(content.includes(text));
       const before = copied.length;
@@ -454,7 +459,15 @@ export async function smokeDirectory({ app, dist, mountPage, flush }) {
   state.galleryKnown = true;
   const gallery = mount('detail', route());
   await flush();
-  assert.ok(presented('detail', gallery).includes('没有介绍图片'));
+  assert.deepEqual(gallery.data.detail.introImages, {
+    status: 'known',
+    items: [],
+  });
+  assert.equal(
+    presented('detail', gallery).includes('介绍图片暂不可用'),
+    false,
+  );
+  assert.equal(presented('detail', gallery).includes('image-reader'), false);
   gallery.onUnload();
   const broken = mount('detail', {});
   await flush();

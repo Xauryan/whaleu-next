@@ -1,10 +1,59 @@
-<import src="../../major-discussion/common.wxml" />
-<view class="screen"><view class="eyebrow">WHALEU · 专业讨论</view><view class="title">专业讨论回复</view>
-<template is="discussion-status" data="{{status,error,receiptStatus,deletionLocatorUnavailable,hasSession,busy,frozen,recoveryMajorId,recoveryOperation,recoveryCommentId,recoveryPhase,confirming}}" />
-<template wx:if="{{loaded &amp;&amp; root}}" is="discussion-item" data="{{item:root,deleteTarget,mode,busy,frozen,confirming,focusCommentId,imageBusy}}" /><view wx:if="{{focusCommentId,imageBusy}}" class="notice">通知目标：{{focusCommentId,imageBusy}}。回复按时间正序排列，目标可能在后续页。</view>
-<block wx:if="{{loaded}}"><view class="meta">共 {{totalCount}} 条回复 · 第 {{pageNumber}} 页</view><template wx:for="{{items}}" wx:key="id" is="discussion-item" data="{{item,deleteTarget,mode,busy,frozen,confirming,focusCommentId,imageBusy}}" /><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button></block>
-<template is="discussion-form" data="{{loaded,frozen,mode,busy,confirming,replyTarget,body,bodyBytes,canPublish,selectedComment,deleteTarget,imageEnabled,imageCount,imageBusy,imageFrozen}}" />
-<navigator class="link" url="/pages/major-discussion-recovery/major-discussion-recovery">独立回执恢复与自己的点赞 →</navigator><navigator class="link" url="/pages/major-discussion-notices/major-discussion-notices">专业回复 / 赞通知 →</navigator><view class="notice">使用公开昵称发表非空文字，可附最多 3 张 JPEG / PNG 图片。支持作者撤回与授权管理删除；三图上限是本版本的新策略，真实历史迁移未完成。专业没有创建者通知。</view></view>
-
-<template is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" />
-<template is="discussion-gallery" data="{{galleryOpen,gallerySrc,galleryStatus,galleryIndex,galleryCount}}" />
+<!-- Native Framework7 v9.2.0 presentation; existing Page and controller ownership is unchanged. -->
+<import src="../../major-discussion/framework7-product.wxml" />
+<view class="screen major-product has-dock f7-ios-theme f7-discussions">
+  <view class="major-toolbar major-toolbar-end">
+    <wu-f7-button class="major-icon-button" data-panel="options" aria-label="更多回复选项" bind:press="onTogglePanel" variant="plain">
+      <wu-icon name="more" size="22" />
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiPanel === 'options'}}" class="major-options">
+    <navigator class="major-link" url="/pages/major-discussion-recovery/major-discussion-recovery">
+      请求与点赞记录
+      <wu-icon name="chevron-right" size="16" />
+    </navigator>
+    <navigator class="major-link" url="/pages/major-discussion-notices/major-discussion-notices">
+      回复与赞通知
+      <wu-icon name="chevron-right" size="16" />
+    </navigator>
+    <view class="major-meta">
+      使用公开昵称，可附最多 3 张图片。专业没有创建者通知。
+    </view>
+  </view>
+  <template is="discussion-status" data="{{status,error,receiptStatus,deletionLocatorUnavailable,hasSession,busy,frozen,recoveryMajorId,recoveryOperation,recoveryCommentId,recoveryPhase,confirming,loaded,uiPanel}}" />
+  <template wx:if="{{loaded &amp;&amp; root}}" is="discussion-item" data="{{item:root,deleteTarget,mode,busy,frozen,confirming,focusCommentId,imageBusy,timeLabels}}" />
+  <view wx:if="{{focusCommentId}}" class="major-notice">
+    已标记通知中的回复，后续回复可继续翻页查看。
+  </view>
+  <block wx:if="{{loaded}}">
+    <view class="major-list-heading">
+      <view class="major-section-title">
+        {{totalCount}} 条回复
+      </view>
+    </view>
+    <template wx:for="{{items}}" wx:key="id" is="discussion-item" data="{{item,deleteTarget,mode,busy,frozen,confirming,focusCommentId,imageBusy,timeLabels}}" />
+    <wu-f7-block wx:if="{{!items.length}}" class="major-empty" spacing="compact">
+      <wu-icon name="message" size="32" tone="muted" />
+      <view>
+        还没有回复
+      </view>
+      <view class="major-meta">
+        聊聊你的想法
+      </view>
+    </wu-f7-block>
+    <wu-f7-button wx:if="{{canNext}}" class="major-load-more" disabled="{{busy}}" bind:press="onNext" variant="plain">
+      更多回复
+    </wu-f7-button>
+  </block>
+  <view wx:if="{{loaded &amp;&amp; !frozen}}" class="major-dock">
+    <wu-f7-button class="major-compose-entry" data-panel="compose" disabled="{{busy || imageBusy || imageFrozen || confirming}}" bind:press="onTogglePanel" variant="fill" size="large">
+      <wu-icon name="edit" size="20" />
+      写回复
+    </wu-f7-button>
+    <view class="major-meta">
+      公开
+    </view>
+  </view>
+  <template is="discussion-form" data="{{loaded,frozen,mode,busy,confirming,replyTarget,body,bodyBytes,canPublish,selectedComment,deleteTarget,imageEnabled,imageCount,imageBusy,imageFrozen,imageStatus,imagePending,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,uiPanel}}" />
+  <template wx:if="{{!(loaded &amp;&amp; !frozen &amp;&amp; uiPanel === 'compose' &amp;&amp; !confirming) &amp;&amp; confirming !== 'publish' &amp;&amp; !(confirming === 'delete' &amp;&amp; deleteTarget) &amp;&amp; !(confirming === 'like' &amp;&amp; selectedComment)}}" is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" />
+  <template is="discussion-gallery" data="{{galleryOpen,gallerySrc,galleryStatus,galleryIndex,galleryCount}}" />
+</view>

@@ -1,0 +1,627 @@
+--- src/notifications/social-updates/controller.ts (before)
++++ src/notifications/social-updates/controller.ts (after)
+@@ -1,3 +1,7 @@
++import {
++  guardNoticeRead,
++  type NoticeReadGuard,
++} from '../../notifications/notice-read-guard';
+ import { ClientError, clientError } from '../../api/errors';
+ import type { SessionTicket } from '../../auth/session';
+ import {
+@@ -336,12 +340,13 @@
+       'open',
+     );
+   }
+-  async acknowledge(noticeId: string): Promise<void> {
++  async acknowledge(noticeId: string, guard?: NoticeReadGuard): Promise<void> {
+     if (!this.active() || !this.view.loaded || this.view.busy) return;
+     const item = this.view.items.find((row) => row.noticeId === noticeId);
+     if (!item || item.readAt !== null) return;
+     await this.run(
+-      (cancel) => this.gateway!.markRead(noticeId, cancel),
++      (cancel) =>
++        this.gateway!.markRead(noticeId, guardNoticeRead(cancel, guard)),
+       (raw) => {
+         const result = decodeSocialUpdateRead(raw);
+         if (
+--- src/pages/community-updates/controller.ts (before)
++++ src/pages/community-updates/controller.ts (after)
+@@ -1,3 +1,7 @@
++import {
++  guardNoticeRead,
++  type NoticeReadGuard,
++} from '../../notifications/notice-read-guard';
+ import { ClientError } from '../../api/errors';
+ import {
+   CommunityController,
+@@ -99,7 +103,7 @@
+     );
+   }
+   /** An explicit per-row acknowledgment. Retry is safe and never marks a category or another account. */
+-  async acknowledge(noticeId: string): Promise<void> {
++  async acknowledge(noticeId: string, guard?: NoticeReadGuard): Promise<void> {
+     const item = this.view.items.find((row) => row.noticeId === noticeId);
+     if (
+       !item ||
+@@ -110,7 +114,11 @@
+     )
+       return;
+     await this.run(
+-      (cancel) => this.runtime.gateway!.readUpdate(noticeId, cancel),
++      (cancel) =>
++        this.runtime.gateway!.readUpdate(
++          noticeId,
++          guardNoticeRead(cancel, guard),
++        ),
+       (result) => {
+         if (result.noticeId !== noticeId)
+           throw new ClientError(
+--- src/ratings/updates-controller.ts (before)
++++ src/ratings/updates-controller.ts (after)
+@@ -1,3 +1,7 @@
++import {
++  guardNoticeRead,
++  type NoticeReadGuard,
++} from '../notifications/notice-read-guard';
+ import {
+   decodeRatingSubscriptionNoticeTarget,
+   decodeRatingSubscriptionUpdatesPage,
+@@ -297,7 +301,7 @@
+       },
+     );
+   }
+-  async acknowledge(noticeId: string): Promise<void> {
++  async acknowledge(noticeId: string, guard?: NoticeReadGuard): Promise<void> {
+     if (
+       !this.available() ||
+       this.view.busy ||
+@@ -309,7 +313,8 @@
+     )
+       return;
+     await this.run(
+-      (cancel) => this.gateway()!.markRead(noticeId, cancel),
++      (cancel) =>
++        this.gateway()!.markRead(noticeId, guardNoticeRead(cancel, guard)),
+       (raw) => {
+         const result = decodeRatingNoticeRead(raw);
+         if (result.noticeId !== noticeId) invalidRating();
+--- src/window-discussion/notices-controller.ts (before)
++++ src/window-discussion/notices-controller.ts (after)
+@@ -1,3 +1,7 @@
++import {
++  guardNoticeRead,
++  type NoticeReadGuard,
++} from '../notifications/notice-read-guard';
+ import { decodeDiscussionV2Notices } from './v2-contract';
+ import {
+   CommunityController,
+@@ -143,7 +147,7 @@
+       },
+     );
+   }
+-  async read(id: string): Promise<void> {
++  async read(id: string, guard?: NoticeReadGuard): Promise<void> {
+     if (this.view.busy || !this.ready() || !this.view.loaded) return;
+     const notice = this.view.items.find((i) => i.noticeId === id);
+     if (!notice || notice.readAt !== null) return;
+@@ -153,7 +157,7 @@
+       async (c) => {
+         const r = decodeDiscussionRead(
+           await (this.runtime.windowDiscussionV2 ??
+-            this.runtime.windowDiscussion)!.read(id, c),
++            this.runtime.windowDiscussion)!.read(id, guardNoticeRead(c, guard)),
+         );
+         if (r.noticeId !== id) invalidDiscussion();
+         return r;
+--- src/major-discussion/notices-controller.ts (before)
++++ src/major-discussion/notices-controller.ts (after)
+@@ -1,3 +1,7 @@
++import {
++  guardNoticeRead,
++  type NoticeReadGuard,
++} from '../notifications/notice-read-guard';
+ import { decodeDiscussionV2Notices } from './v2-contract';
+ import {
+   CommunityController,
+@@ -143,7 +147,7 @@
+       },
+     );
+   }
+-  async read(id: string): Promise<void> {
++  async read(id: string, guard?: NoticeReadGuard): Promise<void> {
+     if (this.view.busy || !this.ready() || !this.view.loaded) return;
+     const notice = this.view.items.find((i) => i.noticeId === id);
+     if (!notice || notice.readAt !== null) return;
+@@ -153,7 +157,7 @@
+       async (c) => {
+         const r = decodeDiscussionRead(
+           await (this.runtime.majorDiscussionV2 ??
+-            this.runtime.majorDiscussion)!.read(id, c),
++            this.runtime.majorDiscussion)!.read(id, guardNoticeRead(c, guard)),
+         );
+         if (r.noticeId !== id) invalidDiscussion();
+         return r;
+--- src/pages/system-notices/controller.ts (before)
++++ src/pages/system-notices/controller.ts (after)
+@@ -1,3 +1,7 @@
++import {
++  guardNoticeRead,
++  type NoticeReadGuard,
++} from '../../notifications/notice-read-guard';
+ import { ClientError } from '../../api/errors';
+ import {
+   CommunityController,
+@@ -118,7 +122,7 @@
+     );
+   }
+   /** The idempotent owner-only PUT can be retried after an uncertain response. */
+-  async acknowledge(noticeId: string): Promise<void> {
++  async acknowledge(noticeId: string, guard?: NoticeReadGuard): Promise<void> {
+     const item = this.view.items.find((row) => row.noticeId === noticeId);
+     if (
+       !item ||
+@@ -129,7 +133,11 @@
+     )
+       return;
+     await this.run(
+-      (cancel) => this.runtime.systemNotices!.read(noticeId, cancel),
++      (cancel) =>
++        this.runtime.systemNotices!.read(
++          noticeId,
++          guardNoticeRead(cancel, guard),
++        ),
+       (result) => {
+         if (result.noticeId !== noticeId)
+           throw new ClientError(
+--- src/errands/notices.ts (before)
++++ src/errands/notices.ts (after)
+@@ -1,3 +1,7 @@
++import {
++  guardNoticeRead,
++  type NoticeReadGuard,
++} from '../notifications/notice-read-guard';
+ import type { ApiClient } from '../api/client';
+ import type { Decoder } from '../api/envelopes';
+ import { activityTimestamp } from '../activities/contract';
+@@ -247,7 +251,7 @@
+       () => this.clear(),
+     );
+   }
+-  async read(noticeId: string): Promise<void> {
++  async read(noticeId: string, guard?: NoticeReadGuard): Promise<void> {
+     if (
+       this.view.busy ||
+       !this.view.loaded ||
+@@ -258,7 +262,11 @@
+     )
+       return;
+     await this.run(
+-      (cancel) => this.runtime.errandNotices!.read(noticeId, cancel),
++      (cancel) =>
++        this.runtime.errandNotices!.read(
++          noticeId,
++          guardNoticeRead(cancel, guard),
++        ),
+       (raw) => {
+         const result = decodeErrandNoticeRead(raw);
+         if (result.noticeId !== noticeId) invalidErrand();
+--- src/pages/feedback-notices/controller.ts (before)
++++ src/pages/feedback-notices/controller.ts (after)
+@@ -1,3 +1,7 @@
++import {
++  guardNoticeRead,
++  type NoticeReadGuard,
++} from '../../notifications/notice-read-guard';
+ import { ClientError } from '../../api/errors';
+ import {
+   CommunityController,
+@@ -190,7 +194,7 @@
+     );
+   }
+   /** The idempotent owner-only PUT can be retried after an uncertain response. */
+-  async acknowledge(noticeId: string): Promise<void> {
++  async acknowledge(noticeId: string, guard?: NoticeReadGuard): Promise<void> {
+     const item = this.view.items.find((row) => row.noticeId === noticeId);
+     if (
+       !item ||
+@@ -202,7 +206,11 @@
+     )
+       return;
+     await this.run(
+-      (cancel) => this.runtime.feedbackNotices!.read(noticeId, cancel),
++      (cancel) =>
++        this.runtime.feedbackNotices!.read(
++          noticeId,
++          guardNoticeRead(cancel, guard),
++        ),
+       (result) => {
+         if (result.noticeId !== noticeId)
+           throw new ClientError(
+--- src/notifications/student-notices.ts (before)
++++ src/notifications/student-notices.ts (after)
+@@ -1,3 +1,4 @@
++import { guardNoticeRead, type NoticeReadGuard } from './notice-read-guard';
+ import type { ApiClient } from '../api/client';
+ import { ClientError } from '../api/errors';
+ import {
+@@ -124,7 +125,7 @@
+       () => undefined,
+     );
+   }
+-  async acknowledge(id: string): Promise<void> {
++  async acknowledge(id: string, guard?: NoticeReadGuard): Promise<void> {
+     if (
+       !this.api ||
+       !this.available() ||
+@@ -144,7 +145,7 @@
+             successStatus: 200,
+             decode: decodeStudentNoticeTarget,
+           },
+-          { body: {}, cancellation: cancel },
++          { body: {}, cancellation: guardNoticeRead(cancel, guard) },
+         ),
+       () => {
+         settled = true;
+--- src/pages/social-notices/controller.ts (before)
++++ src/pages/social-notices/controller.ts (after)
+@@ -1,3 +1,4 @@
++import type { NoticeReadGuard } from '../../notifications/notice-read-guard';
+ import type { ApiClient } from '../../api/client';
+ import { SocialUpdatesController } from '../../notifications/social-updates/controller';
+ import { HttpSocialUpdatesGateway } from '../../notifications/social-updates/gateway';
+@@ -236,7 +237,7 @@
+   load(): Promise<void>;
+   more(): Promise<void>;
+   open(id: string): Promise<void>;
+-  acknowledge(id: string): Promise<void>;
++  acknowledge(id: string, guard?: NoticeReadGuard): Promise<void>;
+   dispose(): void;
+ }
+ interface OwnerView extends CommunityView {
+@@ -493,7 +494,7 @@
+           load: () => reader.load(),
+           more: () => reader.more(),
+           open: (id) => reader.open(id),
+-          acknowledge: (id) => reader.acknowledge(id),
++          acknowledge: (id, guard) => reader.acknowledge(id, guard),
+           dispose: () => reader.dispose(),
+         });
+       } else if (key === 'window' || key === 'major') {
+@@ -528,7 +529,7 @@
+                 }
+               });
+             }),
+-          acknowledge: (id) => reader.read(id),
++          acknowledge: (id, guard) => reader.read(id, guard),
+           dispose: () => reader.dispose(),
+         });
+       } else {
+@@ -567,7 +568,7 @@
+           load: () => reader.selectCategory(category),
+           more: () => reader.more(),
+           open: (id) => reader.open(id),
+-          acknowledge: (id) => reader.acknowledge(id),
++          acknowledge: (id, guard) => reader.acknowledge(id, guard),
+           dispose: () => reader.dispose(),
+         });
+       }
+@@ -600,10 +601,10 @@
+     const row = this.currentRow(id);
+     if (row?.available) await this.readers.get(row.source)?.open(row.noticeId);
+   }
+-  async acknowledge(id: string): Promise<void> {
++  async acknowledge(id: string, guard?: NoticeReadGuard): Promise<void> {
+     const row = this.currentRow(id);
+     if (row?.unread)
+-      await this.readers.get(row.source)?.acknowledge(row.noticeId);
++      await this.readers.get(row.source)?.acknowledge(row.noticeId, guard);
+   }
+   cancel(): void {
+     if (!this.active()) return;
+--- src/notifications/system-timeline.ts (before)
++++ src/notifications/system-timeline.ts (after)
+@@ -1,3 +1,4 @@
++import type { NoticeReadGuard } from './notice-read-guard';
+ import type { ApiClient } from '../api/client';
+ import type { CommunityRuntime } from '../community/runtime';
+ import { SystemNoticesController } from '../pages/system-notices/controller';
+@@ -276,7 +277,7 @@
+       if (generation === this.actionGeneration) this.actionSource = null;
+     }
+   }
+-  async acknowledge(key: string): Promise<void> {
++  async acknowledge(key: string, guard?: NoticeReadGuard): Promise<void> {
+     if (this.disposed || this.view.busy) return;
+     const item = this.view.items.find((i) => i.key === key);
+     if (!item || item.readAt !== null) return;
+@@ -286,11 +287,12 @@
+     this.render(this.view);
+     try {
+       if (item.source === 'system')
+-        await this.system.acknowledge(item.noticeId);
+-      else if (item.source === 'errand') await this.errand.read(item.noticeId);
++        await this.system.acknowledge(item.noticeId, guard);
++      else if (item.source === 'errand')
++        await this.errand.read(item.noticeId, guard);
+       else if (item.source === 'verification')
+-        await this.verification.acknowledge(item.noticeId);
+-      else await this.feedback.acknowledge(item.noticeId);
++        await this.verification.acknowledge(item.noticeId, guard);
++      else await this.feedback.acknowledge(item.noticeId, guard);
+     } finally {
+       if (generation === this.actionGeneration) this.actionSource = null;
+     }
+--- src/pages/social-notices/social-notices.ts (before)
++++ src/pages/social-notices/social-notices.ts (after)
+@@ -1,16 +1,49 @@
+ import type { WhaleuApp } from '../../app';
+ import { ClientError } from '../../api/errors';
++import { NoticeExposureObserver } from '../../notifications/notice-exposure';
++import { systemClock } from '../../platform/clock';
+ import {
+   initialSocialNoticesView,
+   socialNoticeKind,
+   SocialNoticesController,
+   type SocialNoticeKind,
++  type SocialNoticesView,
+ } from './controller';
+ Page({
+   data: { ...initialSocialNoticesView(null), showCoverage: false },
+   kind: null as SocialNoticeKind | null,
+   controller: undefined as SocialNoticesController | undefined,
+   generation: 0,
++  noticeExposure: undefined as NoticeExposureObserver | undefined,
++  renderNotices(view: SocialNoticesView) {
++    const observation = this.noticeExposure?.render(
++      view.rows.map(({ busy: _busy, ...row }) => ({
++        key: row.id,
++        source: row.source,
++        noticeId: row.noticeId,
++        fingerprint: JSON.stringify(row),
++        unread:
++          row.unread &&
++          view.sources.some(
++            (source) =>
++              source.key === row.source && source.loaded && !source.error,
++          ),
++      })),
++      `social:${this.kind ?? ''}`,
++      view.hasSession && view.loaded && !view.busy && !view.unavailable,
++      view.hasSession && view.loaded && view.busy && !view.unavailable,
++    );
++    this.setData(
++      {
++        ...view,
++        rows: view.rows.map((row) => ({
++          ...row,
++          observationId: observation?.ids.get(row.id) ?? '',
++        })),
++      },
++      observation?.committed,
++    );
++  },
+   onLoad(query: unknown) {
+     this.onHide();
+     this.kind = socialNoticeKind(query);
+@@ -32,11 +65,25 @@
+       return;
+     }
+     const generation = this.generation;
++    this.noticeExposure = new NoticeExposureObserver(
++      wx,
++      this,
++      systemClock,
++      runtime,
++      async (row, guard) => {
++        if (generation === this.generation)
++          await this.controller?.acknowledge(row.key, guard);
++      },
++      () => {
++        if (generation === this.generation && this.controller)
++          this.renderNotices(this.controller.snapshot());
++      },
++    );
+     this.controller = new SocialNoticesController(
+       runtime,
+       this.kind,
+       (view) => {
+-        if (generation === this.generation) this.setData({ ...view });
++        if (generation === this.generation) this.renderNotices(view);
+       },
+       (url) =>
+         new Promise<void>((resolve, reject) => {
+@@ -67,22 +114,30 @@
+     }
+   },
+   onCoverage() {
++    this.noticeExposure?.clear();
+     this.setData({ showCoverage: !this.data.showCoverage });
++    if (this.controller) this.renderNotices(this.controller.snapshot());
+   },
+   onMore(event: { currentTarget: { dataset: { source?: string } } }) {
++    this.noticeExposure?.clear();
+     void this.controller?.more(event.currentTarget.dataset.source);
+   },
+   onOpen(event: { currentTarget: { dataset: { id: string } } }) {
++    this.noticeExposure?.clear();
+     void this.controller?.open(event.currentTarget.dataset.id);
+   },
+   onRead(event: { currentTarget: { dataset: { id: string } } }) {
++    this.noticeExposure?.clear();
+     void this.controller?.acknowledge(event.currentTarget.dataset.id);
+   },
+   onCancel() {
++    this.noticeExposure?.clear();
+     this.controller?.cancel();
+   },
+   onHide() {
+     this.generation++;
++    this.noticeExposure?.dispose();
++    this.noticeExposure = undefined;
+     this.controller?.dispose();
+     this.controller = undefined;
+     this.setData({
+--- src/pages/social-notices/social-notices.wxml (before)
++++ src/pages/social-notices/social-notices.wxml (after)
+@@ -41,7 +41,7 @@
+       正在读取消息…
+     </view>
+     <wu-f7-list spacing="compact" class="notice-list">
+-      <view wx:for="{{rows}}" wx:key="id" class="notice-event">
++      <view wx:for="{{rows}}" wx:key="id" id="{{item.observationId}}" class="notice-event">
+         <view class="notice-symbol social-tone-{{tone}}">
+           <wu-icon name="{{icon === 'heart-filled' ? 'heart-filled' : icon === 'person-filled' ? 'person-filled' : 'message-filled'}}" size="23" tone="{{tone === 'coral' ? 'coral' : tone === 'socialblue' ? 'socialblue' : 'mint'}}" />
+           <view wx:if="{{item.unread}}" class="notice-unread" aria-label="未读" />
+@@ -104,6 +104,9 @@
+           <text>
+             {{coverage}}
+           </text>
++          <view class="notice-context">
++            消息在屏幕内持续显示后会确认已读，也可手动标记；仅加载列表或打开详情不会确认已读。
++          </view>
+           <view wx:for="{{sources}}" wx:key="key" class="notice-context">
+             {{item.label}}：{{item.busy ? '读取中' : item.error ? item.error : item.coverageUnknown ? '消息范围暂不能确认' : item.loaded ? '当前页已读取' : '尚未读取'}}
+           </view>
+--- src/pages/system-notices/system-notices.ts (before)
++++ src/pages/system-notices/system-notices.ts (after)
+@@ -1,16 +1,49 @@
+ import { systemNoticeRows } from '../../notifications/details';
+ import type { WhaleuApp } from '../../app';
++import { NoticeExposureObserver } from '../../notifications/notice-exposure';
++import { systemClock } from '../../platform/clock';
+ import {
+   SystemTimelineController,
+   initialSystemTimelineView,
++  type SystemTimelineView,
+ } from '../../notifications/system-timeline';
+ 
+ Page({
+   data: { ...initialSystemTimelineView(), showSources: false },
+   controller: undefined as SystemTimelineController | undefined,
++  noticeExposure: undefined as NoticeExposureObserver | undefined,
++  generation: 0,
++  renderNotices(view: SystemTimelineView) {
++    const observation = this.noticeExposure?.render(
++      view.items.map((row) => ({
++        key: row.key,
++        source: row.source,
++        noticeId: row.noticeId,
++        fingerprint: JSON.stringify(row),
++        unread:
++          row.readAt === null &&
++          view.sources.some(
++            (source) =>
++              source.source === row.source && source.loaded && !source.error,
++          ),
++      })),
++      'system:timeline',
++      view.hasSession && view.loaded && !view.busy,
++      view.hasSession && view.loaded && view.busy,
++    );
++    this.setData(
++      {
++        ...view,
++        items: systemNoticeRows(view.items).map((row) => ({
++          ...row,
++          observationId: observation?.ids.get(row.key) ?? '',
++        })),
++      },
++      observation?.committed,
++    );
++  },
+   onShow() {
+-    this.controller?.dispose();
+-    this.controller = undefined;
++    this.onHide();
+     const runtime = getApp<WhaleuApp>().community;
+     if (!runtime) {
+       this.setData({
+@@ -19,9 +52,26 @@
+       });
+       return;
+     }
++    const generation = this.generation;
++    this.noticeExposure = new NoticeExposureObserver(
++      wx,
++      this,
++      systemClock,
++      runtime,
++      async (row, guard) => {
++        if (generation === this.generation)
++          await this.controller?.acknowledge(row.key, guard);
++      },
++      () => {
++        if (generation === this.generation && this.controller)
++          this.renderNotices(this.controller.snapshot());
++      },
++    );
+     this.controller = new SystemTimelineController(
+       runtime,
+-      (view) => this.setData({ ...view, items: systemNoticeRows(view.items) }),
++      (view) => {
++        if (generation === this.generation) this.renderNotices(view);
++      },
+       getApp<WhaleuApp>().identity?.api,
+       (url) =>
+         new Promise<void>((resolve, reject) => {
+@@ -39,18 +89,23 @@
+     void this.controller.load();
+   },
+   onSources() {
++    this.noticeExposure?.clear();
+     this.setData({ showSources: !this.data.showSources });
++    if (this.controller) this.renderNotices(this.controller.snapshot());
+   },
+   onReload() {
+-    void this.controller?.load();
++    this.onShow();
+   },
+   onMore() {
++    this.noticeExposure?.clear();
+     void this.controller?.more();
+   },
+   onRead(event: { currentTarget: { dataset: { id: string } } }) {
++    this.noticeExposure?.clear();
+     void this.controller?.acknowledge(event.currentTarget.dataset.id);
+   },
+   onOpen(event: { currentTarget: { dataset: { id: string } } }) {
++    this.noticeExposure?.clear();
+     const controller = this.controller;
+     void controller?.open(event.currentTarget.dataset.id).catch(() => {
+       if (this.controller === controller)
+@@ -58,10 +113,14 @@
+     });
+   },
+   onCancel() {
++    this.noticeExposure?.clear();
+     this.controller?.cancel();
+   },
+   onHide() {
+-    this.setData({ showSources: false });
++    this.generation++;
++    this.noticeExposure?.dispose();
++    this.noticeExposure = undefined;
++    this.setData({ ...initialSystemTimelineView(), showSources: false });
+     this.controller?.dispose();
+     this.controller = undefined;
+   },
+--- src/pages/system-notices/system-notices.wxml (before)
++++ src/pages/system-notices/system-notices.wxml (after)
+@@ -20,7 +20,7 @@
+     登录后查看系统消息
+   </navigator>
+   <wu-f7-list spacing="compact" class="notice-list">
+-    <view wx:for="{{items}}" wx:key="key" class="notice-event">
++    <view wx:for="{{items}}" wx:key="key" id="{{item.observationId}}" class="notice-event">
+       <view class="notice-symbol">
+         <wu-icon name="bell" tone="accent" size="23" />
+         <view wx:if="{{!item.readAt}}" class="notice-unread" aria-label="未读" />
+@@ -167,7 +167,7 @@
+         </view>
+       </view>
+       <view wx:if="{{showSources}}" class="notice-hint">
+-        浏览列表不会自动标为已读。
++        消息在屏幕内持续显示后会确认已读，也可手动标记；仅加载列表或打开详情不会确认已读。
+       </view>
+     </view>
+   </wu-f7-block>

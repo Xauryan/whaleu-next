@@ -1,1 +1,59 @@
-@import '../../announcements/announcements.wxss';
+@import '../organizations/information-presentation.wxss';
+@import '../organizations/framework7-information.wxss';
+.announcement-article {
+  padding-top: 22rpx;
+}
+.article-meta {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  color: var(--wu-secondary);
+  font-size: 25rpx;
+}
+.article-title {
+  display: block;
+  margin: 18rpx 0;
+  font-size: 46rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -1rpx;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.article-version {
+  display: block;
+  color: var(--wu-secondary);
+  font-size: 25rpx;
+  margin-bottom: 20rpx;
+}
+.announcement-body {
+  display: block;
+  margin: 34rpx 0 42rpx;
+  font-size: 31rpx;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.article-media {
+  border-top: 1rpx solid var(--wu-separator);
+  padding-top: 12rpx;
+}
+.information-screen .image-link {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  width: 100%;
+  padding: 24rpx 0;
+  text-align: left;
+  border-radius: 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.image-link text {
+  flex: 1;
+}
+.reading-notes {
+  border-top: 1rpx solid var(--wu-separator);
+}
+.reading-notes view {
+  margin-bottom: 12rpx;
+}

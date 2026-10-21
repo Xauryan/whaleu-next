@@ -544,16 +544,16 @@ test('R2C subscription list category owns separate cursor/count/target/read and 
   assert.equal(s.ratingLikeUpdates.calls.length, 0);
 });
 for (const anchored of [false, true])
-  test(`R2C subscription ${anchored ? 'reply' : 'root'} notice reads only after exact current content has loaded`, async () => {
+  test(`R2C subscription ${anchored ? 'reply' : 'root'} notice remains unread after exact current content has loaded`, async () => {
     const s = r2cHarness();
     s.ratingSubscriptionUpdates.targetImpl = async () =>
       subscriptionNoticeTarget({
         target: subscriptionLocator({ replyId: anchored ? replyId : null }),
       });
     s.ratingSubscriptionUpdates.markReadImpl = async () => {
-      assert.equal(s.view().loaded, true);
-      if (anchored) assert.equal(s.view().anchorReplyId, replyId);
-      return readReceipt();
+      assert.fail(
+        'Loading subscription content must not acknowledge the notice',
+      );
     };
     await s.controller.load({
       ...route,
@@ -563,7 +563,17 @@ for (const anchored of [false, true])
     assert.equal(s.view().loaded, true);
     assert.deepEqual(
       s.ratingSubscriptionUpdates.calls.map((c) => c.method),
-      ['target', 'markRead'],
+      ['target'],
+    );
+    if (anchored) assert.equal(s.view().anchorReplyId, replyId);
+    await s.controller.reload();
+    s.controller.collapse();
+    await s.controller.expand();
+    assert.equal(s.view().loaded, true);
+    assert.equal(
+      s.ratingSubscriptionUpdates.calls.filter((c) => c.method === 'markRead')
+        .length,
+      0,
     );
     assert.equal(s.ratingUpdates.calls.length, 0);
     assert.equal(s.ratingLikeUpdates.calls.length, 0);

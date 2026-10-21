@@ -1,0 +1,601 @@
+{
+  "organizations": [
+    {
+      "event": "navigate",
+      "action": "/pages/organization-editor/organization-editor",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onMine",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onReviews",
+      "dataset": {},
+      "guards": ["wx:if:{{management !== 'none'}}"]
+    },
+    {
+      "event": "bindinput",
+      "action": "onCampusInput",
+      "dataset": {},
+      "guards": ["wx:if:{{mode === 'review' && management === 'global'}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onFindCampus",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{mode === 'review' && management === 'global'}}",
+        "disabled:{{selecting}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onChooseCampus",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": [
+        "wx:if:{{mode === 'review' && management === 'global'}}",
+        "wx:for:{{campuses}}",
+        "wx:key:id",
+        "disabled:{{selecting}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/organization-editor/organization-editor?id={{item.id}}",
+      "dataset": {},
+      "guards": ["wx:for:{{items}}", "wx:key:id"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onMore",
+      "dataset": {},
+      "guards": ["wx:if:{{more}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/directory-hub/directory-hub",
+      "dataset": {},
+      "guards": []
+    }
+  ],
+  "organization-editor": [
+    {
+      "event": "bindtap",
+      "action": "onRecover",
+      "dataset": {},
+      "guards": ["wx:if:{{pending}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRetry",
+      "dataset": {},
+      "guards": ["wx:if:{{pending}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancelPending",
+      "dataset": {},
+      "guards": ["wx:if:{{pending}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/organization-editor/organization-editor?id={{id}}",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{publicDetail}}",
+        "wx:if:{{publicDetail.management.available}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onKind",
+      "dataset": {
+        "data-kind": "school"
+      },
+      "guards": ["wx:if:{{form}}", "wx:if:{{!id}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onKind",
+      "dataset": {
+        "data-kind": "org"
+      },
+      "guards": ["wx:if:{{form}}", "wx:if:{{!id}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onKind",
+      "dataset": {
+        "data-kind": "official"
+      },
+      "guards": ["wx:if:{{form}}", "wx:if:{{!id}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPlatform",
+      "dataset": {
+        "data-platform": "qq"
+      },
+      "guards": [
+        "wx:if:{{form}}",
+        "wx:if:{{!id}}",
+        "wx:if:{{form.kind !== 'official'}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPlatform",
+      "dataset": {
+        "data-platform": "wechat"
+      },
+      "guards": [
+        "wx:if:{{form}}",
+        "wx:if:{{!id}}",
+        "wx:if:{{form.kind !== 'official'}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCategory",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": [
+        "wx:if:{{form}}",
+        "wx:if:{{!id}}",
+        "wx:for:{{categories}}",
+        "wx:key:id"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onMoreCategories",
+      "dataset": {},
+      "guards": ["wx:if:{{form}}", "wx:if:{{!id}}", "wx:if:{{moreCategories}}"]
+    },
+    {
+      "event": "bindinput",
+      "action": "onField",
+      "dataset": {
+        "data-field": "name"
+      },
+      "guards": [
+        "wx:if:{{form}}",
+        "disabled:{{busy || pending || (detail && !detail.permissions.edit)}}"
+      ]
+    },
+    {
+      "event": "bindinput",
+      "action": "onField",
+      "dataset": {
+        "data-field": "introText"
+      },
+      "guards": [
+        "wx:if:{{form}}",
+        "disabled:{{busy || pending || (detail && !detail.permissions.edit)}}"
+      ]
+    },
+    {
+      "event": "bindinput",
+      "action": "onField",
+      "dataset": {
+        "data-field": "qqGroupNumber"
+      },
+      "guards": [
+        "wx:if:{{form}}",
+        "wx:if:{{form.platform === 'qq'}}",
+        "disabled:{{busy || pending || (detail && !detail.permissions.edit)}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPendingImage",
+      "dataset": {
+        "data-slot": "{{item.slot}}",
+        "data-revision": "{{item.applicationRevision}}",
+        "data-action": "recover"
+      },
+      "guards": [
+        "wx:if:{{pendingImages.length}}",
+        "wx:for:{{pendingImages}}",
+        "wx:key:key",
+        "disabled:{{busy || pending || upload.status === 'working'}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPendingImage",
+      "dataset": {
+        "data-slot": "{{item.slot}}",
+        "data-revision": "{{item.applicationRevision}}",
+        "data-action": "cancel"
+      },
+      "guards": [
+        "wx:if:{{pendingImages.length}}",
+        "wx:for:{{pendingImages}}",
+        "wx:key:key",
+        "disabled:{{busy || pending || upload.status === 'working'}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPreviewImage",
+      "dataset": {
+        "data-slot": "{{item.slot}}"
+      },
+      "guards": ["wx:for:{{slots}}", "wx:key:slot", "wx:if:{{item.configured}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPickImage",
+      "dataset": {
+        "data-slot": "{{item.slot}}"
+      },
+      "guards": [
+        "wx:for:{{slots}}",
+        "wx:key:slot",
+        "wx:if:{{detail && detail.permissions.edit && !publicRead}}",
+        "disabled:{{busy || pending || upload.status === 'working'}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRecoverImage",
+      "dataset": {
+        "data-slot": "{{item.slot}}"
+      },
+      "guards": [
+        "wx:for:{{slots}}",
+        "wx:key:slot",
+        "wx:if:{{detail && detail.permissions.edit && !publicRead}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancelImage",
+      "dataset": {
+        "data-slot": "{{item.slot}}"
+      },
+      "guards": [
+        "wx:for:{{slots}}",
+        "wx:key:slot",
+        "wx:if:{{detail && detail.permissions.edit && !publicRead}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRemoveImage",
+      "dataset": {
+        "data-slot": "{{item.slot}}"
+      },
+      "guards": [
+        "wx:for:{{slots}}",
+        "wx:key:slot",
+        "wx:if:{{detail && detail.permissions.edit && !publicRead}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onKeepImage",
+      "dataset": {
+        "data-slot": "{{item.slot}}"
+      },
+      "guards": [
+        "wx:for:{{slots}}",
+        "wx:key:slot",
+        "wx:if:{{detail && detail.permissions.edit && !publicRead}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCloseImage",
+      "dataset": {},
+      "guards": ["wx:if:{{image.src}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onSave",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{form && (!detail || detail.permissions.edit)}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onSubmit",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{form && (!detail || detail.permissions.edit)}}",
+        "wx:if:{{detail && detail.permissions.submit}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindinput",
+      "action": "onReason",
+      "dataset": {},
+      "guards": ["wx:if:{{detail && detail.permissions.review}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onApprove",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{detail && detail.permissions.review}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onReject",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{detail && detail.permissions.review}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRemoveAdmin",
+      "dataset": {
+        "data-id": "{{item.profile.profileId}}"
+      },
+      "guards": [
+        "wx:if:{{detail && detail.members.length}}",
+        "wx:for:{{detail.members}}",
+        "wx:key:grantId",
+        "wx:if:{{detail && detail.permissions.manageMembers && item.profile && item.role !== 'organization_owner'}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindinput",
+      "action": "onLookupInput",
+      "dataset": {},
+      "guards": ["wx:if:{{detail && detail.permissions.manageMembers}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onLookup",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{detail && detail.permissions.manageMembers}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onAddAdmin",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{detail && detail.permissions.manageMembers}}",
+        "wx:if:{{person}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onTransfer",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{detail && detail.permissions.manageMembers}}",
+        "wx:if:{{person}}",
+        "wx:if:{{detail && detail.permissions.transferOwner}}",
+        "disabled:{{busy || pending}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/organizations/organizations",
+      "dataset": {},
+      "guards": []
+    }
+  ],
+  "announcements": [
+    {
+      "event": "bindtap",
+      "action": "onSource",
+      "dataset": {
+        "data-source": "native"
+      },
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onSource",
+      "dataset": {
+        "data-source": "accepted"
+      },
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onManage",
+      "dataset": {},
+      "guards": ["wx:if:{{hasSession}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onAnnouncement",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": ["wx:for:{{items}}", "wx:key:id", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPrevious",
+      "dataset": {},
+      "guards": ["wx:if:{{canPrevious}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNext",
+      "dataset": {},
+      "guards": ["wx:if:{{canNext}}", "disabled:{{busy}}"]
+    }
+  ],
+  "announcement-detail": [
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onImage",
+      "dataset": {
+        "data-slot": "{{item.slot}}"
+      },
+      "guards": [
+        "wx:if:{{loaded && detail}}",
+        "wx:if:{{detail.media.status === 'available'}}",
+        "wx:for:{{detail.media.items}}",
+        "wx:key:bindingId"
+      ]
+    }
+  ],
+  "school-services": [
+    {
+      "event": "navigate",
+      "action": "/pages/campus/campus",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCopy",
+      "dataset": {
+        "data-key": "{{item.entryKey}}",
+        "data-field": "wechatId"
+      },
+      "guards": [
+        "wx:for:{{entries}}",
+        "wx:key:entryKey",
+        "wx:else:",
+        "wx:if:{{item.data.wechatId}}",
+        "disabled:{{busy}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCopy",
+      "dataset": {
+        "data-key": "{{item.entryKey}}",
+        "data-field": "qqGroupNumber"
+      },
+      "guards": [
+        "wx:for:{{entries}}",
+        "wx:key:entryKey",
+        "wx:else:",
+        "wx:if:{{item.data.qqGroupNumber}}",
+        "disabled:{{busy}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCopy",
+      "dataset": {
+        "data-key": "{{item.entryKey}}",
+        "data-field": "joinUrl"
+      },
+      "guards": [
+        "wx:for:{{entries}}",
+        "wx:key:entryKey",
+        "wx:else:",
+        "wx:if:{{item.data.joinUrl}}",
+        "disabled:{{busy}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCopy",
+      "dataset": {
+        "data-key": "{{item.entryKey}}",
+        "data-field": "name"
+      },
+      "guards": [
+        "wx:for:{{entries}}",
+        "wx:key:entryKey",
+        "wx:else:",
+        "wx:if:{{item.entryKey === 'official_account' && item.data.name}}",
+        "disabled:{{busy}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPreview",
+      "dataset": {
+        "data-key": "{{item.entryKey}}"
+      },
+      "guards": [
+        "wx:for:{{entries}}",
+        "wx:key:entryKey",
+        "wx:else:",
+        "wx:if:{{item.qrcode.status === 'configured'}}",
+        "disabled:{{busy}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCloseQr",
+      "dataset": {},
+      "guards": ["wx:if:{{qr.status !== 'idle'}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/school-configuration/school-configuration",
+      "dataset": {},
+      "guards": []
+    }
+  ]
+}

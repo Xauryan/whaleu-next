@@ -614,10 +614,60 @@ test(
       async () => {
         const constraints = (
           await f.pool.query(
-            `SELECT confrelid::regclass::text target FROM pg_constraint WHERE contype='f' AND conrelid='whaleu_profile.self_edit_causes'::regclass`,
+            `SELECT c.conname::text constraint_name,
+               ARRAY(SELECT a.attname::text
+                 FROM unnest(c.conkey) WITH ORDINALITY k(attnum,ord)
+                 JOIN pg_attribute a ON a.attrelid=c.conrelid AND a.attnum=k.attnum
+                 ORDER BY k.ord) source_columns,
+               n.nspname::text target_schema, r.relname::text target_table,
+               ARRAY(SELECT a.attname::text
+                 FROM unnest(c.confkey) WITH ORDINALITY k(attnum,ord)
+                 JOIN pg_attribute a ON a.attrelid=c.confrelid AND a.attnum=k.attnum
+                 ORDER BY k.ord) target_columns,
+               c.confupdtype::text on_update, c.confdeltype::text on_delete,
+               c.confmatchtype::text match_type, c.condeferrable is_deferrable,
+               c.condeferred initially_deferred, c.convalidated validated
+             FROM pg_constraint c
+             JOIN pg_class r ON r.oid=c.confrelid
+             JOIN pg_namespace n ON n.oid=r.relnamespace
+             WHERE c.contype='f' AND c.conrelid='whaleu_profile.self_edit_causes'::regclass
+             ORDER BY c.conname`,
           )
         ).rows;
-        assert.deepEqual(constraints, []);
+        // Only the explicit erasure cause may refer to a retained deletion
+        // request. Actor/session and live Profile retention FKs remain forbidden.
+        assert.deepEqual(constraints, [
+          {
+            constraint_name: 'self_edit_causes_erased_by_request_id_fkey',
+            source_columns: ['erased_by_request_id'],
+            target_schema: 'whaleu_account_deletion',
+            target_table: 'requests',
+            target_columns: ['id'],
+            on_update: 'a',
+            on_delete: 'a',
+            match_type: 's',
+            is_deferrable: false,
+            initially_deferred: false,
+            validated: true,
+          },
+        ]);
+        const erasureColumn = (
+          await f.pool.query(
+            `SELECT attname::text column_name, format_type(atttypid,atttypmod) data_type,
+               attnotnull not_null, atthasdef has_default
+             FROM pg_attribute
+             WHERE attrelid='whaleu_profile.self_edit_causes'::regclass
+               AND attname='erased_by_request_id' AND NOT attisdropped`,
+          )
+        ).rows;
+        assert.deepEqual(erasureColumn, [
+          {
+            column_name: 'erased_by_request_id',
+            data_type: 'uuid',
+            not_null: false,
+            has_default: false,
+          },
+        ]);
         const statementTargets = (
           await f.pool.query(
             `SELECT confrelid::regclass::text target FROM pg_constraint WHERE contype='f' AND conrelid='whaleu_profile.self_edit_statements'::regclass`,

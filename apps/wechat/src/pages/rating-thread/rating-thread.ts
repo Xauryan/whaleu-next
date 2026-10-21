@@ -1,3 +1,4 @@
+import { ratingTimeLabels } from '../../ratings/presentation';
 import { DirectoryNavigator } from '../../directory/navigation';
 import type { WhaleuApp } from '../../app';
 import {
@@ -8,7 +9,11 @@ import {
 } from '../../ratings/discussion-controller';
 type Tap = { currentTarget: { dataset: { id?: string; mode?: string } } };
 Page({
-  data: initialRatingThreadView(),
+  data: {
+    timeLabels: {} as Record<string, string>,
+    ...initialRatingThreadView(),
+    uiPanel: '',
+  },
   route: null as RatingThreadRoute | null,
   navigator: undefined as DirectoryNavigator | undefined,
   unsubscribeSession: undefined as (() => void) | undefined,
@@ -25,6 +30,7 @@ Page({
           current.credentials?.accountId !== owner.credentials?.accountId
         ) {
           owner = current;
+          this.setData({ uiPanel: '' });
           this.navigator?.dispose();
         }
       });
@@ -42,6 +48,7 @@ Page({
     }
   },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.navigator?.dispose();
     this.navigator = undefined;
     const previous = this.controller;
@@ -59,10 +66,26 @@ Page({
       this.setData({ error: '暂不能打开删除选项，请重试' }),
     );
     this.controller = new RatingThreadController(runtime, (view) => {
-      this.setData({ ...view });
+      this.setData({
+        ...view,
+        timeLabels: ratingTimeLabels([
+          ...view.replies,
+          ...(view.discussion ? [view.discussion.root] : []),
+        ]),
+        ...(!view.hasSession || !view.loaded ? { uiPanel: '' } : {}),
+      });
       this.route = this.controller?.currentRoute() ?? this.route;
     });
     void this.controller.load(this.route);
+  },
+  onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel;
+    if (typeof panel !== 'string' || !/^[a-zA-Z0-9:_-]{1,100}$/.test(panel))
+      return;
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
+  onClosePanel() {
+    this.setData({ uiPanel: '' });
   },
   onRefresh() {
     void this.controller?.reload();
@@ -124,6 +147,7 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.navigator?.dispose();
     this.navigator = undefined;
     const previous = this.controller;

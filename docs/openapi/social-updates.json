@@ -1,0 +1,723 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "WhaleU local received social updates",
+    "version": "1",
+    "description": "Fresh local like/save/follow sources only; no historical backfill or external delivery. Likes/saves never identify the actor. Unavailable notices contain metadata only. Lists and target opening never acknowledge a notice. Current-readable unread is exact only when bounded complete coverage is proved; unknown or pending source coverage is null, never a partial total or zero substitute."
+  },
+  "paths": {
+    "/v1/me/social-updates": {
+      "get": {
+        "operationId": "SocialUpdatesController_list",
+        "security": [{ "accessToken": [] }],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["likes", "saves", "followers"]
+            },
+            "description": "Required immutable reader category. Every item and target must match this category."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "description": "Opaque account/session/category/limit-bound continuation; not a target or offset."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SocialUpdatesPage",
+            "headers": {
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Vary": {
+                "schema": { "type": "string" },
+                "description": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SocialUpdatesPage" }
+              }
+            }
+          },
+          "400": { "description": "Strict input or scoped cursor rejected." },
+          "401": {
+            "description": "Current presented account/session required."
+          },
+          "403": {
+            "description": "Current safety policy denied the operation."
+          },
+          "404": {
+            "description": "No notice belonging to this account and category."
+          },
+          "503": {
+            "description": "Mandatory authority or source proof unavailable; no private projection is returned."
+          }
+        }
+      }
+    },
+    "/v1/me/social-updates/unread-count": {
+      "get": {
+        "operationId": "SocialUpdatesController_count",
+        "security": [{ "accessToken": [] }],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["likes", "saves", "followers"]
+            },
+            "description": "Required immutable reader category. Every item and target must match this category."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SocialUnread",
+            "headers": {
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Vary": {
+                "schema": { "type": "string" },
+                "description": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SocialUnread" }
+              }
+            }
+          },
+          "400": { "description": "Strict input or scoped cursor rejected." },
+          "401": {
+            "description": "Current presented account/session required."
+          },
+          "403": {
+            "description": "Current safety policy denied the operation."
+          },
+          "404": {
+            "description": "No notice belonging to this account and category."
+          },
+          "503": {
+            "description": "Mandatory authority or source proof unavailable; no private projection is returned."
+          }
+        }
+      }
+    },
+    "/v1/me/social-updates/{noticeId}/target": {
+      "get": {
+        "operationId": "SocialUpdatesController_target",
+        "security": [{ "accessToken": [] }],
+        "parameters": [
+          {
+            "name": "noticeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["likes", "saves", "followers"]
+            },
+            "description": "Required immutable reader category. Every item and target must match this category."
+          }
+        ],
+        "description": "Reauthorizes the current target. No read acknowledgment and no unavailable reason/locator disclosure.",
+        "responses": {
+          "200": {
+            "description": "SocialNoticeTarget",
+            "headers": {
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Vary": {
+                "schema": { "type": "string" },
+                "description": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SocialNoticeTarget" }
+              }
+            }
+          },
+          "400": { "description": "Strict input or scoped cursor rejected." },
+          "401": {
+            "description": "Current presented account/session required."
+          },
+          "403": {
+            "description": "Current safety policy denied the operation."
+          },
+          "404": {
+            "description": "No notice belonging to this account and category."
+          },
+          "503": {
+            "description": "Mandatory authority or source proof unavailable; no private projection is returned."
+          }
+        }
+      }
+    },
+    "/v1/me/social-updates/{noticeId}/read": {
+      "put": {
+        "operationId": "SocialUpdatesController_read",
+        "security": [{ "accessToken": [] }],
+        "parameters": [
+          {
+            "name": "noticeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["likes", "saves", "followers"]
+            },
+            "description": "Required immutable reader category. Every item and target must match this category."
+          }
+        ],
+        "description": "Explicit owner acknowledgment only. Retries preserve the exact original read timestamp. The response conveys no target permission.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SocialNoticeRead",
+            "headers": {
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Vary": {
+                "schema": { "type": "string" },
+                "description": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SocialNoticeRead" }
+              }
+            }
+          },
+          "400": { "description": "Strict input or scoped cursor rejected." },
+          "401": {
+            "description": "Current presented account/session required."
+          },
+          "403": {
+            "description": "Current safety policy denied the operation."
+          },
+          "404": {
+            "description": "No notice belonging to this account and category."
+          },
+          "503": {
+            "description": "Mandatory authority or source proof unavailable; no private projection is returned."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "accessToken": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "SocialNotice": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "noticeId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+              },
+              "readAt": {
+                "nullable": true,
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+              },
+              "status": { "type": "string", "enum": ["unavailable"] }
+            },
+            "required": ["noticeId", "createdAt", "readAt", "status"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "noticeId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+              },
+              "readAt": {
+                "nullable": true,
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+              },
+              "status": { "type": "string", "enum": ["available"] },
+              "kind": { "type": "string", "enum": ["like", "save"] },
+              "target": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "enum": ["community"] },
+                  "postId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "commentId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "replyId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": ["type", "postId", "commentId", "replyId"],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "noticeId",
+              "createdAt",
+              "readAt",
+              "status",
+              "kind",
+              "target"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "noticeId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+              },
+              "readAt": {
+                "nullable": true,
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+              },
+              "status": { "type": "string", "enum": ["available"] },
+              "kind": { "type": "string", "enum": ["follow"] },
+              "target": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "enum": ["profile"] },
+                  "profileId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": ["type", "profileId"],
+                "additionalProperties": false
+              },
+              "actor": {
+                "type": "object",
+                "properties": {
+                  "profileId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                },
+                "required": ["profileId", "displayName"],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "noticeId",
+              "createdAt",
+              "readAt",
+              "status",
+              "kind",
+              "target",
+              "actor"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "SocialUpdatesPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "noticeId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+                    },
+                    "readAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+                    },
+                    "status": { "type": "string", "enum": ["unavailable"] }
+                  },
+                  "required": ["noticeId", "createdAt", "readAt", "status"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "noticeId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+                    },
+                    "readAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+                    },
+                    "status": { "type": "string", "enum": ["available"] },
+                    "kind": { "type": "string", "enum": ["like", "save"] },
+                    "target": {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "enum": ["community"] },
+                        "postId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "commentId": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "replyId": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      },
+                      "required": ["type", "postId", "commentId", "replyId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "noticeId",
+                    "createdAt",
+                    "readAt",
+                    "status",
+                    "kind",
+                    "target"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "noticeId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+                    },
+                    "readAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+                    },
+                    "status": { "type": "string", "enum": ["available"] },
+                    "kind": { "type": "string", "enum": ["follow"] },
+                    "target": {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "enum": ["profile"] },
+                        "profileId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      },
+                      "required": ["type", "profileId"],
+                      "additionalProperties": false
+                    },
+                    "actor": {
+                      "type": "object",
+                      "properties": {
+                        "profileId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "displayName": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        }
+                      },
+                      "required": ["profileId", "displayName"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "noticeId",
+                    "createdAt",
+                    "readAt",
+                    "status",
+                    "kind",
+                    "target",
+                    "actor"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "unreadCount": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "unreadCountStatus": {
+            "type": "string",
+            "enum": ["available", "unavailable"]
+          }
+        },
+        "required": ["items", "nextCursor", "unreadCount", "unreadCountStatus"],
+        "additionalProperties": false,
+        "description": "Distinct notice IDs, at most requested limit. Category determines like/save/follow kind. Follow actor and target profile IDs are identical. Reply targets include their root comment; saves target themes only. Unread status available iff count is non-null."
+      },
+      "SocialUnread": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "unreadCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "unreadCountStatus": { "type": "string", "enum": ["available"] }
+            },
+            "required": ["unreadCount", "unreadCountStatus"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "unreadCount": {
+                "type": "string",
+                "nullable": true,
+                "enum": [null]
+              },
+              "unreadCountStatus": { "type": "string", "enum": ["unavailable"] }
+            },
+            "required": ["unreadCount", "unreadCountStatus"],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "SocialNoticeTarget": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "noticeId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "status": { "type": "string", "enum": ["unavailable"] }
+            },
+            "required": ["noticeId", "status"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "noticeId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "status": { "type": "string", "enum": ["available"] },
+              "target": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string", "enum": ["community"] },
+                      "postId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "commentId": {
+                        "nullable": true,
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "replyId": {
+                        "nullable": true,
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
+                    },
+                    "required": ["type", "postId", "commentId", "replyId"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string", "enum": ["profile"] },
+                      "profileId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
+                    },
+                    "required": ["type", "profileId"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": ["noticeId", "status", "target"],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "SocialNoticeRead": {
+        "type": "object",
+        "properties": {
+          "noticeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "readAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{6}(?:Z))$"
+          },
+          "unreadCount": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "unreadCountStatus": {
+            "type": "string",
+            "enum": ["available", "unavailable"]
+          }
+        },
+        "required": ["noticeId", "readAt", "unreadCount", "unreadCountStatus"],
+        "additionalProperties": false,
+        "description": "Unread status available iff count is non-null; never infer completeness from current page length."
+      }
+    }
+  }
+}

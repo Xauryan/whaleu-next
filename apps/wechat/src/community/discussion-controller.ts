@@ -66,7 +66,7 @@ export class DiscussionMutationController extends CommunityController<Discussion
       actionLabel:
         pending.operation === 'set_comment_pin'
           ? pending.desired
-            ? '置顶评论'
+            ? '置顶回复'
             : '取消置顶'
           : pending.desired
             ? '点赞'

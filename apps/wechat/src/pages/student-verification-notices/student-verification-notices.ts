@@ -1,2 +1,3 @@
 import { studentPage } from '../../verification/student-page';
-Page(studentPage('notices'));
+import { presentStudentDates } from '../student-verification/presentation';
+Page(studentPage('notices', presentStudentDates));

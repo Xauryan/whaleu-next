@@ -1,3 +1,4 @@
+import { ratingTimeLabels } from './presentation';
 import { RatingCoverViewport } from './target-cover-viewport';
 import type { WhaleuApp } from '../app';
 import { DirectoryNavigator } from '../directory/navigation';
@@ -22,7 +23,12 @@ type Tap = {
 /** Back, Close and app hide dispose this owner; native page state never includes a context token or journal payload. */
 export function registerRatingScopedPage(): void {
   Page({
-    data: { ...initialRatingScopedView(), scores: [1, 2, 3, 4, 5] },
+    data: {
+      timeLabels: {} as Record<string, string>,
+      ...initialRatingScopedView(),
+      scores: [1, 2, 3, 4, 5],
+      uiPanel: '',
+    },
     route: {} as unknown,
     navigationActive: false,
     controller: undefined as RatingScopedController | undefined,
@@ -42,6 +48,7 @@ export function registerRatingScopedPage(): void {
           current.credentials?.accountId !== owner.credentials?.accountId
         ) {
           owner = current;
+          this.setData({ uiPanel: '' });
           this.navigator?.dispose();
           this.navigator = this.navigationActive
             ? new DirectoryNavigator(wx, () =>
@@ -59,6 +66,7 @@ export function registerRatingScopedPage(): void {
       });
     },
     onShow() {
+      this.setData({ uiPanel: '' });
       this.coverViewport?.dispose();
       this.controller?.dispose();
       this.navigator?.dispose();
@@ -90,7 +98,18 @@ export function registerRatingScopedPage(): void {
                 .map((target) => target.id)
             : [],
         );
-        this.setData({ ...view }, commit);
+        this.setData(
+          {
+            ...view,
+            timeLabels: ratingTimeLabels([
+              ...view.comments,
+              ...view.replies,
+              ...(view.discussion ? [view.discussion.root] : []),
+            ]),
+            ...(!view.hasSession || !view.loaded ? { uiPanel: '' } : {}),
+          },
+          commit,
+        );
       });
       void this.controller.load(this.route);
     },
@@ -109,6 +128,15 @@ export function registerRatingScopedPage(): void {
       const path = await controller.categoryManagementPath();
       if (this.controller === controller && this.navigator === navigator)
         navigator.open(path);
+    },
+    onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+      const panel = event.currentTarget.dataset.panel;
+      if (typeof panel !== 'string' || !/^[a-zA-Z0-9:_-]{1,100}$/.test(panel))
+        return;
+      this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+    },
+    onClosePanel() {
+      this.setData({ uiPanel: '' });
     },
     onRefresh() {
       void this.controller?.reload();
@@ -323,6 +351,21 @@ export function registerRatingScopedPage(): void {
     onMoreNotices() {
       void this.controller?.more('notices');
     },
+    onNoticeRead(event: Tap & { detail?: { interactionKey?: unknown } }) {
+      if (!this.navigationActive || this.data.uiPanel) return;
+      const { kind, id } = event.currentTarget.dataset;
+      if (
+        kind &&
+        ['updates', 'like-updates', 'subscription-updates'].includes(kind)
+      )
+        void this.controller?.acknowledgeNotice(
+          kind as RatingScopedNoticeKind,
+          id ?? '',
+          typeof event.detail?.interactionKey === 'string'
+            ? event.detail.interactionKey
+            : '',
+        );
+    },
     async onNotice(event: Tap) {
       const controller = this.controller,
         navigator = this.navigator;
@@ -334,6 +377,7 @@ export function registerRatingScopedPage(): void {
         navigator.open(path);
     },
     onHide() {
+      this.setData({ uiPanel: '' });
       this.coverViewport?.dispose();
       this.coverViewport = undefined;
       this.navigationActive = false;

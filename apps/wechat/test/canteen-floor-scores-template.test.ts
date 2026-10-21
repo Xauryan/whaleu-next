@@ -32,7 +32,10 @@ const tree = model.parse(
   ),
 );
 const common = model.parse(
-  readFileSync(path.join(root, 'canteen-floor-scores/common.wxml'), 'utf8'),
+  readFileSync(
+    path.join(root, 'canteen-floor-scores/framework7-product.wxml'),
+    'utf8',
+  ),
 );
 const templates = Object.fromEntries(
   common.children
@@ -51,6 +54,7 @@ const render = (patch: Record<string, unknown>) =>
     model.render(
       tree.children,
       {
+        uiPanel: '',
         ...initialFloorRatingView(),
         ...patch,
       },
@@ -63,8 +67,8 @@ const buttons = (nodes: Node[], handler: string) =>
   nodes.filter(
     (node): node is Exclude<Node, string> =>
       typeof node !== 'string' &&
-      node.tag === 'button' &&
-      node.attrs['bindtap'] === handler,
+      node.tag === 'wu-f7-button' &&
+      node.attrs['bind:press'] === handler,
   );
 test('actual floor WXML exposes decimal input and explicit immutable first-active confirmation, no edit/delete or media', () => {
   const nodes = render({
@@ -75,12 +79,20 @@ test('actual floor WXML exposes decimal input and explicit immutable first-activ
     selectedScore: 4.75,
     confirming: 'score',
   });
+  const selection = render({
+    hasSession: true,
+    loaded: true,
+    detail: detail(),
+    canScore: true,
+    selectedScore: 4.75,
+    uiPanel: 'score',
+  });
   assert.equal(
-    nodes.filter(
+    selection.filter(
       (n) =>
         typeof n !== 'string' &&
-        n.tag === 'input' &&
-        n.attrs['bindinput'] === 'onScore',
+        n.tag === 'wu-f7-input' &&
+        n.attrs['bind:input'] === 'onScore',
     ).length,
     1,
   );

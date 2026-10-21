@@ -1,51 +1,166 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 菜品推荐</view><view class="title">窗口推荐菜品</view>
-  <view class="meta">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
-  <view wx:if="{{receiptStatus}}" class="notice">{{receiptStatus}}</view>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看菜品推荐 →</navigator>
-  <view wx:if="{{frozen}}" class="card confirmation">
-    <view class="section-title">原菜品操作待确认</view>
-    <view class="body">窗口编号：{{recoveryWindowId}}</view>
-    <view class="body">原菜名：{{recoveryName}}</view>
-    <view class="body">原操作：{{recoveryOperation === 'window.dish.retract.v1' ? '撤回推荐' : '推荐菜品'}}</view>
-    <view class="notice">{{recoveryPhase === 'cancel' ? '已保存取消决定，只查询回执或重试取消，不重新执行推荐或撤回。' : '未查到回执不等于失败，原编号与完整意图已保存，不能创建替代请求。'}}</view>
-    <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
-    <button bindtap="onRetry" disabled="{{busy}}">{{recoveryPhase === 'cancel' ? '查询后重试原取消' : '查询后重试原操作'}}</button>
-    <button wx:if="{{recoveryWindowId &amp;&amp; recoveryPhase !== 'cancel'}}" bindtap="onRequestCancellation" disabled="{{busy}}">查询后申请取消原请求</button>
-  </view>
-  <view wx:if="{{confirming === 'cancel'}}" class="card confirmation">
-    <view class="section-title">确认取消原请求</view><view class="notice">只有服务端取消回执才算取消；已完成的原操作返回真实回执，取消不会撤销已经完成的推荐或撤回。</view>
-    <button bindtap="onConfirmCancellation" disabled="{{busy || !receiptMissing}}">确认取消这个原请求</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回</button>
-  </view>
-  <button bindtap="onRefresh" disabled="{{busy}}">重新加载当前推荐</button><button wx:if="{{busy}}" bindtap="onCancelWait">停止等待</button>
-  <view wx:if="{{restartRequired}}" class="notice">分页已失效，旧页已清除，请从第一页重新加载。</view>
-  <view wx:if="{{loaded}}" class="card">
-    <view class="section-title">当前可见推荐</view><view class="notice">有效推荐数只计算当前可见的有效推荐。每个账号可推荐多个不同菜名，同一账号在同一菜名下最多一条当前推荐；不代表不同自然人的数量，不展示推荐者身份。</view>
-    <view wx:if="{{items.length === 0}}" class="body">当前已确认没有可见推荐。</view>
-    <view wx:for="{{items}}" wx:key="dishIdentity" class="card">
-      <view class="section-title">{{item.dishName}}</view><view class="body">{{item.recommendationCount}} 条有效推荐</view><view class="meta">{{item.isRecommended ? '我已推荐' : '我当前未推荐'}}</view>
-      <button bindtap="onDish" data-identity="{{item.dishIdentity}}" disabled="{{busy || frozen || confirming}}">查询自己的当前状态</button>
+<view class="screen dining-product has-dock f7-ios-theme f7-dining-product">
+  <wu-f7-block spacing="compact">
+    <view wx:if="{{!loaded || busy}}" class="meta">
+      {{status}}
     </view>
-    <view class="meta">第 {{pageNumber}} 页</view><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button>
+    <view wx:if="{{error}}" class="error">
+      {{error}}
+    </view>
+    <view wx:if="{{receiptStatus}}" class="notice">
+      {{receiptStatus}}
+    </view>
+    <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">
+      登录后查看菜品推荐
+    </navigator>
+    <view wx:if="{{frozen}}" class="dp-recovery">
+      <view class="section-title">
+        原菜品操作待确认
+      </view>
+      <view class="body">
+        窗口编号：{{recoveryWindowId}}
+      </view>
+      <view class="body">
+        原菜名：{{recoveryName}}
+      </view>
+      <view class="body">
+        原操作：{{recoveryOperation === 'window.dish.retract.v1' ? '撤回推荐' :
+      '推荐菜品'}}
+      </view>
+      <view class="notice">
+        {{recoveryPhase === 'cancel' ?
+      '已保存取消决定，只查询回执或重试取消，不重新执行推荐或撤回。' :
+      '未查到回执不等于失败，原编号与完整意图已保存，不能创建替代请求。'}}
+      </view>
+      <wu-f7-button disabled="{{busy}}" bind:press="onRecover" variant="tonal">
+        查询原回执
+      </wu-f7-button>
+      <wu-f7-button disabled="{{busy}}" bind:press="onRetry" variant="tonal">
+        {{recoveryPhase === 'cancel' ? '查询后重试原取消' : '查询后重试原操作'}}
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{recoveryWindowId && recoveryPhase !== 'cancel'}}" disabled="{{busy}}" bind:press="onRequestCancellation" variant="tonal">
+        查询后申请取消原请求
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{confirming === 'cancel'}}" class="dp-recovery">
+      <view class="section-title">
+        确认取消原请求
+      </view>
+      <view class="notice">
+        只有服务端取消回执才算取消；已完成的原操作返回真实回执，取消不会撤销已经完成的推荐或撤回。
+      </view>
+      <wu-f7-button disabled="{{busy || !receiptMissing}}" bind:press="onConfirmCancellation" variant="tonal">
+        确认取消这个原请求
+      </wu-f7-button>
+      <wu-f7-button disabled="{{busy}}" bind:press="onCloseConfirmation" variant="tonal">
+        返回
+      </wu-f7-button>
+    </view>
+  </wu-f7-block>
+  <view class="dp-heading">
+    <view class="meta">
+      大家推荐的味道
+    </view>
+    <wu-f7-button class="dp-plain" disabled="{{busy}}" bind:press="onRefresh" variant="plain">
+      <wu-icon name="refresh" size="18" />
+      刷新
+    </wu-f7-button>
   </view>
-  <view class="card">
-    <view class="section-title">查询、推荐或撤回原菜名</view>
-    <view class="notice">菜名为 1 至 10 个 Unicode 码点，例如 10 个 🍱 有效；组合序列按 Unicode 码点数计算。保留大小写、空格与组合字符，不自动修改。即使来源、手机号或安全资格变化，仍可按原菜名查询自己的既有推荐并撤回。</view>
-    <input value="{{nameDraft}}" bindinput="onName" maxlength="-1" disabled="{{busy || frozen || confirming}}" placeholder="输入原样菜名" />
-    <button bindtap="onLookup" disabled="{{busy || frozen || confirming}}">查询我的这个菜名</button>
-    <block wx:if="{{own}}">
-      <view wx:if="{{own.kind === 'recorded'}}" class="body">{{own.active ? '我当前已推荐' : '我当前已撤回'}}：{{ownName}}</view>
-      <view wx:elif="{{own.kind === 'not_recommended'}}" class="body">已确认尚未推荐这个菜名。</view>
-      <view wx:else class="notice">自己的推荐历史暂不能确认，不能当作尚未推荐。</view>
-    </block>
-    <view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
-    <button wx:if="{{canRecommend}}" bindtap="onRecommend" disabled="{{busy || frozen || confirming}}">核对推荐</button>
-    <button wx:if="{{canRetract}}" bindtap="onRetract" disabled="{{busy || frozen || confirming}}">核对撤回我的推荐</button>
+  <wu-f7-button wx:if="{{busy}}" bind:press="onCancelWait" variant="tonal">
+    停止等待
+  </wu-f7-button>
+  <view wx:if="{{restartRequired}}" class="notice">
+    列表已变化，请从第一页重新加载。
   </view>
-  <view wx:if="{{confirming === 'recommend' || confirming === 'retract'}}" class="card confirmation">
-    <view class="section-title">确认{{confirming === 'retract' ? '撤回我的推荐' : '推荐菜品'}}</view><view class="body">原样菜名：{{ownName}}</view>
-    <view class="notice">先保存完整原请求再发送。自己的推荐如已在别处变化，本次不会覆盖；撤回后可重新推荐，并产生新的版本。</view>
-    <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认这个操作</button><button bindtap="onCloseConfirmation" disabled="{{busy || frozen}}">返回调整</button>
+  <view wx:if="{{loaded}}">
+    <view wx:if="{{items.length === 0}}" class="empty">
+      还没有推荐，分享一道你喜欢的菜吧
+    </view>
+    <wu-f7-list spacing="compact">
+      <view wx:for="{{items}}" wx:key="dishIdentity" class="dp-row">
+        <wu-f7-list-item class="dp-open" data-identity="{{item.dishIdentity}}" disabled="{{busy || frozen || confirming}}" bind:press="onDish" link="{{true}}" title="{{item.dishName}}" subtitle="{{item.recommendationCount + ' 条有效推荐' + (item.isRecommended ? ' · 我已推荐' : '')}}" last="{{index === items.length - 1}}" />
+      </view>
+    </wu-f7-list>
+    <wu-f7-button wx:if="{{canNext}}" class="dp-plain dp-next" disabled="{{busy}}" bind:press="onNext" variant="plain">
+      下一页
+    </wu-f7-button>
   </view>
-  <navigator class="link" url="/pages/window-ratings/window-ratings">窗口目录 →</navigator>
+  <view class="dp-footer">
+    <navigator class="link" url="/pages/window-ratings/window-ratings">
+      全部窗口
+    </navigator>
+    <wu-f7-button class="dp-plain" data-panel="info" bind:press="onTogglePanel" variant="plain">
+      推荐说明
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiPanel === 'info'}}" class="dp-disclosure">
+    <view class="notice">
+      数量只计算当前有效推荐，不代表不同自然人的数量。同一账号可推荐多道菜，同一道菜保留一条推荐；不展示推荐者身份。
+    </view>
+  </view>
+  <view class="dp-dock">
+    <wu-f7-button class="primary" data-panel="dish" disabled="{{busy || frozen || confirming}}" bind:press="onTogglePanel" variant="fill" size="large">
+      查找或推荐菜品
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiPanel === 'dish' && !confirming && !frozen}}" class="dp-mask">
+    <view class="dp-sheet">
+      <view class="dp-heading">
+        <view class="section-title">
+          {{ownName || '你想推荐哪道菜'}}
+        </view>
+        <wu-f7-button class="dp-plain" bind:press="onClosePanel" variant="plain">
+          关闭
+        </wu-f7-button>
+      </view>
+      <view wx:if="{{error}}" class="error">
+        {{error}}
+      </view>
+      <view class="meta">
+        菜名 1 至 10 个字符，保留原样
+      </view>
+      <wu-f7-input value="{{nameDraft}}" maxlength="-1" disabled="{{busy || frozen || confirming}}" placeholder="输入菜名" bind:input="onName" />
+      <wu-f7-button disabled="{{busy || frozen || confirming}}" bind:press="onLookup" variant="tonal">
+        查询我的推荐
+      </wu-f7-button>
+      <block wx:if="{{own}}">
+        <view wx:if="{{own.kind === 'recorded'}}" class="body">
+          {{own.active ? '我已推荐' : '我已撤回'}}：{{ownName}}
+        </view>
+        <view wx:elif="{{own.kind === 'not_recommended'}}" class="body">
+          已确认尚未推荐这个菜名。
+        </view>
+        <view class="notice" wx:else="">
+          自己的推荐历史暂不能确认，不能当作尚未推荐。
+        </view>
+      </block>
+      <view wx:if="{{blocker && !canRecommend && !canRetract}}" class="notice">
+        {{blocker}}
+      </view>
+      <wu-f7-button wx:if="{{canRecommend}}" class="primary" disabled="{{busy || frozen || confirming}}" bind:press="onRecommend" variant="fill" size="large">
+        推荐这道菜
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{canRetract}}" disabled="{{busy || frozen || confirming}}" bind:press="onRetract" variant="tonal">
+        撤回我的推荐
+      </wu-f7-button>
+    </view>
+  </view>
+  <view wx:if="{{confirming === 'recommend' || confirming === 'retract'}}" class="dp-mask">
+    <view class="dp-sheet">
+      <view class="section-title">
+        确认{{confirming === 'retract' ? '撤回我的推荐' : '推荐菜品'}}
+      </view>
+      <view class="title">
+        {{ownName}}
+      </view>
+      <view class="notice">
+        只操作自己的推荐。如已在别处变化，本次不会覆盖；撤回后可重新推荐。
+      </view>
+      <wu-f7-button class="primary" disabled="{{busy || frozen}}" bind:press="onSubmit" variant="fill" size="large">
+        确认这个操作
+      </wu-f7-button>
+      <wu-f7-button disabled="{{busy || frozen}}" bind:press="onCloseConfirmation" variant="tonal">
+        返回调整
+      </wu-f7-button>
+    </view>
+  </view>
 </view>

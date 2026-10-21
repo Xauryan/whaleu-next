@@ -290,7 +290,7 @@ test('complete-discussion budget failure stays unavailable and distinct from emp
   assert.equal(s.view().loaded, false);
   assert.equal(s.view().totalCount, null);
   assert.match(s.view().error, /完整讨论当前无法核验/);
-  assert.match(s.view().error, /不代表没有评论/);
+  assert.match(s.view().error, /不代表没有回复/);
   assert.match(
     majorDiscussionError(
       new ClientError('http', 'Cursor', {

@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "validatedAtUtc": "2026-10-20T23:32:32Z",
+  "scope": "Source-only social-notices and system-notices timelines. Not every notification detail page and not native/device visibility acceptance.",
+  "sourceInventory": {
+    "path": "docs/NOTICE_EXPOSURE_READ_INVENTORY.json",
+    "sha256": "2af3ead32dddeef4569d621f6007f6367eff778332fe9b38887189f77712bcd8",
+    "unchangedDuringResume": true
+  },
+  "sources": {
+    "apps/wechat/src/notifications/social-updates/controller.ts": "85f8f0203be16a3e628b4e4e3f5cf2e6cb0fbfc76fd2d06d5236f95175000f7b",
+    "apps/wechat/src/pages/community-updates/controller.ts": "cbdbae416c8effb8f2b10b2766a243614daf115f1ab8683e53feaa86bb67b776",
+    "apps/wechat/src/ratings/updates-controller.ts": "76ab47693bd9b9289242bc7f10607e66d4416b86b17e17676143e2b64ad5b25c",
+    "apps/wechat/src/window-discussion/notices-controller.ts": "b00ac75d9e433f03ec0807ddfb425335d8ef3401452aabd3c97f606769ace889",
+    "apps/wechat/src/major-discussion/notices-controller.ts": "5b15c791356c4a633e06d514865a15f2f160cf4b9de438f886db711c1de4d986",
+    "apps/wechat/src/pages/system-notices/controller.ts": "207ccb4d6b09791016047254a1b24862d44e6a8ff036e5862ef7a0ac31d481fb",
+    "apps/wechat/src/errands/notices.ts": "35b04abea9bd0d8ce1724b5f151194ce2dad85ee6f8c531acf124fe1e52bb86d",
+    "apps/wechat/src/pages/feedback-notices/controller.ts": "21a42ff850fa34b8aa08f1198a39c2564a4c74d6760613cc908e6941d2f94176",
+    "apps/wechat/src/notifications/student-notices.ts": "de64274661f9796c79388c60832033198c1d70421abe7dab4889c8b76f14c36f",
+    "apps/wechat/src/pages/social-notices/controller.ts": "32182d33f493520f36e3808c7e61326f930dfe072106074809518e81dcf4366e",
+    "apps/wechat/src/notifications/system-timeline.ts": "58fd366de7d7cb031cc8730019f0e98e592302ebe914b053a266ab430d0fe3e6",
+    "apps/wechat/src/pages/social-notices/social-notices.ts": "5d537a4f4290200f83ccc716b80dd39bd521399235f93372caedfc1cda1961fe",
+    "apps/wechat/src/pages/social-notices/social-notices.wxml": "d978a7cc21d89670b12bcfecd5638c8c4b1fb6f45722e561d0f19cd6c2dbb80c",
+    "apps/wechat/src/pages/system-notices/system-notices.ts": "dfb00b4666197a6f16467562434bbf092759c8b6d50a265fe5326bbc2f04d31f",
+    "apps/wechat/src/pages/system-notices/system-notices.wxml": "2650c6981054fc5c3314793849cfa04869eb7a9518fbcf708efaad77457b70a9",
+    "apps/wechat/src/notifications/notice-exposure.ts": "4988c3ba3d0349bcc3619b7874b1155a4f721760bedd934af6edff6bf19986df",
+    "apps/wechat/src/notifications/notice-read-guard.ts": "857f9c6abfb7ef960a73d2fbff69d9f1a641ea17d4557a99a150d8a13fc4d8c2"
+  },
+  "tests": {
+    "apps/wechat/test/notice-exposure-helpers.ts": "04ebecef71985db1d6ea0f4a3d50e9f25ef1cffc0634b89b0186264908a2b46f",
+    "apps/wechat/test/notice-exposure.test.ts": "2c074861f2879456a7b278db6327294d2e110d5bf159708d25eb843fe5c5e653",
+    "apps/wechat/test/notice-exposure-pages.test.ts": "29582e22c6af7df0cc5f70b6c92c0d913b09d2fb9cbe1844e72187b0a6a51740",
+    "apps/wechat/test/notice-exposure-inventory.test.ts": "c10bfb6723c9093bd0784802eee97106bdc490ec0917da19fbf3d306d6edfecc"
+  },
+  "proofs": {
+    "docs/NOTICE_EXPOSURE_READ_DELTA.patch": "daff467367f8810e0e445edbc80f2ad1fea7d6d05f33fb92961a41faebfaf05f",
+    "docs/NOTICE_EXPOSURE_READ_INVENTORY.json": "2af3ead32dddeef4569d621f6007f6367eff778332fe9b38887189f77712bcd8",
+    "docs/validation/notice-exposure/expanded-fixture-failure.log": "249aee9e21721cb8c14ea9931d477fdcc8c52986e4f23fb8b67612b7887a025c",
+    "docs/validation/notice-exposure/focused-pass.log": "1e647daee0c486f3d2558f818fec54c8821a0bdad2295480b8db983cb14abd89",
+    "docs/validation/notice-exposure/owner-regression-pass.log": "9ad8fbf67ed0cc116a41157569b25794e2af2297a13a271358693dbc5b2a8ad9",
+    "docs/validation/notice-exposure/proof-failure-excerpts.txt": "b8adfa5828d0973d66c3d95ad32e4948d17e9ace56539b68803502339756bd58"
+  },
+  "checks": [
+    {
+      "command": "node --import tsx --test apps/wechat/test/notice-exposure.test.ts apps/wechat/test/notice-exposure-pages.test.ts apps/wechat/test/notice-exposure-inventory.test.ts",
+      "passed": 101,
+      "failed": 0,
+      "breakdown": {
+        "helper": 20,
+        "actualPageRealApiClient": 77,
+        "inventoryAndActionProof": 4
+      },
+      "log": "docs/validation/notice-exposure/focused-pass.log"
+    },
+    {
+      "command": "node --import tsx --test apps/wechat/test/social-notices.test.ts apps/wechat/test/social-updates-controller.test.ts apps/wechat/test/system-timeline.test.ts apps/wechat/test/system-notices-controller.test.ts apps/wechat/test/student-notices-reader.test.ts apps/wechat/test/feedback-notices.test.ts apps/wechat/test/errand-notices.test.ts apps/wechat/test/updates-read.test.ts apps/wechat/test/social-rating-explicit-read.test.ts apps/wechat/test/rating-notice-explicit-read.test.ts",
+      "passed": 189,
+      "failed": 0,
+      "log": "docs/validation/notice-exposure/owner-regression-pass.log"
+    },
+    {
+      "check": "Focused Prettier formatting check",
+      "result": "Passed for both helpers, two Page adapters and exposure test files."
+    }
+  ],
+  "coverage": [
+    "Committed render + exact namespaced row + finite intersection ratio >=0.5 and <=1 + 1000 continuous ms; no fetch/open/offscreen acknowledgment.",
+    "13 source namespaces; 19 owner/category/protocol cases including window/major like/reply v1/v2; each has positive transport and stale-queue negative proof.",
+    "External not-loaded transition invalidates identical-row lease; own busy echo requires explicit readiness exception and exact non-busy row fingerprint.",
+    "Real Page queue checks for source error, safety, browsing scope, directory scope, logout, hide and reset.",
+    "Existing ApiClient checks before initial transport and authenticated replay microtask; valid refresh preserves owner, stale exposure prevents replay.",
+    "Unknown or post-send-invalidated attempts never infer rollback or readAt/count, never exposure-replay in current observer lifetime; explicit manual fallback preserved.",
+    "Strict eleven-controller optional guard AST delta and complete WXML action/dataset/ancestor-gate parity; immutable before snapshots and pinned after hashes unchanged."
+  ],
+  "notRun": [
+    "Shared typecheck/compiler",
+    "Build/native emitted smoke",
+    "Full repository tests",
+    "PostgreSQL/integration",
+    "Native WeChat/device/geometry proof",
+    "Global hash refresh"
+  ],
+  "remaining": "Independent review and central release validation are owned by the parent. No claims of device-certified visibility or attention."
+}

@@ -1,0 +1,115 @@
+<import src="../../post-pins/management.wxml" />
+<import src="../../post-pins/feed.wxml" />
+<view class="support-page feedback-page support-native f7-ios-theme">
+  <view class="toolbar">
+    <view class="scope-label"
+      ><wu-icon name="people" size="20" tone="muted" /><text
+        >全站公开</text
+      ></view
+    >
+    <wu-f7-button variant="plain"
+      class="icon-button"
+      bind:press="onRefresh"
+      disabled="{{busy}}"
+      loading="{{busy}}"
+      aria-label="刷新意见列表"
+    >
+      <wu-icon name="refresh" size="21" tone="accent" />
+    </wu-f7-button>
+  </view>
+  <view class="disclosure"
+    >所有学校都能看到正文、审核通过的图片、公开身份或分身及认证学校。私人处罚申诉请前往账号状态。</view
+  >
+  <navigator
+    wx:if="{{space &amp;&amp; hasSession}}"
+    class="primary compose-entry"
+    url="/pages/community-compose/community-compose?spaceId={{space.id}}&amp;category=feedback"
+    ><wu-icon name="plus" size="20" tone="inverse" /><text
+      >发布意见建议</text
+    ></navigator
+  >
+  <navigator wx:if="{{!hasSession}}" class="primary" url="/pages/login/login"
+    >登录后参与讨论</navigator
+  >
+  <view wx:if="{{!loaded || busy}}" class="status" aria-role="status"
+    >{{status}}</view
+  >
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <wu-f7-button variant="plain" wx:if="{{busy}}" class="quiet" bind:press="onCancel">停止等待</wu-f7-button>
+  <template is="scoped-post-pin" data="{{postPin,hasSession}}" />
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" wx:for="{{posts}}" wx:key="id" class="feedback-item">
+    <view class="author-row"
+      ><view class="identity-mark"
+        ><wu-icon
+          name="{{item.author.kind === 'anonymous' ? 'shield' : 'person'}}"
+          size="20"
+          tone="muted" /></view
+      ><view class="author-info"
+        ><view class="author"
+          >{{item.author.displayName}}<text
+            wx:if="{{item.viewer.isSelf}}"
+            class="self-label"
+            >我</text
+          ></view
+        ><view class="meta"
+          >{{item.author.kind === 'anonymous' ? '分身' : '公开'}}<text
+            wx:if="{{item.feedback.authorSchool}}"
+          >
+            · {{item.feedback.authorSchool}}</text
+          ></view
+        ></view
+      ></view
+    >
+    <view class="post-body">{{item.text}}</view>
+    <view wx:if="{{item.images.length}}" class="media-note"
+      ><wu-icon name="image" size="17" tone="muted" /><text
+        >{{item.images.length}} 张图片 · 详情中查看</text
+      ></view
+    >
+    <view class="post-meta"
+      ><text>{{item.publishedAt}}</text
+      ><view class="counts"
+        ><wu-icon name="heart" size="16" tone="muted" /><text
+          >{{item.likeCount}}</text
+        ><wu-icon name="reply" size="16" tone="muted" /><text
+          >{{item.discussionCount}}</text
+        ></view
+      ></view
+    >
+    <navigator
+      wx:if="{{hasSession}}"
+      class="detail-link"
+      url="/pages/community-detail/community-detail?postId={{item.id}}"
+      ><text>查看讨论</text
+      ><wu-icon name="chevron-right" size="16" tone="accent"
+    /></navigator>
+  </wu-f7-block>
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" wx:if="{{loaded &amp;&amp; !posts.length}}" class="empty"
+    ><wu-icon name="message" size="32" tone="muted" /><view
+      class="section-title"
+      >还没有意见建议</view
+    ><view class="hint">有想改进的地方，欢迎说说。</view></wu-f7-block
+  >
+  <wu-f7-button variant="plain"
+    wx:if="{{canLoadMore}}"
+    class="quiet"
+    bind:press="onMore"
+    disabled="{{busy}}"
+  >
+    查看更多
+  </wu-f7-button>
+  <view wx:if="{{continuation === 'login_required'}}" class="disclosure"
+    >登录后继续浏览；翻页需要手机号验证。</view
+  >
+  <navigator
+    wx:if="{{continuation === 'phone_verification_required'}}"
+    class="link-row"
+    url="/pages/phone-binding/phone-binding"
+    ><text>验证手机号后继续</text
+    ><wu-icon name="chevron-right" size="16" tone="muted"
+  /></navigator>
+  <view class="footnote"
+    >开发预览：本地审核与提醒不代表已向管理员发送微信；真实图片审核与微信通知尚未启用。</view
+  >
+  <template is="post-pin-management" data="{{management:postPinManagement}}" />
+</view>

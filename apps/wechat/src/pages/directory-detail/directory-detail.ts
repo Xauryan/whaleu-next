@@ -27,8 +27,17 @@ import {
   type DirectoryResume,
   type DirectoryRoute,
 } from '../../directory/controller';
+/** View-only date label. Original timestamps stay on the DTO for all actions. */
+function displayDate(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 Page({
   data: {
+    showInfo: false,
     ...initialDirectoryView(),
     managed: false,
     nativeDetail: initialOrganizationEditorView(),
@@ -103,6 +112,9 @@ Page({
       }
     });
   },
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
+  },
   onShow() {
     if (this.data.managed) {
       this.showManaged();
@@ -126,7 +138,16 @@ Page({
       this.setData({ error: '暂不能打开目录页面，请重试' }),
     );
     this.controller = new DirectoryDetailController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        detail: view.detail
+          ? {
+              ...view.detail,
+              createdAtLabel: displayDate(view.detail.createdAt),
+              updatedAtLabel: displayDate(view.detail.updatedAt),
+            }
+          : null,
+      }),
     );
     void this.controller.load(resume?.route ?? this.route, resume ?? undefined);
   },

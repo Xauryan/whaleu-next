@@ -1,5 +1,13 @@
 {
   "pages": [
+    "pages/community-feed/community-feed",
+    "pages/campus-hub/campus-hub",
+    "pages/personal-timetable/personal-timetable",
+    "pages/personal-timetable-term/personal-timetable-term",
+    "pages/personal-timetable-entry/personal-timetable-entry",
+    "pages/inbox/inbox",
+    "pages/me/me",
+    "pages/compose-entry/compose-entry",
     "pages/login/login",
     "pages/status/status",
     "pages/account-status/account-status",
@@ -13,7 +21,6 @@
     "pages/phone-binding/phone-binding",
     "pages/identity-campus/identity-campus",
     "pages/campus/campus",
-    "pages/community-feed/community-feed",
     "pages/community-search/community-search",
     "pages/community-hot/community-hot",
     "pages/community-detail/community-detail",
@@ -106,14 +113,22 @@
     "pages/campus-tools-research/campus-tools-research",
     "pages/campus-tools-webview/campus-tools-webview",
     "pages/institutional-verification/institutional-verification",
-    "pages/official-account-operations/official-account-operations"
+    "pages/official-account-operations/official-account-operations",
+    "pages/notice-thread/notice-thread",
+    "pages/social-notices/social-notices",
+    "pages/browsing-history/browsing-history",
+    "pages/wallet/wallet",
+    "pages/account-menu/account-menu",
+    "pages/settings/settings"
   ],
   "window": {
-    "navigationBarTitleText": "WhaleU 开发构建",
-    "navigationBarBackgroundColor": "#f3f6fb",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#f3f6fb"
+    "navigationBarTitleText": "WhaleU",
+    "navigationBarBackgroundColor": "@navigationBackground",
+    "navigationBarTextStyle": "@navigationText",
+    "backgroundColor": "@background"
   },
   "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "darkmode": true,
+  "themeLocation": "theme.json"
 }

@@ -1,0 +1,428 @@
+<import src="../../ratings/target-cover.wxml" />
+<import src="../../ratings/framework7-product.wxml" />
+<view class="screen rating-product {{mode === 'detail' || mode === 'thread' ? 'has-dock' : ''}} f7-ios-theme f7-rating-product">
+  <view class="product-heading">
+    <view>
+      <view class="meta">
+        {{scopeLabel}}
+      </view>
+      <view class="title">
+        {{detail ? detail.name : mode === 'subscriptions' ? '已码住' : mode === 'updates' ? '评分更新' : mode === 'random' ? '随机选一个' : mode === 'create' ? '添加评分对象' : mode === 'edit' ? '编辑评分对象' : ''}}
+      </view>
+    </view>
+    <wu-f7-button class="plain-button" data-panel="more" aria-label="更多评分功能" bind:press="onTogglePanel" variant="plain">
+      <wu-icon name="more" size="20" />
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiPanel === 'more'}}" class="product-disclosure">
+    <navigator class="link" url="/pages/window-ratings/window-ratings">
+      食堂窗口
+    </navigator>
+    <navigator class="link" url="/pages/course-ratings/course-ratings">
+      课程
+    </navigator>
+    <wu-f7-button class="link" data-mode="catalog" disabled="{{busy || frozen}}" bind:press="onSection" variant="plain">
+      评分目录
+    </wu-f7-button>
+    <wu-f7-button class="link" data-mode="updates" disabled="{{busy || frozen}}" bind:press="onSection" variant="plain">
+      评分更新
+    </wu-f7-button>
+    <wu-f7-button class="link" data-mode="subscriptions" disabled="{{busy || frozen}}" bind:press="onSection" variant="plain">
+      已码住
+    </wu-f7-button>
+    <navigator class="link" url="/pages/rating-recovery/rating-recovery">
+      查询上次操作
+    </navigator>
+  </view>
+  <wu-f7-block class="product-state" spacing="compact">
+    <template is="product-rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh,loaded}}" />
+  </wu-f7-block>
+  <view wx:if="{{frozen &amp;&amp; canCancelPending}}" class="product-list-row">
+    <wu-f7-button disabled="{{busy}}" bind:press="onRequestCancelPending" variant="tonal">
+      取消上次申请
+    </wu-f7-button>
+    <block wx:if="{{cancelPendingConfirmation}}">
+      <view class="notice">
+        服务端确认取消或返回原回执后才会释放请求编号。
+      </view>
+      <wu-f7-button disabled="{{busy}}" bind:press="onCancelPending" variant="tonal">
+        确认取消
+      </wu-f7-button>
+      <wu-f7-button bind:press="onDismissCancelPending" variant="tonal">
+        返回
+      </wu-f7-button>
+    </block>
+  </view>
+  <wu-f7-button class="plain-button" wx:if="{{mode !== 'recovery'}}" data-panel="scope" bind:press="onTogglePanel" variant="plain">
+    切换校园范围
+  </wu-f7-button>
+  <view wx:if="{{uiPanel === 'scope'}}">
+    <view wx:if="{{mode !== 'recovery'}}" class="product-disclosure">
+      <view class="notice">
+        随机范围包含所选学校全部校园与全局，浏览选择不会改变发布权限。
+      </view>
+      <wu-f7-button disabled="{{busy || frozen}}" bind:press="onOpenCampuses" variant="tonal">
+        选择校园
+      </wu-f7-button>
+      <wu-f7-button disabled="{{busy || frozen}}" bind:press="onCampus" variant="tonal">
+        全局范围
+      </wu-f7-button>
+    </view>
+  </view>
+  <view wx:if="{{pickerOpen}}" class="product-list-row">
+    <wu-f7-input value="{{campusQuery}}" placeholder="搜索校园" bind:input="onCampusQuery" />
+    <wu-f7-button disabled="{{busy}}" bind:press="onSearchCampuses" variant="tonal">
+      搜索
+    </wu-f7-button>
+    <wu-f7-button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" disabled="{{busy || !item.isActive}}" bind:press="onCampus" variant="tonal">
+      {{item.fullName}}
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{campusPage &gt; 1}}" disabled="{{busy}}" bind:press="onPreviousCampuses" variant="tonal">
+      上一页校园
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{hasMoreCampuses}}" disabled="{{busy}}" bind:press="onNextCampuses" variant="tonal">
+      下一页校园
+    </wu-f7-button>
+    <wu-f7-button bind:press="onCloseCampuses" variant="tonal">
+      关闭选择
+    </wu-f7-button>
+  </view>
+  <navigator wx:if="{{frozen}}" url="/pages/rating-category-manage/rating-category-manage?scope=global">
+    分类操作恢复
+  </navigator>
+  <view wx:if="{{uiPanel === 'more'}}">
+    <wu-f7-button wx:if="{{hasSession &amp;&amp; mode === 'catalog'}}" disabled="{{busy || frozen}}" bind:press="onCategoryManagement" variant="tonal">
+      管理分类
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiPanel === 'more'}}">
+    <wu-f7-button wx:if="{{mode === 'detail' || mode === 'thread'}}" disabled="{{busy || frozen}}" bind:press="onDiscussionImages" variant="tonal">
+      图片评价与回复
+    </wu-f7-button>
+  </view>
+  <wu-f7-button wx:if="{{categoryIcon.state !== 'idle'}}" bind:press="onCloseCategoryIcon" variant="tonal">
+    关闭分类图标
+  </wu-f7-button>
+  <template is="rating-target-cover" data="{{cover: cover}}" />
+  <view wx:if="{{uiPanel === 'more'}}">
+    <wu-f7-button wx:if="{{detail}}" bind:press="onCoverOpen" variant="tonal">
+      查看封面
+    </wu-f7-button>
+  </view>
+  <wu-f7-button wx:if="{{coverEnabled}}" class="plain-button" data-panel="cover" bind:press="onTogglePanel" variant="plain">
+    封面设置
+  </wu-f7-button>
+  <view wx:if="{{coverEnabled}}">
+    <view wx:if="{{uiPanel === 'cover' || coverUpload.status !== 'idle'}}">
+      <template is="rating-target-cover-editor" data="{{coverUpload,busy,frozen,mode,needsRefresh,loaded}}" />
+    </view>
+  </view>
+  <block wx:if="{{loaded &amp;&amp; !pickerOpen}}">
+    <block wx:if="{{mode === 'catalog'}}">
+      <view class="product-section-heading">
+        <view class="section-title">
+          分类
+        </view>
+      </view>
+      <view wx:for="{{categories}}" wx:key="id" class="product-list-row">
+        <image wx:if="{{item.hasIcon &amp;&amp; categoryIcon.key === item.id &amp;&amp; categoryIcon.localSrc}}" src="{{categoryIcon.localSrc}}" mode="aspectFit" style="width: 120rpx; height: 120rpx" />
+        <view wx:elif="{{item.hasIcon &amp;&amp; categoryIcon.key === item.id &amp;&amp; categoryIcon.state === 'unavailable'}}" class="meta">
+          图标暂不可用
+        </view>
+        <wu-f7-button wx:if="{{item.hasIcon}}" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onCategoryIcon" variant="tonal">
+          查看图标
+        </wu-f7-button>
+        <wu-f7-list spacing="compact" class="f7-rating-navigation">
+          <wu-f7-list-item class="product-row-open" data-mode="catalog" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onNavigate" link="{{true}}" title="{{item.name}}" last="{{true}}" />
+        </wu-f7-list>
+        <view wx:if="{{item.description}}" class="meta">
+          {{item.description}}
+        </view>
+        <wu-f7-button class="plain-button" data-panel="category:{{item.id}}" bind:press="onTogglePanel" variant="plain">
+          更多
+        </wu-f7-button>
+        <view wx:if="{{uiPanel === 'category:' + item.id}}" class="product-disclosure">
+          <wu-f7-button data-mode="random" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onNavigate" variant="tonal">
+            随机选一个
+          </wu-f7-button>
+          <wu-f7-button wx:if="{{item.kind === 'general'}}" data-mode="create" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onNavigate" variant="tonal">
+            添加评分对象
+          </wu-f7-button>
+        </view>
+      </view>
+      <wu-f7-button wx:if="{{canMoreCategories}}" disabled="{{busy || frozen}}" bind:press="onMoreCategories" variant="tonal">
+        加载更多分类
+      </wu-f7-button>
+    </block>
+    <block wx:if="{{mode === 'catalog' || mode === 'subscriptions'}}">
+      <view wx:for="{{targets}}" wx:key="id" class="product-list-row" id="rating-cover-row-{{item.id}}">
+        <block wx:if="{{item.hasCover}}">
+          <image class="rating-cover-thumb" wx:if="{{coverThumbnails[item.id] &amp;&amp; coverThumbnails[item.id].localSrc}}" src="{{coverThumbnails[item.id].localSrc}}" mode="aspectFit" binderror="onCoverThumbError" data-id="{{item.id}}" bindtap="onCoverOpen" />
+          <view wx:elif="{{coverThumbnails[item.id] &amp;&amp; coverThumbnails[item.id].status === 'unavailable'}}">
+            封面暂不可用
+          </view>
+        </block>
+        <wu-f7-list spacing="compact" class="f7-rating-navigation">
+          <wu-f7-list-item class="product-row-open" data-mode="detail" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onNavigate" link="{{true}}" title="{{item.name}}" last="{{true}}" />
+        </wu-f7-list>
+        <wu-f7-button class="plain-button" wx:if="{{item.hasCover}}" data-id="{{item.id}}" bind:press="onCoverOpen" variant="plain">
+          查看封面
+        </wu-f7-button>
+        <view class="body">
+          {{item.description}}
+        </view>
+        <wu-f7-button class="plain-button" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onDiscussionImages" variant="plain">
+          图片评价与回复
+        </wu-f7-button>
+        <wu-f7-button wx:if="{{subscriptions[item.id] &amp;&amp; subscriptions[item.id].status === 'known'}}" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onSubscription" variant="tonal">
+          {{subscriptions[item.id].subscribed ? '取消订阅' : '订阅更新'}}
+        </wu-f7-button>
+      </view>
+      <wu-f7-button wx:if="{{canMoreTargets}}" disabled="{{busy || frozen}}" bind:press="onMoreTargets" variant="tonal">
+        加载更多对象
+      </wu-f7-button>
+    </block>
+    <view wx:if="{{detail}}" class="product-hero">
+      <wu-f7-button wx:if="{{detail.ratingTargetLink}}" disabled="{{busy || frozen}}" bind:press="onRatingLinkCompose" variant="tonal">
+        {{detail.ratingTargetLink.systemKey === 'course' ? '去问课' : '去问饭'}}
+      </wu-f7-button>
+      <view class="body">
+        {{detail.description}}
+      </view>
+      <view wx:if="{{summary &amp;&amp; summary.status === 'known'}}" class="product-score-summary">
+        <view class="product-score-number">
+          {{summary.average === null ? '—' : summary.average}}
+        </view>
+        <view class="meta">
+          {{summary.count ? summary.count + ' 人评分' : '暂无评分'}}
+        </view>
+      </view>
+      <view class="notice" wx:else>
+        评分数据暂不可用
+      </view>
+      <view wx:if="{{myScore}}" class="meta">
+        我的评分：{{myScore.myScore ? myScore.myScore.score : '尚未评分'}}
+      </view>
+      <wu-f7-button data-panel="score" bind:press="onTogglePanel" variant="tonal">
+        我的评分
+      </wu-f7-button>
+      <view wx:if="{{uiPanel === 'score'}}" class="product-score-scale">
+        <wu-f7-button wx:for="{{scores}}" wx:key="*this" data-score="{{item}}" disabled="{{busy || frozen || !detail.allowedActions.setScore}}" bind:press="onScore" variant="tonal">
+          {{item}} 分
+        </wu-f7-button>
+      </view>
+      <wu-f7-button wx:if="{{subscriptions[detail.id] &amp;&amp; subscriptions[detail.id].status === 'known'}}" data-id="{{detail.id}}" disabled="{{busy || frozen}}" bind:press="onSubscription" variant="tonal">
+        {{subscriptions[detail.id].subscribed ? '取消订阅' : '订阅更新'}}
+      </wu-f7-button>
+      <view wx:if="{{uiPanel === 'more'}}" class="product-disclosure">
+        <wu-f7-button data-mode="edit" disabled="{{busy || frozen}}" bind:press="onNavigate" variant="tonal">
+          编辑我创建的对象
+        </wu-f7-button>
+        <wu-f7-button disabled="{{busy || frozen}}" bind:press="onCleanup" variant="tonal">
+          删除我创建的对象
+        </wu-f7-button>
+      </view>
+    </view>
+    <block wx:if="{{mode === 'detail'}}">
+      <block wx:if="{{detail}}">
+        <view wx:if="{{detail.allowedActions.createComment}}" class="product-dock">
+          <wu-f7-button class="primary" wx:if="{{detail.allowedActions.createComment}}" disabled="{{busy || frozen}}" bind:press="onCompose" variant="fill" size="large">
+            写评价
+          </wu-f7-button>
+        </view>
+        <view class="product-tabs">
+          <wu-f7-button data-sort="time" data-order="desc" disabled="{{busy || frozen}}" bind:press="onSort" variant="tonal">
+            最新
+          </wu-f7-button>
+          <wu-f7-button data-sort="likes" data-order="desc" disabled="{{busy || frozen}}" bind:press="onSort" variant="tonal">
+            热门
+          </wu-f7-button>
+        </view>
+        <view wx:for="{{comments}}" wx:key="id" class="product-list-row">
+          <view class="author">
+            {{item.author.displayName}} · {{item.author.mode === 'anonymous' ? '分身' : '公开'}}
+          </view>
+          <view class="body">
+            {{item.body}}
+          </view>
+          <template is="product-rating-like" data="{{state:likes[item.id],id:item.id,busy,frozen}}" />
+          <wu-f7-button class="plain-button" data-mode="thread" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onNavigate" variant="plain">
+            回复
+          </wu-f7-button>
+          <wu-f7-button class="plain-button" data-panel="item:{{item.id}}" aria-label="更多帖子操作" bind:press="onTogglePanel" variant="plain">
+            <wu-icon name="more" size="20" />
+          </wu-f7-button>
+          <view wx:if="{{uiPanel === 'item:' + item.id}}" class="product-disclosure">
+            <wu-f7-button data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onCleanup" variant="tonal">
+              删除选项
+            </wu-f7-button>
+          </view>
+        </view>
+        <wu-f7-button wx:if="{{canMoreComments}}" disabled="{{busy || frozen}}" bind:press="onMoreComments" variant="tonal">
+          加载更多评价
+        </wu-f7-button>
+      </block>
+    </block>
+    <block wx:if="{{mode === 'thread' &amp;&amp; discussion}}">
+      <view class="product-list-row">
+        <view class="author">
+          {{discussion.root.author.displayName}}
+        </view>
+        <view class="body">
+          {{discussion.root.body}}
+        </view>
+        <template is="product-rating-like" data="{{state:likes[discussion.root.id],id:discussion.root.id,busy,frozen}}" />
+        <view wx:if="{{discussion.allowedActions.createReply}}" class="product-dock">
+          <wu-f7-button class="primary" wx:if="{{discussion.allowedActions.createReply}}" disabled="{{busy || frozen}}" bind:press="onCompose" variant="fill" size="large">
+            回复这条评价
+          </wu-f7-button>
+        </view>
+        <wu-f7-button class="plain-button" data-panel="root" aria-label="更多帖子操作" bind:press="onTogglePanel" variant="plain">
+          <wu-icon name="more" size="20" />
+        </wu-f7-button>
+        <view wx:if="{{uiPanel === 'root'}}" class="product-disclosure">
+          <wu-f7-button data-id="{{discussion.root.id}}" disabled="{{busy || frozen}}" bind:press="onCleanup" variant="tonal">
+            原评价删除选项
+          </wu-f7-button>
+        </view>
+      </view>
+      <view wx:for="{{replies}}" wx:key="id" class="product-list-row">
+        <view class="author">
+          {{item.author.displayName}}
+        </view>
+        <view class="body">
+          {{item.body}}
+        </view>
+        <view wx:if="{{item.replyTo.kind === 'reply'}}" class="meta">
+          {{item.replyTo.status === 'available' ? '回复当前可见引用' : '原回复当前不可见'}}
+        </view>
+        <template is="product-rating-like" data="{{state:likes[item.id],id:item.id,busy,frozen}}" />
+        <wu-f7-button class="plain-button" wx:if="{{item.allowedActions.reply}}" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onCompose" variant="plain">
+          回复
+        </wu-f7-button>
+        <wu-f7-button class="plain-button" data-panel="item:{{item.id}}" aria-label="更多帖子操作" bind:press="onTogglePanel" variant="plain">
+          <wu-icon name="more" size="20" />
+        </wu-f7-button>
+        <view wx:if="{{uiPanel === 'item:' + item.id}}" class="product-disclosure">
+          <wu-f7-button data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onCleanup" variant="tonal">
+            回复删除选项
+          </wu-f7-button>
+        </view>
+      </view>
+      <wu-f7-button wx:if="{{canMoreReplies}}" disabled="{{busy || frozen}}" bind:press="onMoreReplies" variant="tonal">
+        加载更多回复
+      </wu-f7-button>
+    </block>
+    <view wx:if="{{mode === 'create' || mode === 'edit'}}" class="product-list-row">
+      <view class="section-title">
+        {{mode === 'create' ? '创建评分对象' : '编辑评分对象'}}
+      </view>
+      <wu-f7-input value="{{name}}" disabled="{{busy || frozen}}" maxlength="-1" placeholder="名称，最多 100 个字符" bind:input="onName" />
+      <textarea value="{{description}}" bindinput="onDescription" disabled="{{busy || frozen}}" maxlength="-1" placeholder="描述，最多 500 个字符" />
+      <wu-f7-button disabled="{{busy || frozen}}" bind:press="onDefinitionConfirm" variant="tonal">
+        核对并确认内容
+      </wu-f7-button>
+      <block wx:if="{{definitionConfirmation}}">
+        <view class="notice">
+          本次提交绑定当前校园、分类和来源版本。提交后只能查询、重试或取消原请求。
+        </view>
+        <wu-f7-button disabled="{{busy || frozen}}" bind:press="onDefinitionCommit" variant="tonal">
+          确认提交
+        </wu-f7-button>
+      </block>
+      <wu-f7-button bind:press="onDefinitionDismiss" variant="tonal">
+        关闭并清空草稿
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{mode === 'random'}}" class="product-list-row">
+      <view class="section-title">
+        {{scopeLabel}}
+      </view>
+      <wu-f7-input value="{{minimumAverageInput}}" type="digit" placeholder="可选最低均分：1–5" disabled="{{busy || frozen}}" bind:input="onMinimumAverage" />
+      <wu-f7-button disabled="{{busy || frozen}}" bind:press="onDraw" variant="tonal">
+        随机选一个
+      </wu-f7-button>
+      <block wx:if="{{randomResult}}">
+        <view class="meta">
+          候选对象：{{randomResult.candidateCount}}
+        </view>
+        <block wx:if="{{randomResult.item}}">
+          <view class="section-title">
+            {{randomResult.item.target.name}}
+          </view>
+          <wu-f7-button disabled="{{busy || frozen}}" bind:press="onRandomTarget" variant="tonal">
+            查看评分
+          </wu-f7-button>
+        </block>
+      </block>
+    </view>
+    <block wx:if="{{mode === 'updates'}}">
+      <view class="product-tabs">
+        <wu-f7-button data-kind="updates" disabled="{{busy}}" bind:press="onNoticeKind" variant="tonal">
+          回复更新
+        </wu-f7-button>
+        <wu-f7-button data-kind="like-updates" disabled="{{busy}}" bind:press="onNoticeKind" variant="tonal">
+          赞更新
+        </wu-f7-button>
+        <wu-f7-button data-kind="subscription-updates" disabled="{{busy}}" bind:press="onNoticeKind" variant="tonal">
+          订阅更新
+        </wu-f7-button>
+      </view>
+      <view class="meta">
+        <text wx:if="{{unreadCount === null}}">
+          未读数暂不可用
+        </text>
+        <text wx:else>
+          {{unreadCount}} 条未读
+        </text>
+      </view>
+      <view wx:for="{{notices}}" wx:key="noticeId" class="product-list-row">
+        <view class="meta">
+          {{item.createdAt}} · {{item.readAt ? '已读' : '未读'}}
+        </view>
+        <wu-f7-button data-id="{{item.noticeId}}" disabled="{{busy || frozen}}" bind:press="onNotice" variant="tonal">
+          查看更新
+        </wu-f7-button>
+        <wu-f7-button data-id="{{item.noticeId}}" disabled="{{busy || frozen}}" bind:press="onDiscussionImageNotice" variant="tonal">
+          查看图片更新
+        </wu-f7-button>
+      </view>
+      <wu-f7-button wx:if="{{canMoreNotices}}" disabled="{{busy}}" bind:press="onMoreNotices" variant="tonal">
+        继续读取更新
+      </wu-f7-button>
+    </block>
+  </block>
+  <view wx:if="{{selectedScore !== null}}" class="modal-mask">
+    <view class="modal">
+      <view class="section-title">
+        确认评分 {{selectedScore}} 分？
+      </view>
+      <wu-f7-button disabled="{{busy || frozen}}" bind:press="onConfirmScore" variant="tonal">
+        确认评分
+      </wu-f7-button>
+      <wu-f7-button bind:press="onDismissScore" variant="tonal">
+        关闭并清空
+      </wu-f7-button>
+    </view>
+  </view>
+  <view wx:if="{{composerOpen}}" class="modal-mask">
+    <view class="modal">
+      <view class="section-title">
+        写回复或评价
+      </view>
+      <wu-f7-button wx:for="{{authorModes}}" wx:key="*this" data-mode="{{item}}" disabled="{{busy || frozen}}" bind:press="onAuthorMode" variant="{{authorMode === item ? 'fill' : 'tonal'}}">
+        {{item === 'named' ? '公开' : '分身'}}
+      </wu-f7-button>
+      <view wx:if="{{!authorMode}}" class="notice">
+        请明确选择发布身份
+      </view>
+      <textarea value="{{text}}" bindinput="onText" disabled="{{busy || frozen}}" maxlength="-1" placeholder="1–500 个字符" />
+      <wu-f7-button disabled="{{busy || frozen || !authorMode || !text}}" bind:press="onPublish" variant="tonal">
+        确认发布
+      </wu-f7-button>
+      <wu-f7-button bind:press="onCloseComposer" variant="tonal">
+        关闭并清空
+      </wu-f7-button>
+    </view>
+  </view>
+</view>

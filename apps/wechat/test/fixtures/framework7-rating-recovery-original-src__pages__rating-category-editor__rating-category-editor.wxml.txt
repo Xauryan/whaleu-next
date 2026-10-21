@@ -1,0 +1,1 @@
+<include src="../../ratings/category-scoped.wxml" />

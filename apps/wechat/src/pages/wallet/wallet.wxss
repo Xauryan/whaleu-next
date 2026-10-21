@@ -1,0 +1,29 @@
+page {
+  background: var(--wu-surface);
+}
+.wallet-page {
+  min-height: 100vh;
+  padding: 32rpx 32rpx calc(64rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  color: var(--wu-text);
+}
+.wallet-empty {
+  padding: 160rpx 16rpx 80rpx;
+  text-align: center;
+}
+.wallet-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wallet-status {
+  margin-top: 30rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.wallet-status {
+  color: var(--wu-secondary);
+}
+
+@import '../public-profile/framework7-personal.wxss';

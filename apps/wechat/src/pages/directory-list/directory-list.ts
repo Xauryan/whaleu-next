@@ -20,6 +20,7 @@ import {
 } from '../../directory/controller';
 Page({
   data: {
+    showInfo: false,
     ...initialDirectoryView(),
     nativeDirectory: initialOrganizationListView(),
     directoryKinds,
@@ -65,6 +66,9 @@ Page({
         this.navigator?.dispose();
       }
     });
+  },
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
   },
   onShow() {
     this.nativeController?.dispose();

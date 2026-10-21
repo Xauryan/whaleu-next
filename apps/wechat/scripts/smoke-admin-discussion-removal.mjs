@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse, render } from './smoke-ratings.mjs';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 
 /** Actual emitted Page/gateway/storage/WXML; only transport and platform are synthetic. */
@@ -270,6 +271,26 @@ async function smokeKind({ dist, kind }) {
     if (show) page.onShow();
     return page;
   };
+  // Actual emitted Component → Page event boundary; native fields and direct
+  // invalid/double-submit probes below intentionally retain controller coverage.
+  const moderationBridges = new WeakMap();
+  const nativePress = (page, handler) => {
+    let bridge = moderationBridges.get(page);
+    if (!bridge) {
+      bridge = createNativePressBridge({
+        page,
+        pageFile: path.join(
+          dist,
+          'pages/admin-discussion-removal/admin-discussion-removal',
+        ),
+        dist,
+      });
+      moderationBridges.set(page, bridge);
+    }
+    const capture = bridge.capture(handler);
+    assert.equal(capture.press(), true, `Native management press ${handler}`);
+    capture.detach();
+  };
   const flatten = (nodes) =>
     nodes.flatMap((node) =>
       typeof node === 'string' ? [node] : [node, ...flatten(node.children)],
@@ -299,7 +320,7 @@ async function smokeKind({ dist, kind }) {
       );
       const bindings = [
         ...entrySource.matchAll(
-          /<button[^>]*bindtap="onAdminDiscussionRemoval"[^>]*>[^<]*<\/button>/g,
+          /<wu-f7-button[^>]*bind:press="onAdminDiscussionRemoval"[^>]*>[^<]*<\/wu-f7-button>/g,
         ),
       ].map((entry) => entry[0]);
       assert.equal(bindings.length, pageName === 'community-detail' ? 4 : 2);
@@ -309,7 +330,13 @@ async function smokeKind({ dist, kind }) {
         postId: id(80),
         viewer: { isSelf: false },
         replyPreview: { items: [] },
-        author: { kind: 'anonymous' },
+        author: { kind: 'anonymous', displayName: '合成分身' },
+        text: '合成回复',
+        images: [],
+        createdAt,
+        likeCount: 0,
+        replyCount: 1,
+        target: { status: 'unavailable' },
       };
       const childReply = { ...child, id: id(82) };
       child.replyPreview.items = [childReply];
@@ -327,13 +354,30 @@ async function smokeKind({ dist, kind }) {
         loaded: true,
         busy: false,
         needsReload: false,
-        post: { id: id(80) },
+        post: {
+          id: id(80),
+          author: { kind: 'anonymous', displayName: '合成分身' },
+          viewer: { isSelf: false },
+          space: { id: id(79), name: '合成地区' },
+          component: { kind: 'none' },
+          images: [],
+          text: '合成主题',
+          commentCount: 1,
+          replyCount: 1,
+          saveCount: 0,
+          likeCount: 0,
+        },
         comments: [child],
         locatedComment: child,
         locatedReply: childReply,
         root: child,
         replies: [childReply],
         contextReplies: [],
+      });
+      const entryBridge = createNativePressBridge({
+        page: entryPage,
+        pageFile: path.join(dist, `pages/${pageName}/${pageName}`),
+        dist,
       });
       for (const binding of bindings) {
         const rendered = flatten(
@@ -344,19 +388,38 @@ async function smokeKind({ dist, kind }) {
           ),
         );
         const button = rendered.find(
-          (node) => typeof node !== 'string' && node.tag === 'button',
+          (node) => typeof node !== 'string' && node.tag === 'wu-f7-button',
         );
         assert.ok(button, 'Anonymous child gets a real management entry');
         assert.doesNotMatch(binding, /author.kind|role|canManage/);
         const before = navigation.length;
-        entryPage[button.attrs.bindtap]({
-          currentTarget: {
-            dataset: {
-              kind: button.attrs['data-kind'],
-              id: button.attrs['data-id'],
-            },
-          },
-        });
+        const dataset = {
+          kind: button.attrs['data-kind'],
+          id: button.attrs['data-id'],
+          ...(button.attrs['data-surface']
+            ? { surface: button.attrs['data-surface'] }
+            : {}),
+        };
+        entryPage.data.uiExpandedMenu =
+          pageName === 'community-thread'
+            ? dataset.kind === 'comment'
+              ? 'root'
+              : `reply:${childReply.id}`
+            : dataset.surface?.startsWith('located')
+              ? 'located'
+              : dataset.surface === 'preview'
+                ? `reply:${childReply.id}`
+                : `comment:${child.id}`;
+        const nativeControl = entryBridge.capture(
+          'onAdminDiscussionRemoval',
+          dataset,
+        );
+        assert.equal(
+          nativeControl.press(),
+          true,
+          'Actual native Component emits an isolated management press',
+        );
+        nativeControl.detach();
         assert.equal(navigation.length, before + 1);
         assert.equal(
           navigation.at(-1),
@@ -434,7 +497,7 @@ async function smokeKind({ dist, kind }) {
       ),
     );
     const confirm = async (page) => {
-      page.onRemoveDiscussion();
+      nativePress(page, 'onRemoveDiscussion');
       await flush();
       assert.equal(page.data.confirming, 'remove');
       const words = flatten(render(template.children, page.data, {}))
@@ -443,7 +506,7 @@ async function smokeKind({ dist, kind }) {
       assert.match(
         words,
         kind === 'comment'
-          ? /该根评论及其全部回复将不可访问/
+          ? /该根回复及其全部回复将不可访问/
           : /仅删除选中的这条回复/,
       );
       assert.match(words, /不会通知作者/);
@@ -454,17 +517,17 @@ async function smokeKind({ dist, kind }) {
     let page = mount('admin-discussion-removal', { kind, id: id(10) });
     await flush();
     await confirm(page);
-    page.onClose();
+    nativePress(page, 'onClose');
     page.onSubmit();
     await flush();
     assert.equal(writes, 0);
     await confirm(page);
-    page.onSubmit();
+    nativePress(page, 'onSubmit');
     page.onSubmit();
     await flush();
     assert.equal(writes, 1);
     assert.equal(page.data.frozen, false);
-    assert.match(page.data.receiptStatus, /已确认删除评论\/回复/);
+    assert.match(page.data.receiptStatus, /已确认删除回复/);
     page.onHide();
     assert.equal(page.data.management, null);
     page.onShow();
@@ -497,7 +560,7 @@ async function smokeKind({ dist, kind }) {
     page = mount();
     await flush();
     assert.equal(page.data.pendingRequestId, original.command.clientRequestId);
-    page.onRecover();
+    nativePress(page, 'onRecover');
     await flush();
     assert.equal(runtime.pendingAdminDiscussionRemoval.load(accountId), null);
     assert.equal(writes, 2);
@@ -516,15 +579,15 @@ async function smokeKind({ dist, kind }) {
     page.onSubmit();
     await flush();
     const unrecorded = runtime.pendingAdminDiscussionRemoval.load(accountId);
-    page.onRecover();
+    nativePress(page, 'onRecover');
     await flush();
     assert.equal(page.data.frozen, true);
     assert.equal(
       page.data.pendingRequestId,
       unrecorded.command.clientRequestId,
     );
-    page.onCancelRequest();
-    page.onConfirmCancel();
+    nativePress(page, 'onCancelRequest');
+    nativePress(page, 'onConfirmCancel');
     await flush();
     assert.equal(
       receipts.get(unrecorded.command.clientRequestId).code,
@@ -539,7 +602,7 @@ async function smokeKind({ dist, kind }) {
     targetVersion = 'b'.repeat(64);
     page.onSubmit();
     await flush();
-    assert.match(page.data.receiptStatus, /评论\/回复状态已变化/);
+    assert.match(page.data.receiptStatus, /回复状态已变化/);
     assert.equal(writes, 2);
     page.onUnload();
 
@@ -553,7 +616,9 @@ async function smokeKind({ dist, kind }) {
     assert.equal(noticesPage.data.items.length, 4);
     assert.deepEqual(
       noticesPage.data.items.map((item) => item.kind),
-      older.map((item) => item.kind),
+      [...older]
+        .sort((a, b) => a.noticeId.localeCompare(b.noticeId))
+        .map((item) => item.kind),
     );
 
     // Keep every preceding ordinary/v1 receipt assertion. Exercise v2 using
@@ -610,7 +675,7 @@ async function smokeKind({ dist, kind }) {
       page.onUnload();
       page = mount('admin-discussion-removal');
       await flush();
-      page.onRecover();
+      nativePress(page, 'onRecover');
       await flush();
       assert.equal(runtime.pendingAdminDiscussionRemoval.load(accountId), null);
       assert.equal(

@@ -1,1 +1,5 @@
 @import '../../canteen-floor-scores/canteen-floor-scores.wxss';
+
+@import '../../dining/product.wxss';
+
+@import '../../dining/framework7-product.wxss';

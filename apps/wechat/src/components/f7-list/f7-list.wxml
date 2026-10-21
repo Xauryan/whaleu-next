@@ -1,0 +1,13 @@
+<view class="f7-ios-theme f7-list-shell {{spacing === 'compact' ? 'f7-list-spacing-compact' : ''}}">
+  <view wx:if="{{title || titleSlot}}" class="f7-list-title" aria-role="heading">
+    <slot wx:if="{{titleSlot}}" name="title" />
+    <text wx:else>{{title}}</text>
+  </view>
+  <view class="f7-list {{strong ? 'f7-list-strong' : ''}} {{inset ? 'f7-list-inset' : ''}} {{outline ? 'f7-list-outline' : ''}}" aria-role="list">
+    <slot />
+  </view>
+  <view wx:if="{{footer || footerSlot}}" class="f7-list-footer">
+    <slot wx:if="{{footerSlot}}" name="footer" />
+    <text wx:else>{{footer}}</text>
+  </view>
+</view>

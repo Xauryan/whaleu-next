@@ -95,6 +95,19 @@ Baseline `754e140` subsequently passed the complete [hosted Verify](https://gith
 - [ ] PARTIAL — Background operations: notifications, view/exposure persistence, hot-score recalculation, scheduled work, cache refresh/invalidation, report generation and authorized operational diagnostics
 - [ ] PARTIAL — Active assisted-content journeys: **Software: HOSTED ACCEPTED** on exact source `76916f75`. [Purpose-specific assistance](ratings/assistance.md) implements editable category-description suggestions and rating-to-post card labels with explicit adoption, deterministic fallback and existing Review/publication authority. The separate [rating-category group-promotion owner](acceptance/rating-group-promotion.md) implements operational rating-push composition, scoped delivery/recovery/cancellation and an operator shell; its optional generation does not borrow official-account or Errand authority. Both normal runtimes remain null despite exact-source hosted acceptance. Bounded schedule admission is not an installed timer or real trigger. Real model/transport adapters, permitted data, retention/terms, recipient authority, pricing/cost limits and device/production qualification remain open. Generic AI editing, moderation assistance and reading-format generation are not established active products by this audit.
 
+## October 20 redesign and updated source-audit boundary
+
+The native Apple-style shell is tracked in [the redesign scope](APPLE_MINI_PROGRAM_REDESIGN.md).
+It is not a claim of complete parity or production readiness. The latest legacy
+source audit identifies `4494e36b9451e3a92874ccf85f574a36e28e3d48`, 220 commits after
+this ledger's prior `57cf169c` baseline. Account deletion, explicit Markdown and
+plain-text reading formatting, permanent content references, Home distribution
+rules, profile replies, viewport-based notification receipts, deletion provenance
+and scoped comment pinning require separate TS parity acceptance. Earlier wording
+that reading-format generation was not established refers only to that older audit.
+Personal timetable and grades are now explicit redesign requirements; a missing
+academic provider blocks activation, not acknowledgement of that scope.
+
 ## Dormant legacy intent and placeholder scope ledger
 
 The source audit uses `WhaleUCampus/WhaleU@57cf169c11123acf249909a1a7215b8cb1ec1f8e`. Source reachability is not proof of current deployed availability. Preserve these findings for an explicit restoration decision; none is a user cancellation or a reason to omit active Next capabilities or production-data preservation.

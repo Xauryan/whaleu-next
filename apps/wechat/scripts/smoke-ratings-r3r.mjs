@@ -1,3 +1,7 @@
+import {
+  pressRecoveryControl,
+  inputRecoveryControl,
+} from '../test/framework7-rating-recovery-native-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -17,6 +21,17 @@ const deferred = () => {
  * Neither is WeChat device rendering or actual backend/PostgreSQL acceptance. */
 export async function smokeRatingsR3R({ app, dist, flush, extension = 'js' }) {
   const module = (name) => require(path.join(dist, `${name}.${extension}`));
+  const eventOptions = (page) => ({
+    page,
+    dist,
+    extension,
+    pageFile: path.join(dist, 'pages/rating-random/rating-random'),
+  });
+  const press = (page, handler, dataset = {}) =>
+    pressRecoveryControl(eventOptions(page), handler, dataset);
+  const nativeInput = (page, handler, value, dataset = {}) =>
+    inputRecoveryControl(eventOptions(page), handler, value, dataset);
+
   const { ApiClient } = module('api/client');
   const { HttpRatingRandomGateway } = module('ratings/random-gateway');
   const { HttpProfileGateway } = module('profile/gateway');
@@ -158,7 +173,10 @@ export async function smokeRatingsR3R({ app, dist, flush, extension = 'js' }) {
       typeof n === 'string' ? [] : [n, ...nodes(n.children)],
     );
   const buttons = (page, handler) =>
-    nodes(shown(page)).filter((node) => node.attrs.bindtap === handler);
+    nodes(shown(page)).filter(
+      (node) =>
+        node.tag === 'wu-f7-button' && node.attrs['bind:press'] === handler,
+    );
   const mount = (route = { categoryId }) => {
     const oldPage = globalThis.Page;
     let page;
@@ -178,7 +196,9 @@ export async function smokeRatingsR3R({ app, dist, flush, extension = 'js' }) {
     page.setData = (patch) => {
       page.data = { ...page.data, ...patch };
     };
-    for (const [, handler] of source.matchAll(/bind(?:tap|input)="([^"]+)"/g))
+    for (const [, handler] of source.matchAll(
+      /bind(?::press|:input|tap|input)="([^"]+)"/g,
+    ))
       assert.equal(
         typeof page[handler],
         'function',
@@ -189,9 +209,8 @@ export async function smokeRatingsR3R({ app, dist, flush, extension = 'js' }) {
     page.onShow();
     return page;
   };
-  const input = (page, handler, value) => page[handler]({ detail: { value } });
-  const tap = (page, handler, id) =>
-    page[handler]({ currentTarget: { dataset: { id } } });
+  const input = (page, handler, value) => nativeInput(page, handler, value);
+  const tap = (page, handler, id) => press(page, handler, { id });
   const login = (credentials = original.credentials) =>
     app.identity.sessions.completeLogin(
       app.identity.sessions.beginLogin(),
@@ -200,48 +219,51 @@ export async function smokeRatingsR3R({ app, dist, flush, extension = 'js' }) {
   try {
     const page = mount();
     assert.equal(requests.length, 0);
-    assert.match(visible(page), /当前范围：仅全局/);
+    assert.match(visible(page), /全局范围/);
     assert.equal(buttons(page, 'onDraw').length, 1);
-    page.onDraw();
+    press(page, 'onDraw');
     await flush();
     assert.deepEqual(
       Object.fromEntries(new URL(requests[0].url).searchParams),
       { categoryId },
     );
-    assert.match(visible(page), /2048 个目标/);
+    assert.equal(page.data.result.candidateCount, 2048);
+    assert.match(visible(page), /2048 个候选中选出/);
     assert.match(visible(page), /合成完整池目标/);
-    assert.match(visible(page), /将在全局目录中打开/);
+    assert.match(visible(page), /全局目录/);
     assert.doesNotMatch(visible(page), /全局目标|学校校区地区目标/);
-    page.onTarget();
+    press(page, 'onTarget');
     assert.equal(
       navigations.at(-1),
       `/pages/rating-detail/rating-detail?targetId=${targetId}`,
     );
     state.mode = 'zero';
-    page.onDraw();
+    press(page, 'onDraw');
     await flush();
-    assert.match(visible(page), /尚无评分/);
+    assert.match(visible(page), /暂无评分/);
     state.mode = 'unknown';
-    page.onDraw();
+    press(page, 'onDraw');
     await flush();
-    assert.match(visible(page), /评分统计未知/);
+    assert.match(visible(page), /评分数据暂不可用/);
     assert.equal(visible(page).includes('均分 0'), false);
     state.mode = 'known';
-    page.onCampusPicker();
+    press(page, 'onTogglePanel', { panel: 'scope' });
+    assert.equal(buttons(page, 'onCampusPicker').length, 1);
+    press(page, 'onCampusPicker');
     await flush();
     assert.equal(buttons(page, 'onChooseCampus').length, 1);
     tap(page, 'onChooseCampus', campusId);
     input(page, 'onMinimumAverage', '4.1');
-    assert.match(visible(page), /当前范围：所选学校全部校区地区 \+ 全局/);
-    page.onDraw();
+    assert.match(visible(page), /包含所属学校全部校区地区与全局/);
+    press(page, 'onDraw');
     await flush();
     assert.deepEqual(
       Object.fromEntries(new URL(requests.at(-1).url).searchParams),
       { categoryId, campusId, minimumAverage: '4.1' },
     );
-    assert.match(visible(page), /将在学校校区地区目录中打开/);
+    assert.match(visible(page), /学校校区地区目录/);
     assert.doesNotMatch(visible(page), /学校校区地区目标/);
-    page.onTarget();
+    press(page, 'onTarget');
     assert.equal(
       navigations.at(-1),
       `/pages/rating-detail/rating-detail?targetId=${targetId}&regionId=${regionId}`,
@@ -253,34 +275,36 @@ export async function smokeRatingsR3R({ app, dist, flush, extension = 'js' }) {
       false,
     );
     state.mode = 'empty';
-    page.onDraw();
+    press(page, 'onDraw');
     await flush();
-    assert.match(visible(page), /完整候选池：0 个目标/);
+    assert.match(visible(page), /没有符合条件的对象/);
     assert.equal(buttons(page, 'onTarget').length, 0);
     state.mode = 'unavailable';
-    page.onDraw();
+    press(page, 'onDraw');
     await flush();
     assert.equal(page.data.result, null);
     assert.match(visible(page), /统计未知.*无法抽取/);
-    assert.equal(visible(page).includes('完整候选池：0'), false);
+    assert.equal(visible(page).includes('没有符合条件的对象'), false);
     state.mode = 'known';
     state.minimumMismatch = true;
-    page.onDraw();
+    press(page, 'onDraw');
     await flush();
     assert.equal(page.data.result, null);
     assert.match(visible(page), /格式异常/);
     state.minimumMismatch = false;
-    page.onGlobal();
+    if (page.data.uiPanel !== 'scope')
+      press(page, 'onTogglePanel', { panel: 'scope' });
+    press(page, 'onGlobal');
     input(page, 'onMinimumAverage', '');
     const hold = deferred();
     state.hold = hold;
     const before = requests.length;
-    page.onDraw();
-    page.onDraw();
-    page.onDraw();
+    press(page, 'onDraw');
+    press(page, 'onDraw');
+    press(page, 'onDraw');
     await flush();
     assert.equal(requests.length, before + 1);
-    page.onCancel();
+    press(page, 'onCancel');
     assert.equal(page.data.result, null);
     state.hold = null;
     hold.resolve();
@@ -290,7 +314,7 @@ export async function smokeRatingsR3R({ app, dist, flush, extension = 'js' }) {
       page.onShow();
       const pending = deferred();
       state.hold = pending;
-      page.onDraw();
+      press(page, 'onDraw');
       await flush();
       if (boundary === 'hide') page.onHide();
       if (boundary === 'session')
@@ -310,7 +334,7 @@ export async function smokeRatingsR3R({ app, dist, flush, extension = 'js' }) {
       login();
     }
     page.onShow();
-    assert.match(visible(page), /当前范围：仅全局/);
+    assert.match(visible(page), /全局范围/);
     const invalid = mount({ categoryId, regionId });
     assert.equal(buttons(invalid, 'onDraw').length, 0);
     assert.match(visible(invalid), /分类入口无效/);
@@ -318,7 +342,7 @@ export async function smokeRatingsR3R({ app, dist, flush, extension = 'js' }) {
       path.join(dist, 'pages/rating-catalog/rating-catalog.wxml'),
       'utf8',
     );
-    assert.match(catalogSource, /bindtap="onRandom"/);
+    assert.match(catalogSource, /bind:press="onRandom"/);
   } finally {
     for (const page of pages) page.onUnload();
     app.community.ratingRandom = original.ratingRandom;

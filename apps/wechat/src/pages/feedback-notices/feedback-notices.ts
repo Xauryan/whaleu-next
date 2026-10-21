@@ -6,7 +6,10 @@ import {
 } from './controller';
 
 Page({
-  data: initialFeedbackNoticesView(),
+  onToggleDetails() {
+    this.setData({ detailsExpanded: !this.data.detailsExpanded });
+  },
+  data: { ...initialFeedbackNoticesView(), detailsExpanded: false },
   controller: undefined as FeedbackNoticesController | undefined,
   onShow() {
     this.controller?.dispose();

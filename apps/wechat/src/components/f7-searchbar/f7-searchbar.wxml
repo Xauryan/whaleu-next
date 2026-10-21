@@ -1,0 +1,8 @@
+<view class="f7-ios-theme f7-searchbar {{disabled ? 'f7-searchbar-disabled' : ''}}" catchtap="onConsumeTap">
+  <view class="f7-searchbar-input-wrap">
+    <view class="f7-searchbar-icon" aria-hidden="true" />
+    <input class="f7-searchbar-input" type="text" value="{{value}}" placeholder="{{placeholder}}" placeholder-class="f7-searchbar-placeholder" maxlength="{{nativeMaxlength}}" disabled="{{disabled || readOnly}}" focus="{{focus && mounted && pageVisible && !disabled && !readOnly}}" confirm-type="search" confirm-hold="{{confirmHold}}" adjust-position="{{adjustPosition}}" cursor-spacing="{{nativeCursorSpacing}}" selection-start="{{nativeSelectionStart}}" selection-end="{{nativeSelectionEnd}}" aria-label="{{ariaLabel || placeholder || '搜索'}}" catchinput="onInput" catchfocus="onFocus" catchblur="onBlur" catchconfirm="onConfirm" />
+    <button wx:if="{{clearable && value && !disabled && !readOnly}}" class="f7-searchbar-clear" aria-label="清空{{ariaLabel || placeholder || '搜索'}}" hover-class="f7-searchbar-pressed" catchtap="onClear"><view class="f7-searchbar-clear-icon" aria-hidden="true" /></button>
+  </view>
+  <button wx:if="{{showCancel}}" class="f7-searchbar-cancel" disabled="{{disabled || readOnly}}" catchtap="onCancel" hover-class="f7-searchbar-pressed" aria-label="{{cancelText || '取消'}}">{{cancelText || '取消'}}</button>
+</view>

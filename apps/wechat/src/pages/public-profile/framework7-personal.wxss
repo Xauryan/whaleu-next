@@ -1,0 +1,127 @@
+/* Existing Framework7 9.2.0 native components own their isolated geometry.
+ * These host/layout rules are page-local adaptations, not upstream overrides. */
+@import '../../design/framework7-ios.wxss';
+.personal-native {
+  background: var(--f7-page-bg-color);
+  color: var(--f7-text-color);
+  padding-left: 0;
+  padding-right: 0;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+.personal-native > .status,
+.personal-native > .error,
+.personal-native > .notice,
+.personal-native > .meta,
+.personal-native > .blocks-note,
+.personal-native > .blocks-footnote,
+.personal-native > .blocks-login,
+.personal-native > .blocks-back,
+.personal-native > .ranking-status,
+.personal-native > .ranking-error,
+.personal-native > .ranking-footnote,
+.personal-native > .experience-status,
+.personal-native > .experience-error,
+.personal-native > .experience-note,
+.personal-native > .experience-link,
+.personal-native > .experience-ranking-link {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.personal-native .blocks-header,
+.personal-native .ranking-header,
+.personal-native .experience-header,
+.personal-native .profile-owner-actions,
+.personal-native .profile-overview,
+.personal-native .profile-details,
+.personal-native .profile-tabs,
+.personal-native .profile-post-row,
+.personal-native .chips {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.personal-native .profile-overview {
+  padding-top: 6px;
+}
+.personal-native .public-cover-image {
+  width: calc(100% + 32px);
+  margin-left: -16px;
+  margin-right: -16px;
+}
+.personal-native .profile-actions > wu-f7-button {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+}
+.personal-native wu-f7-button,
+.personal-native wu-f7-list-item {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+.personal-native .profile-refresh,
+.personal-native .blocks-refresh,
+.personal-native .ranking-refresh,
+.personal-native .experience-refresh {
+  display: block;
+  width: auto;
+  height: auto;
+  min-height: 44px;
+  margin: 0;
+}
+.personal-native .profile-tabs,
+.personal-native .chips {
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.personal-native .profile-tabs .chip,
+.personal-native .chips .chip {
+  border: 0;
+  padding: 0;
+}
+.personal-native .blocked-person {
+  padding: 12px 16px;
+}
+.personal-native .blocked-unblock {
+  min-height: 44px;
+  line-height: normal;
+}
+.personal-native .ranking-person {
+  padding: 0 16px;
+  gap: 8px;
+}
+.personal-native .ranking-information {
+  padding: 0 0 12px;
+}
+.personal-native .ranking-name {
+  min-height: 52px;
+}
+.personal-native .blocks-empty,
+.personal-native .ranking-empty,
+.personal-native .wallet-empty,
+.personal-native .experience-summary,
+.personal-native .experience-section,
+.personal-native .experience-recovery {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.personal-native .blocks-empty,
+.personal-native .ranking-empty {
+  text-align: center;
+}
+.personal-native .wallet-empty {
+  padding-top: 80px;
+}
+.personal-native .experience-choice {
+  min-height: 44px;
+}
+.personal-native .experience-code {
+  margin: 12px 0;
+}

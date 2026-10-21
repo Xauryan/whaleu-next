@@ -13,6 +13,7 @@ import { schoolKey, schoolUuid } from '../../school-configuration/contract';
 Page({
   data: {
     ...initialSchoolServicesView(),
+    showInfo: false,
     qr: { status: 'idle', src: '', message: '' } as SchoolQrReadView,
   },
   reader: undefined as SchoolQrReader | undefined,
@@ -37,7 +38,7 @@ Page({
       this.setData({ qr }),
     );
     const runtime = getApp<WhaleuApp>().identity;
-    this.setData({ ...initialSchoolServicesView() });
+    this.setData({ ...initialSchoolServicesView(), showInfo: false });
     if (this.routeInvalid) {
       this.setData({ error: '校园入口无效，请重新选择校区' });
       return;
@@ -70,6 +71,9 @@ Page({
       },
     );
     void this.controller.load(this.campusId);
+  },
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
   },
   onRefresh() {
     this.reader?.clear();
@@ -107,12 +111,14 @@ Page({
     }
   },
   onHide() {
+    this.setData({ showInfo: false });
     this.controller?.dispose();
     this.controller = undefined;
     this.reader?.dispose();
     this.reader = undefined;
   },
   onUnload() {
+    this.setData({ showInfo: false });
     this.controller?.dispose();
     this.controller = undefined;
     this.reader?.dispose();

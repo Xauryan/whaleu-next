@@ -1,0 +1,140 @@
+/* Framework7 v9.2.0 searchbar-vars.less/searchbar.less/searchbar-ios.less, MIT.
+ * Copyright (c) 2014 Vladimir Kharlampidi.
+ * See docs/vendor/framework7-v9.2.0/LICENSE.
+ * Native adaptation: static in-flow searchbar, no browser glass/backdrop filter,
+ * icon font, expandable-navbar integration or implicit result filtering.
+ */
+@import '../../design/framework7-ios.wxss';
+:host {
+  display: block;
+  min-width: 0;
+}
+.f7-searchbar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--f7-searchbar-height);
+  background: var(--f7-searchbar-bg-color);
+}
+.f7-searchbar-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: var(--f7-searchbar-input-height);
+  border-radius: var(--f7-searchbar-input-border-radius);
+  background: var(--wu-f7-searchbar-native-surface);
+}
+.f7-searchbar-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--f7-searchbar-input-height);
+  margin: 0;
+  padding: 0 var(--f7-searchbar-input-padding-horizontal);
+  border: 0;
+  border-radius: var(--f7-searchbar-input-border-radius);
+  font-family: var(--f7-font-family);
+  font-size: var(--f7-searchbar-input-font-size);
+  font-weight: 400;
+  color: var(--f7-searchbar-input-text-color);
+  background: transparent;
+}
+.f7-searchbar-placeholder {
+  color: var(--f7-searchbar-placeholder-color);
+}
+.f7-searchbar-icon {
+  width: 13px;
+  height: 13px;
+  position: absolute;
+  top: 50%;
+  margin-top: -6px;
+  left: 16px;
+  pointer-events: none;
+  color: var(--f7-searchbar-search-icon-color);
+}
+.f7-searchbar-icon::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+.f7-searchbar-icon::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 6px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: rotate(45deg);
+  transform-origin: left center;
+}
+.f7-searchbar-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  right: 1px;
+  top: 0;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.f7-searchbar-clear::after,
+.f7-searchbar-cancel::after {
+  border: 0;
+}
+.f7-searchbar-clear-icon {
+  position: relative;
+  width: var(--f7-input-clear-button-size);
+  height: var(--f7-input-clear-button-size);
+  border-radius: 50%;
+  background: var(--f7-input-clear-button-color);
+}
+.f7-searchbar-clear-icon::before,
+.f7-searchbar-clear-icon::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 6.5px;
+  width: 8px;
+  height: 1px;
+  background: var(--f7-list-strong-bg-color);
+  transform: rotate(45deg);
+}
+.f7-searchbar-clear-icon::after {
+  transform: rotate(-45deg);
+}
+.f7-searchbar-cancel {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0 0 0 16px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 44px;
+  font-size: 17px;
+  line-height: 1.2;
+  font-family: var(--f7-font-family);
+  color: var(--f7-searchbar-link-color);
+  background: var(--wu-f7-searchbar-native-surface);
+}
+.f7-searchbar-pressed {
+  opacity: 0.3;
+}
+.f7-searchbar-disabled {
+  opacity: 0.55;
+}

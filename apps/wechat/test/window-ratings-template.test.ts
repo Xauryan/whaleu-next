@@ -30,7 +30,10 @@ const tree = model.parse(
   ),
 );
 const common = model.parse(
-  readFileSync(path.join(root, 'window-ratings/common.wxml'), 'utf8'),
+  readFileSync(
+    path.join(root, 'window-ratings/framework7-product.wxml'),
+    'utf8',
+  ),
 );
 const templates = Object.fromEntries(
   common.children
@@ -49,6 +52,7 @@ const render = (patch: Record<string, unknown>) =>
     model.render(
       tree.children,
       {
+        uiPanel: '',
         ...initialWindowRatingView(),
         scores: windowScoreChoices.map((value) => ({
           value,
@@ -65,8 +69,8 @@ const buttons = (nodes: Node[], handler: string) =>
   nodes.filter(
     (node): node is Exclude<Node, string> =>
       typeof node !== 'string' &&
-      node.tag === 'button' &&
-      node.attrs['bindtap'] === handler,
+      node.tag === 'wu-f7-button' &&
+      node.attrs['bind:press'] === handler,
   );
 test('actual WXML has all 21 signed choices, explicit zero preview and edit confirmation', () => {
   const nodes = render({
@@ -84,8 +88,23 @@ test('actual WXML has all 21 signed choices, explicit zero preview and edit conf
     selectedScore: 0,
     confirming: 'score',
   });
+  const selection = render({
+    hasSession: true,
+    loaded: true,
+    detail: detail(),
+    canScore: true,
+    selectedScore: 0,
+    uiPanel: 'score',
+  });
+  assert.equal(
+    buttons(nodes, 'onScore').length,
+    0,
+    'confirmation replaces editable score sheet',
+  );
   assert.deepEqual(
-    buttons(nodes, 'onScore').map((node) => Number(node.attrs['data-score'])),
+    buttons(selection, 'onScore').map((node) =>
+      Number(node.attrs['data-score']),
+    ),
     windowScoreChoices,
   );
   assert.match(text(nodes), /当前 -10 分 → 本次 0 分/);

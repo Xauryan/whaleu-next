@@ -1,0 +1,1477 @@
+{
+  "src/pages/major-directory/major-directory.wxml": {
+    "sourceSha256": "c5e2409919bfd1bbde078a86f634f6d8df5f0e6321a4eb56f5c535688903d72b",
+    "actions": [
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{searchDraft}}",
+          "maxlength": "100",
+          "bindinput": "onSearchInput",
+          "disabled": "{{busy}}",
+          "placeholder": "搜索专业或学院"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-quiet",
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "picker",
+        "attrs": {
+          "range": "{{departmentNames}}",
+          "value": "{{departmentIndex}}",
+          "bindchange": "onDepartment",
+          "disabled": "{{busy || !departments}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-icon-button",
+          "data-panel": "options",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多专业目录选项"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "major-link",
+          "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'options'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "major-link",
+          "url": "/pages/major-discussion-notices/major-discussion-notices"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'options'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "class": "major-load-more",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/major-detail/major-detail.wxml": {
+    "sourceSha256": "c084015c8f9e935c0123fdbd4756d8409807987f65108ac38f87e4fe8831d176",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-icon-button",
+          "data-panel": "options",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多专业选项"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "major-link",
+          "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'options'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-icon-button",
+          "bindtap": "onRelatedRefresh",
+          "disabled": "{{busy}}",
+          "aria-label": "刷新相关专业"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-primary",
+          "bindtap": "onOpenDiscussion",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/major-discussion/major-discussion.wxml": {
+    "sourceSha256": "e4edd74b51e7604d093046c1e03f957cab0f93e133d6925320d0f7edab4f1d5a",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-tab {{sort === 'likes' ? 'major-tab-active' : ''}}",
+          "data-sort": "likes",
+          "bindtap": "onSort",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-tab {{sort === 'time' ? 'major-tab-active' : ''}}",
+          "data-sort": "time",
+          "bindtap": "onSort",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-icon-button",
+          "data-panel": "options",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多讨论选项"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "major-link",
+          "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'options'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "major-link",
+          "url": "/pages/major-discussion-notices/major-discussion-notices"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'options'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "class": "major-load-more",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-compose-entry",
+          "data-panel": "compose",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/major-discussion-thread/major-discussion-thread.wxml": {
+    "sourceSha256": "4efcacda23f586167abbb6a089a7782981998e1ca774960b0fb9e0d40b9d5bdd",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-icon-button",
+          "data-panel": "options",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多回复选项"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "major-link",
+          "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'options'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "major-link",
+          "url": "/pages/major-discussion-notices/major-discussion-notices"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'options'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "class": "major-load-more",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-compose-entry",
+          "data-panel": "compose",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/window-discussion/window-discussion.wxml": {
+    "sourceSha256": "2d0a47e5ec6e3f7204949b7d640c137a9ce498201c539996d33eed96278b632a",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{sort === 'likes' ? 'selected' : ''}}",
+          "data-sort": "likes",
+          "bindtap": "onSort",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{sort === 'time' ? 'selected' : ''}}",
+          "data-sort": "time",
+          "bindtap": "onSort",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-icon-button",
+          "bindtap": "onToggleTools",
+          "aria-label": "更多讨论选项"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "discussion-tool",
+          "url": "/pages/window-discussion-recovery/window-discussion-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'tools'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "discussion-tool",
+          "url": "/pages/window-discussion-notices/window-discussion-notices"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'tools'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-text-button discussion-next",
+          "wx:if": "{{canNext}}",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-primary",
+          "bindtap": "onOpenComposer",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/window-discussion-thread/window-discussion-thread.wxml": {
+    "sourceSha256": "0b2cdc41d4857a8af0559fd6eff70c664599e7b21550e3f035ebf2b37887d291",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-icon-button",
+          "bindtap": "onToggleTools",
+          "aria-label": "更多主题选项"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "discussion-tool",
+          "url": "/pages/window-discussion-recovery/window-discussion-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'tools'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "discussion-tool",
+          "url": "/pages/window-discussion-notices/window-discussion-notices"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'tools'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-text-button discussion-next",
+          "wx:if": "{{canNext}}",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-primary",
+          "bindtap": "onOpenComposer",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/majors/product.wxml": {
+    "sourceSha256": "782c6b04175d812889e6e0f90bafe07c036b42c58413c6f27c12d2a6ce84d7c6",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "major-link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-quiet",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'options' || !loaded || error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "major-quiet",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-list-row",
+          "data-id": "{{item.id}}",
+          "bindtap": "onDetail",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/major-discussion/product.wxml": {
+    "sourceSha256": "101f7f7bd35698e50447bb2e244553294ba8f5284de09a43227b203a413c788e",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "major-link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-quiet",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'options' || !loaded || error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "major-quiet",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{recoveryPhase === 'submit'}}",
+          "bindtap": "onRequestCancellation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{recoveryPhase === 'submit'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancellation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-icon-button",
+          "data-id": "{{item.id}}",
+          "bindtap": "onDeleteMenu",
+          "disabled": "{{busy || frozen || confirming}}",
+          "aria-label": "更多讨论操作"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{item.images}}",
+          "wx:for-item": "image",
+          "wx:key": "bindingId",
+          "data-id": "{{item.id}}",
+          "data-index": "{{image.ordinal}}",
+          "bindtap": "onImage",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{item.images && item.images.length}}"
+          },
+          {
+            "wx:for": "{{item.images}}",
+            "wx:for-item": "image",
+            "wx:key": "bindingId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-quiet {{item.isLiked ? 'major-liked' : ''}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onLike",
+          "disabled": "{{busy || frozen || confirming}}",
+          "aria-label": "{{item.isLiked ? '取消我的赞' : '点赞'}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{mode === 'roots'}}",
+          "class": "major-quiet",
+          "data-id": "{{item.id}}",
+          "bindtap": "onThread",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'roots'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:elif": "{{item.rootId}}",
+          "class": "major-quiet",
+          "data-id": "{{item.id}}",
+          "bindtap": "onReply",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:elif": "{{item.rootId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{deleteTarget && deleteTarget.commentId === item.id}}",
+          "class": "major-delete",
+          "data-id": "{{item.id}}",
+          "bindtap": "onDelete",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{deleteTarget && deleteTarget.commentId === item.id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-delete",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'delete' && deleteTarget}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'delete' && deleteTarget}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-icon-button",
+          "bindtap": "onClosePanel",
+          "aria-label": "收起编辑"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{replyTarget}}",
+          "class": "major-quiet",
+          "bindtap": "onReplyRoot",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          },
+          {
+            "wx:if": "{{mode === 'thread'}}"
+          },
+          {
+            "wx:if": "{{replyTarget}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{body}}",
+          "maxlength": "-1",
+          "bindinput": "onBody",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming}}",
+          "placeholder": "分享你的专业体验或问题"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-quiet",
+          "data-source": "album",
+          "bindtap": "onPickImage",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          },
+          {
+            "wx:if": "{{imageEnabled}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-quiet",
+          "data-source": "camera",
+          "bindtap": "onPickImage",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          },
+          {
+            "wx:if": "{{imageEnabled}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-primary",
+          "bindtap": "onConfirmPublish",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming || !canPublish}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'publish'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'publish'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'like' && selectedComment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'like' && selectedComment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{imageRecoverable}}",
+          "bindtap": "onRecoverImages",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageRecoverable}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{imageRecoverable}}",
+          "bindtap": "onRequestImageCancel",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageRecoverable}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmImageCancel",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageCancelConfirm}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseImageCancel",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageCancelConfirm}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{imageBusy}}",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageBusy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "major-quiet",
+          "bindtap": "onCloseGallery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{galleryOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onImagePrevious",
+          "disabled": "{{galleryIndex === 0}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{galleryOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onImageNext",
+          "disabled": "{{galleryIndex + 1 >= galleryCount}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{galleryOpen}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/window-discussion/product.wxml": {
+    "sourceSha256": "f61f5758fea270439a7084fdbf1dd26fb53b5d91f04f7e6fbfc48e349e1e414e",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "discussion-link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-tool",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'tools' || !loaded || error || restartRequired}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-text-button",
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{recoveryPhase === 'submit'}}",
+          "bindtap": "onRequestCancellation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{recoveryPhase === 'submit'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-primary",
+          "bindtap": "onConfirmCancellation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-text-button",
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{item.images}}",
+          "wx:for-item": "image",
+          "wx:key": "bindingId",
+          "class": "discussion-image-button",
+          "data-id": "{{item.id}}",
+          "data-index": "{{image.ordinal}}",
+          "bindtap": "onImage",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{item.images && item.images.length}}"
+          },
+          {
+            "wx:for": "{{item.images}}",
+            "wx:for-item": "image",
+            "wx:key": "bindingId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-inline-button {{item.isLiked ? 'discussion-liked' : ''}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onLike",
+          "disabled": "{{busy || frozen || confirming}}",
+          "aria-label": "{{item.isLiked ? '取消我的赞' : '点赞'}}，{{item.likes}} 个赞"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{mode === 'roots'}}",
+          "class": "discussion-inline-button",
+          "data-id": "{{item.id}}",
+          "bindtap": "onThread",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'roots'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:elif": "{{item.rootId}}",
+          "class": "discussion-inline-button",
+          "data-id": "{{item.id}}",
+          "bindtap": "onReply",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:elif": "{{item.rootId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-icon-button",
+          "bindtap": "onClosePanel",
+          "aria-label": "收起编辑"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{replyTarget}}",
+          "class": "discussion-text-button",
+          "bindtap": "onReplyRoot",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          },
+          {
+            "wx:if": "{{mode === 'thread'}}"
+          },
+          {
+            "wx:if": "{{replyTarget}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{body}}",
+          "maxlength": "-1",
+          "bindinput": "onBody",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming}}",
+          "placeholder": "{{mode === 'thread' ? '说说你的想法…' : '这家窗口，有什么想分享？'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-inline-button",
+          "data-source": "album",
+          "bindtap": "onPickImage",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          },
+          {
+            "wx:if": "{{imageEnabled}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-inline-button",
+          "data-source": "camera",
+          "bindtap": "onPickImage",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          },
+          {
+            "wx:if": "{{imageEnabled}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-primary",
+          "bindtap": "onConfirmPublish",
+          "disabled": "{{busy || imageBusy || imageFrozen || confirming || !canPublish}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'publish'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-text-button",
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'publish'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'like' && selectedComment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-text-button",
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'like' && selectedComment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{imageRecoverable}}",
+          "bindtap": "onRecoverImages",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageRecoverable}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{imageRecoverable}}",
+          "bindtap": "onRequestImageCancel",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageRecoverable}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-primary",
+          "bindtap": "onConfirmImageCancel",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageCancelConfirm}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-text-button",
+          "bindtap": "onCloseImageCancel",
+          "disabled": "{{busy || imageBusy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageCancelConfirm}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "discussion-text-button",
+          "wx:if": "{{imageBusy}}",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+          },
+          {
+            "wx:if": "{{imageBusy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseGallery",
+          "aria-label": "关闭图片"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{galleryOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onImagePrevious",
+          "disabled": "{{galleryIndex === 0}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{galleryOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onImageNext",
+          "disabled": "{{galleryIndex + 1 >= galleryCount}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{galleryOpen}}"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -8,7 +8,7 @@ import {
   type ComposeTarget,
 } from './controller';
 Page({
-  data: { ...initialComposeView(), tradingCategories },
+  data: { ...initialComposeView(), tradingCategories, uiPanel: '' },
   controller: undefined as ComposeController | undefined,
   target: null as ComposeTarget | null,
   copySource: null as { kind: 'comment' | 'reply'; id: string } | null,
@@ -127,11 +127,20 @@ Page({
     this.controller = new ComposeController(
       runtime,
       this.target,
-      (view) => this.setData({ ...view }),
+      (view) =>
+        this.setData({ ...view, ...(!view.hasSession ? { uiPanel: '' } : {}) }),
       undefined,
       this.copySource,
     );
     void this.controller.load();
+  },
+  onToggleComposePanel(event: {
+    currentTarget: { dataset: { panel: string } };
+  }) {
+    const panel = event.currentTarget.dataset.panel;
+    if (!['identity', 'media', 'poll', 'formation', 'recovery'].includes(panel))
+      return;
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
   },
   onSelectImage() {
     void this.controller?.selectImage();
@@ -284,10 +293,12 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
   },

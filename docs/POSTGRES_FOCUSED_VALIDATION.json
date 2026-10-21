@@ -1,0 +1,57 @@
+{
+  "observedAt": "2026-10-20T17:11:40Z",
+  "scope": "Focused real PostgreSQL integration, not full product acceptance",
+  "postgres": {
+    "version": "18.6",
+    "serverVersionNum": 180006,
+    "source": "https://ftp.postgresql.org/pub/source/v18.6/postgresql-18.6.tar.bz2",
+    "sourceSha256": "555610c24d53e4316da5b7d3fc25c279d96856d5e0e23ee308c328c5fa881d9f",
+    "admission": "unchanged controlled runner, fresh loopback whaleu_test database, synthetic data only"
+  },
+  "command": "NODE_ENV=test WHALEU_TEST_MAINTENANCE=controlled WHALEU_TEST_PG_BIN=<verified-local-prefix>/bin WHALEU_TEST_PG_PORT=55436 bash ../../scripts/run-controlled-test-postgres.sh timeout 900 node --import tsx --test --test-concurrency=1 test/integration/following.test.ts test/integration/profile-details.test.ts test/integration/profile-cover-media.test.ts test/integration/owner-publications.test.ts",
+  "result": {
+    "tests": 7,
+    "passed": 7,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 33374.345984
+  },
+  "fixedByRealRun": [
+    "Bounded owner-publication SQL branches now use a derived-table wrapper before the outer ordering, including the single-topic branch.",
+    "Profile fixture nicknames obey the unchanged production validator; safety block commands receive canonical synthetic verified-phone facts."
+  ],
+  "files": [
+    {
+      "path": "apps/api/src/community/publications/repository.ts",
+      "sha256": "24bf2b4ec370aa7da505a8c24c072ceaeddb36da6b9855c09ab2379d9a5dc8a4"
+    },
+    {
+      "path": "apps/api/test/integration/following.test.ts",
+      "sha256": "ac1ac23ce03e5946b0dd46d94dd41c8466cd2c5e8824bede213cfa6a2bf1bd72",
+      "executionStartSha256": "ac1ac23ce03e5946b0dd46d94dd41c8466cd2c5e8824bede213cfa6a2bf1bd72"
+    },
+    {
+      "path": "apps/api/test/integration/profile-details.test.ts",
+      "sha256": "dee8ec2741dbf85c9f7c9ecdc4604ed5eb1795d6def409b553ce166de689a516",
+      "executionStartSha256": "dee8ec2741dbf85c9f7c9ecdc4604ed5eb1795d6def409b553ce166de689a516"
+    },
+    {
+      "path": "apps/api/test/integration/profile-cover-media.test.ts",
+      "sha256": "7a66c9d52cd057d649cd6bbd612d786d158de105059cec1d8f2a3382b2f0705b",
+      "executionStartSha256": "7a66c9d52cd057d649cd6bbd612d786d158de105059cec1d8f2a3382b2f0705b"
+    },
+    {
+      "path": "apps/api/test/integration/owner-publications.test.ts",
+      "sha256": "67920ce7a645cd1d3d325cb73b2d22c1f9bde272c2932bfc381df2473794cc1b",
+      "executionStartSha256": "67920ce7a645cd1d3d325cb73b2d22c1f9bde272c2932bfc381df2473794cc1b"
+    }
+  ],
+  "evidenceSha256": "98164aa2ff9842d605a4ec5ec78a917e3288f2e7ff9fa7844bcd314bb7ef3d19",
+  "notProven": [
+    "Remaining ordinary PostgreSQL integration batches are running separately.",
+    "Native emitted-Page, browser, Tencent DevTools and real-device flows are not proven by this run.",
+    "No real provider, production data or deployment was used."
+  ],
+  "startedAt": "2026-10-20T17:11:05Z"
+}

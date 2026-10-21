@@ -1,0 +1,47 @@
+<view class="inbox-navigation">
+  <wu-safe-top />
+  <view class="inbox-header"><text class="inbox-title">消息</text><view class="inbox-header-actions"><button class="header-action" bindtap="onSearch" aria-label="搜索当前已载入的会话"><wu-icon name="search" size="23" /></button><button class="header-action" bindtap="onChatHelp" aria-label="如何发起私信"><view class="header-plus"><wu-icon name="plus" size="19" /></view></button></view></view>
+</view>
+<view class="inbox-page">
+  <view wx:if="{{searchOpen}}" class="conversation-search"><view class="search-input-wrap"><wu-icon name="search" size="17" tone="muted" /><input class="conversation-search-input" value="{{searchQuery}}" maxlength="120" placeholder="搜索会话名称和摘要" focus="{{searchOpen}}" bindinput="onSearchInput" /><button class="search-cancel" bindtap="onSearch">取消</button></view><text class="search-scope">仅搜索当前已载入的会话，不搜索历史消息。</text></view>
+  <view class="social-shortcuts">
+    <button class="social-shortcut" data-kind="likes" bindtap="onSocial" aria-label="赞和收藏"><view class="shortcut-icon shortcut-likes"><wu-icon name="heart-filled" size="29" tone="coral" /></view><text>赞和收藏</text></button>
+    <button class="social-shortcut" data-kind="followers" bindtap="onSocial" aria-label="新增关注"><view class="shortcut-icon shortcut-followers"><wu-icon name="person-filled" size="29" tone="socialblue" /></view><text>新增关注</text></button>
+    <button class="social-shortcut" data-kind="comments" bindtap="onSocial" aria-label="回复和@"><view class="shortcut-icon shortcut-comments"><wu-icon name="message-filled" size="28" tone="mint" /></view><text>回复和@</text></button>
+  </view>
+  <view wx:if="{{navigationError}}" class="inbox-notice" aria-role="alert">{{navigationError}}</view>
+  <view wx:if="{{!hasSession}}" class="inbox-notice"><text>登录后查看你的消息</text><navigator url="/pages/login/login" class="notice-action">去登录</navigator></view>
+  <view wx:elif="{{list.error}}" class="inbox-notice" aria-role="alert"><text>{{list.error}}</text><button class="notice-action" bindtap="onReload" disabled="{{list.busy}}">重试</button></view>
+  <view wx:elif="{{list.busy &amp;&amp; !list.loaded}}" class="loading-line" aria-role="status">正在更新会话…</view>
+
+  <view class="conversation-list">
+    <button wx:for="{{searchOpen ? filteredRows : rows}}" wx:key="key" class="conversation-row" hover-class="conversation-pressed" data-key="{{item.key}}" bindtap="onConversation" aria-label="{{item.name}}{{item.unreadLabel ? '，' + item.unreadLabel + '条未读' : ''}}">
+      <view class="conversation-avatar avatar-{{item.tone}}" aria-hidden="true">
+        <text wx:if="{{item.kind === 'person' &amp;&amp; item.initial}}" class="avatar-initial">{{item.initial}}</text>
+        <wu-icon wx:else name="{{item.icon === 'message-filled' ? 'message-filled' : item.icon === 'bell' ? 'bell' : 'person'}}" size="25" tone="{{item.tone === 'activity' || item.tone === 'system' ? 'white' : 'muted'}}" />
+        <text wx:if="{{item.unreadLabel}}" class="conversation-badge">{{item.unreadLabel}}</text><view wx:elif="{{item.hasUnread}}" class="conversation-dot"></view>
+      </view>
+      <view class="conversation-content">
+        <view class="conversation-topline"><view class="conversation-name">{{item.name}}<text wx:if="{{item.anonymous}}" class="anonymous-label">分身</text></view><text wx:if="{{item.timeLabel}}" class="conversation-time">{{item.timeLabel}}</text></view>
+        <view class="conversation-bottomline"><text wx:if="{{item.summary}}" class="conversation-preview">{{item.summary}}</text></view>
+      </view>
+    </button>
+  </view>
+
+  <view wx:if="{{searchOpen &amp;&amp; searchQuery &amp;&amp; !filteredRows.length}}" class="inbox-footnote">当前已载入的会话中没有匹配结果。</view>
+  <view class="inbox-pagination">
+    <button wx:if="{{list.canMore}}" class="text-action" bindtap="onMore" disabled="{{list.busy}}" loading="{{list.busy}}">查看更早的会话</button>
+    <button wx:if="{{list.browsingOlder || list.needsRestart}}" class="text-action" bindtap="onReload" disabled="{{list.busy}}">返回最新会话</button>
+    <button wx:if="{{list.busy || noticesBusy}}" class="text-action secondary-action" bindtap="onCancel">停止加载</button>
+  </view>
+  <view wx:if="{{list.coverage === 'local'}}" class="inbox-footnote">私信仅显示已核验的本地记录。</view>
+  <view wx:if="{{list.loaded &amp;&amp; !list.items.length}}" class="inbox-footnote">当前已核验范围内暂无私信。</view>
+  <navigator wx:if="{{list.pending}}" class="recovery-link" url="/pages/private-message-recovery/private-message-recovery"><text>有私信请求待确认，查看处理进度</text><wu-icon name="chevron-right" size="12" tone="accent" /></navigator>
+</view>
+<wu-tab-bar selected="messages" />
+
+<view wx:if="{{chatHelpOpen}}" class="chat-help-backdrop" bindtap="onDismissChatHelp">
+  <view class="chat-help-sheet" catchtap="onSheetContent" aria-role="dialog" aria-label="发起私信">
+    <view class="chat-help-handle"></view><text class="chat-help-title">发起私信</text><text class="chat-help-text">从帖子中的公开身份进入对方主页，再使用可用的“发私信”入口。</text><text class="chat-help-scope">当前尚未提供联系人搜索和新建群聊。</text><button class="chat-help-close" bindtap="onDismissChatHelp">知道了</button>
+  </view>
+</view>

@@ -5,9 +5,10 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse, render } from './smoke-ratings.mjs';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
-export async function smokeSchoolAdminManagement({ dist }) {
-  const emitted = (name) => require(path.join(dist, `${name}.js`));
+export async function smokeSchoolAdminManagement({ dist, extension = 'js' }) {
+  const emitted = (name) => require(path.join(dist, `${name}.${extension}`));
   const { ApiClient } = emitted('api/client'),
     { ClientError } = emitted('api/errors'),
     { SessionStore } = emitted('auth/session'),
@@ -165,7 +166,8 @@ export async function smokeSchoolAdminManagement({ dist }) {
   boot();
   const app = { community: runtime },
     previous = { Page: globalThis.Page, getApp: globalThis.getApp },
-    pages = [];
+    pages = [],
+    bridges = new WeakMap();
   const flush = async () => {
     for (let n = 0; n < 200; n++) await Promise.resolve();
   };
@@ -189,7 +191,7 @@ export async function smokeSchoolAdminManagement({ dist }) {
     };
     const file = path.join(
       dist,
-      'pages/school-admin-management/school-admin-management.js',
+      `pages/school-admin-management/school-admin-management.${extension}`,
     );
     delete require.cache[require.resolve(file)];
     require(file);
@@ -201,21 +203,31 @@ export async function smokeSchoolAdminManagement({ dist }) {
       },
     };
     pages.push(page);
+    bridges.set(
+      page,
+      createNativePressBridge({
+        page,
+        dist,
+        extension,
+        pageFile: path.join(
+          dist,
+          'pages/school-admin-management/school-admin-management',
+        ),
+      }),
+    );
     page.onLoad(query);
     page.onShow();
     return page;
   };
   const nodes = (page) => flatten(render(tree.children, page.data, {}));
   const tap = (page, handler, dataset = {}) => {
-    const node = nodes(page).find(
-      (n) =>
-        typeof n !== 'string' &&
-        n.attrs.bindtap === handler &&
-        Object.entries(dataset).every(([k, v]) => n.attrs[`data-${k}`] === v),
-    );
+    const bridge = bridges.get(page);
+    const node = bridge.find(handler, dataset);
     assert.ok(node, handler);
     assert.notEqual(node.attrs.disabled, 'true');
-    page[handler]({ currentTarget: { dataset } });
+    const captured = bridge.capture(handler, dataset);
+    assert.equal(captured.press(), true, handler);
+    captured.detach();
   };
   const input = (page, value) => {
     assert.ok(

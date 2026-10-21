@@ -1,0 +1,74 @@
+<import src="../../major-discussion/common.wxml" />
+<view class="screen management-page major-discussion-recovery">
+  <view class="management-context">
+    <view class="management-context-icon">
+      <wu-icon name="graduation" tone="accent" size="22" />
+    </view>
+    <view class="management-context-copy">
+      <view class="context-title">
+        {{frozen ? '原专业请求待确认' : '查找自己的互动'}}
+      </view>
+      <view class="meta">
+        原请求、撤回与自己的赞
+      </view>
+    </view>
+  </view>
+  <template is="discussion-status" data="{{status,error,receiptStatus,deletionLocatorUnavailable,hasSession,busy,frozen,recoveryMajorId,recoveryOperation,recoveryCommentId,recoveryPhase,confirming}}" />
+  <view class="card">
+    <view class="section-title">
+      撤回自己的已发布讨论
+    </view>
+    <view class="notice">
+      仅显示本机近期已确认发布的编号，不是完整历史；不保存正文。点击后独立核验当前撤回权限。
+    </view>
+    <button wx:for="{{deletionLocators}}" wx:key="commentId" data-id="{{item.commentId}}" bindtap="onOwnDelete" disabled="{{busy || frozen || confirming}}" class="management-action">
+      核验撤回权限：{{item.commentId}}
+    </button>
+  </view>
+  <template is="discussion-form" data="{{loaded,frozen,mode,busy,confirming,replyTarget,body,bodyBytes,canPublish,selectedComment,deleteTarget,imageEnabled,imageCount,imageBusy,imageFrozen}}" />
+  <view class="card">
+    <view class="section-title">
+      自己的点赞查询与撤回
+    </view>
+    <view class="notice">
+      不需要公开专业仍可查看。下列近期编号只用于定位，不代表仍然点赞，也不是完整历史。
+    </view>
+    <button wx:for="{{ownReferences}}" wx:key="commentId" data-id="{{item.commentId}}" bindtap="onOwnReference" disabled="{{busy || frozen || confirming}}" class="management-action">
+      查询近期回复 {{item.commentId}}
+    </button>
+    <input value="{{ownMajorDraft}}" bindinput="onOwnMajor" disabled="{{busy || frozen || confirming}}" placeholder="专业编号" />
+    <input value="{{ownCommentDraft}}" bindinput="onOwnComment" disabled="{{busy || frozen || confirming}}" placeholder="回复编号" />
+    <button bindtap="onLookupOwn" disabled="{{busy || frozen || confirming}}" class="management-primary">
+      查询自己的当前点赞
+    </button>
+    <view wx:if="{{own &amp;&amp; own.kind === 'recorded'}}">
+      当前：{{own.active ? '已点赞' : '未点赞'}} · {{own.recordedAt}}
+    </view>
+    <view wx:elif="{{own &amp;&amp; own.kind === 'not_liked'}}">
+      已确认没有点赞记录
+    </view>
+    <view wx:elif="{{own &amp;&amp; own.kind === 'unavailable'}}">
+      历史暂不能确认，不能当作未点赞
+    </view>
+    <button wx:if="{{canUnlike}}" bindtap="onUnlike" disabled="{{busy || frozen || confirming}}" class="management-action">
+      核对后取消我的赞
+    </button>
+    <view wx:if="{{confirming === 'unlike'}}" class="confirmation management-confirmation">
+      <view>
+        确认取消当前账号对回复 {{ownCommentDraft}} 的赞？
+      </view>
+      <button bindtap="onSubmit" disabled="{{busy}}" class="management-action">
+        确认取消我的赞
+      </button>
+      <button bindtap="onCloseConfirmation" disabled="{{busy}}" class="management-action">
+        返回
+      </button>
+    </view>
+  </view>
+  <navigator class="link management-link" url="/pages/major-discussion-notices/major-discussion-notices">
+    专业讨论通知
+    <wu-icon name="chevron-right" tone="muted" size="22" />
+  </navigator>
+  <template is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" />
+  <template is="discussion-gallery" data="{{galleryOpen,gallerySrc,galleryStatus,galleryIndex,galleryCount}}" />
+</view>

@@ -1,0 +1,53 @@
+<template name="discussion-status">
+  <view class="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator>
+  <wu-f7-button bind:press="onRefresh" disabled="{{busy}}" variant="tonal">重新核验当前内容</wu-f7-button>
+  <wu-f7-button wx:if="{{busy}}" bind:press="onCancelWait" variant="plain">停止等待</wu-f7-button>
+  <view wx:if="{{frozen}}" class="card">
+    <view class="section-title">原请求待确认</view><view class="meta">窗口：{{recoveryWindowId}}</view>
+    <view class="meta">操作：{{recoveryOperation}} · {{recoveryPhase === 'cancel' ? '已确认取消，等待服务端结果' : '提交结果待确认'}}</view>
+    <view wx:if="{{recoveryCommentId}}" class="meta">回复 / 主题：{{recoveryCommentId}}</view>
+    <view class="notice">原请求编号、原文与版本已固定。停止等待不会取消服务端操作，也不能创建替代请求。</view>
+    <wu-f7-button bind:press="onRecover" disabled="{{busy}}" variant="tonal">查询原回执</wu-f7-button>
+    <wu-f7-button bind:press="onRetry" disabled="{{busy}}" variant="tonal">先查回执，再重试原{{recoveryPhase === 'cancel' ? '取消' : '请求'}}</wu-f7-button>
+    <wu-f7-button wx:if="{{recoveryPhase === 'submit'}}" bind:press="onRequestCancellation" disabled="{{busy}}" variant="tonal">查询后申请取消</wu-f7-button>
+    <view wx:if="{{confirming === 'cancel'}}" class="confirmation"><view>确认取消这个原请求？若已完成，以原回执为准。</view><wu-f7-button bind:press="onConfirmCancellation" disabled="{{busy}}" variant="tonal" tone="danger">确认服务端取消</wu-f7-button><wu-f7-button bind:press="onCloseConfirmation" disabled="{{busy}}" variant="plain">返回</wu-f7-button></view>
+  </view>
+</template>
+<template name="discussion-item">
+  <view class="card {{focusCommentId === item.id ? 'focused' : ''}}">
+    <view class="section-title">{{item.author.displayName}}</view>
+    <view wx:if="{{item.addressedAuthor}}" class="meta">回复 {{item.addressedAuthor.displayName}}</view>
+    <view wx:if="{{item.body}}" class="body">{{item.body}}</view><view wx:if="{{item.images &amp;&amp; item.images.length}}" class="discussion-images"><wu-f7-button wx:for="{{item.images}}" wx:for-item="image" wx:key="bindingId" data-id="{{item.id}}" data-index="{{image.ordinal}}" bind:press="onImage" disabled="{{busy || imageBusy}}" variant="tonal">查看图片 {{image.ordinal + 1}}</wu-f7-button></view><view class="meta">{{item.createdAt}} · {{item.likes}} 个赞</view>
+    <wu-f7-button data-id="{{item.id}}" bind:press="onLike" disabled="{{busy || frozen || confirming}}" variant="tonal">{{item.isLiked ? '取消我的赞' : '赞'}}</wu-f7-button>
+    <wu-f7-button wx:if="{{mode === 'roots'}}" data-id="{{item.id}}" bind:press="onThread" disabled="{{busy}}" variant="tonal">查看 {{item.replyCount}} 条回复 →</wu-f7-button>
+    <wu-f7-button wx:elif="{{item.rootId}}" data-id="{{item.id}}" bind:press="onReply" disabled="{{busy || frozen || confirming}}" variant="tonal">回复 {{item.author.displayName}}</wu-f7-button>
+  </view>
+</template>
+<template name="discussion-form">
+  <view wx:if="{{loaded &amp;&amp; !frozen}}" class="card">
+    <view class="section-title">{{mode === 'thread' ? '使用公开昵称回复' : '使用公开昵称回复'}}</view>
+    <view wx:if="{{mode === 'thread'}}" class="notice">{{replyTarget ? '回复 ' + replyTarget.author.displayName : '回复主题作者'}}<wu-f7-button wx:if="{{replyTarget}}" bind:press="onReplyRoot" disabled="{{busy || imageBusy || imageFrozen || confirming}}" variant="tonal">改为回复主题</wu-f7-button></view>
+    <textarea value="{{body}}" maxlength="-1" bindinput="onBody" disabled="{{busy || imageBusy || imageFrozen || confirming}}" placeholder="输入文字，也可以只发图片" />
+    <view class="meta">{{bodyBytes}} / 8000 UTF-8 字节 · 保留原文</view>
+    <view wx:if="{{imageEnabled}}" class="discussion-images"><wu-f7-button data-source="album" bind:press="onPickImage" disabled="{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}" variant="tonal">从相册添加图片</wu-f7-button><wu-f7-button data-source="camera" bind:press="onPickImage" disabled="{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}" variant="tonal">拍照添加</wu-f7-button><view class="meta">{{imageCount}} / 3 张 · JPEG / PNG · 每张最多 5 MiB · 按添加顺序发表</view><view class="notice">如需移除图片或更改顺序，请先取消整组，待服务端确认后按新顺序重新选择。</view></view>
+    <wu-f7-button bind:press="onConfirmPublish" disabled="{{busy || imageBusy || imageFrozen || confirming || !canPublish}}" variant="tonal">核对后发表</wu-f7-button>
+  </view>
+  <view wx:if="{{confirming === 'publish'}}" class="card confirmation"><view class="section-title">确认以公开昵称发表</view><view class="body">{{body}}</view><view>将发表原文与 {{imageCount}} 张有序图片。讨论独立于窗口分数，根回复不发送窗口创建者通知。</view><wu-f7-button bind:press="onSubmit" disabled="{{busy}}" variant="tonal">确认发表</wu-f7-button><wu-f7-button bind:press="onCloseConfirmation" disabled="{{busy}}" variant="plain">返回修改</wu-f7-button></view>
+  <view wx:if="{{confirming === 'like' &amp;&amp; selectedComment}}" class="card confirmation"><view class="section-title">确认{{selectedComment.isLiked ? '取消我的赞' : '点赞'}}</view><view class="body">{{selectedComment.body}}</view><view>只修改自己的点赞。其他设备上的新版本不会被覆盖。</view><wu-f7-button bind:press="onSubmit" disabled="{{busy}}" variant="tonal">确认这次{{selectedComment.isLiked ? '取消点赞' : '点赞'}}</wu-f7-button><wu-f7-button bind:press="onCloseConfirmation" disabled="{{busy}}" variant="plain">返回</wu-f7-button></view>
+</template>
+
+<template name="discussion-image-state">
+  <view wx:if="{{imageEnabled &amp;&amp; (imageStatus || imagePending || imageBusy)}}" class="card">
+    <view class="section-title">窗口图片讨论</view><view class="notice">{{imageStatus}}</view><view wx:if="{{imageBusy}}" class="meta">进度 {{imageProgress}}%</view>
+    <view wx:if="{{imagePending}}" class="meta">原请求：{{imageRequestId}}。本地只保存恢复编号；关闭页面后不会保留文字或图片文件。</view>
+    <wu-f7-button wx:if="{{imageRecoverable}}" bind:press="onRecoverImages" disabled="{{busy || imageBusy}}" variant="tonal">查询原图片讨论回执</wu-f7-button>
+    <wu-f7-button wx:if="{{imageRecoverable}}" bind:press="onRequestImageCancel" disabled="{{busy || imageBusy}}" variant="tonal">取消整组原图片及发表请求</wu-f7-button>
+    <view wx:if="{{imageCancelConfirm}}" class="confirmation"><view>确认取消此原请求及其图片上传？已发表的请求以原回执为准。</view><wu-f7-button bind:press="onConfirmImageCancel" disabled="{{busy || imageBusy}}" variant="tonal" tone="danger">确认取消原请求</wu-f7-button><wu-f7-button bind:press="onCloseImageCancel" disabled="{{busy || imageBusy}}" variant="plain">返回</wu-f7-button></view>
+    <wu-f7-button wx:if="{{imageBusy}}" bind:press="onCancelWait" variant="plain">停止等待并保留恢复编号</wu-f7-button>
+  </view>
+</template>
+<template name="discussion-gallery">
+  <view wx:if="{{galleryOpen}}" class="discussion-gallery"><view class="gallery-card"><wu-f7-button bind:press="onCloseGallery" variant="plain">关闭图片</wu-f7-button><view>{{galleryIndex + 1}} / {{galleryCount}}</view><view wx:if="{{galleryStatus}}" class="notice">{{galleryStatus}}</view><image wx:if="{{gallerySrc}}" src="{{gallerySrc}}" mode="aspectFit" class="gallery-image" /><view class="actions"><wu-f7-button bind:press="onImagePrevious" disabled="{{galleryIndex === 0}}" variant="tonal">上一张</wu-f7-button><wu-f7-button bind:press="onImageNext" disabled="{{galleryIndex + 1 >= galleryCount}}" variant="tonal">下一张</wu-f7-button></view><view class="meta">图片仅在当前页面短暂显示，离开页面会关闭。</view></view></view>
+</template>

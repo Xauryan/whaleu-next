@@ -110,7 +110,44 @@ const mount = (name, query) => {
 const hub = mount('campus-tools', { campusId: fixtures.campusId });
 await tick();
 assert.equal(hub.page.data.entries.length, 4);
-hub.tap('onOpen', { id: entries[0].id });
+// Exercise the emitted native component guard/event, not a synthetic raw tap.
+let itemComponent;
+const previousComponent = globalThis.Component;
+globalThis.Component = (definition) => {
+  itemComponent = definition;
+};
+try {
+  const itemPath = require.resolve(
+    `${dist}components/f7-list-item/f7-list-item.js`,
+  );
+  delete require.cache[itemPath];
+  require(itemPath);
+} finally {
+  globalThis.Component = previousComponent;
+}
+assert.ok(itemComponent);
+let emittedPresses = 0;
+const itemInstance = {
+  properties: { link: true, disabled: true, loading: false },
+  triggerEvent(name, detail, options) {
+    assert.equal(name, 'press');
+    assert.deepEqual(options, { bubbles: false, composed: false });
+    assert.deepEqual(detail, {});
+    emittedPresses += 1;
+  },
+};
+itemComponent.methods.onPress.call(itemInstance);
+assert.equal(
+  navigations.length,
+  0,
+  'disabled component cannot open a campus tool',
+);
+assert.equal(emittedPresses, 0);
+itemInstance.properties.disabled = false;
+itemComponent.methods.onPress.call(itemInstance);
+assert.equal(emittedPresses, 1);
+assert.equal(navigations.length, 0);
+assert.equal(hub.capturePress('onOpen', { id: entries[0].id }).press(), true);
 assert.match(navigations[0], /campus-tools-map\?campusId=/);
 hub.page.onHide();
 const route = (item) => ({
@@ -135,13 +172,7 @@ assert.deepEqual(shuttle.page.data.expandedGroups, {
   shuttle: true,
   bus: true,
 });
-assert.ok(
-  shuttle
-    .nodes()
-    .some(
-      (node) => typeof node !== 'string' && node.attrs.bindtap === 'onPreview',
-    ),
-);
+assert.ok(shuttle.button('bindtap', 'onPreview'));
 shuttle.page.onHide();
 const research = mount('campus-tools-research', route(entries[2]));
 await tick();

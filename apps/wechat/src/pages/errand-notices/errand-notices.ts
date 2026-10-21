@@ -1,3 +1,4 @@
+import { errandNoticeTimeLabels } from '../errand-list/presentation';
 import type { WhaleuApp } from '../../app';
 import { DirectoryNavigator } from '../../directory/navigation';
 import {
@@ -5,7 +6,10 @@ import {
   initialErrandNoticesView,
 } from '../../errands/notices';
 Page({
-  data: initialErrandNoticesView(),
+  data: {
+    ...initialErrandNoticesView(),
+    timeLabels: errandNoticeTimeLabels([]),
+  },
   controller: undefined as ErrandNoticesController | undefined,
   navigator: undefined as DirectoryNavigator | undefined,
   unsubscribe: undefined as (() => void) | undefined,
@@ -38,7 +42,7 @@ Page({
       if (accountId === undefined) this.navigator?.dispose();
     });
     this.controller = new ErrandNoticesController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({ ...view, timeLabels: errandNoticeTimeLabels(view.items) }),
     );
     void this.controller.load();
   },

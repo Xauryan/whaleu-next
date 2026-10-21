@@ -163,7 +163,7 @@ export class ThreadController extends CommunityController<ThreadView> {
           loaded: true,
           canLoadMore: !!this.nextCursor,
           needsReload: false,
-          status: '已加载根评论与按时间递增的回复',
+          status: '已加载根回复与按时间递增的回复',
         });
       },
       () => this.clear(),

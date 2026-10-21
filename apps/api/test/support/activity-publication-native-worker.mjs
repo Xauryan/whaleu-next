@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { mountEmittedPage } from '../../../wechat/test/text-review-emitted-harness.mjs';
+import { createActivityPublicationToggleBridge } from './activity-publication-native-toggle.mjs';
 const require = createRequire(import.meta.url),
   dist = fileURLToPath(new URL('../../../wechat/dist/', import.meta.url)),
   emitted = (name) => require(`${dist}${name}.js`);
@@ -132,7 +133,13 @@ process.once('message', async (input) => {
         input.actors[name],
       );
     const mount = (name, route = {}) => {
-        const h = mountEmittedPage(name, app, wx);
+        const h = mountEmittedPage(name, app, wx, { dist });
+        if (name === 'activity-publish')
+          h.qrToggle = createActivityPublicationToggleBridge({
+            page: h.page,
+            dist,
+            pageFile: `${dist}pages/activity-publish/activity-publish`,
+          });
         pages.add(h);
         h.page.onLoad?.(route);
         h.page.onShow?.();
@@ -166,7 +173,14 @@ process.once('message', async (input) => {
     );
     editor.tap('onType', { type: 'online' });
     editor.tap('onType', { type: 'reward' });
-    editor.event('bindchange', 'onQr', { value: true });
+    if (!editor.page.data.uiPanels.options)
+      editor.tap('onTogglePanel', { field: 'options' });
+    const qrControl = editor.qrToggle.capture();
+    try {
+      assert.equal(qrControl.change({ detail: { value: true } }), true);
+    } finally {
+      qrControl.detach();
+    }
     editor.tap('onCreate');
     await until(
       () => editor.page.data.draft?.state === 'draft' && !editor.page.data.busy,
@@ -175,6 +189,8 @@ process.once('message', async (input) => {
     );
     const id = editor.page.data.id;
     for (const slot of ['cover', 'gallery0']) {
+      if (slot !== 'cover' && !editor.page.data.uiPanels.gallery)
+        editor.tap('onTogglePanel', { field: 'gallery' });
       await upload.select(Buffer.from(input.png, 'base64'), 'image/png', {
         width: 40,
         height: 40,
@@ -400,14 +416,8 @@ process.once('message', async (input) => {
       .join(' ');
     assert.match(text, /周日下午/);
     assert.match(text, /图书馆/);
-    assert.match(text, /发布者未开启主办方二维码展示/);
-    assert.equal(
-      detail
-        .nodes()
-        .filter((n) => typeof n !== 'string')
-        .some((n) => n.attrs?.bindtap === 'onQr'),
-      false,
-    );
+    assert.match(text, /主办方未公开二维码。/);
+    assert.equal(detail.button('bindtap', 'onQr'), undefined);
     close(detail);
     editor = mount('activity-publish');
     await until(
@@ -422,6 +432,8 @@ process.once('message', async (input) => {
       'unfinished draft created',
       editor.page,
     );
+    if (!editor.page.data.uiPanels.options)
+      editor.tap('onTogglePanel', { field: 'options' });
     editor.tap('onDiscardDraft');
     await until(
       () =>

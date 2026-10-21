@@ -16,6 +16,7 @@ import type {
 } from '../../media/announcement-runtime';
 Page({
   data: {
+    uiPanel: '',
     ...initialAuthoringView(),
     upload: { status: 'idle', message: '', progress: 0 },
     image: { status: 'idle', src: '', message: '' },
@@ -35,7 +36,12 @@ Page({
       this.invalid = true;
     }
   },
+  onToggleUiPanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel ?? '';
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.teardown();
     if (this.invalid) {
       this.setData({ error: '公告编辑入口无效' });
@@ -63,7 +69,10 @@ Page({
       (v) => {
         if (v.id) this.target = v.id;
         else if (v.status === '上传草稿已取消') this.target = null;
-        this.setData({ ...v });
+        this.setData({
+          ...v,
+          ...(!v.loaded || v.management === 'none' ? { uiPanel: '' } : {}),
+        });
         this.pendingImages();
       },
       (target) => app.announcementMedia?.reconcile(target) ?? Promise.resolve(),
@@ -219,6 +228,7 @@ Page({
     this.onShow();
   },
   teardown() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
     this.uploader?.dispose();
@@ -235,9 +245,11 @@ Page({
     });
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.teardown();
   },
   onUnload() {
+    this.setData({ uiPanel: '' });
     this.teardown();
   },
 });

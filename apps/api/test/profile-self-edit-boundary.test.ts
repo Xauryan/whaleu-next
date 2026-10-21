@@ -21,6 +21,7 @@ test('production shared Profile CAS callers remain closed and authenticated self
   assert.deepEqual(found.sort(), [
     'profile/avatar-moderation/service.ts',
     'profile/avatar/service.ts',
+    'profile/cover/service.ts',
     'profile/moderation/service.ts',
     'profile/profile.repository.ts',
   ]);
@@ -47,4 +48,13 @@ test('production shared Profile CAS callers remain closed and authenticated self
       repository.indexOf('async updateInTransaction('),
   );
   assert.ok(fileURLToPath(root));
+  const cover = await readFile(
+    new URL('profile/cover/service.ts', root),
+    'utf8',
+  );
+  assert.match(cover, /authenticateMediaSession\(this\.identity, token, tx\)/);
+  assert.match(cover, /return this\.authorized\(token, async \(session, tx\)/);
+  assert.match(cover, /const actor = session\.accountId/);
+  assert.match(cover, /await lockCoverActor\(actor, tx\)/);
+  assert.match(cover, /await this\.actorSafety\.requireAllowed\(actor, tx\)/);
 });

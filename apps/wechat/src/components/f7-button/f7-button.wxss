@@ -1,0 +1,193 @@
+/* Framework7 v9.2.0 iOS native port, MIT. Copyright (c) 2014 Vladimir
+ * Kharlampidi. See docs/vendor/framework7-v9.2.0/LICENSE. */
+@import '../../design/framework7-ios.wxss';
+
+:host {
+  display: block;
+}
+
+/* Bounded native equivalent of upstream iOS color-red. app-class.js red
+ * #ff3b30; shade/tint derived by the pinned utils.js HSL +/- 0.08 algorithm.
+ * Presentation only: this never bypasses owner confirmation/authorization. */
+.f7-button-danger {
+  --f7-theme-color: #ff3b30;
+  --f7-theme-color-rgb: 255, 59, 48;
+  --f7-theme-color-shade: #ff1407;
+  --f7-theme-color-tint: #ff6259;
+}
+
+/* Deliberate accessibility adaptation: the native target is at least 44px,
+ * without changing upstream's 34px/28px visual surface or 4px radius. */
+.f7-button-hit.f7-button-hit {
+  display: flex;
+  position: relative;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--f7-theme-color);
+  font-family: var(--f7-font-family);
+  font-size: var(--f7-button-font-size);
+  font-weight: var(--f7-button-font-weight);
+  line-height: var(--f7-line-height);
+  text-align: center;
+  overflow: visible;
+  box-shadow: none;
+}
+.f7-button-hit::after {
+  display: none;
+  border: 0;
+}
+.f7-button-surface {
+  --f7-preloader-size: calc(var(--f7-button-height) - 6px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: var(--f7-button-min-width);
+  height: var(--f7-button-height);
+  padding: 0 var(--f7-button-padding-horizontal);
+  border: var(--f7-button-border-width) solid var(--f7-theme-color);
+  border-radius: var(--f7-button-border-radius);
+  background-color: var(--f7-button-bg-color);
+  color: var(--f7-button-text-color, var(--f7-theme-color));
+  font-size: var(--f7-button-font-size);
+  font-weight: var(--f7-button-font-weight);
+  letter-spacing: var(--f7-button-letter-spacing);
+  line-height: calc(
+    var(--f7-button-height) - var(--f7-button-border-width) * 2
+  );
+  text-transform: var(--f7-button-text-transform);
+  white-space: nowrap;
+  overflow: hidden;
+  transition:
+    background-color 100ms,
+    color 100ms;
+}
+.f7-button-fill {
+  --f7-button-bg-color: var(--f7-theme-color);
+  --f7-button-text-color: var(--f7-button-fill-text-color);
+  --f7-button-pressed-bg-color: var(--f7-theme-color-tint);
+}
+.f7-button-outline {
+  --f7-button-border-width: var(--f7-button-outline-border-width);
+}
+.f7-button-tonal {
+  --f7-button-bg-color: var(--f7-button-tonal-bg-color);
+  --f7-button-text-color: var(--f7-button-tonal-text-color);
+  --f7-button-pressed-bg-color: var(--f7-button-tonal-pressed-bg-color);
+}
+.f7-button-large {
+  --f7-button-height: var(--f7-button-large-height);
+  --f7-button-font-size: var(--f7-button-large-font-size);
+  --f7-button-font-weight: var(--f7-button-large-font-weight);
+}
+.f7-button-large .f7-button-surface {
+  --f7-preloader-size: 20px;
+}
+.f7-button-small {
+  --f7-button-height: var(--f7-button-small-height);
+  --f7-button-font-size: var(--f7-button-small-font-size);
+  --f7-button-font-weight: var(--f7-button-small-font-weight);
+  --f7-button-outline-border-width: var(--f7-button-small-outline-border-width);
+}
+.f7-button-small .f7-button-surface {
+  transition-duration: 200ms;
+}
+.f7-button-small.f7-button-fill {
+  --f7-button-border-width: var(--f7-button-small-outline-border-width);
+  --f7-button-pressed-text-color: var(--f7-theme-color);
+  --f7-button-pressed-bg-color: transparent;
+}
+.f7-button-round {
+  --f7-button-border-radius: var(--f7-button-height);
+}
+.f7-button-pressed .f7-button-surface {
+  background-color: var(
+    --f7-button-pressed-bg-color,
+    rgba(var(--f7-theme-color-rgb), 0.15)
+  );
+  color: var(
+    --f7-button-pressed-text-color,
+    var(--f7-button-text-color, var(--f7-theme-color))
+  );
+}
+.f7-button-disabled {
+  opacity: 0.55;
+}
+.f7-button-label {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    opacity 200ms,
+    transform 200ms;
+  transform: scale(1);
+}
+.f7-button-loading .f7-button-label {
+  opacity: 0;
+  transform: scale(0);
+}
+.f7-button-preloader {
+  position: absolute;
+  width: var(--f7-preloader-size);
+  height: var(--f7-preloader-size);
+  top: 50%;
+  left: 50%;
+  margin-left: calc(-1 * var(--f7-preloader-size) / 2);
+  margin-top: calc(-1 * var(--f7-preloader-size) / 2);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 200ms;
+}
+.f7-button-loading .f7-button-preloader {
+  opacity: 1;
+  visibility: visible;
+}
+.f7-button-preloader-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.f7-button-loading .f7-button-preloader-inner {
+  animation: f7-button-preloader-spin 1s steps(8, end) infinite;
+}
+.f7-button-preloader-line {
+  position: absolute;
+  display: block;
+  width: 11.6%;
+  height: 33.33%;
+  border-radius: 100px;
+  background: currentColor;
+  left: 50%;
+  top: 50%;
+  transform-origin: center 150%;
+}
+@keyframes f7-button-preloader-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .f7-button-surface,
+  .f7-button-label,
+  .f7-button-preloader {
+    transition: none;
+  }
+  .f7-button-loading .f7-button-preloader-inner {
+    animation: none;
+  }
+}

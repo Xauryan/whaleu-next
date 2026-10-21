@@ -1,0 +1,133 @@
+/* Framework7 v9.2.0 native iOS composition (MIT).
+ * Copyright (c) 2014 Vladimir Kharlampidi.
+ * See docs/vendor/framework7-v9.2.0/LICENSE.
+ * Isolated native components own their hit areas and surfaces. The existing
+ * flat writing/content hierarchy and fixed action docks remain page-owned.
+ * Textarea, consent switches, native routing, private media/avatar readers,
+ * contact panels and existing deletion confirmations deliberately stay native.
+ */
+@import '../../design/framework7-ios.wxss';
+
+.f7-composer-screen {
+  box-sizing: border-box;
+  color: var(--f7-text-color);
+}
+.f7-composer-screen wu-f7-block.card {
+  display: block;
+  margin: 0 -16px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.f7-composer-screen wu-f7-list {
+  display: block;
+  margin: 0 -16px;
+}
+.f7-composer-screen wu-f7-button,
+.f7-composer-screen wu-f7-list-item,
+.f7-composer-screen wu-f7-button.chip,
+.f7-composer-screen wu-f7-button.sort-option,
+.f7-composer-screen wu-f7-button.action-button {
+  display: block;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+.f7-composer-screen wu-f7-button {
+  margin-top: 8px;
+}
+.f7-composer-screen wu-f7-input {
+  display: block;
+  margin: 8px 0;
+  min-width: 0;
+}
+.f7-composer-screen .row wu-f7-input {
+  flex: 1;
+}
+.f7-composer-disclosure {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--f7-list-item-title-text-color);
+  font-size: var(--f7-list-item-title-font-size);
+  font-weight: var(--f7-list-item-title-font-weight);
+  line-height: var(--f7-list-item-title-line-height);
+}
+.f7-composer-disclosure > text:first-of-type {
+  flex: 1;
+}
+.f7-composer-disclosure .option-value {
+  color: var(--f7-list-item-after-text-color);
+  font-size: var(--f7-list-item-after-font-size);
+}
+.f7-composer-screen .choice .f7-composer-disclosure {
+  justify-content: space-between;
+}
+.f7-composer-screen .chips {
+  gap: 8px;
+}
+.f7-composer-screen .chips wu-f7-button {
+  flex-shrink: 0;
+  margin: 0;
+}
+.f7-composer-screen .identity-segment {
+  padding: 0;
+  background: transparent;
+}
+.f7-composer-screen .sort-options {
+  padding: 0;
+  background: transparent;
+}
+.f7-composer-screen .identity-segment wu-f7-button {
+  flex: 1;
+}
+.f7-composer-screen .comment-actions wu-f7-button,
+.f7-composer-screen .post-actions wu-f7-button {
+  flex-shrink: 0;
+  margin: 0;
+}
+.f7-composer-screen wu-f7-button.refresh-button {
+  width: 44px;
+  flex: 0 0 44px;
+  margin: 0;
+}
+.f7-composer-screen wu-f7-button.media-options {
+  position: absolute;
+  right: 0;
+  bottom: 12px;
+  width: 44px;
+  margin: 0;
+}
+.f7-composer-screen wu-f7-button.more-button {
+  width: auto;
+  min-width: 44px;
+  float: right;
+  margin: 0;
+}
+.f7-composer-screen .context-menu wu-f7-button {
+  border-bottom: 1px solid var(--f7-list-item-border-color);
+}
+.f7-composer-screen .thread-reply > wu-f7-button.text-action {
+  display: inline-block;
+  margin-left: 37px;
+}
+.f7-composer-screen .compose-submit-bar wu-f7-button {
+  margin: 0;
+}
+.f7-composer-screen .notice,
+.f7-composer-screen .status,
+.f7-composer-screen .meta,
+.f7-composer-screen .scope,
+.f7-composer-screen .canvas-counter,
+.f7-composer-screen .formation-disclosure {
+  color: var(--f7-block-footer-text-color);
+}
+.f7-composer-screen .error {
+  color: var(--f7-input-error-text-color);
+}

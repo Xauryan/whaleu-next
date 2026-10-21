@@ -1,0 +1,68 @@
+{
+  "scope": [
+    "feedback",
+    "feedback-contacts",
+    "report-progress",
+    "account-status",
+    "safety-appeal",
+    "status"
+  ],
+  "pinnedFramework7": "9.2.0",
+  "pinnedCommit": "7668f883c29f69dd2ad7bd8ac3b35b9124082b0b",
+  "ownedFileCount": 30,
+  "files": {
+    "apps/wechat/scripts/fixtures/framework7-support-preview.mjs": "9f04e07668faafbcd14c658d4e6d7559f5ea11e6a056971f50f9f2fceabc7885",
+    "apps/wechat/scripts/smoke-account-moderation.mjs": "e6604502a5dbbc9b342e769c2e2aa9fe5785d91d6839ddbdf8a53dbf219e0078",
+    "apps/wechat/scripts/smoke-reporting.mjs": "7914ec47fc1341427996caf30843a92e82b92c8c819e43f2062548b0fb1fb04c",
+    "apps/wechat/src/pages/account-status/account-status.json": "b6d2a094265b424d8c69a996398b7dcc7c8555a9686cda4193d40d9820b5a715",
+    "apps/wechat/src/pages/account-status/account-status.wxml": "a0a7138a135fec8404c7503d71ea1b5dd0954ca76eb90ceb68b8904faf2cf0e5",
+    "apps/wechat/src/pages/account-status/account-status.wxss": "671d4e55200c43a86b8150f29171ab6fbc774015aaaef14b97796f20ca20e072",
+    "apps/wechat/src/pages/account-status/framework7-support.wxss": "fc159465fa97b7864c71bbf5399e23fbf7355619f05f404afc765dfb6f0560b1",
+    "apps/wechat/src/pages/account-status/recovery.wxml": "42b34c51fe3f4e99c9c7dd6956f2e43f3bf6aad150c6b9b21d1a4003669cc363",
+    "apps/wechat/src/pages/feedback-contacts/feedback-contacts.json": "73ceeafdfca483d57c9482ba276b7bdcc127c0d1071f0a59e92524c149e4faa4",
+    "apps/wechat/src/pages/feedback-contacts/feedback-contacts.wxml": "8ffc6ae93281c53081bd84da3e643b28d977f74346ca0d1269f3dd05ec741023",
+    "apps/wechat/src/pages/feedback-contacts/feedback-contacts.wxss": "57018afea0f954a1a1fe79b3e9665d8ad081790abc0d45c25e20fde219a52f5f",
+    "apps/wechat/src/pages/feedback/feedback.json": "0e0bd4e19b368248e88f2da675d8c6c23fbfd5451af905958fd107e8b8d962de",
+    "apps/wechat/src/pages/feedback/feedback.wxml": "1f5ab7790886eb704da6cc004fa46a5e124c24ee249b6d3a5ae2cb724aff8fac",
+    "apps/wechat/src/pages/feedback/feedback.wxss": "4bc565018a1274825edc57a31bd63a3f057605bb4be3de0a576c618ebd8da902",
+    "apps/wechat/src/pages/report-progress/recovery.wxml": "1c3e2b61966f028f6f2cd9433e5ed474f7e4524ef6bac10b55f9512362a01aa5",
+    "apps/wechat/src/pages/report-progress/report-progress.json": "2b4c6b818ca4ead4130b09f6e63e972f852b0f2d22c626dac611a6d8909cb05d",
+    "apps/wechat/src/pages/report-progress/report-progress.wxml": "6ba9be4df4f92a5197d2e6d2c6b73e26c67858dbb3346da34d46ea16f14082fe",
+    "apps/wechat/src/pages/report-progress/report-progress.wxss": "c4bcf2d7b7c26bf3b3ed610291265bb4fbd372fec74ad069200b5bcfcd226873",
+    "apps/wechat/src/pages/safety-appeal/safety-appeal.json": "aadcffc9dd3aa85603aea5fd82fc6bb5611ff7e50f1d39037309d04d11af7f38",
+    "apps/wechat/src/pages/safety-appeal/safety-appeal.wxml": "013b95bff43aa41ab43b8989d41c4ee97a423e631c5aaab80801be0cc287e400",
+    "apps/wechat/src/pages/safety-appeal/safety-appeal.wxss": "a21275777dfe180c4f0aed4f886b6fa026a1573d3f339e265696e57d093c5afd",
+    "apps/wechat/src/pages/status/status.json": "5664231ef972b329c70a1bb1dbc20fec94d62326651518eacb9cceb44bfff14a",
+    "apps/wechat/src/pages/status/status.wxml": "c844ab039f7c4ca9127d15a5e80fe619020744257444fd3ef4c31b8728904bcd",
+    "apps/wechat/src/pages/status/status.wxss": "c1ffb335a86b63f7dc86d6319a5313fa5adbc2126b5946e0023b92d4a379133e",
+    "apps/wechat/test/fixtures/framework7-support-before-actions.json": "f946196852841ff1aec513681e6545888469e107d1de5861633509188ac0322c",
+    "apps/wechat/test/fixtures/framework7-support-before-protected.json": "811167d3767fe8d370eee9722f8815c4ce95801be813b5c406d01e958da41766",
+    "apps/wechat/test/fixtures/framework7-support-original-presentation.txt": "5ad9b1518a8d12b576f340626245b1f883f52f29e884cfe1af5eb4256645e32e",
+    "apps/wechat/test/framework7-support-migration.test.ts": "459e76b03675476be6f123c91441105db88cb211f8c1396e41b3f03ff1637a52",
+    "apps/wechat/test/support-product-presentation.test.ts": "20746b051191d2782c083b3cf9eb1e37f2e33bb430274790c792fcf913df4725",
+    "docs/FRAMEWORK7_SUPPORT_MIGRATION.md": "41f5dc914de06543b12dc1aa04c888796087e7b1b77d640b4455cb86a0dc40f6"
+  },
+  "originalBaselines": {
+    "supportPresentation": "5ad9b1518a8d12b576f340626245b1f883f52f29e884cfe1af5eb4256645e32e",
+    "smokeReporting": "526cb4a2f85705f8497f9cc96693f1c4eb06307786cc008e3c58a1ec7190ef21",
+    "smokeAccountModeration": "7ee5c33a0a4f90b4f3dd5547adbc75c173fa8d59e2801da7d144467273226541"
+  },
+  "observed": {
+    "originalFocused": "64/64",
+    "dedicatedMigration": "25/25",
+    "focused": "180/180",
+    "additionalCrossFamily": "41/41",
+    "sourcePreviewThemeFrames": "46/46",
+    "scopedLint": "passed",
+    "selectedPrettier": "passed",
+    "javascriptSyntax": "passed",
+    "workspaceTypecheck": "unrun by worker; central serialized owner",
+    "combinedEmittedSmokes": "unrun by worker; central combined build required",
+    "deviceAcceptance": "unrun"
+  },
+  "sourceBytes": {
+    "before": 43540,
+    "after": 50294,
+    "delta": 6754
+  }
+}

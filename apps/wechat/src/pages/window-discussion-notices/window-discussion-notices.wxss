@@ -1,1 +1,4 @@
 @import '../../window-discussion/window-discussion.wxss';
+@import '../../notifications/details.wxss';
+
+@import '../../notifications/framework7-details.wxss';

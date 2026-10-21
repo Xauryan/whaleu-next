@@ -455,5 +455,20 @@
     "capture": "immutable_insert_after_internal_self_edit_admit",
     "policy": "private_self_service",
     "lifecycle": "Authenticated own cause only; existing administrator causes and authoritative import/fixture source writes stay distinct."
+  },
+  {
+    "relation": "whaleu_profile.cover_edits",
+    "actorKey": "actor_id",
+    "sourceKey": ["client_request_id"],
+    "capture": "new_scope_or_command_insert",
+    "policy": "private_self_service",
+    "lifecycle": "Own cover-edit scope only; existing avatar sources and later asset, worker, reconciliation and detach lifecycles remain independent."
+  },
+  {
+    "relation": "whaleu_profile.cover_command_receipts",
+    "actorKey": "actor_id",
+    "sourceKey": ["client_request_id"],
+    "capture": "immutable_insert",
+    "policy": "private_self_service"
   }
 ]

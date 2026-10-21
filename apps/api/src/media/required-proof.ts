@@ -41,6 +41,17 @@ export const mediaCountProofOwner: CountProofOwner = {
       await tx.query(
         `LOCK TABLE whaleu_media.ratings_discussion_batches,whaleu_media.ratings_discussion_members,whaleu_media.ratings_discussion_request_markers,whaleu_media.ratings_discussion_batch_request_fences IN SHARE MODE NOWAIT`,
       );
+    // Cover markers share the Media epoch but are installed additively. Fence
+    // their raw/zero-row writers without breaking historical fixture schemas.
+    const coverInstalled = (
+      await tx.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.profile_cover_request_markers') IS NOT NULL AS present",
+      )
+    ).rows[0];
+    if (coverInstalled?.present === true)
+      await tx.query(
+        'LOCK TABLE whaleu_media.profile_cover_request_markers IN SHARE MODE NOWAIT',
+      );
     return true;
   },
 };

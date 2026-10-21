@@ -1,0 +1,68 @@
+/* Framework7 v9.2.0 Sheet native port (MIT).
+ * Copyright (c) 2014 Vladimir Kharlampidi.
+ * See docs/vendor/framework7-v9.2.0/LICENSE. */
+@import '../../design/framework7-ios.wxss';
+@import './overlay.wxss';
+:host {
+  display: block;
+}
+.f7-sheet-surface {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: var(--f7-sheet-height, 260px);
+  max-height: calc(100% - 16px);
+  border-radius: var(--f7-sheet-border-radius, 32px)
+    var(--f7-sheet-border-radius, 32px) 0 0;
+  background: var(--wu-f7-overlay-native-surface);
+  transform: translateY(100%);
+  transition: transform var(--f7-sheet-transition-duration, 300ms);
+  transition-timing-function: var(
+    --f7-sheet-transition-timing-function,
+    initial
+  );
+  overflow: hidden;
+}
+.f7-sheet-visible {
+  transform: translateY(0);
+}
+.f7-sheet-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 56px;
+  padding: 0 16px;
+}
+.f7-sheet-heading {
+  flex: 1;
+  min-width: 0;
+}
+.f7-sheet-title {
+  font-size: 17px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.f7-sheet-close {
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+.f7-sheet-scroll {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  width: 100%;
+}
+.f7-sheet-content {
+  padding: 0 16px 16px;
+  overflow-wrap: anywhere;
+}
+.f7-sheet-footer {
+  flex-shrink: 0;
+  padding: 0 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .f7-sheet-surface {
+    transition: none;
+  }
+}

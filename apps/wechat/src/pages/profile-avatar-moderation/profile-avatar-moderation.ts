@@ -8,7 +8,14 @@ import {
   initialProfileAvatarModerationView,
 } from '../../profile-avatar-moderation/controller';
 Page({
-  data: { ...initialProfileAvatarModerationView(), addressError: '' },
+  onToggleDetails() {
+    this.setData({ detailsExpanded: !this.data.detailsExpanded });
+  },
+  data: {
+    detailsExpanded: false,
+    ...initialProfileAvatarModerationView(),
+    addressError: '',
+  },
   target: null as ProfileAvatarModerationTarget | null,
   controller: undefined as ProfileAvatarModerationController | undefined,
   onLoad(query: { kind?: string; id?: string } = {}) {

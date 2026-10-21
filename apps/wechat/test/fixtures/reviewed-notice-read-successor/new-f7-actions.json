@@ -1,0 +1,57 @@
+[
+  {
+    "file": "apps/wechat/src/pages/rating-scoped/rating-scoped.wxml",
+    "handler": "onNoticeRead",
+    "actions": [
+      {
+        "tag": "wu-f7-button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "data-id": "{{item.noticeId}}",
+          "data-kind": "{{noticeKind}}",
+          "interaction-key": "{{noticeReadKey}}:{{item.noticeId}}",
+          "disabled": "{{busy || frozen || needsRefresh || !canAcknowledgeNotices || uiPanel || pickerOpen || composerOpen || selectedScore !== null || definitionConfirmation || cancelPendingConfirmation || cover.expanded || categoryIcon.state !== 'idle'}}",
+          "bind:press": "onNoticeRead",
+          "variant": "plain"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'updates'}}"
+          },
+          {
+            "wx:for": "{{notices}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{!item.readAt}}"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "file": "apps/wechat/src/pages/rating-discussion-media/rating-discussion-media.wxml",
+    "handler": "onReadNotice",
+    "actions": [
+      {
+        "tag": "wu-f7-button",
+        "attrs": {
+          "bind:press": "onReadNotice",
+          "interaction-key": "{{noticeRead.interactionKey}}",
+          "disabled": "{{!noticeRead.canAcknowledge}}",
+          "loading": "{{noticeRead.status === 'pending'}}",
+          "class": "management-action",
+          "variant": "tonal"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{noticeRead}}"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,1 +1,2 @@
-@import '../../profile/forms.wxss';
+@import '../../school-operations/presentation.wxss';
+@import '../../school-operations/framework7-school-operations.wxss';

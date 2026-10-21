@@ -1,0 +1,185 @@
+--- src/notifications/student-notices.ts (initial exposure)
++++ src/notifications/student-notices.ts (uncertain outcome correction)
+@@ -134,24 +134,66 @@
+     )
+       return;
+     let settled = false;
+-    await this.run(
+-      (cancel) =>
+-        this.api!.request(
+-          {
+-            path: `/v1/me/student-verification/notices/${studentUuid(id)}/read`,
+-            method: 'POST',
+-            authentication: 'required',
+-            authReplay: 'never',
+-            successStatus: 200,
+-            decode: decodeStudentNoticeTarget,
+-          },
+-          { body: {}, cancellation: guardNoticeRead(cancel, guard) },
+-        ),
+-      () => {
+-        settled = true;
+-      },
+-      () => this.update({ items: [], loaded: false, canMore: false }),
+-    );
++    const exposedItems = guard ? this.view.items : undefined;
++    const exposedContent = guard ? JSON.stringify(exposedItems) : undefined;
++    let scopeChanged = false;
++    const invalidate = (accountId?: string) => {
++      if (
++        accountId === undefined ||
++        accountId === this.owner.credentials?.accountId
++      )
++        scopeChanged = true;
++    };
++    const unsubscribe = guard
++      ? [
++          this.runtime.privateViews,
++          this.runtime.safetyChanges,
++          this.runtime.browsingScopeChanges,
++          this.runtime.directoryScopeChanges,
++        ].map((changes) => changes?.subscribe(invalidate))
++      : [];
++    try {
++      await this.run(
++        (cancel) =>
++          this.api!.request(
++            {
++              path: `/v1/me/student-verification/notices/${studentUuid(id)}/read`,
++              method: 'POST',
++              authentication: 'required',
++              authReplay: 'never',
++              successStatus: 200,
++              decode: decodeStudentNoticeTarget,
++            },
++            { body: {}, cancellation: guardNoticeRead(cancel, guard) },
++          ),
++        () => {
++          settled = true;
++        },
++        (error) => {
++          // run() publishes its error before this callback, invalidating the viewport
++          // lease. Snapshot/owner/scope fences, not renewed visibility, decide retention.
++          if (
++            exposedItems &&
++            !scopeChanged &&
++            this.view.loaded &&
++            this.view.items === exposedItems &&
++            JSON.stringify(this.view.items) === exposedContent &&
++            ['network', 'timeout', 'cancelled'].includes(error.kind) &&
++            error.details.httpStatus === undefined &&
++            error.details.serverCode === undefined
++          ) {
++            this.update({
++              error: '已读结果尚未确认，请手动重试或重新加载',
++              status: '保留原消息，未推定已读；不会自动重试',
++            });
++            return;
++          }
++          this.update({ items: [], loaded: false, canMore: false });
++        },
++      );
++    } finally {
++      unsubscribe.forEach((stop) => stop?.());
++    }
+     if (settled) await this.load();
+   }
+   override cancel(): void {
+--- src/ratings/updates-controller.ts (initial exposure)
++++ src/ratings/updates-controller.ts (uncertain outcome correction)
+@@ -312,30 +312,71 @@
+       )
+     )
+       return;
+-    await this.run(
+-      (cancel) =>
+-        this.gateway()!.markRead(noticeId, guardNoticeRead(cancel, guard)),
+-      (raw) => {
+-        const result = decodeRatingNoticeRead(raw);
+-        if (result.noticeId !== noticeId) invalidRating();
+-        this.update({
+-          items: this.view.items.map((item) =>
+-            item.noticeId === noticeId
+-              ? { ...item, readAt: result.readAt }
+-              : item,
+-          ),
+-          unreadCount: result.unreadCount,
+-          status: '这条评分更新已标记已读',
+-        });
+-      },
+-      (error) => {
+-        this.clear();
+-        this.update({
+-          error: ratingError(error),
+-          status: '这条更新的已读状态尚未确认，请重新加载',
+-        });
+-      },
+-    );
++    const exposedItems = guard ? this.view.items : undefined;
++    const exposedContent = guard ? JSON.stringify(exposedItems) : undefined;
++    let scopeChanged = false;
++    const invalidate = (accountId?: string) => {
++      if (
++        accountId === undefined ||
++        accountId === this.owner.credentials?.accountId
++      )
++        scopeChanged = true;
++    };
++    const unsubscribe = guard
++      ? [
++          this.runtime.privateViews,
++          this.runtime.safetyChanges,
++          this.runtime.browsingScopeChanges,
++          this.runtime.directoryScopeChanges,
++        ].map((changes) => changes?.subscribe(invalidate))
++      : [];
++    try {
++      await this.run(
++        (cancel) =>
++          this.gateway()!.markRead(noticeId, guardNoticeRead(cancel, guard)),
++        (raw) => {
++          const result = decodeRatingNoticeRead(raw);
++          if (result.noticeId !== noticeId) invalidRating();
++          this.update({
++            items: this.view.items.map((item) =>
++              item.noticeId === noticeId
++                ? { ...item, readAt: result.readAt }
++                : item,
++            ),
++            unreadCount: result.unreadCount,
++            status: '这条评分更新已标记已读',
++          });
++        },
++        (error) => {
++          // The base error render invalidates exposure, not the owner's exact row.
++          // Cancellation may happen before dispatch or after an unknown remote commit.
++          if (
++            exposedItems &&
++            !scopeChanged &&
++            this.view.loaded &&
++            this.view.items === exposedItems &&
++            JSON.stringify(this.view.items) === exposedContent &&
++            ['network', 'timeout', 'cancelled'].includes(error.kind) &&
++            error.details.httpStatus === undefined &&
++            error.details.serverCode === undefined
++          ) {
++            this.update({
++              unreadCount: null,
++              error: '已读结果尚未确认，请手动重试或重新加载',
++              status: '保留原消息，未推定已读；不会自动重试',
++            });
++            return;
++          }
++          this.clear();
++          this.update({
++            error: ratingError(error),
++            status: '这条更新的已读状态尚未确认，请重新加载',
++          });
++        },
++      );
++    } finally {
++      unsubscribe.forEach((stop) => stop?.());
++    }
+   }
+   override cancel(): void {
+     this.stop();

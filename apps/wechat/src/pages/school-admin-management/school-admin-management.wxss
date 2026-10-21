@@ -1,4 +1,2 @@
-@import '../../community/forms.wxss';
-.region-option {
-  margin: 16rpx 0;
-}
+@import '../../school-operations/presentation.wxss';
+@import '../../school-operations/framework7-school-operations.wxss';

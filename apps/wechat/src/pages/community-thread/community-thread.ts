@@ -47,6 +47,7 @@ Page({
     interaction: initialDiscussionMutationView(),
     identityOverlay: initialOverlayView(),
     requestedReplyId: '',
+    uiExpandedMenu: '',
   },
   namedAvatarController: undefined as NamedAvatarController | undefined,
   mediaGalleryController: undefined as DiscussionGalleryController | undefined,
@@ -61,6 +62,13 @@ Page({
   rootCommentId: '',
   replyId: null as string | null,
   overlayTargets: '',
+  onToggleThreadMenu(event: { currentTarget: { dataset: { menu: string } } }) {
+    const menu = event.currentTarget.dataset.menu;
+    if (typeof menu !== 'string') return;
+    this.setData({
+      uiExpandedMenu: this.data.uiExpandedMenu === menu ? '' : menu,
+    });
+  },
   onLoad(
     query: {
       postId?: string;
@@ -191,7 +199,10 @@ Page({
         );
         if (view.busy || view.needsReload || !view.post)
           this.namedAvatarController?.clear();
-        this.setData({ ...view });
+        this.setData({
+          ...(!view.hasSession ? { uiExpandedMenu: '' } : {}),
+          ...view,
+        });
         const targets: DisplayTarget[] =
           view.post && view.root
             ? [
@@ -570,7 +581,7 @@ Page({
       wx.navigateTo?.({
         url: `/pages/community-detail/community-detail?postId=${encodeURIComponent(this.postId)}&rootCommentId=${encodeURIComponent(selected.id)}${this.viewSpaceId ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
         success: () => undefined,
-        fail: () => this.setData({ error: '暂不能返回自己的评论，请重试' }),
+        fail: () => this.setData({ error: '暂不能返回自己的回复，请重试' }),
       });
       return;
     }
@@ -579,13 +590,13 @@ Page({
     this.identityOverlay?.clear();
     this.overlayTargets = '';
     if (!wx.navigateTo) {
-      this.setData({ error: '当前环境不能打开评论/回复管理，请重试' });
+      this.setData({ error: '当前环境不能打开回复管理，请重试' });
       return;
     }
     wx.navigateTo({
       success: () => undefined,
       url: `/pages/admin-discussion-removal/admin-discussion-removal?kind=${kind}&id=${encodeURIComponent(selected.id)}${this.viewSpaceId && this.viewSpaceId !== this.data.post?.space.id ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
-      fail: () => this.setData({ error: '暂不能打开评论/回复管理，请重试' }),
+      fail: () => this.setData({ error: '暂不能打开回复管理，请重试' }),
     });
   },
   onDeleteReply(event: { currentTarget: { dataset: { id: string } } }) {
@@ -608,6 +619,7 @@ Page({
     this.mutations?.cancel();
   },
   onHide() {
+    this.setData({ uiExpandedMenu: '' });
     this.namedAvatarController?.dispose();
     this.namedAvatarController = undefined;
     this.mediaGalleryController?.dispose();

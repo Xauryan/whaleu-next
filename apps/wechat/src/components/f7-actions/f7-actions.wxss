@@ -1,0 +1,120 @@
+/* Framework7 v9.2.0 Actions native port (MIT).
+ * Copyright (c) 2014 Vladimir Kharlampidi.
+ * See docs/vendor/framework7-v9.2.0/LICENSE. */
+@import '../../design/framework7-ios.wxss';
+@import '../f7-sheet/overlay.wxss';
+:host {
+  display: block;
+}
+.f7-actions-layer {
+  z-index: 13500;
+}
+.f7-actions-surface {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: calc(100% - 16px);
+  transform: translateY(100%);
+  transition: transform 300ms;
+}
+.f7-actions-visible {
+  transform: translateY(0);
+}
+.f7-actions-scroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 60vh;
+  width: 100%;
+}
+.f7-actions-group {
+  margin: var(--f7-actions-group-margin, 8px);
+  border-radius: var(--f7-actions-border-radius, 32px);
+  background: var(--wu-f7-overlay-native-surface);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.f7-actions-label {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--f7-actions-button-height, 56px);
+  padding: var(--f7-actions-label-padding, 8px 10px);
+  color: var(--f7-actions-label-text-color, #8a8a8a);
+  font-size: var(--f7-actions-label-font-size, 13px);
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.f7-actions-button.f7-actions-button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--f7-actions-button-height, 56px);
+  height: auto;
+  margin: 0;
+  padding: 12px 10px;
+  border: 0;
+  border-bottom: 1px solid
+    var(--f7-actions-button-border-color, rgba(0, 0, 0, 0.2));
+  border-radius: 0;
+  background: transparent;
+  color: var(--f7-theme-color);
+  font-size: var(--f7-actions-button-font-size, 20px);
+  font-family: var(--f7-font-family);
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.f7-actions-button::after {
+  border: 0;
+}
+.f7-actions-button:last-child {
+  border-bottom: 0;
+}
+.f7-actions-button.f7-actions-strong {
+  font-weight: 600;
+}
+.f7-actions-button.f7-actions-destructive {
+  color: var(--f7-input-error-text-color, #ff3b30);
+}
+.f7-actions-button.f7-actions-disabled {
+  opacity: 0.55;
+}
+.f7-actions-button.f7-actions-pressed {
+  background: var(
+    --f7-actions-button-pressed-bg-color,
+    rgba(230, 230, 230, 0.9)
+  );
+}
+.f7-actions-status {
+  color: var(--f7-text-color);
+  padding: 4px 16px;
+  text-align: center;
+  font-size: 13px;
+}
+@media (min-width: 496px) {
+  .f7-actions-surface {
+    width: 480px;
+    align-self: center;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .f7-actions-layer {
+    --f7-actions-label-text-color: rgba(255, 255, 255, 0.55);
+    --f7-actions-button-border-color: rgba(255, 255, 255, 0.15);
+    --f7-actions-button-pressed-bg-color: rgba(50, 50, 50, 0.9);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .f7-actions-surface {
+    transition: none;
+  }
+}

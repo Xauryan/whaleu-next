@@ -1,1 +1,45 @@
-@import '../../community/forms.wxss';
+@import '../account-status/support.wxss';
+.appeal-form {
+  margin-top: 34rpx;
+}
+.appeal-form textarea {
+  width: 100%;
+  min-height: 280rpx;
+  height: 320rpx;
+  box-sizing: border-box;
+  padding: 24rpx;
+  margin-top: 18rpx;
+  border-radius: 20rpx;
+  background: var(--wu-bg, #f5f5f7);
+  color: var(--wu-text, #1d1d1f);
+  font-size: 29rpx;
+  line-height: 1.65;
+}
+.input-limit {
+  color: var(--wu-tertiary, #8e8e93);
+  font-size: 23rpx;
+  text-align: right;
+  margin: 10rpx 4rpx;
+}
+.related-penalty {
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid var(--wu-separator, #e5e5ea);
+}
+.list-heading {
+  color: var(--wu-secondary, #6e6e73);
+  font-size: 25rpx;
+  margin: 40rpx 0 12rpx;
+}
+.appeal-list-row {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator, #e5e5ea);
+}
+.support-page .row-button {
+  width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+  font-size: 26rpx;
+}
+
+@import '../account-status/framework7-support.wxss';

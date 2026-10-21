@@ -1,0 +1,117 @@
+<view class="notice-page social-page f7-ios-theme f7-notifications-page">
+  <view class="notice-toolbar">
+    <text class="notice-heading">
+      {{title}}
+    </text>
+    <wu-f7-button class="notice-icon-button" disabled="{{busy}}" aria-label="刷新互动消息" bind:press="onReload">
+      <wu-icon name="refresh" size="21" />
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{!hasSession}}" class="notice-state">
+    <text>
+      登录后查看互动消息
+    </text>
+    <navigator url="/pages/login/login" class="notice-action">
+      去登录
+    </navigator>
+  </view>
+  <view wx:if="{{error}}" class="notice-state notice-error" aria-role="alert">
+    <text>
+      {{error}}
+    </text>
+    <wu-f7-button class="notice-action" disabled="{{busy}}" bind:press="onReload">
+      重试
+    </wu-f7-button>
+  </view>
+  <wu-f7-block wx:if="{{unavailable}}" class="notice-empty" spacing="compact">
+    <view class="notice-empty-content">
+      <view class="notice-symbol social-tone-{{tone}}">
+        <wu-icon name="{{icon === 'heart-filled' ? 'heart-filled' : icon === 'person-filled' ? 'person-filled' : 'message-filled'}}" size="30" tone="{{tone === 'coral' ? 'coral' : tone === 'socialblue' ? 'socialblue' : 'mint'}}" />
+      </view>
+      <text class="notice-empty-title">
+        新增关注通知暂不可用
+      </text>
+      <text class="notice-empty-detail">
+        暂未接入关注通知服务
+      </text>
+    </view>
+  </wu-f7-block>
+  <block wx:else>
+    <view wx:if="{{busy &amp;&amp; !loaded}}" class="notice-state" aria-role="status">
+      正在读取消息…
+    </view>
+    <wu-f7-list spacing="compact" class="notice-list">
+      <view wx:for="{{rows}}" wx:key="id" id="{{item.observationId}}" class="notice-event">
+        <view class="notice-symbol social-tone-{{tone}}">
+          <wu-icon name="{{icon === 'heart-filled' ? 'heart-filled' : icon === 'person-filled' ? 'person-filled' : 'message-filled'}}" size="23" tone="{{tone === 'coral' ? 'coral' : tone === 'socialblue' ? 'socialblue' : 'mint'}}" />
+          <view wx:if="{{item.unread}}" class="notice-unread" aria-label="未读" />
+        </view>
+        <view class="notice-content">
+          <wu-f7-list-item class="social-open" data-id="{{item.id}}" disabled="{{item.busy || !item.available}}" aria-label="{{item.title}}，{{item.action}}" bind:press="onOpen" link="{{true}}" last="{{true}}">
+            <view class="notice-author">
+              {{item.title}}
+            </view>
+            <view wx:if="{{item.action}}" class="notice-context">
+              {{item.action}}
+            </view>
+            <view wx:if="{{item.preview}}" class="notice-body">
+              {{item.preview}}
+            </view>
+            <view wx:if="{{item.timeLabel}}" class="notice-time">
+              {{item.timeLabel}}
+            </view>
+          </wu-f7-list-item>
+          <view class="notice-actions">
+            <text class="notice-context">
+              {{item.sourceLabel}}
+            </text>
+            <wu-f7-button wx:if="{{item.unread}}" class="notice-read" data-id="{{item.id}}" disabled="{{item.busy}}" bind:press="onRead">
+              标为已读
+            </wu-f7-button>
+          </view>
+        </view>
+      </view>
+    </wu-f7-list>
+    <wu-f7-block wx:if="{{loaded &amp;&amp; !rows.length}}" class="notice-empty" spacing="compact">
+      <view class="notice-empty-content">
+        <wu-icon name="message" tone="muted" size="34" />
+        <text class="notice-empty-title">
+          {{partial ? '当前可用范围内暂无消息' : '当前暂无消息'}}
+        </text>
+        <text class="notice-empty-detail">
+          收到新互动后会显示在这里
+        </text>
+      </view>
+    </wu-f7-block>
+    <block wx:for="{{sources}}" wx:key="key">
+      <wu-f7-button wx:if="{{item.canMore}}" class="notice-action" data-source="{{item.key}}" disabled="{{item.busy}}" loading="{{item.busy}}" bind:press="onMore">
+        查看更多{{item.label}}
+      </wu-f7-button>
+    </block>
+    <wu-f7-button wx:if="{{busy}}" class="notice-secondary" bind:press="onCancel">
+      停止加载
+    </wu-f7-button>
+    <text wx:if="{{!busy &amp;&amp; status &amp;&amp; !loaded}}" class="notice-state">
+      {{status}}
+    </text>
+    <wu-f7-block class="notice-footer" spacing="compact">
+      <view class="notice-footer-content">
+        <wu-f7-button class="notice-secondary" aria-expanded="{{showCoverage}}" bind:press="onCoverage">
+          {{showCoverage ? '收起消息说明' : '消息说明'}}
+          <wu-icon name="{{showCoverage ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="14" />
+        </wu-f7-button>
+        <view wx:if="{{showCoverage}}" class="notice-state">
+          <text>
+            {{coverage}}
+          </text>
+          <view class="notice-context">
+            消息在屏幕内持续显示后会确认已读，也可手动标记；仅加载列表或打开详情不会确认已读。
+          </view>
+          <view wx:for="{{sources}}" wx:key="key" class="notice-context">
+            {{item.label}}：{{item.busy ? '读取中' : item.error ? item.error : item.coverageUnknown ? '消息范围暂不能确认' : item.loaded ? '当前页已读取' : '尚未读取'}}
+          </view>
+        </view>
+      </view>
+    </wu-f7-block>
+  </block>
+</view>

@@ -118,7 +118,7 @@ export class LikedController extends CommunityController<LikedView> {
                 ? result.visibleLikedCount === 0
                   ? '当前没有可查看的点赞'
                   : '已到本次浏览末尾；刷新可重新查看最新点赞'
-                : '仅显示当前仍可查看的帖子、评论与回复；翻页会重新核验内容，重新点赞后的新位置请刷新查看',
+                : '仅显示当前仍可查看的帖子、回复；翻页会重新核验内容，重新点赞后的新位置请刷新查看',
         });
       },
       (error) => {

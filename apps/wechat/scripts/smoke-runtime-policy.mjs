@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -187,6 +188,15 @@ export async function smokeRuntimePolicy({
     assert.equal(compose.data.canDisableComments, true);
     assert.equal(compose.data.canSubmit, false);
     assert.match(compose.data.blocker, /尚未开放审核/);
+    const composeBridge = createNativePressBridge({
+      page: compose,
+      pageFile: path.join(dist, 'pages/community-compose/community-compose'),
+      dist,
+    });
+    const blockedSubmit = composeBridge.capture('onSubmit');
+    assert.equal(blockedSubmit.press(), false);
+    blockedSubmit.detach();
+    // Preserve the direct negative controller probe, independently of the UI gate.
     compose.onSubmit();
     await flush();
     assert.equal(
@@ -200,9 +210,19 @@ export async function smokeRuntimePolicy({
       { postId: publicPost.id },
     );
     await flush();
+    const detailBridge = createNativePressBridge({
+      page: detail,
+      pageFile: path.join(dist, 'pages/community-detail/community-detail'),
+      dist,
+    });
+    const pressDetail = (handler) => {
+      const control = detailBridge.capture(handler);
+      assert.equal(control.press(), true, handler);
+      control.detach();
+    };
     assert.equal(detail.data.post.text, publicPost.text);
     assert.equal(detail.data.post.viewer.canComment, false);
-    detail.onLike();
+    pressDetail('onLike');
     await flush();
     assert.equal(detail.data.post.viewer.isLiked, true);
     assert.equal(detail.data.post.text, publicPost.text);
@@ -225,7 +245,7 @@ export async function smokeRuntimePolicy({
     // Native hide/reopen preserves lost-response intent even with an unreadable parent.
     const firstLike = [...likeReceipts.values()][0];
     loseLikeResponse = true;
-    detail.onLike();
+    pressDetail('onLike');
     await flush();
     const unresolved = app.community.pendingPostLikes.load(accountId);
     assert.equal(unresolved.liked, false);
@@ -281,7 +301,7 @@ export async function smokeRuntimePolicy({
     await flush();
     assert.equal(detail.data.post.viewer.isLiked, false);
     assert.equal(detail.data.post.likeCount, 0);
-    detail.onLike();
+    pressDetail('onLike');
     await flush();
     assert.equal(detail.data.post.viewer.isLiked, true);
     assert.equal(likeReceipts.size, 3);
@@ -344,11 +364,21 @@ export async function smokeRuntimePolicy({
     const before = requests.length,
       profilesBefore = profileReads;
     const recovery = mount(composeModule, {});
+    const recoveryBridge = createNativePressBridge({
+      page: recovery,
+      pageFile: path.join(dist, 'pages/community-compose/community-compose'),
+      dist,
+    });
+    const pressRecovery = () => {
+      const control = recoveryBridge.capture('onReceipt');
+      assert.equal(control.press(), true);
+      control.detach();
+    };
     await flush();
     assert.equal(recovery.data.frozen, true);
     assert.equal(requests.length, before);
     assert.equal(profileReads, profilesBefore);
-    recovery.onReceipt();
+    pressRecovery();
     await flush();
     assert.equal(recovery.data.frozen, true);
     assert.deepEqual(app.community.pending.load(accountId), pending);
@@ -358,7 +388,7 @@ export async function smokeRuntimePolicy({
     recovery.onShow();
     await flush();
     receiptReady = true;
-    recovery.onReceipt();
+    pressRecovery();
     await flush();
     assert.equal(app.community.pending.load(accountId), null);
     assert.equal(recovery.data.receiptStatus, '发布已确认');
@@ -373,10 +403,14 @@ export async function smokeRuntimePolicy({
       path.join(dist, 'pages/community-compose/community-compose.wxml'),
       'utf8',
     );
-    assert.match(template, /需等待明确审核结果，再主动确认发布原请求/);
+    assert.match(template, /审核通过后，仍需主动确认发布原请求/);
     assert.match(template, /pages\/identity-campus\/identity-campus/);
     assert.match(template, /返回后需再次点击发送/);
-    assert.match(template, /显示身份选项不代表已取得发布资格/);
+    assert.match(
+      template,
+      /bind:press="onSubmit" disabled="{{!canSubmit \|\| busy}}"/,
+    );
+    assert.match(template, /wx:if="{{blocker}}"/);
     assert.match(template, /查询原请求回执/);
   } finally {
     for (const page of pages) page.onUnload();

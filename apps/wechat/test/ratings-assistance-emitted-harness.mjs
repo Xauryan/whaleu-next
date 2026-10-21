@@ -1,3 +1,5 @@
+import { createRatingEmittedBridge } from './rating-native-emitted-harness.mjs';
+import { createRecoveryPressBridge } from './framework7-rating-recovery-native-harness.mjs';
 /** Actual emitted Pages and emitted WXML; synthetic API owners only, no model or device claims. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -45,6 +47,155 @@ function expanded(file) {
     (_all, src) => expanded(path.resolve(path.dirname(file), src)),
   );
 }
+// Only the two category wrappers use the exact static include projection. Keep
+// the native Input boundary separate from the retained raw textarea events.
+function categoryControls(page, pageFile, nodes) {
+  assert.ok(
+    ['rating-category-editor', 'rating-category-manage'].includes(
+      path.basename(pageFile),
+    ),
+  );
+  const press = createRecoveryPressBridge({ page, pageFile, dist });
+  let visible = true,
+    attached = true;
+  for (const [method, lifecycle] of [
+    ['onShow', 'show'],
+    ['onHide', 'hide'],
+    ['onUnload', 'detach'],
+  ]) {
+    const original = page[method];
+    page[method] = function (...args) {
+      // Category onShow first clears its prior controller through onHide.
+      // Deliver the new Component show only after that reset has finished.
+      if (lifecycle === 'show') {
+        const result = original?.apply(this, args);
+        visible = attached;
+        press.lifecycle('show');
+        return result;
+      }
+      visible = false;
+      if (lifecycle === 'detach') attached = false;
+      press.lifecycle(lifecycle);
+      if (lifecycle === 'detach') press.disposeProjection();
+      return original?.apply(this, args);
+    };
+  }
+  const originalSetData = page.setData;
+  page.setData = function (...args) {
+    const result = originalSetData.apply(this, args);
+    press.sync();
+    return result;
+  };
+  return {
+    tap(handler, dataset) {
+      if (!visible || !attached || !press.find(handler, dataset)) return false;
+      const control = press.capture(handler, dataset);
+      try {
+        return control.press();
+      } finally {
+        control.detach();
+      }
+    },
+    input(handler, value, dataset) {
+      if (!visible || !attached) return false;
+      const node = nodes().find(
+        (node) =>
+          typeof node !== 'string' &&
+          node.tag === 'wu-f7-input' &&
+          node.attrs['bind:input'] === handler &&
+          Object.entries(dataset).every(
+            ([key, v]) => node.attrs[`data-${key}`] === String(v),
+          ),
+      );
+      assert.ok(node, `Actual category native Input ${handler}`);
+      const config = JSON.parse(readFileSync(`${pageFile}.json`, 'utf8'));
+      const relative = config.usingComponents?.[node.tag];
+      assert.ok(relative, 'Actual registered category input component');
+      const component = path.resolve(path.dirname(pageFile), relative);
+      assert.equal(component, path.join(dist, 'components/f7-input/f7-input'));
+      let definition;
+      const previous = globalThis.Component;
+      globalThis.Component = (registered) => {
+        definition = registered;
+      };
+      try {
+        delete require.cache[require.resolve(`${component}.js`)];
+        require(`${component}.js`);
+      } finally {
+        if (previous === undefined) delete globalThis.Component;
+        else globalThis.Component = previous;
+      }
+      assert.ok(definition, 'Actual emitted category Input registration');
+      const properties = Object.fromEntries(
+        Object.entries(definition.properties).map(([key, property]) => {
+          const raw =
+            node.attrs[
+              key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
+            ];
+          return [
+            key,
+            raw === undefined
+              ? structuredClone(property.value)
+              : property.type === Boolean
+                ? raw === 'true' || raw === ''
+                : property.type === Number
+                  ? Number(raw)
+                  : raw,
+          ];
+        }),
+      );
+      const fullDataset = Object.fromEntries(
+        Object.entries(node.attrs)
+          .filter(([key]) => key.startsWith('data-'))
+          .map(([key, value]) => [
+            key
+              .slice(5)
+              .replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()),
+            value,
+          ]),
+      );
+      let emissions = 0;
+      const instance = {
+        properties,
+        data: structuredClone(definition.data),
+        ...definition.methods,
+        setData(patch) {
+          Object.assign(this.data, patch);
+        },
+        triggerEvent(type, detail, options) {
+          assert.equal(type, 'input');
+          assert.deepEqual(options, { bubbles: false, composed: false });
+          assert.equal(detail.value, value, 'Native input buffer is unchanged');
+          emissions++;
+          page[handler]({ detail, currentTarget: { dataset: fullDataset } });
+        },
+      };
+      definition.lifetimes.attached.call(instance);
+      try {
+        const inner = flatten(
+          render(
+            parse(readFileSync(`${component}.wxml`, 'utf8')).children,
+            { ...instance.data, ...properties },
+            {},
+          ),
+        ).find(
+          (node) =>
+            typeof node !== 'string' &&
+            node.tag === 'input' &&
+            node.attrs.catchinput === 'onInput',
+        );
+        assert.ok(inner, 'Actual native category editor boundary');
+        if (inner.attrs.disabled !== 'true')
+          definition.methods.onInput.call(instance, {
+            detail: { value, cursor: value.length },
+          });
+      } finally {
+        definition.lifetimes.detached.call(instance);
+      }
+      return emissions === 1;
+    },
+  };
+}
 function mount(name, runtime, wx) {
   let page;
   globalThis.Page = (value) => {
@@ -88,11 +239,23 @@ function mount(name, runtime, wx) {
         templates,
       ),
     );
+  const native = ['rating-scoped', 'community-compose'].includes(name)
+    ? createRatingEmittedBridge({
+        page,
+        pageFile: path.join(dist, `pages/${name}/${name}`),
+        dist,
+      })
+    : ['rating-category-editor', 'rating-category-manage'].includes(name)
+      ? categoryControls(page, path.join(dist, `pages/${name}/${name}`), nodes)
+      : null;
   const event = async (handler, dataset = {}, value = '') => {
     const rendered = nodes().find(
       (node) =>
         typeof node !== 'string' &&
-        (node.attrs.bindtap === handler || node.attrs.bindinput === handler) &&
+        (node.attrs.bindtap === handler ||
+          node.attrs.bindinput === handler ||
+          node.attrs['bind:press'] === handler ||
+          node.attrs['bind:input'] === handler) &&
         Object.entries(dataset).every(
           ([key, v]) => node.attrs[`data-${key}`] === String(v),
         ),
@@ -100,7 +263,14 @@ function mount(name, runtime, wx) {
     assert.ok(rendered, `emitted WXML renders ${handler}`);
     assert.notEqual(rendered.attrs.disabled, 'true');
     assert.equal(typeof page[handler], 'function');
-    await page[handler]({ currentTarget: { dataset }, detail: { value } });
+    if (rendered.attrs['bind:press'] === handler) {
+      assert.ok(native, 'Supported actual ratings component owner');
+      assert.ok(native.tap(handler, dataset));
+    } else if (rendered.attrs['bind:input'] === handler) {
+      assert.ok(native, 'Supported actual ratings input owner');
+      assert.ok(native.input(handler, value, dataset));
+    } else
+      await page[handler]({ currentTarget: { dataset }, detail: { value } });
     await drain();
   };
   return { page, nodes, event };

@@ -1,0 +1,106 @@
+<template name="support-report-recovery">
+  <view
+    wx:if="{{report.confirmation}}"
+    class="confirmation"
+    aria-role="dialog"
+    aria-label="确认举报"
+  >
+    <view class="section-title"
+      >举报此{{report.confirmation.target.kind === 'post' ? '帖子主题' :
+      '回复'}}？</view
+    >
+    <view class="disclosure"
+      >每个账号只能举报一次，确认后无法修改或撤回。受理不代表内容已经审核或删除。</view
+    >
+    <wu-f7-button variant="fill" tone="danger"
+      class="primary danger"
+      bind:press="onConfirmReport"
+      disabled="{{report.busy || report.frozen}}"
+    >
+      确认举报</wu-f7-button
+    ><wu-f7-button variant="plain" class="quiet" bind:press="onDismissReport" disabled="{{report.busy}}">
+      取消
+    </wu-f7-button>
+  </view>
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}"
+    wx:if="{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+    class="recovery-section"
+  >
+    <view class="section-title"
+      >{{report.frozen ? '举报结果待确认' : '举报结果'}}</view
+    ><view class="status" aria-role="status">{{report.status}}</view
+    ><view wx:if="{{report.error}}" class="error" aria-role="alert"
+      >{{report.error}}</view
+    ><view wx:if="{{report.receiptStatus}}" class="status"
+      >{{report.receiptStatus}}</view
+    >
+    <view wx:if="{{report.frozen}}"
+      ><wu-f7-button variant="fill"
+        class="primary"
+        bind:press="onReportReceipt"
+        disabled="{{report.busy}}"
+      >
+        查询原举报回执</wu-f7-button
+      ><wu-f7-button variant="plain" class="quiet" bind:press="onReportRetry" disabled="{{report.busy}}">
+        重试完全相同的原举报
+      </wu-f7-button></view
+    >
+    <wu-f7-button variant="plain" wx:if="{{report.busy}}" class="quiet" bind:press="onReportCancel">
+      停止等待（不撤销举报）
+    </wu-f7-button>
+    <view class="disclosure"
+      >关闭、重启和切换账号不会清除原账号待确认的请求。内容不可查看后，仍可恢复自己的回执。</view
+    ><navigator class="link-row" url="/pages/report-progress/report-progress"
+      >举报与陪审结果恢复</navigator
+    >
+  </wu-f7-block>
+</template>
+<template name="support-jury-recovery">
+  <view
+    wx:if="{{juryVote.confirmation}}"
+    class="confirmation"
+    aria-role="dialog"
+    aria-label="确认陪审意见"
+    ><view class="section-title"
+      >确认{{juryVote.confirmation.vote === 'keep' ? '保留帖子主题' :
+      '删除帖子主题'}}？</view
+    ><view class="disclosure">每人只能提交一次陪审意见，不能修改或撤回。</view
+    ><wu-f7-button variant="fill"
+      class="primary"
+      bind:press="onConfirmJuryVote"
+      disabled="{{juryVote.busy || juryVote.frozen}}"
+    >
+      确认{{juryVote.confirmation.vote === 'keep' ? '保留' : '删除'}}</wu-f7-button
+    ><wu-f7-button variant="plain"
+      class="quiet"
+      bind:press="onDismissJuryVote"
+      disabled="{{juryVote.busy}}"
+    >
+      取消
+    </wu-f7-button></view
+  >
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}"
+    wx:if="{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+    class="recovery-section"
+    ><view class="section-title"
+      >{{juryVote.frozen ? '陪审结果待确认' : '陪审结果'}}</view
+    ><view class="status" aria-role="status">{{juryVote.status}}</view
+    ><view wx:if="{{juryVote.error}}" class="error" aria-role="alert"
+      >{{juryVote.error}}</view
+    ><view wx:if="{{juryVote.receiptStatus}}" class="status"
+      >{{juryVote.receiptStatus}}</view
+    ><view wx:if="{{juryVote.frozen}}"
+      ><wu-f7-button variant="fill"
+        class="primary"
+        bind:press="onJuryReceipt"
+        disabled="{{juryVote.busy}}"
+      >
+        查询原陪审回执</wu-f7-button
+      ><wu-f7-button variant="plain" class="quiet" bind:press="onJuryRetry" disabled="{{juryVote.busy}}">
+        重试完全相同的原陪审意见
+      </wu-f7-button></view
+    ><wu-f7-button variant="plain" wx:if="{{juryVote.busy}}" class="quiet" bind:press="onJuryCancel">
+      停止等待（不撤销意见）
+    </wu-f7-button></wu-f7-block
+  >
+</template>

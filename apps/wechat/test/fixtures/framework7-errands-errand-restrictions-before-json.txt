@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "全局跑腿限制",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon"
+  }
+}

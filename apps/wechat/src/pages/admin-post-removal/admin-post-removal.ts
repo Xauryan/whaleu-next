@@ -9,7 +9,11 @@ import {
   initialAdminPostRemovalView,
 } from '../../admin-post-removal/controller';
 Page({
+  onToggleDetails() {
+    this.setData({ detailsExpanded: !this.data.detailsExpanded });
+  },
   data: {
+    detailsExpanded: false,
     ...initialAdminPostRemovalView(),
     addressError: '',
     punishmentKind: 'none',

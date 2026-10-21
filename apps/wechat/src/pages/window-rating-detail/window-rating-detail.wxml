@@ -1,35 +1,127 @@
-<import src="../../window-ratings/common.wxml" />
-<view class="screen">
-  <view class="eyebrow">WHALEU · 窗口评分</view><view class="title">窗口详情与评分</view>
-  <template is="window-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryWindowId,recoveryScore,recoveryPhase,busy,restartRequired,confirming,receiptMissing}}" />
-  <block wx:if="{{loaded &amp;&amp; detail}}">
-    <view class="card"><template is="window-facts" data="{{window:detail.window}}" /><view class="meta">已核验目录版本：{{detail.catalogRevision}}</view></view>
-    <view class="card"><view class="section-title">当前窗口均分</view><template is="window-summary" data="{{summary:detail.window.summary}}" /></view>
-    <view class="card">
-      <view class="section-title">我的当前评分</view>
-      <view wx:if="{{detail.myScore.kind === 'recorded'}}" class="body">当前评分：{{detail.myScore.score}} 分，可修改</view>
-      <view wx:elif="{{detail.myScore.kind === 'unavailable'}}" class="notice">我的历史评分暂不能确认，不能当作尚未评分。</view>
-      <view wx:else class="notice">当前已确认尚未评分。</view>
-      <view class="notice">{{blocker}}</view>
+<import src="../../window-ratings/framework7-product.wxml" />
+<view class="screen dining-product has-dock f7-ios-theme f7-dining-product">
+  <wu-f7-block spacing="compact">
+    <template is="window-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryWindowId,recoveryScore,recoveryPhase,busy,restartRequired,confirming,receiptMissing,loaded}}" />
+  </wu-f7-block>
+  <block wx:if="{{loaded && detail}}">
+    <view class="dp-hero">
+      <view class="meta">
+        {{detail.window.canteenName}} · {{detail.window.floor.label}}
+      </view>
+      <view class="title">
+        {{detail.window.name}}
+      </view>
+      <template is="window-summary" data="{{summary:detail.window.summary}}" />
     </view>
-    <view wx:if="{{canScore}}" class="card">
-      <view class="section-title">{{detail.myScore.kind === 'recorded' ? '修改我的评分' : '选择我的评分'}}</view>
-      <view class="body">本次选择：{{selectedScore === null ? '尚未选择' : selectedScore}}</view>
-      <view class="window-scores"><button wx:for="{{scores}}" wx:key="value" data-score="{{item.value}}" class="{{selectedScore === item.value ? 'score-selected' : ''}}" bindtap="onScore" disabled="{{busy || confirming}}">{{item.label}}</button></view>
-      <view class="notice">每个账号在同一窗口只保留一个当前评分。修改会替换原分数，不增加当前评分条数；选择 0 分同样计入。</view>
-      <button bindtap="onConfirm" disabled="{{busy || selectedScore === null || confirming}}">核对本次评分</button>
+    <view class="dp-own">
+      <view wx:if="{{detail.myScore.kind === 'recorded'}}">
+        我的评分
+        <text class="dp-own-value">
+          {{detail.myScore.score}}
+        </text>
+        <text class="meta">
+          可修改
+        </text>
+      </view>
+      <view wx:elif="{{detail.myScore.kind === 'unavailable'}}" class="notice">
+        我的历史评分暂不能确认
+      </view>
+      <view class="meta" wx:else="">
+        还未评分
+      </view>
+      <view wx:if="{{blocker && !canScore}}" class="notice">
+        {{blocker}}
+      </view>
     </view>
-    <view wx:if="{{confirming === 'score'}}" class="card confirmation">
-      <view class="section-title">确认{{detail.myScore.kind === 'recorded' ? '修改' : '提交'}}窗口评分</view>
-      <view class="body">{{detail.window.canteenName}} · {{detail.window.floor.label}} · {{detail.window.name}}</view>
-      <view wx:if="{{detail.myScore.kind === 'recorded'}}" class="body">当前 {{detail.myScore.score}} 分 → 本次 {{selectedScore}} 分</view>
-      <view wx:else class="body">本次 {{selectedScore}} 分</view>
-      <view class="notice">先保存本次原请求再发送。如果评分已在别处变化，本次不会覆盖新评分，需要刷新后重新确认。</view>
-      <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认这个分数</button>
-      <button bindtap="onCloseConfirmation" disabled="{{busy || frozen}}">返回调整</button>
+    <view class="dp-heading">
+      <view class="meta">
+        -10 至 +10 分 · 0 分有效
+      </view>
+      <wu-f7-button class="dp-plain" data-panel="info" aria-label="评分说明" bind:press="onTogglePanel" variant="plain">
+        <wu-icon name="more" size="22" />
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{uiPanel === 'info'}}" class="dp-disclosure">
+      <view class="notice">
+        每个账号保留一个当前评分，修改会替换原分数。
+      </view>
+      <view class="meta">
+        目录版本：{{detail.catalogRevision}}
+      </view>
+    </view>
+    <view wx:if="{{canScore}}">
+      <view class="dp-dock">
+        <wu-f7-button class="primary" data-panel="score" disabled="{{busy || frozen || confirming}}" bind:press="onTogglePanel" variant="fill" size="large">
+          {{detail.myScore.kind === 'recorded' ? '修改评分' : '为窗口评分'}}
+        </wu-f7-button>
+      </view>
+      <view wx:if="{{uiPanel === 'score' && !confirming}}" class="dp-mask">
+        <view class="dp-sheet">
+          <view class="dp-heading">
+            <view class="section-title">
+              {{detail.window.name}}
+            </view>
+            <wu-f7-button class="dp-plain" bind:press="onClosePanel" variant="plain">
+              关闭
+            </wu-f7-button>
+          </view>
+          <view class="meta">
+            -10 至 +10 分，0 分同样计入
+          </view>
+          <view class="dp-score-choices">
+            <wu-f7-button wx:for="{{scores}}" wx:key="value" data-score="{{item.value}}" class="{{selectedScore === item.value ? 'score-selected' : ''}}" disabled="{{busy || confirming}}" bind:press="onScore" variant="{{selectedScore === item.value ? 'fill' : 'tonal'}}">
+              {{item.label}}
+            </wu-f7-button>
+          </view>
+          <view class="meta">
+            本次选择：{{selectedScore === null ? '尚未选择' :
+            selectedScore}}
+          </view>
+          <wu-f7-button class="primary" disabled="{{busy || selectedScore === null || confirming}}" bind:press="onConfirm" variant="fill" size="large">
+            继续
+          </wu-f7-button>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{confirming === 'score'}}" class="dp-mask">
+      <view class="dp-sheet">
+        <view class="section-title">
+          确认{{detail.myScore.kind === 'recorded' ? '修改' :
+          '提交'}}评分
+        </view>
+        <view class="body">
+          {{detail.window.canteenName}} · {{detail.window.floor.label}} ·
+          {{detail.window.name}}
+        </view>
+        <view wx:if="{{detail.myScore.kind === 'recorded'}}" class="body">
+          当前 {{detail.myScore.score}} 分 → 本次 {{selectedScore}} 分
+        </view>
+        <view class="body" wx:else="">
+          本次 {{selectedScore}} 分
+        </view>
+        <view class="notice">
+          若评分已在别处变化，本次不会覆盖，需要刷新后重新确认。
+        </view>
+        <wu-f7-button class="primary" disabled="{{busy || frozen}}" bind:press="onSubmit" variant="fill" size="large">
+          确认这个分数
+        </wu-f7-button>
+        <wu-f7-button disabled="{{busy || frozen}}" bind:press="onCloseConfirmation" variant="tonal">
+          返回调整
+        </wu-f7-button>
+      </view>
     </view>
   </block>
-  <button bindtap="onOpenDiscussion" disabled="{{busy}}">显示昵称的文字讨论与回复 →</button>
-  <button bindtap="onOpenRecommendations" disabled="{{busy}}">菜品推荐与独立撤回 →</button>
-  <navigator class="link" url="/pages/window-ratings/window-ratings">窗口目录与独立回执恢复 →</navigator>
+  <view class="dp-destinations">
+    <wu-f7-button disabled="{{busy}}" bind:press="onOpenDiscussion" variant="tonal">
+      <wu-icon name="message" size="20" />
+      讨论与回复
+    </wu-f7-button>
+    <wu-f7-button disabled="{{busy}}" bind:press="onOpenRecommendations" variant="tonal">
+      <wu-icon name="heart" size="20" />
+      推荐菜品
+    </wu-f7-button>
+  </view>
+  <navigator class="link dp-footer" url="/pages/window-ratings/window-ratings">
+    全部窗口
+  </navigator>
 </view>

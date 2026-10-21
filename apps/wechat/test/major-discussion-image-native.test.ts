@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createRequire } from 'node:module';
+import path from 'node:path';
 import { registerMajorDiscussionPage } from '../src/major-discussion/page';
 import { discussionHarness } from './major-discussion-helpers';
 import { PendingMajorDiscussionStore } from '../src/major-discussion/pending';
@@ -587,6 +589,47 @@ test('Stop waiting exposes the preserved original journal once cancellation sett
   assert.notEqual(h.view().imageRequestId, '');
   assert.equal(h.view().imageFrozen, true);
 });
+const requireNative = createRequire(__filename);
+interface NativeBridge {
+  capture(
+    handler: string,
+    dataset?: Record<string, unknown>,
+  ): { press(): boolean; detach(): void };
+  find(handler: string, dataset?: Record<string, unknown>): unknown;
+  lifecycle(name: string): void;
+  emissions: { currentTarget: { dataset: Record<string, unknown> } }[];
+}
+function nativeBridge(
+  page: NativePage,
+  route = 'major-discussion',
+): NativeBridge {
+  const { createNativePressBridge } = requireNative(
+    './native-press-emitted-harness.mjs',
+  ) as {
+    createNativePressBridge(options: {
+      page: NativePage;
+      pageFile: string;
+      dist: string;
+      extension: 'ts';
+    }): NativeBridge;
+  };
+  return createNativePressBridge({
+    page,
+    pageFile: path.join(__dirname, `../src/pages/${route}/${route}`),
+    dist: path.join(__dirname, '../src'),
+    extension: 'ts',
+  });
+}
+function nativePress(
+  bridge: NativeBridge,
+  handler: string,
+  dataset: Record<string, unknown> = {},
+) {
+  const control = bridge.capture(handler, dataset);
+  const emitted = control.press();
+  control.detach();
+  return emitted;
+}
 interface NativePage {
   data: Record<string, unknown>;
   setData(patch: Record<string, unknown>): void;
@@ -628,19 +671,28 @@ test('actual registered Major Page loads v2, picker hide resumes, and two explic
     page.onShow();
     await until(() => page.data.loaded === true);
     assert.equal(page.data.imageEnabled, true);
+    const bridge = nativeBridge(page);
     assert.ok(
       h.calls.some((c) => c.method === 'GET' && c.url.includes('/v2/majors/')),
     );
+    assert.equal(
+      nativePress(bridge, 'onTogglePanel', { panel: 'compose' }),
+      true,
+    );
     h.holdPicker = true;
-    page.onPickImage({ currentTarget: { dataset: { source: 'album' } } });
+    const oldPick = bridge.capture('onPickImage', { source: 'album' });
+    assert.equal(oldPick.press(), true);
     await until(() => h.observed.includes('choose'));
     h.runtime.hide();
     runtime.privateViews?.clear();
+    bridge.lifecycle('hide');
     page.onHide();
     h.finishPicker();
     await flush();
     assert.equal(h.observed.includes('upload'), false);
+    bridge.lifecycle('show');
     page.onShow();
+    assert.equal(oldPick.press(), false);
     await until(() => page.data.imageCount === 1);
     await until(() => page.data.imageBusy === false);
     assert.equal(page.data.canPublish, false);
@@ -653,9 +705,24 @@ test('actual registered Major Page loads v2, picker hide resumes, and two explic
       ).length,
       0,
     );
-    page.onConfirmPublish();
+    assert.equal(nativePress(bridge, 'onConfirmPublish'), true);
     assert.equal(page.data.confirming, 'publish');
-    await page.onSubmit();
+    const submit = bridge.capture('onSubmit');
+    assert.equal(submit.press(), true);
+    assert.equal(
+      submit.press(),
+      true,
+      'The unchanged button guard is busy; the Page imageBusy guard rejects duplicate publication intent',
+    );
+    await until(
+      () =>
+        h.calls.some(
+          (c) => c.method === 'POST' && c.url.endsWith('/discussion'),
+        ) &&
+        page.data.body === '' &&
+        page.data.imageBusy === false &&
+        page.data.busy === false,
+    );
     assert.equal(
       h.calls.filter(
         (c) => c.method === 'POST' && c.url.endsWith('/discussion'),
@@ -663,6 +730,7 @@ test('actual registered Major Page loads v2, picker hide resumes, and two explic
       1,
     );
     assert.equal(page.data.body, '');
+    bridge.lifecycle('detach');
     page.onUnload();
     assert.equal(page.data.gallerySrc, '');
   } finally {
@@ -792,4 +860,216 @@ test('legacy original key is restored before corrupt newer metadata and no picke
   await h.composer.pick(context);
   assert.equal(h.calls.length, 0);
   assert.equal(h.observed.length, 0);
+});
+
+async function mountMediaPage(
+  h: ReturnType<typeof harness>,
+  mode: 'roots' | 'thread' = 'roots',
+) {
+  const base = discussionHarness();
+  base.controller.dispose();
+  const runtime: CommunityRuntime = {
+    ...base.runtime,
+    sessions: h.sessions,
+    pendingMajorDiscussion: new PendingMajorDiscussionStore(h.storage, origin),
+    majorDiscussionV2: h.runtime.publication,
+    majorDiscussionImages: h.runtime,
+  };
+  const globals = globalThis as unknown as Record<string, unknown>,
+    prior = { Page: globals.Page, getApp: globals.getApp, wx: globals.wx };
+  let page: NativePage | undefined;
+  globals.Page = (value: NativePage) => {
+    page = value;
+  };
+  globals.getApp = () => ({ community: runtime });
+  globals.wx = {};
+  registerMajorDiscussionPage(mode);
+  assert.ok(page);
+  const owner = page;
+  owner.setData = function (patch) {
+    this.data = { ...this.data, ...patch };
+  };
+  owner.onLoad({ majorId, ...(mode === 'thread' ? { rootId: id(301) } : {}) });
+  owner.onShow();
+  const bridge = nativeBridge(
+    owner,
+    mode === 'thread' ? 'major-discussion-thread' : 'major-discussion',
+  );
+  await until(() => owner.data.loaded === true);
+  return {
+    page: owner,
+    bridge,
+    close() {
+      bridge.lifecycle('detach');
+      owner.onUnload();
+      Object.assign(globals, prior);
+    },
+  };
+}
+for (const mode of ['roots', 'thread'] as const)
+  test(`actual Major ${mode} image Button→Page→gallery uses numeric ordinal and revokes closed or hidden late downloads`, async () => {
+    const h = harness();
+    const target = {
+      protocol: 'major-discussion-v2' as const,
+      id: id(300),
+      majorId,
+      rootId: mode === 'thread' ? id(301) : null,
+      replyToReplyId: null,
+      body: '合成图片讨论',
+      author: {
+        mode: 'named' as const,
+        profileId: id(10),
+        displayName: '合成昵称',
+      },
+      addressedAuthor: null,
+      createdAt: '2026-10-20T09:00:00.000Z',
+      likes: 0,
+      replyCount: 0,
+      isLiked: false,
+      myMembershipRevision: null,
+      images: [
+        { majorId, commentId: id(300), bindingId: id(400), ordinal: 0 },
+        { majorId, commentId: id(300), bindingId: id(401), ordinal: 1 },
+      ],
+    };
+    h.runtime.publication.list = async () => ({
+      protocol: 'major-discussion-v2',
+      majorId,
+      catalogRevision: context.catalogRevision,
+      majorRevision: context.majorRevision,
+      discussionRevision: '1',
+      root:
+        mode === 'thread'
+          ? { ...target, id: id(301), rootId: null, images: [] }
+          : null,
+      items: [target],
+      totalCount: 1,
+      nextCursor: null,
+      continuation: 'end',
+    });
+    const f = await mountMediaPage(h, mode);
+    try {
+      assert.equal(
+        nativePress(f.bridge, 'onImage', { id: id(300), index: 0 }),
+        true,
+      );
+      await until(() => f.page.data.gallerySrc === 'wxfile://tmp/view.png');
+      const imageEvent = f.bridge.emissions.find(
+        (event) => event.currentTarget.dataset.index === 0,
+      );
+      assert.ok(imageEvent);
+      assert.equal(typeof imageEvent.currentTarget.dataset.index, 'number');
+      assert.equal(nativePress(f.bridge, 'onImagePrevious'), false);
+      assert.equal(nativePress(f.bridge, 'onImageNext'), true);
+      await until(
+        () =>
+          f.page.data.galleryIndex === 1 &&
+          f.page.data.gallerySrc === 'wxfile://tmp/view.png',
+      );
+      assert.equal(nativePress(f.bridge, 'onImageNext'), false);
+      assert.equal(nativePress(f.bridge, 'onImagePrevious'), true);
+      await until(
+        () =>
+          f.page.data.galleryIndex === 0 &&
+          f.page.data.gallerySrc === 'wxfile://tmp/view.png',
+      );
+      assert.equal(nativePress(f.bridge, 'onCloseGallery'), true);
+      await flush();
+      assert.equal(f.page.data.gallerySrc, '');
+      h.holdDownload = true;
+      const count = h.observed.filter((x) => x === 'download').length;
+      assert.equal(
+        nativePress(f.bridge, 'onImage', { id: id(300), index: 0 }),
+        true,
+      );
+      await until(
+        () => h.observed.filter((x) => x === 'download').length === count + 1,
+      );
+      if (mode === 'roots')
+        assert.equal(nativePress(f.bridge, 'onCloseGallery'), true);
+      else {
+        f.bridge.lifecycle('hide');
+        f.page.onHide();
+      }
+      h.downloadLate();
+      await flush();
+      assert.equal(f.page.data.gallerySrc, '');
+      assert.ok(h.removed.includes('wxfile://tmp/late.png'));
+    } finally {
+      f.close();
+    }
+  });
+test('actual Major image recovery controls preserve unknown original and require a confirmed whole-set cancellation', async () => {
+  const h = harness(),
+    f = await mountMediaPage(h);
+  try {
+    assert.equal(
+      nativePress(f.bridge, 'onTogglePanel', { panel: 'compose' }),
+      true,
+    );
+    assert.equal(
+      nativePress(f.bridge, 'onPickImage', { source: 'album' }),
+      true,
+    );
+    await until(
+      () => f.page.data.imageCount === 1 && f.page.data.imageBusy === false,
+    );
+    f.page.onBody({ detail: { value: '保留有序图片的原文' } });
+    assert.equal(nativePress(f.bridge, 'onConfirmPublish'), true);
+    h.losePublication = true;
+    h.publicationMissing = true;
+    assert.equal(nativePress(f.bridge, 'onSubmit'), true);
+    await until(
+      () =>
+        f.page.data.imageRecoverable === true &&
+        f.page.data.imageBusy === false &&
+        f.page.data.busy === false,
+    );
+    const original = structuredClone([...h.storage.data.values()]);
+    const originalId = f.page.data.imageRequestId;
+    assert.ok(originalId);
+    assert.equal(nativePress(f.bridge, 'onRecoverImages'), true);
+    await until(
+      () => f.page.data.imageBusy === false && f.page.data.busy === false,
+    );
+    assert.deepEqual([...h.storage.data.values()], original);
+    assert.equal(f.page.data.imageRequestId, originalId);
+    assert.equal(nativePress(f.bridge, 'onRequestImageCancel'), true);
+    assert.equal(f.page.data.imageCancelConfirm, true);
+    assert.equal(nativePress(f.bridge, 'onCloseImageCancel'), true);
+    assert.equal(f.page.data.imageCancelConfirm, false);
+    assert.deepEqual([...h.storage.data.values()], original);
+    assert.equal(nativePress(f.bridge, 'onRequestImageCancel'), true);
+    h.failCancellation = true;
+    assert.equal(nativePress(f.bridge, 'onConfirmImageCancel'), true);
+    await until(
+      () => f.page.data.imageBusy === false && f.page.data.busy === false,
+    );
+    assert.equal(f.page.data.imagePending, true);
+    assert.equal(f.page.data.imageRequestId, originalId);
+    assert.ok(
+      [...h.storage.data.values()].some((value) =>
+        JSON.stringify(value).includes('cancel'),
+      ),
+    );
+    h.failCancellation = false;
+    assert.equal(nativePress(f.bridge, 'onRequestImageCancel'), true);
+    assert.equal(nativePress(f.bridge, 'onConfirmImageCancel'), true);
+    await until(
+      () =>
+        f.page.data.imageBusy === false &&
+        f.page.data.imagePending === false &&
+        f.page.data.busy === false,
+    );
+    assert.equal(f.page.data.imageRequestId, '');
+    assert.ok(
+      h.calls.some(
+        (call) =>
+          call.url.includes('/upload-requests/') &&
+          call.url.endsWith('/cancel'),
+      ),
+    );
+  } finally {
+    f.close();
+  }
 });

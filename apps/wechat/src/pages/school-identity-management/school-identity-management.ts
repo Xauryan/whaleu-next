@@ -6,7 +6,11 @@ import {
 } from '../../school-identity/controller';
 import type { SchoolIdentityAction } from '../../school-identity/contract';
 Page({
-  data: { ...initialSchoolIdentityView(), addressError: '' },
+  data: {
+    uiPanel: '',
+    ...initialSchoolIdentityView(),
+    addressError: '',
+  },
   targetProfileId: '',
   controller: undefined as SchoolIdentityController | undefined,
   onLoad(query: { targetProfileId?: string } = {}) {
@@ -17,7 +21,12 @@ Page({
     else
       this.setData({ addressError: '公开主页地址无效；仍可恢复本账号原请求' });
   },
+  onToggleUiPanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel ?? '';
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.onHide();
     const runtime = getApp<WhaleuApp>().community;
     if (!runtime) {
@@ -26,7 +35,11 @@ Page({
     }
     this.controller = new SchoolIdentityController(
       runtime,
-      (view) => this.setData({ ...view }),
+      (view) =>
+        this.setData({
+          ...view,
+          ...(!view.loaded || !view.hasSession ? { uiPanel: '' } : {}),
+        }),
       () => getApp<WhaleuApp>().profileAvatar?.invalidate(),
     );
     void this.controller.load(this.targetProfileId);
@@ -85,10 +98,12 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.setData({ uiPanel: '' });
     this.onHide();
   },
 });

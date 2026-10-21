@@ -1,0 +1,19 @@
+@import '../community-search/framework7-forms.wxss';
+/* The F7 list is the form shell. Controls stay independent native labels,
+ * not children of an actionable ListItem overlay. */
+.settings-screen .preference-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: var(--f7-list-item-min-height);
+  margin-left: var(--f7-list-item-padding-horizontal);
+  padding: 4px var(--f7-list-item-padding-horizontal) 4px 0;
+  border-bottom: 1px solid var(--f7-list-item-border-color);
+  box-sizing: border-box;
+}
+.settings-screen .preference-row:last-child {
+  border-bottom: 0;
+}
+.settings-screen .setting-note {
+  padding: 0 0 8px;
+}

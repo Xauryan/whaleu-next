@@ -1,0 +1,7 @@
+<label class="f7-ios-theme f7-toggle-row {{disabled ? 'f7-toggle-disabled' : ''}}" catchtap="onConsumeTap">
+  <text wx:if="{{label}}" class="f7-toggle-label">{{label}}</text>
+  <view class="f7-toggle-target">
+    <view class="f7-toggle-track {{checked ? 'f7-toggle-checked' : ''}}" aria-hidden="true"><view class="f7-toggle-knob" /></view>
+    <switch class="f7-toggle-native" type="switch" checked="{{nativeChecked}}" disabled="{{disabled || readOnly || !mounted || !pageVisible}}" aria-label="{{ariaLabel || label || '开关'}}" catchchange="onChange" />
+  </view>
+</label>

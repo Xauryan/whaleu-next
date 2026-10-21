@@ -1,0 +1,104 @@
+/* Framework7 9.2.0 native consumer support hosts. Components own isolated
+ * button, content-block and list geometry; these rules arrange only slots. */
+@import '../../design/framework7-ios.wxss';
+.support-native {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: var(--f7-page-bg-color);
+  color: var(--f7-text-color);
+  padding: 8px 0 calc(32px + env(safe-area-inset-bottom));
+}
+.support-native > .toolbar,
+.support-native > .disclosure,
+.support-native > .privacy-line,
+.support-native > .status,
+.support-native > .error,
+.support-native > .footnote,
+.support-native > .body-copy,
+.support-native > .list-heading,
+.support-native > .timeline-item,
+.support-native > navigator,
+.support-native > wu-f7-button {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.support-native wu-f7-button {
+  display: block;
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  line-height: normal;
+}
+.support-native .primary,
+.support-native .secondary {
+  gap: 6px;
+}
+.support-native wu-f7-button.primary,
+.support-native wu-f7-button.secondary {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+.support-native wu-f7-button.icon-button {
+  width: 44px;
+  flex: 0 0 44px;
+}
+.support-native wu-f7-button.copy-button {
+  flex: 0 0 52px;
+}
+.support-native wu-f7-button.row-button {
+  width: 100%;
+}
+.support-native wu-f7-block,
+.support-native wu-f7-list {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.support-native .section-title {
+  font-size: 17px;
+}
+.support-native .choice-actions {
+  gap: 8px;
+}
+.support-native .choice-actions > wu-f7-button {
+  flex: 1;
+  min-width: 0;
+}
+.support-native .contact-row {
+  padding: 10px 16px;
+}
+.support-native .service-links .link-row {
+  padding: 12px 16px;
+  min-height: 52px;
+}
+.support-native .identity-heading,
+.support-native .account-overview,
+.support-native .empty {
+  text-align: center;
+}
+.support-native .build-identity {
+  padding-top: 28px;
+}
+.support-native > .confirmation {
+  margin: 16px;
+}
+.support-native .timeline-item {
+  margin-left: 26px;
+  margin-right: 16px;
+}
+.support-native .appeal-form textarea {
+  border-radius: 8px;
+}
+/* Historical post-pin templates remain native and unchanged. */
+.support-native .card {
+  margin-left: 16px;
+  margin-right: 16px;
+}

@@ -1,3 +1,7 @@
+import {
+  guardNoticeRead,
+  type NoticeReadGuard,
+} from '../notifications/notice-read-guard';
 import type { ApiClient } from '../api/client';
 import type { Decoder } from '../api/envelopes';
 import { activityTimestamp } from '../activities/contract';
@@ -247,7 +251,7 @@ export class ErrandNoticesController extends CommunityController<ErrandNoticesVi
       () => this.clear(),
     );
   }
-  async read(noticeId: string): Promise<void> {
+  async read(noticeId: string, guard?: NoticeReadGuard): Promise<void> {
     if (
       this.view.busy ||
       !this.view.loaded ||
@@ -258,7 +262,11 @@ export class ErrandNoticesController extends CommunityController<ErrandNoticesVi
     )
       return;
     await this.run(
-      (cancel) => this.runtime.errandNotices!.read(noticeId, cancel),
+      (cancel) =>
+        this.runtime.errandNotices!.read(
+          noticeId,
+          guardNoticeRead(cancel, guard),
+        ),
       (raw) => {
         const result = decodeErrandNoticeRead(raw);
         if (result.noticeId !== noticeId) invalidErrand();

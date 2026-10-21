@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import { CommunityDiscussionCounts } from '../../src/community/discussion/counts.js';
+import { UnprovedFixtureDiscussionCounts } from '../support/unproved-discussion-counts.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
@@ -208,6 +210,8 @@ test(
             subject: code,
           }),
         })
+        .overrideProvider(CommunityDiscussionCounts)
+        .useValue(new UnprovedFixtureDiscussionCounts())
         .overrideProvider(COMMUNITY_AUTHORIZATION)
         .useValue(authorization)
         .overrideProvider(COMMUNITY_VISIBILITY)
@@ -468,6 +472,17 @@ test(
             ),
           );
           await deletions.comment(other.accessToken, r);
+          assert.deepEqual(
+            (
+              await reads.comments(author.accessToken, p, {
+                limit: 10,
+                previewLimit: 2,
+                sort: 'time',
+                order: 'asc',
+              })
+            ).items,
+            [],
+          );
           await grant(pool, third.accountId, space, {
             ...verified(region),
             phoneVerified: false,
@@ -570,12 +585,18 @@ test(
           );
           assert.equal(
             (await reads.comment(other.accessToken, r)).replyCount,
-            1,
+            null,
+          );
+          assert.deepEqual(
+            (
+              await reads.replies(other.accessToken, r, { limit: 20 })
+            ).items.map((item) => item.id),
+            [sibling],
           );
           const detail = await feeds.detail(other.accessToken, p);
-          assert.equal(detail.commentCount, 1);
-          assert.equal(detail.replyCount, 1);
-          assert.equal(detail.discussionCount, 2);
+          assert.equal(detail.commentCount, null);
+          assert.equal(detail.replyCount, null);
+          assert.equal(detail.discussionCount, null);
           rejected(
             await replies.create(
               author.accessToken,
@@ -600,7 +621,7 @@ test(
           );
           assert.equal(
             (await feeds.detail(author.accessToken, p)).discussionCount,
-            0,
+            null,
           );
         },
       );

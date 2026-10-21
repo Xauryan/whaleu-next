@@ -1,0 +1,17 @@
+<template name="timetable-status">
+  <view wx:if="{{error}}" class="tt-error" role="alert">{{error}}</view>
+  <view wx:if="{{message}}" class="tt-message">{{message}}</view>
+  <view wx:if="{{busy}}" class="tt-muted">正在连接课表服务…</view>
+  <wu-f7-block wx:if="{{pending}}" strong="{{true}}" inset="{{true}}" spacing="compact" title="原请求待确认">
+    <view class="tt-muted">关闭页面不会取消服务端请求。{{cancelPending ? '取消请求已保存，只会继续取消，不会重新保存课程。' : ''}}</view>
+    <view class="tt-request">{{requestId}}</view>
+    <wu-f7-button bind:press="onRecover" disabled="{{busy}}" variant="tonal">查询原请求</wu-f7-button>
+    <wu-f7-button bind:press="onRetry" disabled="{{busy || blocked}}" variant="tonal">{{cancelPending ? '重试取消原请求' : '重试同一原请求'}}</wu-f7-button>
+    <wu-f7-button bind:press="onCancelOriginal" disabled="{{busy || blocked}}" variant="plain">取消原请求</wu-f7-button>
+  </wu-f7-block>
+  <navigator wx:if="{{!authenticated}}" url="/pages/login/login" class="tt-login" aria-label="登录后使用个人课表">登录后使用课表 <wu-icon name="chevron-right" size="16" tone="accent" /></navigator>
+  <view class="tt-actions">
+    <wu-f7-button bind:press="onRefresh" disabled="{{busy}}" variant="plain">刷新课表</wu-f7-button>
+    <wu-f7-button wx:if="{{mode !== 'agenda'}}" data-target="agenda" bind:press="onNavigate" disabled="{{busy || pending || blocked}}" variant="plain">返回周课表</wu-f7-button>
+  </view>
+</template>

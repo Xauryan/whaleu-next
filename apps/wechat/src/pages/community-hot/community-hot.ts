@@ -12,9 +12,18 @@ import { systemClock } from '../../platform/clock';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import { HotController, initialHotView } from './controller';
 
+/** View-only date label. Original timestamps stay on the DTO for all actions. */
+function displayDate(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 Page({
   ratingLinkNavigator: undefined as RatingLinkNavigator | undefined,
   data: {
+    showInfo: false,
     ...initialHotView(),
     hotRanges,
     tradingLabels,
@@ -105,9 +114,21 @@ Page({
           : [],
         `${view.selectedSpaceId}:${view.range}`,
       );
-      this.setData({ ...view }, presented);
+      this.setData(
+        {
+          ...view,
+          posts: view.posts.map((item) => ({
+            ...item,
+            publishedAtLabel: displayDate(item.publishedAt),
+          })),
+        },
+        presented,
+      );
     });
     void this.controller.load(selected);
+  },
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
   },
   onRange(event: { currentTarget: { dataset: { key: string } } }) {
     void this.controller?.setRange(event.currentTarget.dataset.key);

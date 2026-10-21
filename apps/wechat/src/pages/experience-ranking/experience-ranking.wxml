@@ -1,14 +1,28 @@
 <import src="../../experience/public-display.wxml" />
-<view class="page">
-  <view class="title">已知参与者等级列表</view>
-  <view class="hint">仅展示当前可查看的已知参与者，历史覆盖不完整。保留服务端本次返回顺序；不代表完整全站或本校排名。</view>
-  <view>{{status}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <button bindtap="onRefresh">刷新列表</button>
-  <button wx:if="{{busy}}" bindtap="onCancel">停止加载</button>
-  <view wx:if="{{loaded &amp;&amp; items.length === 0}}" class="hint">{{selectionStatus === 'scan_limited' ? '本次扫描尚未找到可展示项，已知来源仍未查完' : '本次已检查的已知来源中没有可展示项'}}</view>
-  <view wx:for="{{items}}" wx:key="profileId" class="card">
-    <button bindtap="onProfile" data-profile-id="{{item.profileId}}" disabled="{{busy || !loaded}}">{{item.displayName}}</button>
-    <template is="public-experience-display" data="{{display: item.experienceDisplay, colors: experienceColorStyles, detailed: true}}" />
+<view class="ranking-page f7-ios-theme personal-native">
+  <view class="ranking-header">
+    <view class="ranking-note">已知参与者的等级，不代表全站或本校排名。</view>
+    <wu-f7-button class="ranking-refresh" aria-label="刷新等级列表" bind:press="onRefresh" variant="plain">
+      <wu-icon name="refresh" tone="accent" size="21" />
+    </wu-f7-button>
   </view>
+  <view wx:if="{{busy || !loaded}}" class="ranking-status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="ranking-error" aria-role="alert">{{error}}</view>
+  <wu-f7-button wx:if="{{busy}}" class="ranking-cancel" bind:press="onCancel" variant="plain">停止加载</wu-f7-button>
+  <wu-f7-block wx:if="{{loaded &amp;&amp; items.length === 0}}" class="ranking-empty" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <wu-icon name="people" tone="muted" size="42" />
+    <view>{{selectionStatus === 'scan_limited' ? '暂未找到可展示的同学，仍有来源尚未查完' : '本次查看的来源中没有可展示的同学'}}</view>
+  </wu-f7-block>
+  <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view wx:for="{{items}}" wx:key="profileId" class="ranking-person">
+      <view class="ranking-avatar">
+        <wu-icon name="person" tone="muted" size="27" />
+      </view>
+      <view class="ranking-information">
+        <wu-f7-list-item class="ranking-name" data-profile-id="{{item.profileId}}" disabled="{{busy || !loaded}}" bind:press="onProfile" link="{{true}}" title="{{item.displayName}}" title-slot="{{true}}"><text slot="title">{{item.displayName}}</text></wu-f7-list-item>
+        <template is="public-experience-display" data="{{display: item.experienceDisplay, colors: experienceColorStyles, detailed: true}}" />
+      </view>
+    </view>
+  </wu-f7-list>
+  <view wx:if="{{loaded &amp;&amp; items.length}}" class="ranking-footnote">{{selectionStatus === 'scan_limited' ? '还有来源尚未查完，当前列表并不完整。' : selectionStatus === 'limit_reached' ? '已达到本次展示上限。' : '本次已查看的来源已到末尾。'}} 历史覆盖不完整，按返回顺序展示。</view>
 </view>

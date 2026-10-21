@@ -34,6 +34,7 @@ import { smokeErrandAdminMutations } from './smoke-errand-admin-mutations.mjs';
 import { smokeErrandAdmin } from './smoke-errand-admin.mjs';
 import { smokeErrands } from './smoke-errands.mjs';
 import { smokeActivities } from './smoke-activities.mjs';
+import { smokeFramework7Discussions } from './smoke-framework7-discussions.mjs';
 import { smokeAnnouncements } from './smoke-announcements.mjs';
 import { smokeDirectory } from './smoke-directory.mjs';
 import { smokeViewReporting } from './smoke-view-reporting.mjs';
@@ -130,6 +131,7 @@ for (const [module, exports] of [
     assert.equal(typeof value[name], 'function', `${module}: ${name}`);
 }
 for (const module of [
+  'personal-timetable/contracts',
   'window-discussion/v2-contract',
   'window-discussion/media-contract',
   'major-discussion/v2-contract',
@@ -428,7 +430,12 @@ if (!configured) {
   assert.ok(storageCalls <= 2);
 }
 const config = JSON.parse(readFileSync(path.join(dist, 'app.json'), 'utf8'));
-assert.equal(config.pages[0], 'pages/login/login');
+assert.equal(config.pages[0], 'pages/community-feed/community-feed');
+assert.ok(config.pages.includes('pages/login/login'));
+for (const route of ['campus-hub', 'inbox', 'me', 'compose-entry'])
+  assert.ok(config.pages.includes(`pages/${route}/${route}`));
+assert.equal(config.darkmode, true);
+assert.equal(config.themeLocation, 'theme.json');
 function assertColdOfficial(current) {
   assert.equal(current.data.busy, false);
   assert.equal(current.data.pending, false);
@@ -564,6 +571,126 @@ function assertColdRatingDiscussionMedia(current) {
   assert.equal(current.data.gallery.open, false);
   assert.equal(current.data.gallery.localSrc, '');
 }
+const timetableTermId = '11111111-1111-4111-8111-111111111111';
+const timetableEntryId = '22222222-2222-4222-8222-222222222222';
+const timetableModes = new Map([
+  ['pages/personal-timetable/personal-timetable', 'agenda'],
+  ['pages/personal-timetable-term/personal-timetable-term', 'term'],
+  ['pages/personal-timetable-entry/personal-timetable-entry', 'entry'],
+]);
+for (const route of timetableModes.keys())
+  assert.ok(
+    config.pages.includes(route),
+    `${route}: registered timetable page`,
+  );
+// Timetable pages use ready and a private form/agenda projection, not loaded.
+// Assert the entire initial view independently of its implementation so that
+// retaining any course, form, confirmation or recovery state fails the smoke.
+function assertColdTimetable(current, route, expectError = true) {
+  const mode = timetableModes.get(route);
+  assert.equal(current.controller, undefined, `${route}: no cold controller`);
+  assert.equal(current.navigator, undefined, `${route}: no cold navigator`);
+  assert.equal('loaded' in current.data, false, `${route}: ready-based view`);
+  assert.deepEqual(
+    current.route,
+    {
+      termId: timetableTermId,
+      entryId: mode === 'entry' ? timetableEntryId : null,
+      duplicate: mode === 'entry',
+    },
+    `${route}: valid identity-only deep link`,
+  );
+  assert.deepEqual(
+    current.data,
+    {
+      mode,
+      busy: false,
+      ready: false,
+      authenticated: false,
+      blocked: false,
+      pending: false,
+      cancelPending: false,
+      requestId: '',
+      terms: [],
+      term: null,
+      termIndex: 0,
+      week: 1,
+      weekOptions: [],
+      currentWeek: null,
+      currentLabel: '',
+      days: [],
+      selected: null,
+      termForm: { name: '', weekOneMonday: '', weekCount: '20' },
+      entryForm: {
+        name: '',
+        teacher: '',
+        location: '',
+        note: '',
+        dayOfWeek: 1,
+        startTime: '08:00',
+        endTime: '08:45',
+        weeksText: '',
+        color: 'blue',
+      },
+      editing: false,
+      duplicate: false,
+      conflictWarning: '',
+      message: '',
+      error: expectError ? '当前环境尚未配置个人课表服务。' : '',
+      dateShiftPrompt: '',
+      deletePrompt: false,
+      deleteText: '',
+      daysOfWeek: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+      colorLabels: ['蓝色', '青色', '绿色', '橙色', '红色', '紫色'],
+      colors: ['blue', 'teal', 'green', 'orange', 'red', 'purple'],
+    },
+    `${route}: complete cold timetable view`,
+  );
+}
+function seedPrivateTimetableView(current) {
+  current.setData({
+    busy: true,
+    ready: true,
+    authenticated: true,
+    blocked: true,
+    pending: true,
+    cancelPending: true,
+    requestId: '33333333-3333-4333-8333-333333333333',
+    terms: [{ termId: timetableTermId, name: 'Private term' }],
+    term: { termId: timetableTermId, name: 'Private term' },
+    termIndex: 2,
+    week: 3,
+    weekOptions: ['Private week'],
+    currentWeek: 3,
+    currentLabel: 'Private date',
+    days: [{ entries: [{ name: 'Private course' }] }],
+    selected: { entryId: timetableEntryId, name: 'Private course' },
+    termForm: {
+      name: 'Private term',
+      weekOneMonday: '2026-09-07',
+      weekCount: '18',
+    },
+    entryForm: {
+      name: 'Private course',
+      teacher: 'Private teacher',
+      location: 'Private room',
+      note: 'Private note',
+      dayOfWeek: 5,
+      startTime: '09:00',
+      endTime: '10:30',
+      weeksText: '1,3,5',
+      color: 'purple',
+    },
+    editing: true,
+    duplicate: true,
+    conflictWarning: 'Private conflict',
+    message: 'Private message',
+    error: 'Private failure',
+    dateShiftPrompt: 'Private confirmation',
+    deletePrompt: true,
+    deleteText: 'Private deletion',
+  });
+}
 const campusToolsRoutes = new Set([
   'pages/campus-tools/campus-tools',
   'pages/campus-tools-map/campus-tools-map',
@@ -579,7 +706,7 @@ function assertColdCampusTools(current, route) {
   assert.equal(current.data.authRecovery, false);
   assert.equal(current.data.state, '');
   assert.equal(current.data.provenance, null);
-  assert.ok(current.data.error);
+  assert.ok(current.data.error, `${route}: cold read failure must be visible`);
   if (route === 'pages/campus-tools/campus-tools') {
     assert.equal(current.invalid, false);
     assert.equal(current.navigator, undefined);
@@ -619,6 +746,21 @@ function assertColdCampusTools(current, route) {
       assert.equal(typeof current[handler], 'function', `${route}: ${handler}`);
   }
 }
+// Inbox is a composed owner conversation list, not the removed unread badge hub.
+function assertColdInbox(current, expectError = false) {
+  assert.equal(current.data.hasSession, false);
+  assert.equal(current.data.noticesBusy, false);
+  assert.equal(current.data.list.loaded, false);
+  assert.equal(current.data.list.unread, null);
+  assert.equal(current.data.list.coverage, null);
+  assert.equal(current.data.list.canMore, false);
+  assert.deepEqual(current.data.list.items, []);
+  if (expectError) assert.ok(current.data.list.error);
+  assert.equal(current.data.searchOpen, false);
+  assert.equal(current.data.searchQuery, '');
+  assert.equal(current.data.chatHelpOpen, false);
+  assert.deepEqual(current.data.rows, []);
+}
 for (const route of config.pages.filter(
   (route) => !['pages/login/login', 'pages/status/status'].includes(route),
 )) {
@@ -627,6 +769,72 @@ for (const route of config.pages.filter(
   current.setData = (data) => {
     current.data = { ...current.data, ...data };
   };
+  if (route === 'pages/account-menu/account-menu') {
+    assert.equal(current.controller, undefined);
+    assert.ok(current.data.entries.length > 0);
+    for (const entry of current.data.entries) {
+      assert.equal(typeof entry.title, 'string');
+      assert.ok(config.pages.includes(entry.url.replace(/^\//, '')));
+    }
+    assert.ok(
+      current.data.entries.some(
+        (entry) => entry.url === '/pages/settings/settings',
+      ),
+    );
+    current.onShow();
+    current.onHide();
+    current.onUnload();
+    continue;
+  }
+  if (route === 'pages/notice-thread/notice-thread') {
+    // This local activity destination explicitly has no service or private
+    // controller; validate its exact route instead of inventing loaded state.
+    assert.equal(current.data.valid, false);
+    assert.equal(current.controller, undefined);
+    assert.equal('loaded' in current.data, false);
+    current.onLoad({ kind: 'activity' });
+    assert.equal(current.data.valid, true);
+    for (const query of [
+      {},
+      { kind: 'system' },
+      { kind: 'activity', extra: 'x' },
+      null,
+    ]) {
+      current.onLoad(query);
+      assert.equal(current.data.valid, false);
+    }
+    const template = readFileSync(path.join(dist, `${route}.wxml`), 'utf8');
+    assert.match(template, /暂未接入/);
+    assert.equal(/accessToken|refreshToken/.test(template), false);
+    for (const match of template.matchAll(
+      /(?:bind|catch):?(?:tap|press|input|change|confirm)="([^"]+)"/g,
+    ))
+      assert.equal(
+        typeof current[match[1]],
+        'function',
+        `${route}: ${match[1]}`,
+      );
+    continue;
+  }
+  if (route === 'pages/social-notices/social-notices') {
+    for (const query of [
+      {},
+      { kind: 'system' },
+      { kind: 'likes', accountId: 'untrusted' },
+    ]) {
+      current.onLoad(query);
+      current.onShow();
+      assert.equal(current.kind, null);
+      assert.equal(current.controller, undefined);
+      assert.equal(current.data.loaded, false);
+      assert.deepEqual(current.data.rows, []);
+      assert.ok(
+        current.data.error,
+        `${route}: cold read failure must be visible`,
+      );
+      current.onHide();
+    }
+  }
   if (route === 'pages/private-message-detail/private-message-detail') {
     for (const invalidRoute of [{}, { conversationId: 'not-a-uuid' }]) {
       current.onLoad(invalidRoute);
@@ -635,7 +843,10 @@ for (const route of config.pages.filter(
       assert.equal(current.controller, undefined);
       assert.equal(current.data.loaded, false);
       assert.deepEqual(current.data.messages, []);
-      assert.ok(current.data.error);
+      assert.ok(
+        current.data.error,
+        `${route}: cold read failure must be visible`,
+      );
       current.onHide();
     }
   }
@@ -659,7 +870,10 @@ for (const route of config.pages.filter(
       assert.equal(current.controller, undefined);
       assert.equal(current.data.loaded, false);
       assert.deepEqual(current.data.items, []);
-      assert.ok(current.data.error);
+      assert.ok(
+        current.data.error,
+        `${route}: cold read failure must be visible`,
+      );
       current.onHide();
     }
   }
@@ -688,11 +902,23 @@ for (const route of config.pages.filter(
       );
       assert.equal(current.controller, undefined);
       assert.equal(current.data.loaded, false);
-      assert.ok(current.data.error);
+      assert.ok(
+        current.data.error,
+        `${route}: cold read failure must be visible`,
+      );
       current.onHide();
     }
   }
-  if (campusToolsRoutes.has(route))
+  if (route === 'pages/social-notices/social-notices')
+    current.onLoad({ kind: 'likes' });
+  else if (timetableModes.has(route))
+    current.onLoad({
+      termId: timetableTermId,
+      ...(timetableModes.get(route) === 'entry'
+        ? { entryId: timetableEntryId, duplicate: '1' }
+        : {}),
+    });
+  else if (campusToolsRoutes.has(route))
     current.onLoad?.(
       route === 'pages/campus-tools/campus-tools'
         ? { campusId: '11111111-1111-4111-8111-111111111111' }
@@ -778,6 +1004,7 @@ for (const route of config.pages.filter(
                             : {}),
                         },
     );
+  if (timetableModes.has(route)) assertColdTimetable(current, route, false);
   current.onShow();
   if (route.startsWith('pages/major-')) {
     assert.equal(current.validRoute, true, `${route}: valid Major route`);
@@ -895,7 +1122,38 @@ for (const route of config.pages.filter(
   )
     assertColdInstitutional(current);
   else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
-  else if (route === 'pages/rating-create/rating-create')
+  else if (timetableModes.has(route)) {
+    assertColdTimetable(current, route);
+    const priorCalls = calls;
+    const priorStorageCalls = storageCalls;
+    const priorStorageWrites = bootstrapStorageWrites.length;
+    for (const handler of [
+      'onRefresh',
+      'onSave',
+      'onDelete',
+      'onConfirmDelete',
+      'onConfirmDateShift',
+      'onRecover',
+      'onRetry',
+      'onCancelOriginal',
+    ]) {
+      assert.equal(typeof current[handler], 'function', `${route}: ${handler}`);
+      current[handler]();
+    }
+    current.onNavigate({ currentTarget: { dataset: { target: 'newEntry' } } });
+    assert.equal(
+      calls,
+      priorCalls,
+      `${route}: cold actions cannot call providers`,
+    );
+    assert.equal(storageCalls, priorStorageCalls, `${route}: no journal reads`);
+    assert.equal(
+      bootstrapStorageWrites.length,
+      priorStorageWrites,
+      `${route}: no journal writes`,
+    );
+    assertColdTimetable(current, route);
+  } else if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
   else if (route === 'pages/rating-category-create/rating-category-create')
     assertColdRatingCategoryCreation(current);
@@ -913,12 +1171,42 @@ for (const route of config.pages.filter(
     assert.equal(current.data.requestId, '');
     assert.ok(current.data.message);
     assert.equal(current.phone, undefined);
+  } else if (route === 'pages/campus-hub/campus-hub') {
+    assert.equal(current.data.campus.busy, false);
+    assert.deepEqual(current.data.campus.entries, []);
+    assert.ok(current.data.campus.error);
+  } else if (route === 'pages/inbox/inbox') {
+    assertColdInbox(current, true);
+  } else if (route === 'pages/me/me') {
+    assert.equal(current.data.profile.loaded, false);
+    assert.equal(current.data.profile.nickname, '');
+    assert.ok(current.data.profile.error);
+  } else if (route === 'pages/system-notices/system-notices') {
+    assert.deepEqual(current.data.items, []);
+    assert.equal(current.data.loaded, false);
+    assert.equal(current.data.unreadCount, null);
+    assert.equal(current.data.sources.length, 4);
+    for (const source of current.data.sources) {
+      assert.equal(source.loaded, false);
+      assert.ok(source.error, `${route}: ${source.source} failure is retained`);
+    }
   } else assert.equal(current.data.loaded, false);
-  if (route !== 'pages/phone-binding/phone-binding')
-    assert.ok(current.data.error);
+  if (
+    ![
+      'pages/phone-binding/phone-binding',
+      'pages/campus-hub/campus-hub',
+      'pages/inbox/inbox',
+      'pages/me/me',
+      'pages/system-notices/system-notices',
+    ].includes(route)
+  )
+    assert.ok(
+      current.data.error,
+      `${route}: cold read failure must be visible`,
+    );
   const template = readFileSync(path.join(dist, `${route}.wxml`), 'utf8');
   for (const match of template.matchAll(
-    /(?:bind|catch)(?:tap|input|change|confirm|getphonenumber)="([^"]+)"/g,
+    /(?:bind|catch):?(?:tap|press|input|change|confirm|getphonenumber|opened|closed|action|requestclose)="([^"]+)"/g,
   ))
     assert.equal(typeof current[match[1]], 'function', `${route}: ${match[1]}`);
   assert.equal(/accessToken|refreshToken/.test(template), false);
@@ -927,6 +1215,7 @@ for (const route of config.pages.filter(
       config.pages.includes(match[1].split('?')[0]),
       `Unregistered navigation: ${match[1]}`,
     );
+  if (timetableModes.has(route)) seedPrivateTimetableView(current);
   current.onHide();
   assert.equal(current.controller, undefined);
   if (
@@ -949,6 +1238,8 @@ for (const route of config.pages.filter(
   )
     assertColdInstitutional(current);
   else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  else if (timetableModes.has(route))
+    assertColdTimetable(current, route, false);
   else if (route === 'pages/rating-create/rating-create')
     assertColdRatingCreation(current);
   else if (route === 'pages/rating-category-create/rating-category-create')
@@ -963,7 +1254,20 @@ for (const route of config.pages.filter(
     assert.equal(current.data.requestId, '');
     assert.equal(current.data.hasSession, false);
     assert.equal(current.phone, undefined);
+  } else if (route === 'pages/campus-hub/campus-hub') {
+    assert.deepEqual(current.data.campus.entries, []);
+    assert.equal(current.data.campus.campusId, '');
+    assert.equal(current.navigator, undefined);
+  } else if (route === 'pages/inbox/inbox') {
+    assertColdInbox(current);
+    assert.deepEqual(current.data.filteredRows, []);
+    assert.equal(current.notices, undefined);
+    assert.equal(current.navigator, undefined);
+  } else if (route === 'pages/me/me') {
+    assert.equal(current.data.profile.loaded, false);
+    assert.equal(current.data.profile.nickname, '');
   } else assert.equal(current.data.loaded, false);
+  if (timetableModes.has(route)) seedPrivateTimetableView(current);
   current.onShow();
   if (route === 'pages/official-account-operations/official-account-operations')
     assertColdOfficial(current);
@@ -972,6 +1276,7 @@ for (const route of config.pages.filter(
   )
     assertColdInstitutional(current);
   else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  else if (timetableModes.has(route)) assertColdTimetable(current, route);
   else if (route === 'pages/phone-binding/phone-binding')
     assert.equal(current.phone, undefined);
   else if (route === 'pages/school-posting-policy/school-posting-policy') {
@@ -980,7 +1285,10 @@ for (const route of config.pages.filter(
     assert.equal(current.data.form, null);
     assert.equal(current.data.pending, false);
     assert.equal(current.data.sourceState, '');
-    assert.ok(current.data.error);
+    assert.ok(
+      current.data.error,
+      `${route}: cold read failure must be visible`,
+    );
   } else if (
     [
       'pages/school-services/school-services',
@@ -990,7 +1298,10 @@ for (const route of config.pages.filter(
     assert.equal(current.controller, undefined);
     assert.equal(current.data.loaded, false);
     assert.deepEqual(current.data.entries, []);
-    assert.ok(current.data.error);
+    assert.ok(
+      current.data.error,
+      `${route}: cold read failure must be visible`,
+    );
     assert.equal(current.reader, undefined);
     if (route === 'pages/school-configuration/school-configuration')
       assert.equal(current.uploader, undefined);
@@ -1002,7 +1313,10 @@ for (const route of config.pages.filter(
   ) {
     assert.equal(current.controller, undefined);
     assert.equal(current.data.loaded, false);
-    assert.ok(current.data.error);
+    assert.ok(
+      current.data.error,
+      `${route}: cold read failure must be visible`,
+    );
     if (route === 'pages/organization-editor/organization-editor') {
       assert.equal(current.data.detail, null);
       assert.equal(current.data.publicDetail, null);
@@ -1023,7 +1337,10 @@ for (const route of config.pages.filter(
   ) {
     assert.equal(current.controller, undefined);
     assert.equal(current.data.busy, false);
-    assert.ok(current.data.error);
+    assert.ok(
+      current.data.error,
+      `${route}: cold read failure must be visible`,
+    );
     assert.equal(current.reader, undefined);
     if (route === 'pages/activity-native/activity-native')
       assert.deepEqual(current.data.items, []);
@@ -1046,8 +1363,25 @@ for (const route of config.pages.filter(
     assert.equal(current.data.loaded, false);
     assert.equal(current.data.application, null);
     assert.equal(current.data.evidenceSrc, '');
-    assert.ok(current.data.error);
-  } else assert.ok(current.controller);
+    assert.ok(
+      current.data.error,
+      `${route}: cold read failure must be visible`,
+    );
+  } else if (route === 'pages/campus-hub/campus-hub') {
+    assert.equal(current.data.campus.busy, false);
+    assert.deepEqual(current.data.campus.entries, []);
+    assert.ok(current.data.campus.error);
+  } else if (route === 'pages/inbox/inbox') {
+    assertColdInbox(current, true);
+    assert.ok(current.controller);
+    assert.ok(current.notices);
+  } else if (route === 'pages/wallet/wallet') {
+    assert.equal(current.controller, undefined);
+    assert.equal(current.data.loaded, false);
+    assert.equal(current.data.error, '钱包服务暂未接入');
+    assert.equal('balance' in current.data, false);
+  } else assert.ok(current.controller, `${route}: controller lifecycle`);
+  if (timetableModes.has(route)) seedPrivateTimetableView(current);
   current.onUnload();
   if (route === 'pages/official-account-operations/official-account-operations')
     assertColdOfficial(current);
@@ -1056,6 +1390,8 @@ for (const route of config.pages.filter(
   )
     assertColdInstitutional(current);
   else if (campusToolsRoutes.has(route)) assertColdCampusTools(current, route);
+  else if (timetableModes.has(route))
+    assertColdTimetable(current, route, false);
   if (route === 'pages/rating-create/rating-create') {
     assertColdRatingCreation(current);
     assert.equal(current.controller, undefined);
@@ -1154,7 +1490,7 @@ const verificationTemplate = readFileSync(
   path.join(dist, 'pages/verification/verification.wxml'),
   'utf8',
 );
-assert.match(verificationTemplate, /实际操作仍由服务端实时校验/);
+assert.match(verificationTemplate, /状态不代表操作权限/);
 assert.match(
   verificationTemplate,
   /pages\/student-verification\/student-verification/,
@@ -1219,7 +1555,7 @@ const pollPostWire = () => ({
   author: {
     kind: 'anonymous',
     personaId: '99999999-9999-4999-8999-999999999999',
-    displayName: '合成匿名作者',
+    displayName: '合成分身作者',
     avatar: null,
     isPostAuthor: true,
   },
@@ -1326,7 +1662,7 @@ const discussionReplyId = '12121212-1212-4212-8212-121212121212';
 const rootWire = () => ({
   id: rootId,
   postId: pollPostId,
-  text: '合成根评论',
+  text: '合成根回复',
   images: [],
   author: pollPostWire().author,
   createdAt: '2026-10-07T00:00:00.000Z',
@@ -2625,7 +2961,12 @@ assert.equal(updateReads, 1);
 updatesUnavailable = true;
 updatesPage.onOpen({ currentTarget: { dataset: { id: updatesNoticeId } } });
 await flushTrading();
-assert.deepEqual(updatesPage.data.items[0], updateNotice());
+const { timeLabel: updatesTimeLabel, ...updatesRawNotice } =
+  updatesPage.data.items[0];
+assert.deepEqual(updatesRawNotice, updateNotice());
+assert.equal(typeof updatesTimeLabel, 'string');
+assert.ok(updatesTimeLabel.length > 0);
+assert.notEqual(updatesTimeLabel, updatesRawNotice.createdAt);
 assert.deepEqual(updatesPage.data.identityOverlay.items, {});
 assert.equal(updateRoutes.length, 1);
 // Unavailable placeholders retain owner read state but never regain content/identity on refresh.
@@ -2662,8 +3003,9 @@ const updatesTemplate = readFileSync(
   path.join(dist, 'pages/community-updates/community-updates.wxml'),
   'utf8',
 );
-assert.match(updatesTemplate, /标记已读/);
-assert.match(updatesTemplate, /外部通知尚未接入/);
+assert.match(updatesTemplate, /bind:press="onRead"/);
+assert.match(updatesTemplate, /标为已读/);
+assert.match(updatesTemplate, /查看回复不会自动标为已读/);
 assert.equal(
   /requestSubscribeMessage|requestPermission|actorId|studentNumber|contacts/.test(
     updatesTemplate,
@@ -2846,6 +3188,7 @@ await smokeErrandAdmin({ app, dist, flush: flushTrading });
 await smokeErrandAdminMutations({ app, dist, flush: flushTrading });
 await smokeErrandAdminNotices({ app, dist, flush: flushTrading });
 await smokeActivities({ app, dist, flush: flushTrading });
+await smokeFramework7Discussions({ app, dist, flush: flushTrading });
 await smokeAnnouncements({
   app,
   dist,

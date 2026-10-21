@@ -732,9 +732,9 @@ test('native page exposes account-wide confirmation and named content entries wi
   ])
     assert.match(page, new RegExp(`on${handler}\\(`));
   assert.match(page, /controller\?\.dispose/);
-  assert.match(wxml, /包括其他地区的非匿名头像展示/);
+  assert.match(wxml, /包括其他地区的非分身头像展示/);
   assert.match(wxml, /私有系统通知/);
-  assert.match(wxml, /匿名分身保持不变/);
+  assert.match(wxml, /分身保持不变/);
   assert.match(wxml, /management\.canClearCustomAvatar/);
   assert.doesNotMatch(
     wxml,
@@ -750,7 +750,7 @@ test('native page exposes account-wide confirmation and named content entries wi
   }
   assert.match(
     source('pages/community-mine/community-mine.wxml'),
-    /恢复本账号原头像管理请求/,
+    /bind:press="onToggleTools"[\s\S]*wx:if="\{\{showTools\}\}"[\s\S]*原管理请求恢复[\s\S]*url="\/pages\/profile-avatar-moderation\/profile-avatar-moderation">\s*<text>头像管理<\/text>/,
   );
 });
 

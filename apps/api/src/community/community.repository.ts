@@ -4,6 +4,7 @@ import {
   searchRoot,
   searchReply,
 } from './content-review/search-source-reads.js';
+import { CommunitySocialSourceCapture } from './social-source/capture.js';
 import { CommunityExperienceSourceCapture } from './experience-source/capture.js';
 import { APP_CONFIG } from '../config/config.js';
 import type { RuntimeConfig } from '../config/config.js';
@@ -61,6 +62,9 @@ export class CommunityRepository {
     @Inject(CampusService) private readonly campuses: CampusService,
     @Inject(CommunityExperienceSourceCapture)
     private readonly experience: CommunityExperienceSourceCapture,
+    @Inject(CommunitySocialSourceCapture)
+    private readonly social:
+      CommunitySocialSourceCapture | undefined = undefined,
   ) {}
   async spaces(campusId: string) {
     const { campus, region } = await this.campuses.getBrowseContext(campusId);
@@ -194,7 +198,12 @@ export class CommunityRepository {
           this.config.COMMUNITY_UPDATES_PROCESSING === 'automatic',
         ],
       );
-    if (inserted.rows[0]) await this.experience.enroll(inserted.rows[0].id, tx);
+    if (inserted.rows[0]) {
+      await this.experience.enroll(inserted.rows[0].id, tx);
+      if (!this.social)
+        throw new Error('Social source capture is required for fresh events');
+      await this.social.interaction(inserted.rows[0].id, tx);
+    }
     return inserted.rows[0]?.id ?? null;
   }
 }

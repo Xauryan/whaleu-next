@@ -25,7 +25,7 @@ const wxml = await readFile(
   'utf8',
 );
 for (const match of wxml.matchAll(
-  /bind(?:tap|input|change)="([A-Za-z][A-Za-z0-9]*)"/g,
+  /bind(?::press|tap|input|change)="([A-Za-z][A-Za-z0-9]*)"/g,
 ))
   assert.ok(page.includes(match[1]), `missing emitted handler ${match[1]}`);
 assert.match(wxml, /不会自动发布/);

@@ -1,0 +1,623 @@
+import type { NoticeReadGuard } from '../../notifications/notice-read-guard';
+import type { ApiClient } from '../../api/client';
+import { SocialUpdatesController } from '../../notifications/social-updates/controller';
+import { HttpSocialUpdatesGateway } from '../../notifications/social-updates/gateway';
+import type {
+  SocialUpdate,
+  SocialUpdateCategory,
+} from '../../notifications/social-updates/contract';
+import { ClientError } from '../../api/errors';
+import {
+  initialCommunityView,
+  type CommunityView,
+} from '../../community/controller';
+import type { CommunityRuntime } from '../../community/runtime';
+import type { CommunityUpdate } from '../../community/updates-contract';
+import { systemClock } from '../../platform/clock';
+import type { RatingLikeNotice } from '../../ratings/like-updates-contract';
+import type { RatingNotice } from '../../ratings/updates-contract';
+import type { RatingSubscriptionNotice } from '../../ratings/subscription-updates-contract';
+import {
+  RatingUpdatesController,
+  type RatingUpdatesView,
+} from '../../ratings/updates-controller';
+import { WindowDiscussionNoticesController } from '../../window-discussion/notices-controller';
+import type { DiscussionNotice as WindowNotice } from '../../window-discussion/contract';
+import { MajorDiscussionNoticesController } from '../../major-discussion/notices-controller';
+import type { DiscussionNotice as MajorNotice } from '../../major-discussion/contract';
+import { UpdatesController } from '../community-updates/controller';
+import { conversationTime } from '../inbox/presentation';
+import type { SocialNoticeKind } from './contract';
+export { socialNoticeKind, type SocialNoticeKind } from './contract';
+
+export type SocialSourceKey =
+  | 'community'
+  | 'community-like'
+  | 'community-save'
+  | 'follower'
+  | 'rating-like'
+  | 'rating-reply'
+  | 'rating-subscription'
+  | 'window'
+  | 'major';
+export interface SocialNoticeRow {
+  /** Namespaced receipt identity: never dispatch a raw ID across source owners. */
+  readonly id: string;
+  readonly noticeId: string;
+  readonly source: SocialSourceKey;
+  readonly sourceLabel: string;
+  readonly createdAt: string;
+  readonly title: string;
+  readonly action: string;
+  readonly preview: string;
+  readonly timeLabel: string;
+  readonly unread: boolean;
+  readonly available: boolean;
+  readonly busy: boolean;
+}
+export interface SocialNoticeSource {
+  readonly key: SocialSourceKey;
+  readonly label: string;
+  readonly configured: boolean;
+  readonly loaded: boolean;
+  readonly busy: boolean;
+  readonly canMore: boolean;
+  readonly error: string;
+  readonly coverageUnknown: boolean;
+}
+export interface SocialNoticesView extends CommunityView {
+  readonly title: string;
+  readonly icon: string;
+  readonly tone: string;
+  readonly coverage: string;
+  readonly unavailable: boolean;
+  readonly partial: boolean;
+  readonly loaded: boolean;
+  readonly rows: readonly SocialNoticeRow[];
+  readonly sources: readonly SocialNoticeSource[];
+  readonly canMore: boolean;
+}
+export function initialSocialNoticesView(
+  kind: SocialNoticeKind | null,
+): SocialNoticesView {
+  return {
+    ...initialCommunityView(),
+    title:
+      kind === 'likes'
+        ? '赞和收藏'
+        : kind === 'followers'
+          ? '新增关注'
+          : kind === 'comments'
+            ? '回复和@'
+            : '互动消息',
+    icon:
+      kind === 'likes'
+        ? 'heart-filled'
+        : kind === 'followers'
+          ? 'person-filled'
+          : 'message-filled',
+    tone:
+      kind === 'likes' ? 'coral' : kind === 'followers' ? 'socialblue' : 'mint',
+    coverage:
+      kind === 'likes'
+        ? '评分、食堂和专业内容收到的点赞统一显示在这里。主题获赞与被收藏通知尚未接入；未读数不跨来源相加。'
+        : kind === 'comments'
+          ? '社区、评分、食堂和专业内容的回复统一显示在这里，包括已收藏或订阅内容的新回复。@ 提醒尚未接入。失效且无法分类的互动只在这里保留一次。各来源独立分页和确认已读。'
+          : kind === 'followers'
+            ? '新增关注通知尚未接入，暂时无法读取谁新关注了你。'
+            : '',
+    unavailable: kind === 'followers',
+    partial: true,
+    loaded: false,
+    rows: [],
+    sources: [],
+    canMore: false,
+  };
+}
+const sourceLabels: Record<SocialSourceKey, string> = {
+  community: '社区回复',
+  'community-like': '社区点赞',
+  'community-save': '社区收藏',
+  follower: '新增关注',
+  'rating-like': '评分点赞',
+  'rating-reply': '评分回复',
+  'rating-subscription': '订阅回复',
+  window: '食堂互动',
+  major: '专业互动',
+};
+type NoticeBase = {
+  readonly noticeId: string;
+  readonly createdAt: string;
+  readonly readAt: string | null;
+  readonly status: 'available' | 'unavailable';
+};
+function baseRow(source: SocialSourceKey, item: NoticeBase): SocialNoticeRow {
+  return {
+    id: `${source}:${item.noticeId}`,
+    noticeId: item.noticeId,
+    source,
+    sourceLabel: sourceLabels[source],
+    createdAt: item.createdAt,
+    title: '消息暂不可查看',
+    action: '',
+    preview: '',
+    timeLabel: conversationTime(item.createdAt, systemClock.now()),
+    unread: item.readAt === null,
+    available: item.status === 'available',
+    busy: false,
+  };
+}
+function ratingRow(
+  source: SocialSourceKey,
+  item: RatingLikeNotice | RatingNotice | RatingSubscriptionNotice,
+): SocialNoticeRow {
+  const row = baseRow(source, item);
+  if (item.status === 'unavailable') return row;
+  return {
+    ...row,
+    title: item.kind === 'like' ? item.actor.displayName : sourceLabels[source],
+    action:
+      item.kind === 'like'
+        ? item.target.replyId
+          ? '赞了你的评分回复'
+          : '赞了你的评分'
+        : item.kind === 'subscription'
+          ? item.activity === 'reply'
+            ? '订阅的评分有新回复'
+            : '订阅的评分有新评价'
+          : '评分有新回复',
+    preview: item.preview.text,
+  };
+}
+function socialUpdateRow(
+  source: 'community-like' | 'community-save' | 'follower',
+  item: SocialUpdate,
+): SocialNoticeRow {
+  const row = baseRow(source, item);
+  if (item.status === 'unavailable') return row;
+  return {
+    ...row,
+    title:
+      item.kind === 'follow' ? item.actor.displayName : sourceLabels[source],
+    action:
+      item.kind === 'follow'
+        ? '关注了你'
+        : item.kind === 'save'
+          ? '你的主题被收藏了'
+          : item.target.replyId
+            ? '你的回复收到了赞'
+            : item.target.commentId
+              ? '你的评论收到了赞'
+              : '你的主题收到了赞',
+    // Like/save projections intentionally contain neither actor nor content preview.
+    preview: '',
+  };
+}
+function commentRow(item: CommunityUpdate): SocialNoticeRow {
+  const row = baseRow('community', item);
+  if (item.status === 'unavailable') return row;
+  return {
+    ...row,
+    // Do not bypass the full owner timeline's identity-privacy overlay.
+    title: '社区回复',
+    action:
+      item.reason === 'saved'
+        ? '收藏的主题有新回复'
+        : item.kind === 'reply'
+          ? '回复有新回复'
+          : '主题有新回复',
+    preview: item.preview.text || (item.preview.images.length ? '[图片]' : ''),
+  };
+}
+function discussionRows(
+  source: 'window' | 'major',
+  items: readonly (WindowNotice | MajorNotice)[],
+  kind: SocialNoticeKind,
+): SocialNoticeRow[] {
+  return items.flatMap((item) => {
+    // The unavailable DTO deliberately omits kind. Keep it once, neutrally, in
+    // comments instead of inventing a category or duplicating it under likes.
+    if (item.status === 'unavailable')
+      return kind === 'comments' ? [baseRow(source, item)] : [];
+    if ((item.kind === 'like') !== (kind === 'likes')) return [];
+    return [
+      {
+        ...baseRow(source, item),
+        title: source === 'window' ? '食堂互动' : '专业互动',
+        action: item.kind === 'like' ? '你的内容收到了赞' : '回复有新回复',
+        preview: item.preview.text,
+      },
+    ];
+  });
+}
+interface SourceState extends SocialNoticeSource {
+  readonly rows: readonly SocialNoticeRow[];
+}
+interface Reader {
+  load(): Promise<void>;
+  more(): Promise<void>;
+  open(id: string): Promise<void>;
+  acknowledge(id: string, guard?: NoticeReadGuard): Promise<void>;
+  dispose(): void;
+}
+interface OwnerView extends CommunityView {
+  readonly loaded: boolean;
+  readonly canMore?: boolean;
+  readonly canLoadMore?: boolean;
+  readonly canNext?: boolean;
+  readonly unreadCountStatus?: 'available' | 'unavailable';
+}
+/** Composes real owner readers. No eager acknowledgments or incomplete totals. */
+export class SocialNoticesController {
+  private view: SocialNoticesView;
+  private readonly readers = new Map<SocialSourceKey, Reader>();
+  private readonly sources = new Map<SocialSourceKey, SourceState>();
+  private generation = 0;
+  private inactive = false;
+  private invalidated = false;
+  private readonly owner;
+  private readonly unsubscribeSession: () => void;
+  private readonly unsubscribeHide: () => void;
+  private readonly unsubscribeSafety: () => void;
+  constructor(
+    private readonly runtime: CommunityRuntime,
+    private readonly kind: SocialNoticeKind,
+    private readonly render: (view: SocialNoticesView) => void,
+    private readonly navigate: (url: string) => Promise<void>,
+    private readonly socialApi?: ApiClient,
+  ) {
+    this.owner = runtime.sessions.snapshot();
+    this.view = {
+      ...this.initial(),
+      hasSession: !!this.owner.credentials,
+    };
+    this.unsubscribeSession = runtime.sessions.subscribe(() => {
+      if (!this.ownsSession())
+        this.invalidate('登录状态已变化，请重新加载消息。');
+    });
+    this.unsubscribeHide =
+      runtime.privateViews?.subscribe((accountId) => {
+        if (
+          accountId === undefined ||
+          accountId === this.owner.credentials?.accountId
+        )
+          this.invalidate('消息已清除，请重新加载。');
+      }) ?? (() => undefined);
+    this.unsubscribeSafety =
+      runtime.safetyChanges?.subscribe((accountId) => {
+        if (accountId === this.owner.credentials?.accountId)
+          this.invalidate('安全状态已变化，请重新加载消息。');
+      }) ?? (() => undefined);
+    this.render(this.view);
+  }
+  private initial(): SocialNoticesView {
+    const view = initialSocialNoticesView(this.kind);
+    if (!this.socialApi || this.kind === 'comments') return view;
+    return {
+      ...view,
+      unavailable: false,
+      coverage:
+        this.kind === 'likes'
+          ? '社区、评分、食堂和专业内容的点赞与社区主题被收藏通知显示在这里。各来源独立分页和确认已读，未读数不跨来源相加。'
+          : '新增关注显示在这里。打开主页不会标记已读。消息范围未确认时，当前列表不代表全部通知。',
+    };
+  }
+  snapshot(): SocialNoticesView {
+    return this.view;
+  }
+  private ownsSession(): boolean {
+    const current = this.runtime.sessions.snapshot();
+    return (
+      current.epoch === this.owner.epoch &&
+      current.credentials?.accountId === this.owner.credentials?.accountId &&
+      current.credentials?.sessionId === this.owner.credentials?.sessionId
+    );
+  }
+  private active(): boolean {
+    return !this.inactive && !this.invalidated && this.ownsSession();
+  }
+  private stopReaders(): void {
+    this.generation++;
+    for (const reader of this.readers.values()) reader.dispose();
+    this.readers.clear();
+    this.sources.clear();
+  }
+  private clear(status: string): void {
+    this.view = {
+      ...this.initial(),
+      hasSession: !!this.runtime.sessions.snapshot().credentials,
+      status,
+    };
+    this.render(this.view);
+  }
+  private invalidate(status: string): void {
+    if (this.inactive) return;
+    this.invalidated = true;
+    this.stopReaders();
+    this.clear(status);
+  }
+  private publish(): void {
+    if (!this.active()) return;
+    const states = [...this.sources.values()];
+    const sources = states.map(({ rows: _rows, ...source }) => source);
+    const rows = states
+      .flatMap((source) =>
+        source.rows.map((row) => ({ ...row, busy: source.busy })),
+      )
+      .sort(
+        (a, b) =>
+          Date.parse(b.createdAt) - Date.parse(a.createdAt) ||
+          (b.createdAt.match(/\.(\d+)Z$/)?.[1] ?? '')
+            .padEnd(9, '0')
+            .localeCompare(
+              (a.createdAt.match(/\.(\d+)Z$/)?.[1] ?? '').padEnd(9, '0'),
+            ) ||
+          a.id.localeCompare(b.id),
+      );
+    const loaded = sources.some((source) => source.loaded);
+    const busy = sources.some((source) => source.busy);
+    const configured = sources.some((source) => source.configured);
+    const hasSession = !!this.runtime.sessions.snapshot().credentials;
+    this.view = {
+      ...this.initial(),
+      hasSession,
+      configured,
+      rows,
+      sources,
+      loaded,
+      busy,
+      unavailable: this.kind === 'followers' && !configured,
+      partial:
+        this.kind !== 'followers' ||
+        sources.some(
+          (source) =>
+            !source.configured ||
+            !source.loaded ||
+            source.canMore ||
+            source.coverageUnknown ||
+            !!source.error,
+        ),
+      canMore: sources.some((source) => source.canMore),
+      error: !hasSession
+        ? '请先登录查看自己的互动消息'
+        : !configured
+          ? '当前暂无可用的互动消息服务'
+          : sources.some((source) => source.configured && !!source.error)
+            ? loaded
+              ? '部分消息暂不可读取，可重新加载。'
+              : '消息暂不可读取，请重试。'
+            : '',
+      status: busy
+        ? '正在读取消息'
+        : loaded
+          ? '已读取当前可用的互动消息'
+          : '等待加载',
+    };
+    this.render(this.view);
+  }
+  async load(): Promise<void> {
+    if (!this.active()) return;
+    this.stopReaders();
+    this.clear('正在读取消息');
+    const generation = this.generation;
+    const current = () => this.active() && generation === this.generation;
+    const navigate = async (url: string) => {
+      if (!current())
+        throw new ClientError('auth-required', 'Notice owner changed');
+      await this.navigate(url);
+    };
+    const specs: readonly [SocialSourceKey, boolean][] =
+      this.kind === 'followers'
+        ? [['follower', !!this.socialApi]]
+        : this.kind === 'likes'
+          ? [
+              ['community-like', !!this.socialApi],
+              ['community-save', !!this.socialApi],
+              ['rating-like', !!this.runtime.ratingLikeUpdates],
+              ['window', !!this.runtime.windowDiscussion],
+              ['major', !!this.runtime.majorDiscussion],
+            ]
+          : [
+              ['community', !!this.runtime.gateway],
+              ['rating-reply', !!this.runtime.ratingUpdates],
+              ['rating-subscription', !!this.runtime.ratingSubscriptionUpdates],
+              ['window', !!this.runtime.windowDiscussion],
+              ['major', !!this.runtime.majorDiscussion],
+            ];
+    for (const [key, configured] of specs)
+      this.sources.set(key, {
+        key,
+        label: sourceLabels[key],
+        configured,
+        loaded: false,
+        busy: false,
+        canMore: false,
+        error: configured ? '' : '暂未接入',
+        coverageUnknown: false,
+        rows: [],
+      });
+    const accept = (
+      key: SocialSourceKey,
+      owner: OwnerView,
+      rows: readonly SocialNoticeRow[],
+    ) => {
+      if (!current()) return;
+      const previous = this.sources.get(key);
+      if (!previous) return;
+      this.sources.set(key, {
+        ...previous,
+        loaded: owner.loaded,
+        busy: owner.busy,
+        error: owner.error,
+        coverageUnknown:
+          owner.loaded && owner.unreadCountStatus === 'unavailable',
+        rows: owner.loaded ? rows : [],
+        canMore:
+          owner.loaded &&
+          (owner.canMore ?? owner.canLoadMore ?? owner.canNext ?? false),
+      });
+      this.publish();
+    };
+    for (const [key, configured] of specs) {
+      if (!configured) continue;
+      if (
+        key === 'community-like' ||
+        key === 'community-save' ||
+        key === 'follower'
+      ) {
+        const category: SocialUpdateCategory =
+          key === 'community-like'
+            ? 'likes'
+            : key === 'community-save'
+              ? 'saves'
+              : 'followers';
+        const reader = new SocialUpdatesController(
+          this.runtime,
+          new HttpSocialUpdatesGateway(this.socialApi!, category),
+          category,
+          (view) =>
+            accept(
+              key,
+              view,
+              view.items.map((item) => socialUpdateRow(key, item)),
+            ),
+          navigate,
+        );
+        this.readers.set(key, reader);
+      } else if (key === 'community') {
+        const reader = new UpdatesController(
+          this.runtime,
+          (view) => accept(key, view, view.items.map(commentRow)),
+          navigate,
+        );
+        this.readers.set(key, {
+          load: () => reader.load(),
+          more: () => reader.more(),
+          open: (id) => reader.open(id),
+          acknowledge: (id, guard) => reader.acknowledge(id, guard),
+          dispose: () => reader.dispose(),
+        });
+      } else if (key === 'window' || key === 'major') {
+        const reader =
+          key === 'window'
+            ? new WindowDiscussionNoticesController(
+                this.runtime,
+                (view) =>
+                  accept(key, view, discussionRows(key, view.items, this.kind)),
+                true,
+              )
+            : new MajorDiscussionNoticesController(
+                this.runtime,
+                (view) =>
+                  accept(key, view, discussionRows(key, view.items, this.kind)),
+                true,
+              );
+        this.readers.set(key, {
+          load: () => reader.reload(),
+          more: () => reader.next(),
+          open: (id) =>
+            reader.open(id, (url) => {
+              void navigate(url).catch(() => {
+                if (!current()) return;
+                const source = this.sources.get(key);
+                if (source) {
+                  this.sources.set(key, {
+                    ...source,
+                    error: '暂时无法打开消息，请重试。',
+                  });
+                  this.publish();
+                }
+              });
+            }),
+          acknowledge: (id, guard) => reader.read(id, guard),
+          dispose: () => reader.dispose(),
+        });
+      } else {
+        const category: RatingUpdatesView['category'] =
+          key === 'rating-like'
+            ? 'like'
+            : key === 'rating-reply'
+              ? 'reply'
+              : 'subscription';
+        const reader = new RatingUpdatesController(
+          this.runtime,
+          (view) =>
+            accept(
+              key,
+              view,
+              view.category === category
+                ? view.items.flatMap((item) =>
+                    item.status === 'unavailable' || item.kind === category
+                      ? [ratingRow(key, item)]
+                      : [],
+                  )
+                : [],
+            ),
+          async (url) => {
+            // Keep the destination's owner/ancestry proof, suppress only its
+            // legacy load-triggered acknowledgment for this merged timeline.
+            if (!url.startsWith('/pages/rating-thread/rating-thread?'))
+              throw new ClientError(
+                'protocol',
+                'Unexpected rating notice route',
+              );
+            await navigate(`${url}&noticeRead=explicit`);
+          },
+        );
+        this.readers.set(key, {
+          load: () => reader.selectCategory(category),
+          more: () => reader.more(),
+          open: (id) => reader.open(id),
+          acknowledge: (id, guard) => reader.acknowledge(id, guard),
+          dispose: () => reader.dispose(),
+        });
+      }
+    }
+    this.publish();
+    await Promise.all(
+      [...this.readers.values()].map((reader) => reader.load()),
+    );
+  }
+  async more(source?: string): Promise<void> {
+    if (!this.active()) return;
+    const entries = [...this.sources.values()].filter(
+      (item) =>
+        item.canMore &&
+        !item.busy &&
+        (source === undefined || item.key === source),
+    );
+    await Promise.all(
+      entries.map((item) => this.readers.get(item.key)?.more()),
+    );
+  }
+  private currentRow(id: string): SocialNoticeRow | undefined {
+    if (!this.active()) return;
+    return this.view.rows.find(
+      (row) =>
+        row.id === id && !row.busy && this.sources.get(row.source)?.loaded,
+    );
+  }
+  async open(id: string): Promise<void> {
+    const row = this.currentRow(id);
+    if (row?.available) await this.readers.get(row.source)?.open(row.noticeId);
+  }
+  async acknowledge(id: string, guard?: NoticeReadGuard): Promise<void> {
+    const row = this.currentRow(id);
+    if (row?.unread)
+      await this.readers.get(row.source)?.acknowledge(row.noticeId, guard);
+  }
+  cancel(): void {
+    if (!this.active()) return;
+    this.stopReaders();
+    this.clear('已停止加载，可重新读取消息。');
+  }
+  dispose(): void {
+    if (this.inactive) return;
+    this.inactive = true;
+    this.unsubscribeSession();
+    this.unsubscribeHide();
+    this.unsubscribeSafety();
+    this.stopReaders();
+    this.view = this.initial();
+  }
+}

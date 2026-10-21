@@ -1,0 +1,43 @@
+/* Framework7 v9.2.0 iOS native recovery/management presentation.
+ * Host layout only. Original Page/controller, CAS, receipt and media owners stay
+ * unchanged. Existing native modal containers retain their original lifecycles. */
+@import '../design/framework7-ios.wxss';
+
+.screen.f7-rating-recovery {
+  padding: 0 0 calc(24px + env(safe-area-inset-bottom));
+  color: var(--f7-text-color);
+}
+.f7-rating-recovery wu-f7-block,
+.f7-rating-recovery wu-f7-button,
+.f7-rating-recovery wu-f7-input {
+  display: block;
+  min-width: 0;
+}
+.f7-rating-recovery wu-f7-button {
+  margin-top: 8px;
+}
+.f7-rating-recovery wu-f7-input {
+  margin: 12px 0;
+}
+.f7-rating-recovery .chips,
+.f7-rating-recovery .product-toolbar {
+  flex-wrap: wrap;
+}
+.f7-rating-recovery .chips wu-f7-button {
+  flex: 1;
+  margin: 0;
+}
+.f7-rating-recovery wu-f7-button.management-choice,
+.f7-rating-recovery .management-post > wu-f7-button,
+.f7-rating-recovery .management-image-row wu-f7-button,
+.f7-rating-recovery .management-category > wu-f7-button {
+  display: inline-block;
+  max-width: 100%;
+  margin-right: 6px;
+  padding: 0;
+  background: transparent;
+}
+.f7-rating-recovery wu-f7-button.plain-button {
+  padding: 0;
+  background: transparent;
+}

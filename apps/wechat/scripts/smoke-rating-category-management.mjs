@@ -1,3 +1,8 @@
+import {
+  pressRecoveryControl,
+  inputRecoveryControl,
+  readRecoveryDependency,
+} from '../test/framework7-rating-recovery-native-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -14,6 +19,20 @@ export async function smokeRatingCategoryManagement({
   extension = 'js',
 }) {
   const module = (name) => require(path.join(dist, `${name}.${extension}`));
+  const eventOptions = (page) => ({
+    page,
+    dist,
+    extension,
+    pageFile: path.join(
+      dist,
+      'pages/rating-category-create/rating-category-create',
+    ),
+  });
+  const press = (page, handler, dataset = {}) =>
+    pressRecoveryControl(eventOptions(page), handler, dataset);
+  const nativeInput = (page, handler, value, dataset = {}) =>
+    inputRecoveryControl(eventOptions(page), handler, value, dataset);
+
   const { ApiClient } = module('api/client');
   const { WechatTransport } = module('platform/wechat');
   const { createCommunityRuntime } = module('community/runtime');
@@ -247,9 +266,9 @@ export async function smokeRatingCategoryManagement({
   app.community.ratingCatalogChanges.subscribe((change) =>
     changes.push(change),
   );
-  const commonSource = readFileSync(
-    path.join(dist, 'ratings/common.wxml'),
-    'utf8',
+  const commonSource = readRecoveryDependency(
+    path.join(dist, 'pages/rating-category-create/rating-category-create'),
+    dist,
   );
   const templates = Object.fromEntries(
     parse(commonSource)
@@ -288,7 +307,7 @@ export async function smokeRatingCategoryManagement({
       ,
       handler,
     ] of `${wxml}${commonSource.split('<template name="rating-like">')[0]}`.matchAll(
-      /bind(?:tap|input)="([^"]+)"/g,
+      /bind(?::press|:input|tap|input)="([^"]+)"/g,
     ))
       assert.equal(typeof page[handler], 'function', `${name}: ${handler}`);
     if (name === pageName) {
@@ -309,10 +328,10 @@ export async function smokeRatingCategoryManagement({
     detail: { value },
   });
   function fill(page) {
-    page.onAddChild(event('n0'));
-    page.onAddChild(event('n1'));
+    press(page, 'onAddChild', { key: 'n0' });
+    press(page, 'onAddChild', { key: 'n1' });
     for (const node of nodes) {
-      page.onName(event(node.key, ` ${node.name} `));
+      nativeInput(page, 'onName', ` ${node.name} `, { key: node.key });
       page.onDescription(event(node.key, ` ${node.description} `));
     }
   }
@@ -341,7 +360,7 @@ export async function smokeRatingCategoryManagement({
         path.join(dist, 'pages/rating-catalog/rating-catalog.wxml'),
         'utf8',
       ),
-      /bindtap="onCreateCategories"/,
+      /bind:press="onCreateCategories"/,
     );
     assert.match(
       readFileSync(
@@ -378,19 +397,19 @@ export async function smokeRatingCategoryManagement({
       assert.ok(visible(page).includes(campusId));
     assert.ok(visible(page).includes(regionId));
     fill(page);
-    page.onCreate();
+    press(page, 'onCreate');
     assert.equal(page.data.creationConfirmation, true);
     assert.match(visible(page), /确认提交以上范围与全部 3 个分类/);
     assert.match(visible(page), /第 3 级/);
     page.onName(event('n0', 'not confirmed'));
     assert.equal(page.data.nodes[0].name, nodes[0].name);
-    page.onDismissCreate();
+    press(page, 'onDismissCreate');
     page.onConfirmCreate();
     await flush();
     assert.equal(journal(), null);
     state.losePrepare = true;
-    page.onCreate();
-    page.onConfirmCreate();
+    press(page, 'onCreate');
+    press(page, 'onConfirmCreate');
     page.onConfirmCreate();
     await flush();
     assert.equal(requests.filter((r) => r.path.endsWith('/prepare')).length, 1);
@@ -411,7 +430,7 @@ export async function smokeRatingCategoryManagement({
     );
     state.losePrepare = false;
     state.reviewUnknown = true;
-    reopened.onRetry();
+    press(reopened, 'onRetry');
     await flush();
     assert.deepEqual(journal(), originalJournal);
     assert.equal(state.writes, 0);
@@ -419,7 +438,7 @@ export async function smokeRatingCategoryManagement({
     state.reviewUnknown = false;
     state.loseCommit = true;
     state.hideReceipt = true;
-    reopened.onRetry();
+    press(reopened, 'onRetry');
     await flush();
     assert.equal(state.writes, 1);
     assert.deepEqual(journal(), originalJournal);
@@ -429,7 +448,7 @@ export async function smokeRatingCategoryManagement({
     await flush();
     assert.equal(recovery.data.frozen, true);
     assert.equal(recovery.data.recoveryOperation, '管理员创建评分分类');
-    recovery.onRetry();
+    press(recovery, 'onRetry');
     await flush();
     assert.equal(state.writes, 1);
     for (const request of requests.filter((r) => r.path.endsWith('/prepare')))
@@ -439,7 +458,7 @@ export async function smokeRatingCategoryManagement({
     assert.deepEqual(commits[0].body, commits[1].body);
     state.loseCommit = false;
     state.hideReceipt = false;
-    recovery.onRecover();
+    press(recovery, 'onRecover');
     await flush();
     assert.equal(journal(), null);
     assert.equal(changes.length, 1);

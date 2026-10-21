@@ -1,3 +1,7 @@
+import {
+  guardNoticeRead,
+  type NoticeReadGuard,
+} from '../../notifications/notice-read-guard';
 import { ClientError } from '../../api/errors';
 import {
   CommunityController,
@@ -99,7 +103,7 @@ export class UpdatesController extends CommunityController<UpdatesView> {
     );
   }
   /** An explicit per-row acknowledgment. Retry is safe and never marks a category or another account. */
-  async acknowledge(noticeId: string): Promise<void> {
+  async acknowledge(noticeId: string, guard?: NoticeReadGuard): Promise<void> {
     const item = this.view.items.find((row) => row.noticeId === noticeId);
     if (
       !item ||
@@ -110,7 +114,11 @@ export class UpdatesController extends CommunityController<UpdatesView> {
     )
       return;
     await this.run(
-      (cancel) => this.runtime.gateway!.readUpdate(noticeId, cancel),
+      (cancel) =>
+        this.runtime.gateway!.readUpdate(
+          noticeId,
+          guardNoticeRead(cancel, guard),
+        ),
       (result) => {
         if (result.noticeId !== noticeId)
           throw new ClientError(

@@ -1,0 +1,658 @@
+{
+  "activity-list": [
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onNative"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPublish"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onMine"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/identity-campus/identity-campus"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{busy}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{window !== 'all'}}",
+        "bindtap": "onAll",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{window !== 'all'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onActivity",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{items}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canPrevious}}",
+        "bindtap": "onPrevious",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{canPrevious}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canNext}}",
+        "bindtap": "onNext",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{canNext}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{visit.pending}}",
+        "bindtap": "onVisitRetry",
+        "disabled": "{{visit.busy}}",
+        "loading": "{{visit.busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{visit.pending}}"
+        }
+      ]
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "wx:if": "{{preference.loaded}}",
+        "checked": "{{preference.checked}}",
+        "disabled": "{{preference.busy || preference.needsReload}}",
+        "bindchange": "onPreference"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{preference.loaded}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{preference.dirty && !preference.needsReload}}",
+        "bindtap": "onPreferenceSave",
+        "disabled": "{{preference.busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{preference.dirty && !preference.needsReload}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPreferenceReload",
+        "disabled": "{{preference.busy}}"
+      },
+      "scopes": []
+    }
+  ],
+  "activity-detail": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{busy}}"
+        }
+      ]
+    }
+  ],
+  "activity-native": [
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPublish"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onMine"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onLegacy"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "view",
+      "attrs": {
+        "wx:for": "{{items}}",
+        "wx:key": "id",
+        "data-id": "{{item.id}}",
+        "bindtap": "onDetail"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{items}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{more}}",
+        "bindtap": "onMore",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{more}}"
+        }
+      ]
+    }
+  ],
+  "activity-native-detail": [
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{slots}}",
+        "wx:key": "slot",
+        "data-slot": "{{item.slot}}",
+        "bindtap": "onImage"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{activity}}"
+        },
+        {
+          "wx:for": "{{slots}}",
+          "wx:key": "slot"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onQr"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{activity}}"
+        },
+        {
+          "wx:if": "{{activity.organizerQr.status === 'available'}}"
+        }
+      ]
+    }
+  ],
+  "activity-publish": [
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCatalog"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onMine"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{pending}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRetry",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{pending}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancelOriginal",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{pending}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{organizers}}",
+        "wx:key": "organizationId",
+        "data-id": "{{item.organizationId}}",
+        "bindtap": "onOrganizer",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!id}}"
+        },
+        {
+          "wx:for": "{{organizers}}",
+          "wx:key": "organizationId"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{moreOrganizers}}",
+        "bindtap": "onMoreOrganizers"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!id}}"
+        },
+        {
+          "wx:if": "{{moreOrganizers}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{form.title}}",
+        "maxlength": "50",
+        "data-field": "title",
+        "bindinput": "onField",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-type": "online",
+        "bindtap": "onType",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-type": "offline",
+        "bindtap": "onType",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-type": "reward",
+        "bindtap": "onType",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{form.activityTime}}",
+        "maxlength": "200",
+        "data-field": "activityTime",
+        "bindinput": "onField",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{form.activityLocation}}",
+        "maxlength": "200",
+        "data-field": "activityLocation",
+        "bindinput": "onField",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        }
+      ]
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{form.description}}",
+        "maxlength": "1000",
+        "data-field": "description",
+        "bindinput": "onField",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{endAtInput}}",
+        "data-field": "endAt",
+        "bindinput": "onField",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        }
+      ]
+    },
+    {
+      "tag": "switch",
+      "attrs": {
+        "checked": "{{form.showOrganizerQr}}",
+        "bindchange": "onQr",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!id}}",
+        "bindtap": "onCreate",
+        "disabled": "{{busy || pending || !selected}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!draft || draft.state !== 'published'}}"
+        },
+        {
+          "wx:if": "{{!id}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-slot": "{{item.slot}}",
+        "bindtap": "onUpload",
+        "disabled": "{{busy || pending || upload.status === 'working'}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{draft && draft.state === 'draft'}}"
+        },
+        {
+          "wx:for": "{{slots}}",
+          "wx:key": "slot"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-slot": "{{item.slot}}",
+        "bindtap": "onPreview",
+        "disabled": "{{busy || pending || !item.configured || item.changed}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{draft && draft.state === 'draft'}}"
+        },
+        {
+          "wx:for": "{{slots}}",
+          "wx:key": "slot"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-slot": "{{item.slot}}",
+        "bindtap": "onRemove",
+        "disabled": "{{busy || pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{draft && draft.state === 'draft'}}"
+        },
+        {
+          "wx:for": "{{slots}}",
+          "wx:key": "slot"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-slot": "{{item.slot}}",
+        "data-revision": "{{item.revision}}",
+        "data-action": "recover",
+        "bindtap": "onPendingImage"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{draft && draft.state === 'draft'}}"
+        },
+        {
+          "wx:for": "{{pendingImages}}",
+          "wx:key": "slot"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-slot": "{{item.slot}}",
+        "data-revision": "{{item.revision}}",
+        "data-action": "cancel",
+        "bindtap": "onPendingImage"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{draft && draft.state === 'draft'}}"
+        },
+        {
+          "wx:for": "{{pendingImages}}",
+          "wx:key": "slot"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDiscardDraft",
+        "disabled": "{{busy || pending || upload.status === 'working'}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{draft && draft.state === 'draft'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSave",
+        "disabled": "{{busy || pending || upload.status === 'working'}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{draft && draft.state === 'draft'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPublish",
+        "disabled": "{{busy || pending || dirty || upload.status === 'working'}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{draft && draft.state === 'draft'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{draft && draft.state === 'published'}}",
+        "bindtap": "onPublished"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{draft && draft.state === 'published'}}"
+        }
+      ]
+    }
+  ]
+}

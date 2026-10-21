@@ -1,0 +1,44 @@
+<!-- Slots contain presentation only. The optional native button is the sole control. -->
+<view class="f7-ios-theme f7-list-item {{link ? 'f7-list-item-link' : ''}} {{disabled ? 'f7-list-item-disabled' : ''}} {{last ? 'f7-list-item-last' : ''}}" aria-role="listitem">
+  <button
+    wx:if="{{link}}"
+    class="f7-list-item-control"
+    disabled="{{disabled || loading}}"
+    hover-class="{{disabled || loading ? 'none' : 'f7-list-item-control-pressed'}}"
+    hover-stop-propagation="{{true}}"
+    hover-start-time="{{0}}"
+    hover-stay-time="{{0}}"
+    catchtap="onPress"
+    aria-role="button"
+    aria-label="{{ariaLabel || (title + (subtitle ? '，' + subtitle : '') + (after ? '，' + after : '') + (text ? '，' + text : ''))}}"
+    aria-disabled="{{disabled || loading}}"
+    aria-busy="{{loading}}"
+  />
+  <view class="f7-list-item-content" aria-hidden="{{link}}">
+    <view wx:if="{{media}}" class="f7-list-item-media"><slot name="media" /></view>
+    <view class="f7-list-item-inner">
+      <view class="f7-list-item-copy">
+        <view class="f7-list-item-title">
+          <slot wx:if="{{titleSlot}}" name="title" />
+          <text wx:else>{{title}}</text>
+        </view>
+        <view wx:if="{{subtitle}}" class="f7-list-item-subtitle">{{subtitle}}</view>
+        <view wx:if="{{text}}" class="f7-list-item-text">{{text}}</view>
+        <slot />
+        <view wx:if="{{footerSlot}}" class="f7-list-item-footer"><slot name="footer" /></view>
+      </view>
+      <view wx:if="{{after || afterSlot}}" class="f7-list-item-after">
+        <slot wx:if="{{afterSlot}}" name="after" />
+        <text wx:else>{{after}}</text>
+      </view>
+      <view wx:if="{{link}}" class="f7-list-item-indicator" aria-hidden="true">
+        <view wx:if="{{loading}}" class="f7-list-item-preloader">
+          <view class="f7-list-item-preloader-inner">
+            <view wx:for="{{spokes}}" wx:key="angle" class="f7-list-item-preloader-line" style="transform:translate(-50%,-150%) rotate({{item.angle}}deg);opacity:{{item.opacity}};" />
+          </view>
+        </view>
+        <view wx:else class="f7-list-item-chevron" />
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,2212 @@
+{
+  "src/pages/admin-discussion-removal/admin-discussion-removal.wxml": {
+    "sourceSha256": "3328e196bed4b31bacf030fe651ae701bd26209efb5b85919fde5bc2604c3ead",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "aria-label": "重新核验目标与原请求"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{ownContent && target}}",
+          "class": "link",
+          "open-type": "navigateBack"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{ownContent && target}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onStopWaiting"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleDetails",
+          "aria-expanded": "{{detailsExpanded}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRemoveDiscussion",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentKind"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "none",
+          "checked": "{{punishmentKind === 'none'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "interaction_mute",
+          "checked": "{{punishmentKind === 'interaction_mute'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "access_suspension",
+          "checked": "{{punishmentKind === 'access_suspension'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentUnit"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "minutes",
+          "checked": "{{punishmentUnit === 'minutes'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "hours",
+          "checked": "{{punishmentUnit === 'hours'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "days",
+          "checked": "{{punishmentUnit === 'days'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "permanent",
+          "checked": "{{punishmentUnit === 'permanent'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "wx:if": "{{punishmentUnit !== 'permanent'}}",
+          "type": "number",
+          "value": "{{punishmentValue}}",
+          "bindinput": "onPunishmentValue",
+          "disabled": "{{busy}}",
+          "placeholder": "正整数时长"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "wx:if": "{{punishmentUnit !== 'permanent'}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{punishmentReason}}",
+          "bindinput": "onPunishmentReason",
+          "disabled": "{{busy}}",
+          "maxlength": "255",
+          "placeholder": "处罚原因（必填，最多255字）"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary destructive",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/community-mine/community-mine"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/community-feed/community-feed"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/admin-post-removal/admin-post-removal.wxml": {
+    "sourceSha256": "cb59c14ae36c2a083cf675596a25eda2e39a29abf65a822b8a833f8989c143a7",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "aria-label": "重新核验目标与原请求"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{ownPost && target}}",
+          "class": "link",
+          "url": "/pages/community-detail/community-detail?postId={{target.id}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{ownPost && target}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onStopWaiting"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleDetails",
+          "aria-expanded": "{{detailsExpanded}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRemovePost",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentKind"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "none",
+          "checked": "{{punishmentKind === 'none'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "interaction_mute",
+          "checked": "{{punishmentKind === 'interaction_mute'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "access_suspension",
+          "checked": "{{punishmentKind === 'access_suspension'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentUnit"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "hours",
+          "checked": "{{punishmentUnit === 'hours'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "days",
+          "checked": "{{punishmentUnit === 'days'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "permanent",
+          "checked": "{{punishmentUnit === 'permanent'}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "wx:if": "{{punishmentUnit !== 'permanent'}}",
+          "type": "number",
+          "value": "{{punishmentValue}}",
+          "bindinput": "onPunishmentValue",
+          "disabled": "{{busy}}",
+          "placeholder": "正整数时长"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "wx:if": "{{punishmentUnit !== 'permanent'}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{punishmentReason}}",
+          "bindinput": "onPunishmentReason",
+          "disabled": "{{busy}}",
+          "maxlength": "255",
+          "placeholder": "处罚原因（必填，最多255字）"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary destructive",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/community-mine/community-mine"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/community-feed/community-feed"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/profile-avatar-moderation/profile-avatar-moderation.wxml": {
+    "sourceSha256": "c510721a7aa40e99649ac6ac8b506428fc1b702bf2cc8217a14648ea7f3452c6",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "aria-label": "重新核验目标与原请求"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onStopWaiting"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleDetails",
+          "aria-expanded": "{{detailsExpanded}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management && management.canClearCustomAvatar && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onClearCustomAvatar",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management && management.canClearCustomAvatar && !frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary destructive",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'clear' && management.canClearCustomAvatar && !frozen}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'clear' && management.canClearCustomAvatar && !frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/community-mine/community-mine"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/profile/profile"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/profile-moderation/profile-moderation.wxml": {
+    "sourceSha256": "3fd59caa833070f774ce4cf22ca4b1007d067792b84c9835abce5b99c8be2cdc",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "aria-label": "重新核验目标与原请求"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onStopWaiting"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleDetails",
+          "aria-expanded": "{{detailsExpanded}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management && management.canReset && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onResetNickname",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management && management.canReset && !frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary destructive",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'reset' && management.canReset && !frozen}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'reset' && management.canReset && !frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/community-mine/community-mine"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/profile/profile"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/safety-appeal-management/safety-appeal-management.wxml": {
+    "sourceSha256": "c4219a34b4da6a17c51d7d11250fe47cd29866292df00633f34cb33f84ae7992",
+    "actions": []
+  },
+  "src/pages/safety-punishment-management/safety-punishment-management.wxml": {
+    "sourceSha256": "d1e0bc2de4346c960982f53735def351b740aadc2f2c5dd71cd31f017fd17acc",
+    "actions": []
+  },
+  "src/pages/student-verification-review/student-verification-review.wxml": {
+    "sourceSha256": "1454a1dc0f85da8dc5ef15a49c75b9033c3b8f5db174efd2876c9bf57e9cd229",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "aria-label": "刷新队列"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onSearchInput",
+          "maxlength": "100",
+          "placeholder": "搜索校区"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management==='global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management==='global'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "class": "disclosure",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChooseCampus",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{management==='global'}}"
+          },
+          {
+            "wx:for": "{{campuses}}",
+            "wx:key": "id",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{items}}",
+          "wx:key": "id",
+          "class": "disclosure queue-row",
+          "bindtap": "onSelect",
+          "data-id": "{{item.id}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPrevious",
+          "disabled": "{{busy||page<=1}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy||page<=1}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onNext",
+          "disabled": "{{busy||!hasNext}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy||!hasNext}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleDetails",
+          "aria-expanded": "{{detailsExpanded}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{application.state==='pending'&&application.evidenceAvailable}}",
+          "class": "secondary",
+          "bindtap": "onPreview",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'&&application.evidenceAvailable}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onApprove",
+          "disabled": "{{busy||pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'}}"
+          },
+          {
+            "disabled": "{{busy||pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "bindinput": "onReason",
+          "maxlength": "200",
+          "placeholder": "拒绝须说明原因，最多 200 字"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onReject",
+          "disabled": "{{busy||pending||!reason}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'}}"
+          },
+          {
+            "disabled": "{{busy||pending||!reason}}"
+          }
+        ]
+      },
+      {
+        "tag": "image",
+        "attrs": {
+          "class": "evidence",
+          "src": "{{evidenceSrc}}",
+          "mode": "widthFix"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{evidenceSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onClosePreview"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{evidenceSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmation}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onDismiss",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmation}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/student-verification-notices/student-verification-notices"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/student-verification/student-verification"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/feedback-notices/feedback-notices.wxml": {
+    "sourceSha256": "8f8f412ff33e7d6c5dc3f353c583546efb1048db203de30d97df6284062d6845",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}",
+          "aria-label": "刷新反馈通知"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}",
+            "loading": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy || item.available === false}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "disabled": "{{busy || item.available === false}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "class": "quiet",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy || item.available === false}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{!item.readAt}}",
+            "disabled": "{{busy || item.available === false}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "class": "quiet",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canLoadMore}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleDetails",
+          "aria-expanded": "{{detailsExpanded}}"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/safety-appeal-management/management.wxml": {
+    "sourceSha256": "c9cb83626b800aff8ca40439eeb48299c2a575678946745bf8790de2a312ef81",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "aria-label": "重新核验当前状态"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onStopWaiting"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.canAppeal}}",
+          "url": "/pages/safety-appeal/safety-appeal?punishmentId={{item.punishmentId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}",
+            "wx:key": "punishmentId"
+          },
+          {
+            "wx:if": "{{item.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.openAppealId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}",
+            "wx:key": "punishmentId"
+          },
+          {
+            "wx:if": "{{item.openAppealId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.punishmentId}}",
+          "class": "secondary",
+          "bindtap": "onSelectPunishment",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{punishments}}",
+            "wx:key": "punishmentId"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.appealId}}",
+          "class": "secondary",
+          "bindtap": "onSelectAppeal",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{appeals}}",
+            "wx:key": "appealId"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{nextCursor}}",
+          "class": "quiet",
+          "bindtap": "onMore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{nextCursor}}",
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleDetails",
+          "aria-expanded": "{{detailsExpanded}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{text}}",
+          "maxlength": "4000",
+          "bindinput": "onText",
+          "disabled": "{{busy || frozen}}",
+          "placeholder": "请填写私人申诉内容（最多 4000 字）"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestAppeal",
+          "disabled": "{{busy || frozen || !text}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          },
+          {
+            "disabled": "{{busy || frozen || !text}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{selectedPunishment.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{selectedPunishment.openAppealId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}",
+          "placeholder": "解除此项处罚的理由"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRequestRelease",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          },
+          {
+            "disabled": "{{busy || frozen || !reason}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "disclosure",
+          "bindtap": "onToggleDetails",
+          "aria-expanded": "{{detailsExpanded}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}",
+          "placeholder": "填写处理理由，结果将私下通知申诉人"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "upheld",
+          "class": "secondary",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          },
+          {
+            "disabled": "{{busy || frozen || !reason}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "released",
+          "class": "secondary",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          },
+          {
+            "disabled": "{{busy || frozen || !reason}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "closed_no_longer_effective",
+          "class": "secondary",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          },
+          {
+            "disabled": "{{busy || frozen || !reason}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{historyCursor}}",
+          "class": "quiet",
+          "bindtap": "onMoreHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{historyCursor}}",
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/account-status/account-status"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/system-notices/system-notices"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/safety-appeal/safety-appeal"
+        },
+        "scopes": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "pages": [
+    "canteen-floor-scores",
+    "canteen-floor-score-detail",
+    "window-ratings",
+    "window-rating-detail",
+    "window-dishes"
+  ],
+  "fileCount": 26,
+  "presentationSourceBytes": {
+    "before": 21036,
+    "after": 32104,
+    "delta": 11068
+  },
+  "files": {
+    "apps/wechat/scripts/fixtures/framework7-dining-preview.mjs": {
+      "sha256": "efb13f64ee1ecc7dcd625e2b00ac25397d86f9b6e1da460eaade5eb4cd68fc3d",
+      "bytes": 8006
+    },
+    "apps/wechat/src/canteen-floor-scores/framework7-product.wxml": {
+      "sha256": "b05ae04e145d603e5d95acb815ea117fcd37b37b611359223d6dde1fa2fb1a52",
+      "bytes": 3041
+    },
+    "apps/wechat/src/dining/framework7-product.wxss": {
+      "sha256": "7573f9c378487a3079348ba3944c85a2a1f68b4abd584637555c455d06659d0f",
+      "bytes": 1433
+    },
+    "apps/wechat/src/pages/canteen-floor-score-detail/canteen-floor-score-detail.json": {
+      "sha256": "31ba7571f9a759873c454aea94b583ec6d3bdd7b3dd388bdd13443a147f600c2",
+      "bytes": 299
+    },
+    "apps/wechat/src/pages/canteen-floor-score-detail/canteen-floor-score-detail.wxml": {
+      "sha256": "3e5258d98a9d5298ec3fb02839c7b4f7e06b7d9dc624a11552cdc13fbf2668ff",
+      "bytes": 3933
+    },
+    "apps/wechat/src/pages/canteen-floor-score-detail/canteen-floor-score-detail.wxss": {
+      "sha256": "2d776d1a316ecb4e2436684a1d1b7bf799278185266494d1a2b40163aeb49998",
+      "bytes": 151
+    },
+    "apps/wechat/src/pages/canteen-floor-scores/canteen-floor-scores.json": {
+      "sha256": "53f8bfbb191752678f2afefe0ee96f88a98aec61a697226671ebca043dd80e3c",
+      "bytes": 365
+    },
+    "apps/wechat/src/pages/canteen-floor-scores/canteen-floor-scores.wxml": {
+      "sha256": "5ddff4f6014e6fd75dad91c431970e0f9f62b1f9a0c3f3defcba77f68e78a331",
+      "bytes": 2028
+    },
+    "apps/wechat/src/pages/canteen-floor-scores/canteen-floor-scores.wxss": {
+      "sha256": "2d776d1a316ecb4e2436684a1d1b7bf799278185266494d1a2b40163aeb49998",
+      "bytes": 151
+    },
+    "apps/wechat/src/pages/window-dishes/window-dishes.json": {
+      "sha256": "b9e676a61c7de99963586be853c2d8d14ddc705ec6dfe52f98bcca825576fe32",
+      "bytes": 422
+    },
+    "apps/wechat/src/pages/window-dishes/window-dishes.wxml": {
+      "sha256": "de01429fc6a1acc4f826726866718d133542b746647592b4ba319f1865b59ed1",
+      "bytes": 7139
+    },
+    "apps/wechat/src/pages/window-dishes/window-dishes.wxss": {
+      "sha256": "3e9031843ebdff198e1ef56c0eecbf32271229a22c4f25c1bdf411ddf96f1c22",
+      "bytes": 139
+    },
+    "apps/wechat/src/pages/window-rating-detail/window-rating-detail.json": {
+      "sha256": "5ab76aeba023b1734e404650f7f481f6eaacbe42c1568a06940a9cb49a7dafbe",
+      "bytes": 236
+    },
+    "apps/wechat/src/pages/window-rating-detail/window-rating-detail.wxml": {
+      "sha256": "22b5c92a7295ab0acdfdfa13791d640b5e46699ec482a7e8704c395560b1fd07",
+      "bytes": 5164
+    },
+    "apps/wechat/src/pages/window-rating-detail/window-rating-detail.wxss": {
+      "sha256": "3e9031843ebdff198e1ef56c0eecbf32271229a22c4f25c1bdf411ddf96f1c22",
+      "bytes": 139
+    },
+    "apps/wechat/src/pages/window-ratings/window-ratings.json": {
+      "sha256": "2b660b29019b5f527f08a33f08ebf5659f9af231c958f3ad9945ca89eabcf1d0",
+      "bytes": 416
+    },
+    "apps/wechat/src/pages/window-ratings/window-ratings.wxml": {
+      "sha256": "925ad7d5d00968dd78cccfffb73adf5b2e4e869a8440b7c8cbf25843a6175584",
+      "bytes": 3541
+    },
+    "apps/wechat/src/pages/window-ratings/window-ratings.wxss": {
+      "sha256": "3e9031843ebdff198e1ef56c0eecbf32271229a22c4f25c1bdf411ddf96f1c22",
+      "bytes": 139
+    },
+    "apps/wechat/src/window-ratings/framework7-product.wxml": {
+      "sha256": "0060a452dd0be424772cbd0c59323566ab5fa5fb5c7470db9523ec3e29c35f5c",
+      "bytes": 3368
+    },
+    "apps/wechat/test/canteen-floor-scores-template.test.ts": {
+      "sha256": "63cfe9d46c924170aeb02933961f15391f04fa6c2c3f4108fbc4cb54115c757e",
+      "bytes": 4994
+    },
+    "apps/wechat/test/dish-recommendations-template.test.ts": {
+      "sha256": "d543b5ede754af85d5b24fa78de9be1add56d5e467f12e56021c3da62d78bbf5",
+      "bytes": 5111
+    },
+    "apps/wechat/test/fixtures/framework7-dining-before-actions.json": {
+      "sha256": "80381739efc084ee4b263ebe538fa3b8502d575f4af77ec1be0b6d2a62c84485",
+      "bytes": 22832
+    },
+    "apps/wechat/test/fixtures/framework7-dining-before-protected.json": {
+      "sha256": "68539e52c85883d2fdf1fa5625bbd7ce5ee0ebda1dfe7f8d858c16f8ad5eed4b",
+      "bytes": 10155
+    },
+    "apps/wechat/test/framework7-dining-migration.test.ts": {
+      "sha256": "366910a7ec3cbc9e0a7451d8f56f4c1fcf4f23a6d3eeaf77acf02b89b3d5549d",
+      "bytes": 40357
+    },
+    "apps/wechat/test/window-ratings-template.test.ts": {
+      "sha256": "83829bdcdab99a7992dcc156fc9c01dc70948edd7ebb7931480640060ab1ca36",
+      "bytes": 5522
+    },
+    "docs/FRAMEWORK7_DINING_MIGRATION.md": {
+      "sha256": "5e633a6adda22b443e74f6facd03e1e800d20ef8f490984df69ebdb1455a4b1b",
+      "bytes": 7865
+    }
+  },
+  "title": "Five native Framework7 dining pages source freeze",
+  "framework7": {
+    "version": "9.2.0",
+    "commit": "7668f883c29f69dd2ad7bd8ac3b35b9124082b0b"
+  },
+  "runtimeScope": "exact five Page WXML/WXSS/JSON plus three isolated dining presentation assets; no Page/controller/native-component TS edits"
+}

@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { parse, render } from './smoke-ratings.mjs';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 /** Native Page handlers and actual WXML synthetic acceptance. No device/provider claim. */
 export async function smokeMessaging({
@@ -19,6 +20,7 @@ export async function smokeMessaging({
     getApp: globalThis.getApp,
   };
   const pages = [];
+  const bridges = new Map();
   let clipboard = '';
   let stoppedPullDown = 0;
   let observed;
@@ -40,7 +42,23 @@ export async function smokeMessaging({
     assert.ok(page);
     page.onLoad?.(query);
     pages.push(page);
+    bridges.set(
+      page,
+      createNativePressBridge({
+        page,
+        pageFile: filename.slice(0, -extension.length - 1),
+        dist,
+        extension,
+      }),
+    );
     return page;
+  };
+  const press = (page, handler, dataset = {}) => {
+    const bridge = bridges.get(page);
+    bridge.sync();
+    const control = bridge.capture(handler, dataset);
+    assert.equal(control.press(), true, `${handler}: actual Component press`);
+    control.detach();
   };
   const shown = (name, page) =>
     render(
@@ -101,11 +119,10 @@ export async function smokeMessaging({
     assert.equal(stoppedPullDown, 1);
     assert.equal(list.data.loaded, true);
     assert.match(JSON.stringify(shown('list', list)), /我的私信/);
-    list.onHideConversation({
-      currentTarget: { dataset: { id: conversationId } },
-    });
+    press(list, 'onToggleRow', { id: conversationId });
+    press(list, 'onHideConversation', { id: conversationId });
     assert.equal(list.data.confirmHide, conversationId);
-    list.onDismiss();
+    press(list, 'onDismiss');
     assert.equal(list.data.confirmHide, null);
     list.onHide();
     assert.equal(list.data.items.length, 0);
@@ -121,17 +138,29 @@ export async function smokeMessaging({
     assert.equal(detail.data.loaded, true);
     assert.equal(detail.data.messages[0].id, messageId);
     observed?.({ intersectionRatio: 1 });
-    detail.onCopy({ currentTarget: { dataset: { id: messageId } } });
+    // Longpress and textarea remain native platform controls, not aliases for
+    // custom events. Migrated buttons below execute their real Component code.
+    detail.onMessageMenu({ currentTarget: { dataset: { id: messageId } } });
+    press(detail, 'onCopy', { id: messageId });
     assert.ok(clipboard);
     detail.onText({ detail: { value: '原生文字' } });
-    detail.onSend();
-    detail.onSend();
+    const send = bridges.get(detail).capture('onSend');
+    assert.equal(send.press(), true);
+    assert.equal(
+      send.press(),
+      false,
+      'same native hit cannot duplicate a send',
+    );
+    send.detach();
     await flush();
     assert.equal(detail.data.text, '');
     assert.match(JSON.stringify(shown('detail', detail)), /私信/);
-    detail.onAction({ currentTarget: { dataset: { kind: 'block' } } });
+    detail.onTogglePanel({
+      currentTarget: { dataset: { panel: 'conversation' } },
+    });
+    press(detail, 'onAction', { kind: 'block' });
     assert.ok(detail.data.confirm);
-    detail.onDismiss();
+    press(detail, 'onDismiss');
     assert.equal(detail.data.confirm, null);
     detail.onHide();
     assert.equal(detail.data.messages.length, 0);
@@ -158,17 +187,20 @@ export async function smokeMessaging({
     assert.equal(recovery.data.pending, true);
     assert.equal(recovery.data.pendingText, '');
     assert.equal(recovery.data.canRetry, false);
-    recovery.onRequestCancel();
+    press(recovery, 'onToggleActions');
+    press(recovery, 'onRequestCancel');
     assert.match(JSON.stringify(shown('recovery', recovery)), /迟到请求/);
-    recovery.onDismissCancel();
+    press(recovery, 'onDismissCancel');
     assert.ok(messaging.pending.load(accountId));
-    recovery.onRequestCancel();
-    recovery.onConfirmCancel();
+    press(recovery, 'onToggleActions');
+    press(recovery, 'onRequestCancel');
+    press(recovery, 'onConfirmCancel');
     await flush();
     assert.equal(recovery.data.status, '原请求已安全取消');
     assert.equal(messaging.pending.load(accountId), null);
     recovery.onUnload();
   } finally {
+    for (const bridge of bridges.values()) bridge.lifecycle('detach');
     for (const page of pages) page.onUnload?.();
     Object.assign(globalThis, globals);
   }

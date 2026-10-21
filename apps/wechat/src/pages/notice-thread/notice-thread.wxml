@@ -1,0 +1,15 @@
+<view class="notice-page activity-notice-page f7-ios-theme f7-notifications-page">
+  <wu-f7-block class="notice-empty" spacing="compact">
+    <view class="notice-empty-content">
+      <view class="notice-symbol">
+        <wu-icon name="calendar" tone="accent" size="30" />
+      </view>
+      <text class="notice-empty-title">
+        {{valid ? '活动通知暂不可用' : '通知会话链接无效'}}
+      </text>
+      <text class="notice-empty-detail">
+        {{valid ? '暂未接入活动通知服务' : '请返回消息列表重新打开。'}}
+      </text>
+    </view>
+  </wu-f7-block>
+</view>

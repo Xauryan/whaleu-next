@@ -1,28 +1,125 @@
-<import src="../../course-ratings/common.wxml" />
-<view class="screen">
-  <navigator class="link" url="/pages/course-comments/course-comments">课程评论独立回执恢复 →</navigator>
-  <view class="eyebrow">WHALEU · 课程评分</view>
-  <view class="title">找课程，查看三个独立均分</view>
-  <view class="notice">此处为新课程评分页面。只展示已核验来源；浏览校区不授予评分权限。</view>
-  <template is="course-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryCourseId,recoveryScores,busy,restartRequired}}" />
-  <view class="card">
-    <view class="section-title">搜索与筛选</view>
-    <input class="course-field" value="{{searchDraft}}" maxlength="80" placeholder="按课程名称搜索" bindinput="onSearchInput" bindconfirm="onSearch" disabled="{{busy}}" />
-    <picker range="{{departmentLabels}}" value="{{departmentIndex}}" bindchange="onDepartment" disabled="{{busy}}"><view class="filter-picker">{{departmentLabels[departmentIndex]}} ▾</view></picker>
-    <input class="course-field" value="{{categoryDraft}}" maxlength="80" placeholder="按完整类别筛选" bindinput="onCategoryInput" bindconfirm="onSearch" disabled="{{busy}}" />
-    <view class="notice">院系与类别互斥，选择其中一个会清空另一个。“旧分类 90–99 分组”仅包含来源编号 90 至 99。</view>
-    <view class="scores"><button data-sort="rating" bindtap="onSort" class="{{sortDraft === 'rating' ? 'score-selected' : ''}}" disabled="{{busy}}">综合均分排序</button><button data-sort="time" bindtap="onSort" class="{{sortDraft === 'time' ? 'score-selected' : ''}}" disabled="{{busy}}">时间排序</button></view>
-    <button bindtap="onSearch" disabled="{{busy}}">查询课程</button>
-  </view>
+<import src="../../course-ratings/framework7-product.wxml" />
+<view class="screen course-product f7-ios-theme f7-course-product">
+  <view class="product-heading product-toolbar"
+    ><wu-f7-button
+      class="plain-button"
+      data-panel="more"
+      bind:press="onTogglePanel"
+      aria-label="更多课程功能"
+      variant="plain"
+    >
+      <wu-icon name="more" size="20" /> </wu-f7-button
+  ></view>
+  <view wx:if="{{uiPanel === 'more'}}" class="product-disclosure"
+    ><navigator class="link" url="/pages/course-comments/course-comments"
+      >查询上次回复操作</navigator
+    ><view class="meta">每门课仅可评分一次，提交后不能修改或删除。</view></view
+  >
+  <view class="product-search"
+    ><wu-f7-input
+      class="course-field"
+      value="{{searchDraft}}"
+      maxlength="80"
+      placeholder="搜索课程"
+      bind:input="onSearchInput"
+      bind:confirm="onSearch"
+      disabled="{{busy}}"
+    /><wu-f7-button bind:press="onSearch" disabled="{{busy}}" variant="tonal"
+      >搜索</wu-f7-button
+    ></view
+  >
+  <view class="product-section-heading"
+    ><picker
+      range="{{departmentLabels}}"
+      value="{{departmentIndex}}"
+      bindchange="onDepartment"
+      disabled="{{busy}}"
+      ><view class="filter-picker"
+        >{{departmentLabels[departmentIndex]}}
+        <wu-icon name="chevron-down" size="16" /></view></picker
+    ><wu-f7-button
+      class="plain-button"
+      data-panel="filters"
+      bind:press="onTogglePanel"
+      variant="plain"
+    >
+      类别筛选
+    </wu-f7-button></view
+  >
+  <view wx:if="{{uiPanel === 'filters'}}" class="product-disclosure"
+    ><wu-f7-input
+      class="course-field"
+      value="{{categoryDraft}}"
+      maxlength="80"
+      placeholder="填写完整类别，回车查询"
+      bind:input="onCategoryInput"
+      bind:confirm="onSearch"
+      disabled="{{busy}}"
+    /><view class="meta">院系和类别可选其一；选择后会清空另一项。</view></view
+  >
+  <view class="product-tabs"
+    ><wu-f7-button
+      class="{{sortDraft === 'rating' ? 'selected' : ''}}"
+      data-sort="rating"
+      bind:press="onSort"
+      disabled="{{busy}}"
+      variant="{{sortDraft === 'rating' ? 'fill' : 'tonal'}}"
+    >
+      综合评分</wu-f7-button
+    ><wu-f7-button
+      class="{{sortDraft === 'time' ? 'selected' : ''}}"
+      data-sort="time"
+      bind:press="onSort"
+      disabled="{{busy}}"
+      variant="{{sortDraft === 'time' ? 'fill' : 'tonal'}}"
+    >
+      最新
+    </wu-f7-button></view
+  >
+  <wu-f7-block class="product-state" spacing="compact"
+    ><template
+      is="product-course-status"
+      data="{{status,error,receiptStatus,hasSession,frozen,recoveryCourseId,recoveryScores,busy,restartRequired,loaded}}"
+  /></wu-f7-block>
   <block wx:if="{{loaded}}">
-    <view class="meta">{{appliedFilter}} · 第 {{pageNumber}} 页</view>
-    <view wx:for="{{items}}" wx:key="id" class="card">
-      <template is="course-facts" data="{{course:item}}" />
-      <template is="course-summary" data="{{summary:item.summary}}" />
-      <button data-id="{{item.id}}" bindtap="onCourse" disabled="{{busy}}">查看课程与我的评分 →</button>
-    </view>
-    <view wx:if="{{!items.length}}" class="empty">当前查询已确认没有课程。</view>
-    <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页课程</button>
+    <view wx:if="{{appliedFilter}}" class="meta">{{appliedFilter}}</view>
+    <wu-f7-list spacing="compact">
+      <view wx:for="{{items}}" wx:key="id" class="product-list-row">
+        <wu-f7-list-item
+          class="product-row-open"
+          data-id="{{item.id}}"
+          bind:press="onCourse"
+          disabled="{{busy}}"
+          link="{{true}}"
+          title="{{item.name}}"
+          aria-label="{{item.name}}"
+        />
+        <view class="meta"
+          >{{item.campusLabel}} · 院系 {{item.department}}<text
+            wx:if="{{item.category !== null}}"
+          >
+            · {{item.category}}</text
+          ></view
+        >
+        <view
+          wx:if="{{item.nature !== null || item.code !== null}}"
+          class="meta"
+          ><text wx:if="{{item.nature !== null}}">{{item.nature}}</text
+          ><text wx:if="{{item.code !== null}}"> · {{item.code}}</text></view
+        >
+        <template is="product-course-summary" data="{{summary:item.summary}}" />
+      </view>
+    </wu-f7-list>
+    <view wx:if="{{!items.length}}" class="empty"
+      >没有找到课程，试试其他关键词</view
+    >
+    <wu-f7-button
+      wx:if="{{canNext}}"
+      bind:press="onNext"
+      disabled="{{busy}}"
+      variant="tonal"
+    >
+      加载下一页
+    </wu-f7-button>
   </block>
-  <view class="notice">每个账号每门课仅保留首次评分，不能修改或删除。身份会话、已验证手机号与当前安全状态分别由服务器核验。</view>
 </view>

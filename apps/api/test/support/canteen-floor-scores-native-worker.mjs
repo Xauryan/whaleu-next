@@ -138,7 +138,12 @@ process.once('message', async (input) => {
         'original journal retained',
         h,
       );
+    const ensureScoreOpen = (h) => {
+      if (h.page.data.uiPanel !== 'score')
+        h.tap('onTogglePanel', { panel: 'score' });
+    };
     const choose = (h, value) => {
+      ensureScoreOpen(h);
       h.event('bindinput', 'onScore', { value: String(value) });
       h.tap('onConfirm');
       assert.equal(h.page.data.confirming, 'score');
@@ -159,6 +164,7 @@ process.once('message', async (input) => {
       ),
     );
     const entry = mountEmittedPage('rating-catalog', app, wx);
+    entry.tap('onTogglePanel', { panel: 'more' });
     assert.ok(
       entry
         .nodes()
@@ -174,6 +180,7 @@ process.once('message', async (input) => {
     await loaded(list);
     assert.equal(list.page.data.catalog.canteens.length, 2);
     list.tap('onCanteen', { id: input.canteenId });
+    list.tap('onTogglePanel', { panel: 'filter' });
     list.event('bindchange', 'onFloor', {
       value: String(
         list.page.data.floorOptions.findIndex((f) => f.id === input.floorId) +
@@ -190,8 +197,14 @@ process.once('message', async (input) => {
     let h = mount('canteen-floor-score-detail', { floorId: input.floorId });
     await loaded(h);
     assert.equal(h.page.data.canScore, true);
+    h.tap('onTogglePanel', { panel: 'info' });
     assert.match(text(h), /B1-mezzanine/);
-    assert.match(text(h), /当前已确认没有评分/);
+    assert.equal(h.page.data.detail.floor.summary.kind, 'known');
+    assert.equal(h.page.data.detail.floor.summary.ratingCount, 0);
+    assert.equal(h.page.data.detail.myScore.kind, 'not_submitted');
+    assert.match(text(h), /暂无评分/);
+    assert.match(text(h), /还没有评分记录/);
+    ensureScoreOpen(h);
     h.event('bindinput', 'onScore', { value: '1.25' });
     h.event('bindinput', 'onScore', { value: 'bad' });
     assert.equal(h.page.data.selectedScore, null);
@@ -241,7 +254,7 @@ process.once('message', async (input) => {
     await loaded(h);
     assert.equal(h.page.data.detail.myScore.score, 1.25);
     assert.equal(h.page.data.canScore, false);
-    assert.match(text(h), /已有有效评分/);
+    assert.match(text(h), /已有有效楼层评分，当前不能重复提交或修改/);
     close(h);
     h = mount('canteen-floor-score-detail', { floorId: input.unknownFloorId });
     await loaded(h);

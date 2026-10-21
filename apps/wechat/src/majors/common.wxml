@@ -6,10 +6,10 @@
 </template>
 <template name="major-summary">
   <block wx:if="{{summary.kind === 'known'}}">
-    <view class="meta">{{summary.rootCount}} 条主评论</view>
-    <view wx:if="{{summary.hotComment}}" class="hot-comment"><view class="meta">热门主评论 · {{summary.hotComment.likes}} 个赞</view><view class="body">{{summary.hotComment.body}}</view></view>
+    <view class="meta">{{summary.rootCount}} 条主回复</view>
+    <view wx:if="{{summary.hotComment}}" class="hot-comment"><view class="meta">热门主回复 · {{summary.hotComment.likes}} 个赞</view><view class="body">{{summary.hotComment.body}}</view></view>
   </block>
-  <view wx:else class="notice">评论或点赞历史暂不能确认，暂无可靠讨论摘要。</view>
+  <view wx:else class="notice">回复或点赞历史暂不能确认，暂无可靠讨论摘要。</view>
 </template>
 <template name="major-item">
   <view class="card"><view class="section-title">{{item.majorName}}</view><view class="meta">{{item.departmentId}}系 · {{item.collegeName}}</view>

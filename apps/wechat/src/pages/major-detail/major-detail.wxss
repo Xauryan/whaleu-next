@@ -1,1 +1,2 @@
-@import '../../majors/majors.wxss';
+@import "../../majors/product.wxss";
+@import "../../majors/framework7-product.wxss";

@@ -1,1 +1,1 @@
-@import '../../directory/directory.wxss';
+@import './framework7-directory.wxss';

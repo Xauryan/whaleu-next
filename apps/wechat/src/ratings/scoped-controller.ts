@@ -7,6 +7,7 @@ import {
   type CategoryIconPublicContext,
 } from './category-icon-public-contract';
 import type { CategoryIconDescriptor } from './category-icon-media-contract';
+import { decodeRatingNoticeRead } from './updates-contract';
 import { discussionMediaPath } from './discussion-media-page-controller';
 import {
   RatingTargetCoverContextLease,
@@ -288,6 +289,9 @@ export interface RatingScopedView extends CommunityView {
   readonly noticeKind: RatingScopedNoticeKind;
   readonly unreadCount: number | null;
   readonly canMoreNotices: boolean;
+  readonly canAcknowledgeNotices: boolean;
+  readonly noticeReadKey: string;
+  readonly noticeReadUnknown: Readonly<Record<string, boolean>>;
 }
 export const initialRatingScopedView = (): RatingScopedView => ({
   ...initialCommunityView(),
@@ -348,11 +352,16 @@ export const initialRatingScopedView = (): RatingScopedView => ({
   noticeKind: 'updates',
   unreadCount: null,
   canMoreNotices: false,
+  canAcknowledgeNotices: false,
+  noticeReadKey: '',
+  noticeReadUnknown: {},
 });
+let noticeReadOwnerSequence = 0;
 type PageKind = 'categories' | 'targets' | 'comments' | 'replies' | 'notices';
 /** One native page, the existing domain DTOs, and one account-scoped journal. No token, request body or cursor enters page data. */
 export class RatingScopedController extends CommunityController<RatingScopedView> {
   private inactive = false;
+  private readonly noticeReadOwnerKey = `rating-notice-${++noticeReadOwnerSequence}`;
   private readonly coverClock: Clock;
   private readonly thumbnailReaders = new Map<
     string,
@@ -549,6 +558,9 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       pickerOpen: false,
       hasMoreCampuses: false,
       canMoreNotices: false,
+      canAcknowledgeNotices: false,
+      noticeReadKey: '',
+      noticeReadUnknown: {},
       cancelPendingConfirmation: false,
     });
   }
@@ -2439,7 +2451,87 @@ export class RatingScopedController extends CommunityController<RatingScopedView
           notices: more ? [...this.view.notices, ...page.items] : page.items,
           unreadCount: page.unreadCount,
           canMoreNotices: page.nextCursor !== null,
+          canAcknowledgeNotices: !!this.noticeOwner(kind),
+          noticeReadKey: `${this.noticeReadOwnerKey}:${this.draftGeneration}:${kind}`,
           status: '更新仅显示历史元数据；请明确选择范围后核验目标',
+        });
+      },
+    );
+  }
+  private noticeOwner(kind: RatingScopedNoticeKind) {
+    return kind === 'updates'
+      ? this.runtime.ratingUpdates
+      : kind === 'like-updates'
+        ? this.runtime.ratingLikeUpdates
+        : this.runtime.ratingSubscriptionUpdates;
+  }
+  /** Owner bookkeeping only. A notice receipt never authorizes its target. */
+  async acknowledgeNotice(
+    kind: RatingScopedNoticeKind,
+    noticeId: string,
+    interactionKey: string,
+  ): Promise<void> {
+    if (
+      !this.canDraft() ||
+      this.route.mode !== 'updates' ||
+      kind !== this.view.noticeKind ||
+      !this.view.noticeReadKey ||
+      interactionKey !== `${this.view.noticeReadKey}:${noticeId}` ||
+      !ratingId(noticeId) ||
+      this.view.pickerOpen ||
+      this.view.composerOpen ||
+      this.view.selectedScore !== null ||
+      this.view.definitionConfirmation ||
+      this.view.cancelPendingConfirmation ||
+      this.view.cover.expanded ||
+      this.view.categoryIcon.state !== 'idle' ||
+      !this.view.notices.some(
+        (notice) => notice.noticeId === noticeId && notice.readAt === null,
+      )
+    )
+      return;
+    const gateway = this.noticeOwner(kind),
+      route = this.route;
+    if (!gateway) {
+      this.update({
+        canAcknowledgeNotices: false,
+        noticeReadKey: '',
+        error: '当前更新的已读服务暂不可用，请稍后重试',
+      });
+      return;
+    }
+    // run binds the account/login epoch and request generation. The source and
+    // scope are captured before dispatch; a replacement must not receive this receipt.
+    await this.run(
+      (cancel) => gateway.markRead(noticeId, cancel),
+      (raw) => {
+        if (this.route !== route || this.view.noticeKind !== kind) return;
+        const receipt = decodeRatingNoticeRead(raw);
+        if (receipt.noticeId !== noticeId) invalidRating();
+        this.update({
+          notices: this.view.notices.map((notice) =>
+            notice.noticeId === noticeId
+              ? { ...notice, readAt: receipt.readAt }
+              : notice,
+          ),
+          unreadCount: receipt.unreadCount,
+          noticeReadUnknown: {
+            ...this.view.noticeReadUnknown,
+            [noticeId]: false,
+          },
+          status: '已确认这条更新已读；内容权限仍需单独核验',
+        });
+      },
+      (error) => {
+        if (this.route !== route || this.view.noticeKind !== kind) return;
+        this.update({
+          unreadCount: null,
+          noticeReadUnknown: {
+            ...this.view.noticeReadUnknown,
+            [noticeId]: true,
+          },
+          error: ratingScopedError(error),
+          status: '这条更新的已读结果尚未确认；可重试同一条更新或重新加载',
         });
       },
     );
@@ -2451,6 +2543,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
       !this.runtime.ratingScoped
     )
       return null;
+    const kind = this.view.noticeKind;
     let path: string | null = null;
     await this.run(
       async (cancel) => {
@@ -2461,7 +2554,7 @@ export class RatingScopedController extends CommunityController<RatingScopedView
             cancel,
           ),
           result = await this.runtime.ratingScoped!.noticeTarget(
-            this.view.noticeKind,
+            kind,
             noticeId,
             context,
             cancel,
@@ -2478,14 +2571,6 @@ export class RatingScopedController extends CommunityController<RatingScopedView
           cancel,
         );
         this.assertRead(cancel, context);
-        const legacyNotices =
-          this.view.noticeKind === 'updates'
-            ? this.runtime.ratingUpdates
-            : this.view.noticeKind === 'like-updates'
-              ? this.runtime.ratingLikeUpdates
-              : this.runtime.ratingSubscriptionUpdates;
-        // Read-state remains the original notice ID and original v1 owner route.
-        if (legacyNotices) await legacyNotices.markRead(noticeId, cancel);
         return ratingScopedLocatorPath(resolved.locator);
       },
       (result) => {

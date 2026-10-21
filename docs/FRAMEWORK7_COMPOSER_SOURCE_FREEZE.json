@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "sourceStatus": "frozen-pending-integration",
+  "timestamp": "2026-10-20T18:49:52.588Z",
+  "routes": [
+    "compose-entry",
+    "community-compose",
+    "community-detail",
+    "community-thread"
+  ],
+  "upstream": {
+    "version": "9.2.0",
+    "commit": "7668f883c29f69dd2ad7bd8ac3b35b9124082b0b",
+    "license": "MIT"
+  },
+  "actionCount": 280,
+  "protectedFileCount": 217,
+  "fixtureCount": 32,
+  "previewFrameCount": 64,
+  "sourceEvidence": {
+    "migrationTests": "18/18 pass",
+    "routeReferencingTests": "650/650 pass",
+    "scopedLint": "pass",
+    "javascriptSyntax": "pass",
+    "sourcePreview": "64/64 composer, 12/12 core, 4/4 menu frames pass"
+  },
+  "integrationGates": {
+    "typecheck": "integrator-owned",
+    "emittedSmokes": "integrator-owned; requires emitted JavaScript; no build performed",
+    "packageAndBudget": "integrator-owned",
+    "realProvidersAndDevice": "not run by this task"
+  },
+  "nativeExceptions": [
+    "textarea and IME",
+    "privacy and consent switches",
+    "native navigation and trading share open-type",
+    "media selection and private gallery/avatar controls",
+    "existing deletion confirmation/contact/gallery surfaces",
+    "unchanged shared recovery and management templates"
+  ],
+  "beforeSourceSha256": {
+    "src/pages/compose-entry/compose-entry.wxml": "a2af2cd8fc7a9ce620b144b7f5851da67044c9cb98ebeee40f6ffd63eff96a7b",
+    "src/pages/community-compose/community-compose.wxml": "43e7b5eee21efa3cfcc6c2e4a13ac537c1ef6f1ece67cb1a6f4d6f45adce43c3",
+    "src/pages/community-detail/community-detail.wxml": "209c833c6540eab65d0ddea3745c45e0ffd15c43e34f2deca3e66183bafc58e3",
+    "src/pages/community-thread/community-thread.wxml": "0f38e367083fe0e748f579ecc4b5d849705fa36b26ce0783192683add2934335"
+  },
+  "ownedFiles": {
+    "apps/wechat/scripts/fixtures/framework7-composer-preview.mjs": {
+      "bytes": 14134,
+      "sha256": "2bf6f0691c7055af6d568a6b8d687592aec8e416012f86a46a588849bc0e12ec"
+    },
+    "apps/wechat/scripts/smoke-admin-discussion-removal.mjs": {
+      "bytes": 22836,
+      "sha256": "4023b635ae5c55cf2776b15c427b7d0bb0d3292d3a86d6f32c263c704db5438e"
+    },
+    "apps/wechat/scripts/smoke-discussion-pagination.mjs": {
+      "bytes": 8799,
+      "sha256": "2e3f2b4dbef0552c8522a6ac632f07f197c40715edf0d58357f6050349bda718"
+    },
+    "apps/wechat/scripts/smoke-runtime-policy.mjs": {
+      "bytes": 14615,
+      "sha256": "ab54285921f46c2e11ac00ea1ed89d9e51472c87f735d833ac9eed457d30a788"
+    },
+    "apps/wechat/src/pages/community-compose/community-compose.json": {
+      "bytes": 410,
+      "sha256": "672dbbbdc7f8c468094b93649c0f19a87a22afe91a4e59b9ab20b649aeb1d56c"
+    },
+    "apps/wechat/src/pages/community-compose/community-compose.wxml": {
+      "bytes": 23595,
+      "sha256": "dc770cf018dc44a663d3c970ef5979e94e619985c64128942b5a8482ad9b834e"
+    },
+    "apps/wechat/src/pages/community-compose/community-compose.wxss": {
+      "bytes": 5146,
+      "sha256": "18ea4b52c85503c402ed8040067dc5a70603545452e6edb7566ff3dd97df68e3"
+    },
+    "apps/wechat/src/pages/community-compose/framework7-composer.wxss": {
+      "bytes": 3370,
+      "sha256": "7cc65ec7de8382cc58da55c79a1214688057a9a77a680a4900fede4ec7e2dcb0"
+    },
+    "apps/wechat/src/pages/community-detail/community-detail.json": {
+      "bytes": 416,
+      "sha256": "faf3aa37441b5d371ade7b06b339a952ab84022cc0a4515b8bc476bfec236db3"
+    },
+    "apps/wechat/src/pages/community-detail/community-detail.wxml": {
+      "bytes": 51336,
+      "sha256": "01e1621ebfd96c5a793e3ad31cf8c6266ce541796c70be172fa006e8a8557131"
+    },
+    "apps/wechat/src/pages/community-detail/community-detail.wxss": {
+      "bytes": 11654,
+      "sha256": "7d326460725b2aa23faed8074a10b31833c49f09b92b07cab5b796c7c1e6d762"
+    },
+    "apps/wechat/src/pages/community-thread/community-thread.json": {
+      "bytes": 353,
+      "sha256": "79ba4b94bc3e12a4e19eabd78b543597206035b1ed338dac6b091c39b15d4756"
+    },
+    "apps/wechat/src/pages/community-thread/community-thread.wxml": {
+      "bytes": 19887,
+      "sha256": "a5f5afe1facb8165cf8095a2b1876b462aae827a200bdceb218d559a94fcb609"
+    },
+    "apps/wechat/src/pages/community-thread/community-thread.wxss": {
+      "bytes": 4581,
+      "sha256": "d03f4b860fe3e6efb1985469bc3ff871d0313a1d210da41ce9f75407f4a355ff"
+    },
+    "apps/wechat/src/pages/compose-entry/compose-entry.json": {
+      "bytes": 353,
+      "sha256": "37008a3b72984b2c255b800d4674dfa546748fb553b8b1a2405b2f1cb19621d6"
+    },
+    "apps/wechat/src/pages/compose-entry/compose-entry.wxml": {
+      "bytes": 2378,
+      "sha256": "381cb0ea75577a27c78b49ca2e08d1687126442bec78c25d5978f8a0ec0cda91"
+    },
+    "apps/wechat/src/pages/compose-entry/compose-entry.wxss": {
+      "bytes": 1334,
+      "sha256": "f1984c4360b078e6ad470f5dc5c06424e6ccac5cf913e1821aff2c7115bd5573"
+    },
+    "apps/wechat/test/admin-discussion-removal.test.ts": {
+      "bytes": 52002,
+      "sha256": "36c5581df2a5eb215ef7a327172be69dd48e8e25ee5f0c76460ae5fff51d5ea7"
+    },
+    "apps/wechat/test/admin-post-removal.test.ts": {
+      "bytes": 38558,
+      "sha256": "15aa81ba1ab90a8b1b18c37c4e63bdc92153e8de802c4724b007747969cf99f3"
+    },
+    "apps/wechat/test/core-product-presentation.test.ts": {
+      "bytes": 8527,
+      "sha256": "6956d016ef7762dc51551d5aba1d6f93c7a742d2a619f8a979b74f60b4ad598a"
+    },
+    "apps/wechat/test/fixtures/framework7-composer-before-actions.json": {
+      "bytes": 139095,
+      "sha256": "357870457423c65d3c87379c751e586120381d835ccbd3078d19a3fb9f019309"
+    },
+    "apps/wechat/test/fixtures/framework7-composer-before-protected.json": {
+      "bytes": 22756,
+      "sha256": "0f5c60ae41c6c243f167fd990a4099581a757daaed234dc5d6dbb604f158d73b"
+    },
+    "apps/wechat/test/framework7-composer-migration.test.ts": {
+      "bytes": 29332,
+      "sha256": "ef2f62be0e1b4cd6d6cd156be7b747177ce0888707093c6d52a4e0ac1d4f7f08"
+    },
+    "docs/FRAMEWORK7_COMPOSER_MIGRATION.md": {
+      "bytes": 8833,
+      "sha256": "b39ff0040e6977e999e120a815b89ee103c9eff99b4f30a54f7a21749daeb826"
+    }
+  },
+  "dependencies": {
+    "apps/wechat/test/native-press-emitted-harness.mjs": {
+      "owner": "private-chat migration",
+      "sha256": "085e3f616ded754cb13694157e9598efe1de296c92d2b4e56748bcfb0c727d98"
+    }
+  },
+  "legacyReferenceFiles": [
+    "apps/wechat/scripts/fixtures/framework7-composer-preview.mjs",
+    "apps/wechat/scripts/package-release.mjs",
+    "apps/wechat/scripts/preview-apple.mjs",
+    "apps/wechat/scripts/related-sync-native-child.mjs",
+    "apps/wechat/scripts/smoke-admin-discussion-removal.mjs",
+    "apps/wechat/scripts/smoke-blocks.mjs",
+    "apps/wechat/scripts/smoke-build.mjs",
+    "apps/wechat/scripts/smoke-category-reclassification.mjs",
+    "apps/wechat/scripts/smoke-discussion-pagination.mjs",
+    "apps/wechat/scripts/smoke-media-batch.mjs",
+    "apps/wechat/scripts/smoke-media-read.mjs",
+    "apps/wechat/scripts/smoke-media-upload.mjs",
+    "apps/wechat/scripts/smoke-profile-discovery.mjs",
+    "apps/wechat/scripts/smoke-public-experience.mjs",
+    "apps/wechat/scripts/smoke-related-campus-sync.mjs",
+    "apps/wechat/scripts/smoke-reporting.mjs",
+    "apps/wechat/scripts/smoke-runtime-policy.mjs",
+    "apps/wechat/scripts/smoke-search.mjs",
+    "apps/wechat/scripts/smoke-trading-contacts.mjs",
+    "apps/wechat/scripts/smoke-view-reporting.mjs",
+    "apps/wechat/test/admin-discussion-removal.test.ts",
+    "apps/wechat/test/admin-post-removal.test.ts",
+    "apps/wechat/test/apple-me-actions.test.ts",
+    "apps/wechat/test/apple-me-profile.test.ts",
+    "apps/wechat/test/category-reclassification.test.ts",
+    "apps/wechat/test/community-compose.test.ts",
+    "apps/wechat/test/community-read.test.ts",
+    "apps/wechat/test/community-review.test.ts",
+    "apps/wechat/test/community-runtime-policy.test.ts",
+    "apps/wechat/test/compose-entry.test.ts",
+    "apps/wechat/test/core-product-presentation.test.ts",
+    "apps/wechat/test/discussion-pagination.test.ts",
+    "apps/wechat/test/discussion-read.test.ts",
+    "apps/wechat/test/discussion-recovery.test.ts",
+    "apps/wechat/test/feedback-notices.test.ts",
+    "apps/wechat/test/feedback.test.ts",
+    "apps/wechat/test/formation-compose.test.ts",
+    "apps/wechat/test/framework7-composer-migration.test.ts",
+    "apps/wechat/test/framework7-history-dialog.test.ts",
+    "apps/wechat/test/identity-campus-compose.test.ts",
+    "apps/wechat/test/media-batch-compose.test.ts",
+    "apps/wechat/test/media-discussion-compose.test.ts",
+    "apps/wechat/test/media-discussion-gallery.test.ts",
+    "apps/wechat/test/media-upload-compose.test.ts",
+    "apps/wechat/test/messaging-native.test.ts",
+    "apps/wechat/test/official-account-native.test.ts",
+    "apps/wechat/test/own-publications.test.ts",
+    "apps/wechat/test/owner-post-visibility.test.ts",
+    "apps/wechat/test/poll-compose.test.ts",
+    "apps/wechat/test/post-pins.test.ts",
+    "apps/wechat/test/profile-avatar-moderation.test.ts",
+    "apps/wechat/test/profile-avatar-pages.test.ts",
+    "apps/wechat/test/profile-cover-partition.test.ts",
+    "apps/wechat/test/profile-moderation.test.ts",
+    "apps/wechat/test/rating-link-native.test.ts",
+    "apps/wechat/test/ratings-assistance-emitted-harness.mjs",
+    "apps/wechat/test/related-campus-navigation.test.ts",
+    "apps/wechat/test/related-campus-sync.test.ts",
+    "apps/wechat/test/report-controller.test.ts",
+    "apps/wechat/test/safety-invalidation.test.ts",
+    "apps/wechat/test/search-discussion.test.ts",
+    "apps/wechat/test/search-page.test.ts",
+    "apps/wechat/test/shell-navigation.test.ts",
+    "apps/wechat/test/social-notices.test.ts",
+    "apps/wechat/test/support-product-presentation.test.ts",
+    "apps/wechat/test/text-review-emitted-harness.mjs",
+    "apps/wechat/test/trading-controller.test.ts",
+    "apps/wechat/test/updates-read.test.ts"
+  ]
+}

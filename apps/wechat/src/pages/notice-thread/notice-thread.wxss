@@ -1,0 +1,6 @@
+@import '../../notifications/details.wxss';
+.notice-page.activity-notice-page .notice-empty {
+  padding-top: 140rpx;
+}
+
+@import '../../notifications/framework7-details.wxss';

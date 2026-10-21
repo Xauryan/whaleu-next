@@ -1,0 +1,48 @@
+/* Fixed Framework7 v9.2.0 native component hosts only. Native textarea,
+ * navigator, image and the existing controlled confirmation/gallery surfaces
+ * are deliberate platform/owner exceptions, not a new overlay runtime. */
+@import '../design/framework7-ios.wxss';
+
+.discussion-product.f7-discussions {
+  color: var(--f7-text-color);
+}
+.discussion-product.f7-discussions wu-f7-button,
+.discussion-product.f7-discussions wu-f7-block {
+  display: block;
+  min-width: 0;
+}
+.discussion-product.f7-discussions wu-f7-button {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.discussion-product.f7-discussions .discussion-tabs,
+.discussion-product.f7-discussions .discussion-item-actions,
+.discussion-product.f7-discussions .discussion-photo-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.discussion-product.f7-discussions wu-f7-block.discussion-item,
+.discussion-product.f7-discussions wu-f7-block.discussion-empty,
+.discussion-product.f7-discussions wu-f7-block.discussion-recovery {
+  padding: 0;
+  background: transparent;
+}
+.discussion-product.f7-discussions wu-f7-block.discussion-focused {
+  border-left: 2px solid var(--f7-theme-color);
+}
+.discussion-product.f7-discussions .discussion-sheet > wu-f7-button,
+.discussion-product.f7-discussions
+  .discussion-recovery
+  wu-f7-button
+  + wu-f7-button {
+  margin-top: 8px;
+}
+.discussion-product.f7-discussions .discussion-recovery-actions {
+  display: block;
+}
+.discussion-product.f7-discussions .discussion-gallery-actions wu-f7-button {
+  flex: 1;
+}

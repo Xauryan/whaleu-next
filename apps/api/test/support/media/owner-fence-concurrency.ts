@@ -42,6 +42,12 @@ export async function verifyMediaOwnerFenceConcurrency(
         "SELECT to_regclass('whaleu_media.category_icon_request_markers') IS NOT NULL AS present",
       )
     ).rows[0]?.present === true;
+  const profileCoverInstalled =
+    (
+      await pool.query<{ present: boolean }>(
+        "SELECT to_regclass('whaleu_media.profile_cover_request_markers') IS NOT NULL AS present",
+      )
+    ).rows[0]?.present === true;
   const verificationEvidenceInstalled =
     (
       await pool.query<{ present: boolean }>(
@@ -75,6 +81,7 @@ export async function verifyMediaOwnerFenceConcurrency(
   const sources = [
     ...historicalSources,
     ...(categoryIconInstalled ? ['category_icon_request_markers'] : []),
+    ...(profileCoverInstalled ? ['profile_cover_request_markers'] : []),
     ...(errandMediaInstalled
       ? ['errand_scopes', 'errand_appearances', 'errand_retirements']
       : []),

@@ -11,6 +11,7 @@ import { AccountPunishmentPolicy } from '../../src/safety/account-moderation/pol
 import { historicalPrefixes } from './historical-schema-prefixes.js';
 import { historicalCommunityDistribution } from './historical-community-distribution.js';
 import { configureHistoricalAvatarModeration } from './historical-avatar-moderation/configure.js';
+import { configureHistoricalIdentity } from './historical-identity/configure.js';
 import { CommunityDistributionService } from '../../src/community/related-sync/service.js';
 
 // readMigrations hashes checked-in SQL. Share this immutable manifest promise,
@@ -113,6 +114,7 @@ export async function configureHistoricalAccountPolicy(
     historicalPrefixes.has(prefix),
     `Unregistered historical prefix ${prefix}`,
   );
+  await configureHistoricalIdentity(builder, config, prefix);
   if (prefix === 132)
     await configureHistoricalAvatarModeration(builder, config, prefix);
   // Boundaries at or after 0138 retain the real distribution owner. The

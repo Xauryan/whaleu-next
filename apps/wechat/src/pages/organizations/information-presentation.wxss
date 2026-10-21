@@ -1,0 +1,242 @@
+page {
+  background: var(--wu-surface);
+}
+.information-screen {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 12rpx 36rpx calc(48rpx + env(safe-area-inset-bottom));
+  color: var(--wu-text);
+  background: var(--wu-surface);
+}
+.information-screen button {
+  min-height: 88rpx;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 16rpx 24rpx;
+  border: 0;
+  border-radius: 18rpx;
+  background: transparent;
+  color: var(--wu-text);
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+.information-screen button[disabled] {
+  color: var(--wu-secondary);
+  opacity: 0.48;
+}
+.toolbar,
+.section-heading,
+.utility-row,
+.disclosure,
+.contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+.toolbar {
+  min-height: 98rpx;
+}
+.scope-caption {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+.scope-caption text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.information-screen .icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 88rpx;
+  width: 88rpx;
+  padding: 0;
+}
+.information-screen .text-button,
+.information-screen .quiet-button {
+  color: var(--wu-accent);
+  padding-right: 0;
+  padding-left: 0;
+}
+.information-screen .primary-button {
+  background: var(--wu-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.information-screen .secondary-button {
+  background: var(--wu-bg);
+  color: var(--wu-text);
+}
+.information-screen .danger-button {
+  color: var(--wu-danger);
+}
+.tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 34rpx;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.information-screen .tab {
+  position: relative;
+  border-radius: 0;
+  padding: 20rpx 0;
+  color: var(--wu-secondary);
+  font-size: 31rpx;
+  white-space: nowrap;
+}
+.information-screen .tab.active {
+  color: var(--wu-text);
+  font-weight: 650;
+}
+.tab.active::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 5rpx;
+  border-radius: 4rpx;
+  background: var(--wu-text);
+}
+.section-heading {
+  margin: 24rpx 0 4rpx;
+  font-size: 29rpx;
+  font-weight: 600;
+}
+.section-heading:first-child {
+  margin-top: 0;
+}
+.section-caption,
+.meta,
+.reading-notes {
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.status,
+.notice,
+.error {
+  margin: 16rpx 0;
+  font-size: 26rpx;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.status,
+.notice {
+  color: var(--wu-secondary);
+}
+.error {
+  color: var(--wu-danger);
+}
+.recovery {
+  padding: 26rpx;
+  margin: 20rpx 0 30rpx;
+  border-radius: 22rpx;
+  background: var(--wu-bg);
+}
+.recovery-title {
+  font-size: 29rpx;
+  font-weight: 600;
+  margin-bottom: 10rpx;
+}
+.recovery .notice {
+  margin: 0 0 16rpx;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12rpx;
+}
+.actions > button {
+  flex: 1;
+}
+.utility-row {
+  min-height: 100rpx;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+  box-sizing: border-box;
+  color: var(--wu-text);
+  font-size: 27rpx;
+}
+.utility-row > text {
+  flex: 1;
+}
+.information-screen .disclosure {
+  width: 100%;
+  padding: 10rpx 0;
+  text-align: left;
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+}
+.reading-notes {
+  margin-top: 20rpx;
+}
+.empty {
+  padding: 70rpx 24rpx;
+  color: var(--wu-secondary);
+  text-align: center;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+.empty wu-icon {
+  display: block;
+  margin: 0 auto 20rpx;
+  width: 40px;
+}
+.empty-title {
+  font-size: 31rpx;
+  font-weight: 600;
+  color: var(--wu-text);
+  margin-bottom: 8rpx;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20rpx;
+  margin: 30rpx 0;
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+}
+.field {
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.field-label {
+  display: block;
+  margin-bottom: 16rpx;
+  font-size: 25rpx;
+  font-weight: 550;
+  color: var(--wu-secondary);
+}
+.information-screen input,
+.information-screen textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 88rpx;
+  padding: 14rpx 0;
+  font-size: 31rpx;
+  line-height: 1.65;
+  color: var(--wu-text);
+}
+.information-screen textarea {
+  height: 260rpx;
+}
+.image-reader {
+  padding: 24rpx 0;
+}
+.image-reader image {
+  display: block;
+  width: 100%;
+  border-radius: 20rpx;
+}

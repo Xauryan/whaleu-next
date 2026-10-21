@@ -22,6 +22,7 @@ import {
 type Tap = { currentTarget: { dataset: { id?: string } } };
 Page({
   data: {
+    uiPanel: '',
     ...initialErrandAdminView(),
     adminCommand: initialErrandAdminCommandView(),
     statusOptions: errandAdminStatuses.map((value) => ({
@@ -50,7 +51,12 @@ Page({
       this.route = null;
     }
   },
+  onToggleUiPanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel ?? '';
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.onHide();
     const runtime = getApp<WhaleuApp>().community;
     if (!runtime) {
@@ -78,7 +84,10 @@ Page({
       if (accountId === undefined) this.navigator?.dispose();
     });
     this.controller = new ErrandAdminController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        ...(!view.loaded || view.access === 'denied' ? { uiPanel: '' } : {}),
+      }),
     );
     this.commands = new ErrandAdminCommandController(
       runtime,
@@ -156,6 +165,7 @@ Page({
     );
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.commands?.dispose();
     this.commands = undefined;
     this.controller?.dispose();
@@ -168,6 +178,7 @@ Page({
     this.unsubscribeHide = undefined;
   },
   onUnload() {
+    this.setData({ uiPanel: '' });
     this.onHide();
     this.route = null;
   },

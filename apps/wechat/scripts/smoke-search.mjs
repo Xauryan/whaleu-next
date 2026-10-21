@@ -14,6 +14,46 @@ export async function smokeSearch({
   postWire,
   tradingWire,
 }) {
+  // Exercise the emitted native Component boundary, not a direct page tap.
+  let buttonDefinition;
+  const previousComponent = globalThis.Component;
+  const buttonFile = path.join(dist, 'components/f7-button/f7-button.js');
+  globalThis.Component = (definition) => {
+    buttonDefinition = definition;
+  };
+  try {
+    delete require.cache[require.resolve(buttonFile)];
+    require(buttonFile);
+  } finally {
+    globalThis.Component = previousComponent;
+  }
+  assert.ok(buttonDefinition);
+  const modePress = (page, mode, disabled = false) => {
+    let dispatched = 0;
+    const instance = {
+      properties: Object.fromEntries(
+        Object.entries(buttonDefinition.properties).map(([name, value]) => [
+          name,
+          value.value,
+        ]),
+      ),
+      data: structuredClone(buttonDefinition.data),
+      setData(update) {
+        Object.assign(this.data, update);
+      },
+      triggerEvent(name, detail, options) {
+        assert.equal(name, 'press');
+        assert.deepEqual(options, { bubbles: false, composed: false });
+        dispatched += 1;
+        page.onMode({ detail, currentTarget: { dataset: { mode } } });
+      },
+    };
+    instance.properties.disabled = disabled;
+    buttonDefinition.lifetimes?.attached?.call(instance);
+    buttonDefinition.methods.onPress.call(instance);
+    buttonDefinition.lifetimes?.detached?.call(instance);
+    assert.equal(dispatched, disabled ? 0 : 1);
+  };
   const { ApiClient } = require(path.join(dist, 'api/client.js'));
   const { HttpSearchGateway } = require(
     path.join(dist, 'community/search-gateway.js'),
@@ -528,15 +568,18 @@ export async function smokeSearch({
         (node) =>
           node.tag === 'rich-text' ||
           node.attrs.class === 'match' ||
-          node.attrs.bindtap === 'onNext' ||
-          node.attrs.bindtap === 'onPrevious',
+          node.attrs['bind:press'] === 'onNext' ||
+          node.attrs['bind:press'] === 'onPrevious',
       ),
     );
+    page.onToggleFilters();
+    const filtersRendered = render(parse(semanticWxml).children, page.data, {});
     assert.ok(
-      flattened(rendered).some(
+      flattened(filtersRendered).some(
         (node) =>
           node.attrs['data-mode'] === 'keyword' &&
-          node.attrs.bindtap === 'onMode',
+          node.tag === 'wu-f7-button' &&
+          node.attrs['bind:press'] === 'onMode',
       ),
     );
     const semanticCount = requests.length;
@@ -552,7 +595,9 @@ export async function smokeSearch({
     assert.equal(page.data.hits.length, 1);
     page.onCancel();
     assert.deepEqual(page.data.hits, []);
-    page.onMode({ currentTarget: { dataset: { mode: 'keyword' } } });
+    modePress(page, 'keyword', true);
+    assert.equal(page.data.mode, 'semantic');
+    modePress(page, 'keyword');
     await flush();
     assert.equal(new URL(requests.at(-1).url).pathname, '/v1/community/search');
     assert.equal(page.data.mode, 'keyword');
@@ -560,9 +605,9 @@ export async function smokeSearch({
       path.join(dist, 'pages/community-search/community-search.wxml'),
       'utf8',
     );
-    assert.match(wxml, /data-mode="semantic" bindtap="onMode"/);
+    assert.match(wxml, /data-mode="semantic" bind:press="onMode"/);
     assert.match(wxml, /loaded &amp;&amp; mode === 'keyword'/);
-    assert.match(wxml, /服务默认未开启/);
+    assert.match(wxml, /服务未开启时不会自动切换到关键词搜索/);
     assert.doesNotMatch(wxml, /rich-text|尚不支持语义/);
   } finally {
     page?.onUnload();

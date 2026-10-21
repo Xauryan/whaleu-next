@@ -1,21 +1,213 @@
-@import '../../profile/forms.wxss';
-
+@import './framework7-profile-verification.wxss';
+.editor-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 var(--f7-block-padding-horizontal);
+}
+.editor-navigation-side {
+  display: flex;
+  align-items: center;
+  width: 54px;
+  min-height: 44px;
+}
+.editor-navigation-end {
+  justify-content: flex-end;
+}
+.editor-navigation-title {
+  flex: 1;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+}
+.editor-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  transform: rotate(180deg);
+}
+.editor-preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  color: var(--f7-theme-color);
+  font-size: 15px;
+}
+.editor-avatar-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+}
+.editor-avatar-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+/* These two media controls intentionally stay native, not rectangular F7 proxies. */
+.editor-avatar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--f7-list-strong-bg-color);
+}
+.editor-avatar-button[disabled] {
+  opacity: 1;
+}
+.editor-avatar-badge {
+  position: absolute;
+  right: -10px;
+  bottom: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 4px solid var(--f7-page-bg-color);
+  border-radius: 50%;
+  background: var(--f7-theme-color);
+}
+button::after {
+  border: 0;
+}
+.avatar-tools-toggle {
+  display: block;
+  margin-top: 12px;
+}
 .profile-avatar {
-  width: 160rpx;
-  height: 160rpx;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
 }
+.avatar-editor-tools wu-f7-button {
+  display: block;
+  margin-top: 10px;
+}
+view.editor-field-row {
+  display: flex;
+  align-items: center;
+  min-height: var(--f7-list-item-min-height);
+  padding: var(--f7-list-item-padding-vertical)
+    var(--f7-list-item-padding-horizontal);
+}
+.editor-field-row > wu-f7-input {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+.editor-field-row .field-label {
+  flex: 0 0 80px;
+  margin: 0;
+  color: var(--f7-list-item-after-text-color);
+  font-size: 17px;
+}
+.editor-field-row .detail-gender-picker {
+  flex: 1;
+  min-width: 0;
+  color: var(--f7-text-color);
+  font-size: var(--f7-input-font-size);
+  line-height: var(--f7-input-height);
+}
+.editor-readonly {
+  color: var(--f7-text-color);
+  font-size: var(--f7-list-item-subtitle-font-size);
+  overflow-wrap: anywhere;
+}
+.editor-cover-thumbnail {
+  display: block;
+  width: 56px;
+  height: 44px;
+  border-radius: 4px;
+}
+.editor-cover-status {
+  color: var(--f7-list-item-after-text-color);
+  font-size: 15px;
+}
+.editor-cover-preview {
+  display: block;
+  width: 100%;
+  height: 160px;
+  border-radius: 8px;
+}
+.editor-bio-row {
+  display: block;
+  padding: 0;
+}
+.editor-bio-row .field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--f7-label-text-color);
+  font-size: var(--f7-label-font-size);
+}
+.editor-bio-row .textarea {
+  display: block;
+  width: 100%;
+  min-height: 76px;
+  max-height: 180px;
+  padding: 0;
+  color: var(--f7-input-text-color);
+  font-size: var(--f7-input-font-size);
+  line-height: 1.5;
+}
+.editor-visibility {
+  padding: 0 var(--f7-list-item-padding-horizontal) 12px;
+}
+.preference-row {
+  padding: 4px 0;
+}
+.profile-details-editor .primary,
+.profile-details-editor .secondary,
+.profile-details-editor .error,
+.profile-details-editor > .hint,
+.editor-fields > .hint {
+  margin-left: var(--f7-list-item-padding-horizontal);
+  margin-right: var(--f7-list-item-padding-horizontal);
+}
+.profile-details-editor .primary,
+.profile-details-editor .secondary {
+  margin-bottom: 12px;
+}
+.editor-campus-row {
+  display: block;
+  padding: 0;
+}
+.editor-campus-value {
+  color: var(--f7-text-color);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.profile-editor > .secondary {
+  margin: 16px;
+}
+/* Existing private avatar preview only. This migration introduces no overlay. */
 .avatar-overlay {
   position: fixed;
   inset: 0;
   z-index: 20;
-  background: #111;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  background: #111;
 }
 .avatar-overlay image {
   width: 90vw;
   height: 70vh;
+}
+.avatar-overlay wu-f7-button {
+  display: block;
+  width: calc(100% - 32px);
+  margin-top: 16px;
 }

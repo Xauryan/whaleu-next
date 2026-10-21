@@ -1,0 +1,1 @@
+@import '../admin-post-removal/moderation.wxss';

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "scope": "Explicit exposure-only uncertain-outcome correction in StudentNoticesReader and RatingUpdatesController. Not part of the original optional-guard-only delta.",
+  "predecessorInventory": {
+    "path": "docs/NOTICE_EXPOSURE_READ_INVENTORY.json",
+    "sha256": "2af3ead32dddeef4569d621f6007f6367eff778332fe9b38887189f77712bcd8"
+  },
+  "changed": {
+    "src/notifications/student-notices.ts": {
+      "before": "de64274661f9796c79388c60832033198c1d70421abe7dab4889c8b76f14c36f",
+      "after": "04cf841c3bc566f8f64863dbe7c7a601304c34ef451496d85114c74dbdb2d0d3",
+      "evidence": "test/fixtures/notice-exposure-uncertain-before/student-notices.ts.txt"
+    },
+    "src/ratings/updates-controller.ts": {
+      "before": "76ab47693bd9b9289242bc7f10607e66d4416b86b17e17676143e2b64ad5b25c",
+      "after": "a31a2c7558f4a3aa1d197acf51cdc9885a280a736b5c1a63f92bde873b23e66a",
+      "evidence": "test/fixtures/notice-exposure-uncertain-before/ratings-updates-controller.ts.txt"
+    }
+  },
+  "delta": {
+    "path": "docs/NOTICE_EXPOSURE_UNCERTAIN_READ_CORRECTION.patch",
+    "sha256": "2711b8c7b0f13666dc91926176e2c74e96fdf5ddced2ecf0c445499b8f2eabf2"
+  },
+  "policy": {
+    "eligible": "Only supplied exposure guard plus current loaded exact captured array and serialized content, unchanged attempt scope, and network/timeout/cancelled with no HTTP status or server denial code.",
+    "retention": "Keep prior unread row without inferred readAt; set ratings source count unknown (null); expose manual unconfirmed status. No automatic retry. Existing no-guard manual failure behavior unchanged.",
+    "cancellation": "Before dispatch may send no mutation; after dispatch may already have committed remotely. Neither is represented as a rollback or confirmed read.",
+    "invalidation": "Original generation/session and exact rows, plus per-attempt private/safety/browsing/directory subscriptions. Hide, explicit cancel, reload, account switch, safety and scope invalidation cannot restore old rows.",
+    "denials": "Auth, forbidden, protocol, business/visibility, or any HTTP/server denial details still clear.",
+    "baseErrorRender": "CommunityController publishes error before onError, so the resulting exposure invalidation is not treated as proof of lost source authority."
+  }
+}

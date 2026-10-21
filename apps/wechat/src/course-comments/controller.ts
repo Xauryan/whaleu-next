@@ -66,29 +66,29 @@ export function courseCommentsError(error: unknown): string {
   const failure = clientError(error);
   if (failure.kind === 'protocol') return communityError(failure);
   const messages: Record<string, string> = {
-    PHONE_VERIFICATION_REQUIRED: '请先完成手机号验证，再重新加载课程评论',
+    PHONE_VERIFICATION_REQUIRED: '请先完成手机号验证，再重新加载课程回复',
     COURSE_CATALOG_UNAVAILABLE:
-      '课程目录来源尚未确认，暂不能展示评论；这不代表没有评论',
-    COURSE_NOT_FOUND: '此课程当前不可查看；原评论操作仍可独立查询回执',
-    COURSE_COMMENT_NOT_FOUND: '这条评论当前不可查看，请刷新列表',
+      '课程目录来源尚未确认，暂不能展示回复；这不代表没有回复',
+    COURSE_NOT_FOUND: '此课程当前不可查看；原回复操作仍可独立查询回执',
+    COURSE_COMMENT_NOT_FOUND: '这条回复当前不可查看，请刷新列表',
     COURSE_COMMENT_HISTORY_UNAVAILABLE:
-      '评论或点赞历史尚未确认，不能当作没有评论或零个赞',
+      '回复或点赞历史尚未确认，不能当作没有回复或零个赞',
     COURSE_COMMENT_BASE_REQUIRED:
-      '发布课程评论需要当前有效的学生认证、临时认证或管理员资格',
+      '发布课程回复需要当前有效的学生认证、临时认证或管理员资格',
     COURSE_COMMENT_ALREADY_LIKED:
-      '此账号已经赞过这条评论，每条评论只能赞一次，不能取消',
+      '此账号已经赞过这条回复，每条回复只能赞一次，不能取消',
     COURSE_REVISION_CONFLICT: '课程目录已变化，请重新加载并明确确认新请求',
     COURSE_CURSOR_INVALID: '分页已经失效，请从第一页重新加载',
-    COURSE_RESTART_REQUIRED: '评论或排序已变化，请从第一页重新加载',
-    DISCOVERY_RESTART_REQUIRED: '评论或排序已变化，请从第一页重新加载',
+    COURSE_RESTART_REQUIRED: '回复或排序已变化，请从第一页重新加载',
+    DISCOVERY_RESTART_REQUIRED: '回复或排序已变化，请从第一页重新加载',
     COURSE_COMMENT_CURSOR_INVALID: '分页已经失效，请从第一页重新加载',
-    COURSE_COMMENT_RESTART_REQUIRED: '评论或排序已变化，请从第一页重新加载',
+    COURSE_COMMENT_RESTART_REQUIRED: '回复或排序已变化，请从第一页重新加载',
     REQUEST_NOT_FOUND:
       '暂未查到原回执。可重试原请求；若要取消，必须另行确认并取得服务端取消回执',
     CONTENT_REVIEW_UNAVAILABLE:
       '尚不能确认这份原文的有效审核，原请求已保留，稍后可查询或重试',
     CONTENT_REJECTED: '原文未通过审核，请先确认原请求回执再修改',
-    SAFETY_ACTION_RESTRICTED: '当前账号暂不能访问课程评论；原操作仍可查询回执',
+    SAFETY_ACTION_RESTRICTED: '当前账号暂不能访问课程回复；原操作仍可查询回执',
   };
   return messages[failure.details.serverCode ?? ''] ?? communityError(error);
 }
@@ -118,7 +118,7 @@ export class CourseCommentsController extends CommunityController<CourseComments
   private ready(): boolean {
     if (!this.available()) return false;
     if (!this.runtime.courseComments || !this.runtime.pendingCourseComments) {
-      this.update({ error: '当前构建未配置课程评论服务', canPublish: false });
+      this.update({ error: '当前构建未配置课程回复服务', canPublish: false });
       return false;
     }
     return true;
@@ -180,7 +180,7 @@ export class CourseCommentsController extends CommunityController<CourseComments
         value.intent.operation === 'course.comment.like.v1'
           ? value.intent.commentId
           : '',
-      status: '原评论操作结果待确认',
+      status: '原回复操作结果待确认',
     });
   }
   async load(id: string | null = null): Promise<void> {
@@ -200,8 +200,8 @@ export class CourseCommentsController extends CommunityController<CourseComments
     else
       this.update({
         status: this.pending
-          ? '原评论操作结果待确认'
-          : '当前账号没有待确认的课程评论操作',
+          ? '原回复操作结果待确认'
+          : '当前账号没有待确认的课程回复操作',
       });
   }
   async setSort(sort: unknown): Promise<void> {
@@ -231,7 +231,7 @@ export class CourseCommentsController extends CommunityController<CourseComments
       sort = this.view.sort,
       pageNumber = cursor ? this.view.pageNumber + 1 : 1;
     this.clearRead();
-    this.update({ restartRequired: false, status: '正在核验课程评论' });
+    this.update({ restartRequired: false, status: '正在核验课程回复' });
     await this.run(
       async (cancel) => {
         const page = decodeCourseCommentPage(
@@ -262,10 +262,10 @@ export class CourseCommentsController extends CommunityController<CourseComments
           canPublish:
             storageReady && !this.pending && courseCommentBody(this.view.body),
           status: this.pending
-            ? '原评论操作结果待确认'
+            ? '原回复操作结果待确认'
             : page.items.length
-              ? '课程评论已加载'
-              : '当前已确认没有课程评论',
+              ? '课程回复已加载'
+              : '当前已确认没有课程回复',
         });
       },
       (error) => {
@@ -274,7 +274,7 @@ export class CourseCommentsController extends CommunityController<CourseComments
           pageNumber: 0,
           restartRequired: cursor !== null,
           error: courseCommentsError(error),
-          status: '课程评论暂不可用',
+          status: '课程回复暂不可用',
         });
       },
     );
@@ -502,12 +502,12 @@ export class CourseCommentsController extends CommunityController<CourseComments
       receiptStatus:
         result.outcome === 'applied'
           ? result.operation === 'course.comment.publish.v1'
-            ? '原评论已确认发布。当前列表将单独重新核验。'
+            ? '原回复已确认发布。当前列表将单独重新核验。'
             : '原点赞已确认成功，不能取消。当前列表将单独重新核验。'
           : result.code === 'COURSE_COMMENT_CANCELLED'
             ? '服务端已确认取消原请求；原请求不会再写入。'
             : result.code === 'COURSE_COMMENT_ALREADY_LIKED'
-              ? '原请求已确认未写入：此账号已经赞过这条评论。'
+              ? '原请求已确认未写入：此账号已经赞过这条回复。'
               : result.code === 'CONTENT_REJECTED'
                 ? '原请求已确认未写入：原文未通过审核，可重新编辑并确认。'
                 : '原请求已确认未写入：课程版本已变化，请刷新后重新确认。',

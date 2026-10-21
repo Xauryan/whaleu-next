@@ -6,6 +6,12 @@ import test from 'node:test';
 import request from 'supertest';
 import sharp from 'sharp';
 import { DatabaseService } from '../../src/database/database.js';
+import { APP_CONFIG } from '../../src/config/config.js';
+import type { RuntimeConfig } from '../../src/config/config.js';
+import { IDENTITY_PROVIDER } from '../../src/identity/contracts.js';
+import type { IdentityProvider } from '../../src/identity/contracts.js';
+import { IdentityService } from '../../src/identity/identity.service.js';
+import { historicalIdentityRepository } from '../support/historical-identity/configure.js';
 import {
   readMigrations,
   runMigrations,
@@ -45,14 +51,55 @@ test(
     })
       .png()
       .toBuffer();
+    let historicalPhase = true;
     const f = await studentEvidenceFixture(
       [{ sha256: sha256(png), verdict: 'allow' }],
       undefined,
-      { maximumMigration: 140 },
+      {
+        maximumMigration: 140,
+        configureTestModule(builder, config) {
+          if (!historicalPhase) return;
+          // Only this test needs canonical native registration at schema140.
+          // Keep the real HTTP controller/rate limiter/provider/service, and
+          // bind its existing guarded predecessor to the actual student config.
+          // The later fixture policy overrides IdentityRepository, not this
+          // service. No shared historical default or native ledger is changed.
+          builder.overrideProvider(IdentityService).useFactory({
+            inject: [IDENTITY_PROVIDER, DatabaseService, APP_CONFIG],
+            factory: async (
+              provider: IdentityProvider,
+              database: DatabaseService,
+              installedConfig: RuntimeConfig,
+            ) => {
+              assert.equal(installedConfig, config);
+              assert.equal(
+                installedConfig.NATIVE_VERIFICATION_ENROLLMENT,
+                'enabled',
+              );
+              return new IdentityService(
+                provider,
+                await historicalIdentityRepository(
+                  database,
+                  installedConfig,
+                  140,
+                ),
+              );
+            },
+          });
+        },
+      },
     );
     t.after(() => f.close());
+    assert.equal(f.historicalPrefix, 140);
+    const historicalService = f.app.get(IdentityService);
+    assert.ok(historicalService instanceof IdentityService);
     const reviewer = await f.actor('prefeature-uid-reviewer'),
       student = await f.actor('prefeature-uid-student');
+    assert.deepEqual(f.providerExchanges(), {
+      identity: 2,
+      token: 0,
+      phone: 0,
+    });
     await withCommunityScopeWriter(f.pool, (tx) =>
       tx.query(
         "INSERT INTO whaleu_authorization.role_grants(id,account_id,role,operating_region_id,approved_by_account_id,approval_reference) VALUES($1,$2,'super_admin',NULL,$2,'synthetic-prefeature-uid')",
@@ -221,7 +268,15 @@ test(
       ),
       { mode: 'up' },
     );
+    await assert.rejects(
+      historicalService.session(student.accessToken),
+      /Historical Identity cannot cross an upgrade/,
+    );
+    // The replacement must use current Identity, never a prefix140 service.
+    historicalPhase = false;
     await f.restartApp();
+    assert.equal(f.historicalPrefix, undefined);
+    assert.notEqual(f.app.get(IdentityService), historicalService);
     assert.equal(
       (
         await f.pool.query(

@@ -1,0 +1,559 @@
+{
+  "campus-tools-map": {
+    "sourceSha256": "8b002e8c9f3826b2eb57d770978fc6007a40c331f9c94349bd8bbd8670493484",
+    "typescriptSha256": "e7d916b3395d5545277a025e603d0ae162b6ceff180d50ec35073a8d4a00567f",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "tool-primary",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-text-button",
+          "bindtap": "onContinueGuest"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "map",
+        "attrs": {
+          "id": "campus-tools-map",
+          "class": "campus-map",
+          "latitude": "{{center.latitude}}",
+          "longitude": "{{center.longitude}}",
+          "scale": "{{zoom}}",
+          "markers": "{{markers}}",
+          "show-location": "{{located}}",
+          "bindmarkertap": "onMarker"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "map-locate",
+          "bindtap": "onLocate",
+          "disabled": "{{!locateEnabled || locating}}",
+          "loading": "{{locating}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-text-button",
+          "bindtap": "onReset"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-icon-button",
+          "aria-label": "关闭地点详情",
+          "bindtap": "onCloseMarker"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+          },
+          {
+            "wx:if": "{{marker}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "place-row {{marker && marker.id === item.id ? 'is-selected' : ''}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onMarker"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+          },
+          {
+            "wx:for": "{{entry.markers}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-icon-button",
+          "aria-label": "刷新当前工具",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-text-button",
+          "bindtap": "onBack"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "tool-home",
+          "url": "/pages/campus-tools/campus-tools",
+          "open-type": "reLaunch"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "campus-tools-shuttle": {
+    "sourceSha256": "cd288108302c81d49e5ae26d5ec9d6d7f65fea6dc452f7bedf394606c4cf8d1b",
+    "typescriptSha256": "817846506a13623ec904e0235ccbdc1f3d98af472dc0e0c4045947bb1b790b03",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "tool-primary",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-text-button",
+          "bindtap": "onContinueGuest"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "shuttle-group-heading",
+          "data-id": "{{group.id}}",
+          "bindtap": "onToggleGroup"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{entry && entry.state === 'enabled'}}"
+          },
+          {
+            "wx:for": "{{entry.groups}}",
+            "wx:for-item": "group",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{group.slots}}",
+          "wx:for-item": "slot",
+          "wx:key": "bindingId",
+          "class": "shuttle-sheet",
+          "data-binding": "{{slot.bindingId}}",
+          "bindtap": "onPreview"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{entry && entry.state === 'enabled'}}"
+          },
+          {
+            "wx:for": "{{entry.groups}}",
+            "wx:for-item": "group",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{expandedGroups[group.id]}}"
+          },
+          {
+            "wx:for": "{{group.slots}}",
+            "wx:for-item": "slot",
+            "wx:key": "bindingId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-icon-button",
+          "aria-label": "关闭预览",
+          "bindtap": "onCloseImage"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          }
+        ]
+      },
+      {
+        "tag": "image",
+        "attrs": {
+          "wx:if": "{{image.src}}",
+          "class": "preview-image",
+          "src": "{{image.src}}",
+          "mode": "aspectFit",
+          "data-source": "{{image.src}}",
+          "data-view-id": "{{image.viewId}}",
+          "binderror": "onImageError"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          },
+          {
+            "wx:if": "{{image.src}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{image.status === 'unavailable'}}",
+          "class": "tool-primary preview-retry",
+          "bindtap": "onImageRetry"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          },
+          {
+            "wx:if": "{{image.status === 'unavailable'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-secondary",
+          "bindtap": "onImagePrevious",
+          "disabled": "{{image.selected === 0}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-secondary",
+          "bindtap": "onImageNext",
+          "disabled": "{{image.selected + 1 >= image.total}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-icon-button",
+          "aria-label": "刷新当前工具",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-text-button",
+          "bindtap": "onBack"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "tool-home",
+          "url": "/pages/campus-tools/campus-tools",
+          "open-type": "reLaunch"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "campus-tools-research": {
+    "sourceSha256": "1aafe130e611f40305ca43223850eb30fdba35eff7755f6058563e16a8bab3cb",
+    "typescriptSha256": "0abe1a0bf034c409281d20ea8d6580acb5cc031daf0926a1be38aaf41655904d",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "tool-primary",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-text-button",
+          "bindtap": "onContinueGuest"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{entry.image}}",
+          "class": "research-preview-link",
+          "data-binding": "{{entry.image.bindingId}}",
+          "bindtap": "onPreview"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{entry && entry.state === 'enabled'}}"
+          },
+          {
+            "wx:if": "{{entry.image}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{entry.link}}",
+          "class": "tool-primary research-copy",
+          "bindtap": "onCopy",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{entry && entry.state === 'enabled'}}"
+          },
+          {
+            "wx:if": "{{entry.link}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-icon-button",
+          "aria-label": "关闭预览",
+          "bindtap": "onCloseImage"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          }
+        ]
+      },
+      {
+        "tag": "image",
+        "attrs": {
+          "wx:if": "{{image.src}}",
+          "class": "preview-image",
+          "src": "{{image.src}}",
+          "mode": "aspectFit",
+          "data-source": "{{image.src}}",
+          "data-view-id": "{{image.viewId}}",
+          "binderror": "onImageError"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          },
+          {
+            "wx:if": "{{image.src}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{image.status === 'unavailable'}}",
+          "class": "tool-primary preview-retry",
+          "bindtap": "onImageRetry"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          },
+          {
+            "wx:if": "{{image.status === 'unavailable'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-secondary",
+          "bindtap": "onImagePrevious",
+          "disabled": "{{image.selected === 0}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-secondary",
+          "bindtap": "onImageNext",
+          "disabled": "{{image.selected + 1 >= image.total}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{image.expanded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-icon-button",
+          "aria-label": "刷新当前工具",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-text-button",
+          "bindtap": "onBack"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "tool-home",
+          "url": "/pages/campus-tools/campus-tools",
+          "open-type": "reLaunch"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "campus-tools-webview": {
+    "sourceSha256": "b7f82076d2990cba16c2c08cd310bc5a42a06471405291eb369c9c72faf9ed29",
+    "typescriptSha256": "02bef1da02e3b973960bb3233f1a1200012f841e2465c154eece9775663ec459",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "tool-primary",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-text-button",
+          "bindtap": "onContinueGuest"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "web-view",
+        "attrs": {
+          "wx:if": "{{webviewSrc}}",
+          "src": "{{webviewSrc}}",
+          "data-source": "{{webviewSrc}}",
+          "data-view-id": "{{webviewViewId}}",
+          "bindload": "onWebviewLoad",
+          "binderror": "onWebviewError",
+          "bindmessage": "onWebviewMessage"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{webviewSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-icon-button",
+          "aria-label": "刷新当前工具",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "tool-text-button",
+          "bindtap": "onBack"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "tool-home",
+          "url": "/pages/campus-tools/campus-tools",
+          "open-type": "reLaunch"
+        },
+        "scopes": []
+      }
+    ]
+  }
+}

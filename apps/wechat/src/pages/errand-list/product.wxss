@@ -1,0 +1,739 @@
+.errand-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 8rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+  color: var(--wu-text);
+  background: var(--wu-surface);
+}
+.errand-page button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 27rpx;
+  line-height: 1.5;
+  text-align: left;
+}
+.errand-page button::after {
+  border: 0;
+}
+.errand-page button[disabled] {
+  opacity: 0.42;
+}
+.errand-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 88rpx;
+  gap: 20rpx;
+}
+.errand-toolbar-link {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  min-height: 88rpx;
+  color: var(--wu-accent);
+  font-size: 27rpx;
+}
+.errand-icon-link,
+.errand-page .errand-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 88rpx;
+  width: 80rpx;
+  background: transparent;
+}
+.errand-page .errand-campus-switch {
+  display: flex;
+  align-items: center;
+  gap: 13rpx;
+  width: 100%;
+  min-height: 90rpx;
+  font-size: 31rpx;
+  font-weight: 600;
+}
+.errand-campus-switch text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.errand-campus-picker {
+  padding: 6rpx 0 24rpx;
+}
+.errand-search-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.errand-search-row input {
+  flex: 1;
+  min-width: 0;
+  height: 82rpx;
+  box-sizing: border-box;
+  padding: 0 22rpx;
+  border-radius: 18rpx;
+  background: var(--wu-bg);
+  font-size: 27rpx;
+}
+.errand-page .errand-campus-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20rpx;
+  width: 100%;
+  min-height: 96rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.errand-campus-result text {
+  flex: 1;
+}
+.errand-filterbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.errand-tabs {
+  display: flex;
+  gap: 30rpx;
+}
+.errand-page .errand-tab {
+  min-height: 92rpx;
+  color: var(--wu-secondary);
+  font-size: 29rpx;
+  border-bottom: 4rpx solid transparent;
+}
+.errand-page .errand-tab.active {
+  color: var(--wu-text);
+  font-weight: 600;
+  border-bottom-color: var(--wu-text);
+}
+.errand-page .errand-sort-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  white-space: nowrap;
+}
+.errand-sort-panel {
+  padding: 12rpx 0 20rpx;
+}
+.errand-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8rpx 20rpx;
+  padding: 8rpx 0;
+}
+.errand-choice-row > text {
+  width: 100%;
+  color: var(--wu-secondary);
+  font-size: 23rpx;
+}
+.errand-page .errand-choice {
+  min-height: 88rpx;
+  padding: 14rpx 20rpx;
+  border-radius: 14rpx;
+  font-size: 24rpx;
+  color: var(--wu-secondary);
+  background: var(--wu-bg);
+}
+.errand-page .errand-choice.selected {
+  color: var(--wu-accent);
+  background: var(--wu-tint);
+}
+.errand-range-label {
+  color: var(--wu-tertiary);
+  font-size: 23rpx;
+  margin: 22rpx 0 0;
+}
+.errand-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 32rpx;
+}
+.errand-status-row .errand-icon-button {
+  min-height: 88rpx;
+  width: 88rpx;
+}
+.errand-status {
+  flex: 1;
+  padding: 12rpx 0;
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+.errand-footnote {
+  padding: 8rpx 0;
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.errand-error {
+  padding: 18rpx 20rpx;
+  margin: 8rpx 0 20rpx;
+  background: var(--wu-danger-bg);
+  color: var(--wu-danger);
+  border-radius: 16rpx;
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+.errand-recovery {
+  padding: 22rpx 0;
+  margin: 14rpx 0;
+  border-top: 1rpx solid var(--wu-separator);
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.errand-market {
+  background: var(--wu-bg);
+  padding-bottom: calc(164rpx + env(safe-area-inset-bottom));
+}
+.errand-own {
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+}
+.errand-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+.errand-order-card {
+  background: var(--wu-surface);
+  border-radius: 26rpx;
+  padding: 28rpx 28rpx 10rpx;
+}
+.errand-order-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20rpx;
+}
+.errand-order-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 31rpx;
+  font-weight: 600;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.errand-reward {
+  flex: 0 1 auto;
+  max-width: 48%;
+  color: var(--wu-accent);
+  font-size: 36rpx;
+  line-height: 1.35;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.errand-currency {
+  margin-right: 4rpx;
+  font-size: 0.65em;
+  font-weight: 500;
+}
+.errand-order-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38rpx;
+  padding: 2rpx 12rpx;
+  margin: 12rpx 0 6rpx;
+  color: var(--wu-secondary);
+  background: var(--wu-bg);
+  border-radius: 9rpx;
+  font-size: 22rpx;
+}
+.errand-order-status.state-pending {
+  color: var(--wu-accent);
+  background: var(--wu-tint);
+}
+.errand-order-excerpt {
+  margin: 12rpx 0 20rpx;
+  color: var(--wu-secondary);
+  font-size: 26rpx;
+  line-height: 1.65;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.errand-order-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  color: var(--wu-secondary);
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+.errand-meta-divider {
+  margin: 0 3rpx;
+  color: var(--wu-tertiary);
+}
+.errand-media-count {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-top: 12rpx;
+  color: var(--wu-secondary);
+  font-size: 22rpx;
+}
+.errand-page .errand-order-open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 88rpx;
+  margin-top: 16rpx;
+  border-top: 1rpx solid var(--wu-separator);
+  color: var(--wu-accent);
+  font-size: 24rpx;
+}
+.errand-page .errand-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  min-height: 94rpx;
+  box-sizing: border-box;
+  padding: 20rpx 30rpx;
+  border-radius: 22rpx;
+  background: var(--wu-accent);
+  color: #fff;
+  font-size: 29rpx;
+  font-weight: 600;
+  text-align: center;
+}
+.errand-page .errand-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 94rpx;
+  box-sizing: border-box;
+  padding: 20rpx 26rpx;
+  border-radius: 22rpx;
+  background: var(--wu-bg);
+  font-size: 28rpx;
+  text-align: center;
+}
+.errand-bottom-bar {
+  position: fixed;
+  z-index: 10;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  padding: 18rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid var(--wu-separator);
+  background: var(--wu-surface);
+}
+.errand-page .errand-text-button {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--wu-accent);
+  font-size: 25rpx;
+}
+.errand-page .errand-muted {
+  color: var(--wu-secondary);
+}
+.errand-page .errand-danger {
+  color: var(--wu-danger);
+}
+.errand-page .errand-destructive {
+  background: var(--wu-danger);
+}
+.errand-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4rpx 28rpx;
+}
+.errand-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  padding: 90rpx 20rpx;
+  color: var(--wu-secondary);
+  text-align: center;
+  font-size: 29rpx;
+}
+.errand-empty text {
+  font-size: 24rpx;
+  color: var(--wu-tertiary);
+}
+.errand-page .errand-load-more {
+  justify-content: center;
+  padding-top: 16rpx;
+}
+.errand-admin-link {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  color: var(--wu-tertiary);
+  font-size: 23rpx;
+  margin-top: 18rpx;
+}
+.errand-segment {
+  display: flex;
+  padding: 6rpx;
+  background: var(--wu-separator);
+  border-radius: 20rpx;
+  margin: 16rpx 0 28rpx;
+}
+.errand-segment button {
+  flex: 1;
+  min-height: 88rpx;
+  text-align: center;
+  color: var(--wu-secondary);
+  border-radius: 16rpx;
+  font-size: 27rpx;
+}
+.errand-segment button.active {
+  background: var(--wu-surface);
+  color: var(--wu-text);
+  font-weight: 600;
+}
+.errand-detail {
+  padding-bottom: calc(168rpx + env(safe-area-inset-bottom));
+}
+.errand-detail-heading {
+  padding: 6rpx 0 26rpx;
+}
+.errand-detail-title {
+  margin-top: 14rpx;
+  font-size: 43rpx;
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.errand-detail-reward {
+  font-size: 54rpx;
+  font-weight: 600;
+  color: var(--wu-accent);
+  margin-top: 24rpx;
+  overflow-wrap: anywhere;
+}
+.errand-reward-caption {
+  display: inline-block;
+  font-size: 24rpx;
+  color: var(--wu-secondary);
+  margin-left: 16rpx;
+  font-weight: 400;
+}
+.errand-detail-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  padding: 24rpx 0;
+  border-top: 1rpx solid var(--wu-separator);
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.errand-detail-facts > view {
+  display: flex;
+  gap: 18rpx;
+  align-items: center;
+  font-size: 27rpx;
+}
+.errand-detail-section {
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.errand-section-title {
+  font-size: 29rpx;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.errand-body {
+  margin-top: 18rpx;
+  font-size: 29rpx;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.errand-private-heading {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.errand-image-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18rpx;
+  margin-top: 22rpx;
+}
+.errand-page .errand-media-button {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  align-items: center;
+  justify-content: center;
+  min-height: 142rpx;
+  min-width: 146rpx;
+  padding: 22rpx;
+  box-sizing: border-box;
+  background: var(--wu-bg);
+  border-radius: 20rpx;
+  color: var(--wu-secondary);
+  font-size: 23rpx;
+}
+.errand-media-view {
+  padding: 24rpx 0;
+}
+.order-image {
+  display: block;
+  width: 100%;
+  max-height: 65vh;
+}
+.target-qr {
+  display: block;
+  width: 420rpx;
+  max-width: 100%;
+  margin: 20rpx auto;
+}
+.errand-contact-name {
+  margin-top: 18rpx;
+  font-size: 28rpx;
+}
+.errand-contact-line {
+  display: flex;
+  gap: 28rpx;
+  padding: 14rpx 0;
+  font-size: 27rpx;
+  overflow-wrap: anywhere;
+}
+.errand-contact-line > text:first-child {
+  width: 60rpx;
+  flex-shrink: 0;
+  color: var(--wu-secondary);
+}
+.errand-contact-line > text:last-child {
+  min-width: 0;
+  flex: 1;
+}
+.errand-page .errand-disclosure {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 14rpx;
+  min-height: 88rpx;
+}
+.errand-disclosure > text:first-of-type {
+  flex: 1;
+}
+.errand-optional {
+  color: var(--wu-tertiary);
+  font-size: 23rpx;
+}
+.errand-order-history {
+  font-size: 23rpx;
+  color: var(--wu-secondary);
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+.errand-detail-actions {
+  display: flex;
+  gap: 18rpx;
+}
+.errand-detail-actions button {
+  flex: 1;
+}
+.errand-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.42);
+}
+.errand-modal {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 18rpx 34rpx calc(26rpx + env(safe-area-inset-bottom));
+  background: var(--wu-surface);
+  border-radius: 32rpx 32rpx 0 0;
+}
+.errand-sheet-handle {
+  width: 68rpx;
+  height: 8rpx;
+  border-radius: 8rpx;
+  background: var(--wu-separator);
+  margin: 0 auto 28rpx;
+}
+.errand-sheet-title {
+  font-size: 37rpx;
+  font-weight: 600;
+  margin-bottom: 18rpx;
+}
+.errand-modal input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 90rpx;
+  margin: 12rpx 0;
+  padding: 0 22rpx;
+  background: var(--wu-bg);
+  border-radius: 18rpx;
+  font-size: 28rpx;
+}
+.errand-modal .errand-primary {
+  margin-top: 24rpx;
+}
+.errand-modal .errand-text-button:last-child {
+  justify-content: center;
+}
+.errand-composer input,
+.errand-composer textarea {
+  box-sizing: border-box;
+  width: 100%;
+  font-size: 28rpx;
+  background: transparent;
+  color: var(--wu-text);
+  border: 0;
+}
+.errand-compose-main {
+  padding: 10rpx 0 28rpx;
+}
+.errand-composer .errand-title-input {
+  height: 92rpx;
+  font-size: 36rpx;
+  font-weight: 600;
+}
+.errand-field-count {
+  color: var(--wu-tertiary);
+  font-size: 21rpx;
+  text-align: right;
+}
+.errand-description-input {
+  min-height: 190rpx;
+  height: 220rpx;
+  line-height: 1.8;
+  margin-top: 24rpx;
+}
+.errand-form-section {
+  padding: 16rpx 0;
+  border-top: 1rpx solid var(--wu-separator);
+}
+.errand-field-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  min-height: 96rpx;
+}
+.errand-field-label {
+  flex: 0 0 126rpx;
+  font-size: 28rpx;
+}
+.errand-field-row input {
+  flex: 1;
+  min-width: 0;
+  height: 80rpx;
+  font-size: 27rpx;
+}
+.errand-money-symbol {
+  color: var(--wu-secondary);
+}
+.errand-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+.errand-composer .errand-private-input {
+  margin: 16rpx 0;
+  height: 170rpx;
+  line-height: 1.7;
+  padding: 20rpx;
+  border-radius: 18rpx;
+  background: var(--wu-bg);
+}
+.errand-image-slot {
+  padding: 18rpx 0 6rpx;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.errand-image-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+  font-size: 26rpx;
+}
+.errand-publish-area {
+  padding: 26rpx 0 0;
+}
+.errand-publish-area .errand-primary {
+  margin-top: 20rpx;
+}
+.errand-notice-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.errand-notice-icon {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  background: var(--wu-bg);
+  border-radius: 22rpx;
+}
+.errand-unread-dot {
+  position: absolute;
+  width: 12rpx;
+  height: 12rpx;
+  top: -2rpx;
+  right: -2rpx;
+  border-radius: 50%;
+  background: var(--wu-accent);
+}
+.errand-notice-copy {
+  flex: 1;
+  min-width: 0;
+  font-size: 25rpx;
+  line-height: 1.75;
+}
+.errand-notice-title {
+  font-size: 29rpx;
+  font-weight: 500;
+  line-height: 1.55;
+  margin: 4rpx 0 10rpx;
+}
+.errand-notice-time {
+  font-size: 22rpx;
+  color: var(--wu-tertiary);
+  margin-top: 14rpx;
+}
+.errand-notice-reference {
+  overflow-wrap: anywhere;
+  font-size: 21rpx;
+  color: var(--wu-tertiary);
+}
+.errand-notice-reason {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.errand-notice-copy .errand-text-button {
+  display: inline-flex;
+  min-height: 88rpx;
+  margin-right: 28rpx;
+  font-size: 24rpx;
+}

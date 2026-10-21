@@ -9,7 +9,11 @@ import {
   initialAdminDiscussionRemovalView,
 } from '../../admin-discussion-removal/controller';
 Page({
+  onToggleDetails() {
+    this.setData({ detailsExpanded: !this.data.detailsExpanded });
+  },
   data: {
+    detailsExpanded: false,
     ...initialAdminDiscussionRemovalView(),
     addressError: '',
     punishmentKind: 'none',

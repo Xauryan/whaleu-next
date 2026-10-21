@@ -172,7 +172,7 @@ test('turning off poll before dispatch produces unchanged C1 intent; comments ne
   await comment.controller.load();
   comment.controller.setPollEnabled(true);
   comment.controller.setPollQuestion('forbidden');
-  comment.controller.setText('根评论');
+  comment.controller.setText('根回复');
   await comment.controller.submit();
   assert.equal(comment.view().canAddPoll, false);
   const payload = comment.gateway.calls.find(

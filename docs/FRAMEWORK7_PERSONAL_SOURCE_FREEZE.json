@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "title": "Five native Framework7 personal pages source freeze",
+  "framework7": {
+    "version": "9.2.0",
+    "commit": "7668f883c29f69dd2ad7bd8ac3b35b9124082b0b"
+  },
+  "runtimeScope": "Exactly five Page WXML/WXSS/JSON plus isolated personal recovery/style; no Page/controller or shared runtime component changes",
+  "pages": [
+    "public-profile",
+    "community-blocks",
+    "experience",
+    "experience-ranking",
+    "wallet"
+  ],
+  "originalActionNodes": 75,
+  "protectedFiles": 123,
+  "presentationSourceBytes": {
+    "before": 47615,
+    "after": 59821,
+    "growth": 12206
+  },
+  "newComponentImplementationFiles": 0,
+  "sharedHarnessCorrection": {
+    "beforeSha256": "085e3f616ded754cb13694157e9598efe1de296c92d2b4e56748bcfb0c727d98",
+    "afterSha256": "f271187e9a5a7110e8d9632b2b88213191e32a878946e9cf5e1ffcfd5ceccd05",
+    "scope": "Decode legacy-parser source text entities exactly once in datasetTree; runtime values, raw handlers and typed host datasets unchanged"
+  },
+  "evidence": {
+    "migrationTests": "21/21 passed",
+    "focusedSourceTests": "220/220 passed",
+    "typecheck": "Earlier canonical source/test typecheck passed; later combined workspace run had concurrent activities/errands fixture errors, no personal file errors; final serialized central typecheck pending",
+    "lint": "scoped ESLint passed",
+    "preview": "19 fixtures / 38 light-dark source frames passed",
+    "emittedSmoke": "Updated actual-component paths; execution delegated to central combined build, not observed by this worker",
+    "nativeDevice": "not performed",
+    "provider": "not performed",
+    "database": "not performed",
+    "releasePackageBudget": "central integration gate, not measured by this worker",
+    "componentAndWxmlTests": "26/26 passed"
+  },
+  "files": {
+    "apps/wechat/scripts/fixtures/framework7-personal-preview.mjs": {
+      "sha256": "4ced93f2d28f9dcbfc705f48d9fa0acb7dc67390c55eb652928d5e2649765c1e",
+      "bytes": 590
+    },
+    "apps/wechat/scripts/smoke-blocks.mjs": {
+      "sha256": "f956e472eac9ad6b86423572b3e1cd3680c4ec7f3bead4e2abc253906b2b57a1",
+      "bytes": 16977
+    },
+    "apps/wechat/scripts/smoke-experience.mjs": {
+      "sha256": "be17216e0ba46a1ab7b9b12c655acd6f3955638b2a78664f4ced4066dc9ae233",
+      "bytes": 17564
+    },
+    "apps/wechat/scripts/smoke-profile-discovery.mjs": {
+      "sha256": "b4712f837ad1159bcae66d5c02885324502f5d09b08f0d8716224ac11edb173e",
+      "bytes": 24342
+    },
+    "apps/wechat/scripts/smoke-public-experience.mjs": {
+      "sha256": "a975d0d6c63abe827e85ee78ac8ff5786b3d33a38cad4ed4e052bf2d6cb04347",
+      "bytes": 15261
+    },
+    "apps/wechat/src/pages/community-blocks/community-blocks.json": {
+      "sha256": "e28151ea621b3fe89b85f7b2f8ef7e706c4a71ed2c913755095b5250ddf30e7b",
+      "bytes": 323
+    },
+    "apps/wechat/src/pages/community-blocks/community-blocks.wxml": {
+      "sha256": "685d520f32a1731dacbc2850e5ccb57f162ae51cc369623b12fa9a9413087e56",
+      "bytes": 2958
+    },
+    "apps/wechat/src/pages/community-blocks/community-blocks.wxss": {
+      "sha256": "422fe4f012531dfdeccc0d698c8e4eb153733c6cf6c9caccd0e65783ce7836d4",
+      "bytes": 2255
+    },
+    "apps/wechat/src/pages/experience-ranking/experience-ranking.json": {
+      "sha256": "6a9f2f8fd60a44235adee7db356dbcc615f5b5b4468d5b9a799ff23bc646779e",
+      "bytes": 359
+    },
+    "apps/wechat/src/pages/experience-ranking/experience-ranking.wxml": {
+      "sha256": "0f77cc0c5da02d21d441bb352ef19455ec793c0f4771a8b0fb962d3b46c8302a",
+      "bytes": 2221
+    },
+    "apps/wechat/src/pages/experience-ranking/experience-ranking.wxss": {
+      "sha256": "2635781f9e8da9704d6104681918010768bb3624b6bcab686248178ef6548fa7",
+      "bytes": 2461
+    },
+    "apps/wechat/src/pages/experience/experience.json": {
+      "sha256": "0f017307061cfeec1b54e0871c2aa6f487cbcf2921d0f64585518c096bc4fd7d",
+      "bytes": 302
+    },
+    "apps/wechat/src/pages/experience/experience.wxml": {
+      "sha256": "7449c044a6f49ccd02232d1c31ad1e12b39703de9227f2bff953a4d6eab09cfc",
+      "bytes": 13747
+    },
+    "apps/wechat/src/pages/experience/experience.wxss": {
+      "sha256": "b7bfb27de83c68738f415136291164aaef8e37b01a62cde05f8c6b5a6fe4adbc",
+      "bytes": 6342
+    },
+    "apps/wechat/src/pages/public-profile/framework7-personal.wxss": {
+      "sha256": "8681ceeaa827797fba5fa3c410350d7ed3c8cb14917e3c075b0798a5eabbeb38",
+      "bytes": 3110
+    },
+    "apps/wechat/src/pages/public-profile/personal-recovery.wxml": {
+      "sha256": "50ab6760b59da2425819f82c290e2dab4db4047e1352000a7ab056b43a2ef547",
+      "bytes": 2423
+    },
+    "apps/wechat/src/pages/public-profile/public-profile.json": {
+      "sha256": "aed25e85a6f0931e650218efda00afd0d64ec26f9ae3d48e675944281b5777be",
+      "bytes": 236
+    },
+    "apps/wechat/src/pages/public-profile/public-profile.wxml": {
+      "sha256": "4396ed0773e190566564f471a83b8a725eeffc31ce99f553cbcdc2fc29aea3ee",
+      "bytes": 15231
+    },
+    "apps/wechat/src/pages/public-profile/public-profile.wxss": {
+      "sha256": "20131f69809e8f27cd700d7c0409e6eabcfce122587c658c3028c9c8000959ec",
+      "bytes": 6809
+    },
+    "apps/wechat/src/pages/wallet/wallet.json": {
+      "sha256": "169d56840ce873ccdb7432feb1de4f91ee10b2ab56c1125c39819b8efb1952f2",
+      "bytes": 170
+    },
+    "apps/wechat/src/pages/wallet/wallet.wxml": {
+      "sha256": "ed5c9d369f383970eb29135c907b0ee716c743ccc115742c16431725a6600aa9",
+      "bytes": 337
+    },
+    "apps/wechat/src/pages/wallet/wallet.wxss": {
+      "sha256": "694e17de521c777bf5be91deb0ea7ba5177dc8147aa4bfeaa92e512e5b6c09d4",
+      "bytes": 537
+    },
+    "apps/wechat/test/experience-ranking-page.test.ts": {
+      "sha256": "f61f53fa8d9dcf4d396c3c7edbb8cc3d45f2a083b24c5180885a3ccef57d3c80",
+      "bytes": 12041
+    },
+    "apps/wechat/test/fixtures/framework7-personal-before-actions.json": {
+      "sha256": "8bd4ae045fadd04d8635eee42480ff79190dcb25ae7eab5f2056fa18710095a0",
+      "bytes": 36953
+    },
+    "apps/wechat/test/fixtures/framework7-personal-before-protected.json": {
+      "sha256": "e6e2d8d4b4570bc2c5f903cc41b78d5d3081cadbdd57a61bb59d5b3dc21bbdf1",
+      "bytes": 13023
+    },
+    "apps/wechat/test/following-controller.test.ts": {
+      "sha256": "37c1bc8cce1241116df8664b1bd51be4d027ed7365b622d0843d14366eead0ed",
+      "bytes": 23873
+    },
+    "apps/wechat/test/framework7-personal-migration.test.ts": {
+      "sha256": "208bf39f96dca81cfbc5edd305a05b17d95591d2553bf4f360dd9b78c10e5830",
+      "bytes": 26794
+    },
+    "apps/wechat/test/native-press-emitted-harness.mjs": {
+      "sha256": "f271187e9a5a7110e8d9632b2b88213191e32a878946e9cf5e1ffcfd5ceccd05",
+      "bytes": 11279
+    },
+    "apps/wechat/test/personal-secondary-presentation.test.ts": {
+      "sha256": "2f0e87fbf767191d875b82a373b7edf954241b2318b320de009bfa0e19e03341",
+      "bytes": 21953
+    },
+    "docs/FRAMEWORK7_PERSONAL_MIGRATION.md": {
+      "sha256": "9fe4de3329c48f74b1ada8989b0f7a71c68b1bf33a4ea7c7491a73afc32659b6",
+      "bytes": 7604
+    }
+  }
+}

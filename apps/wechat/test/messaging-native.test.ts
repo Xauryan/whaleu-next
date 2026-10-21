@@ -129,7 +129,7 @@ test('newer navigation/disposal ignores late native navigation callback and dupl
   nav.open(selected);
   assert.equal(count, 1);
 });
-test('compose exposes reviewed per-post optin and independent profile DM badge is not community update sum', () => {
+test('compose exposes reviewed per-post optin; DM unread remains in conversations, not the profile editor', () => {
   const compose = readFileSync(
     path.resolve(
       __dirname,
@@ -143,7 +143,19 @@ test('compose exposes reviewed per-post optin and independent profile DM badge i
     path.resolve(__dirname, '../src/pages/profile/profile.wxml'),
     'utf8',
   );
-  assert.match(profile, /privateMessages.count/);
+  assert.doesNotMatch(profile, /privateMessages.count/);
+  const inbox = readFileSync(
+    path.resolve(__dirname, '../src/pages/inbox/inbox.wxml'),
+    'utf8',
+  );
+  assert.match(inbox, /item.unreadLabel/);
+  assert.match(
+    readFileSync(
+      path.resolve(__dirname, '../src/pages/account-menu/account-menu.ts'),
+      'utf8',
+    ),
+    /pages\/private-message-list\/private-message-list/,
+  );
   for (const page of ['public-profile', 'community-detail', 'community-thread'])
     assert.match(
       readFileSync(

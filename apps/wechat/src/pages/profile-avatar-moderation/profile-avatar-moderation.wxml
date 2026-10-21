@@ -1,39 +1,38 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 内容目标管理</view>
-  <view class="title">清除当前自定义头像</view>
-  <view class="notice">仅从当前可查看的公开身份帖子、评论或回复核验管理权限。权限及版本以服务端本次核验为准。</view>
+<view class="management-page moderation-native f7-ios-theme">
+  <view class="page-heading"><view class="section-label">按公开身份内容核验</view><wu-f7-button class="icon-button" bind:press="onReload" disabled="{{busy}}" aria-label="重新核验目标与原请求" variant="plain"><wu-icon name="refresh" tone="accent" size="22" /></wu-f7-button></view>
+  <view class="scope"><wu-icon name="shield" tone="muted" size="18" /><text>从当前可查看的公开身份帖子核验权限。分身身份不在此处理，头像与资料版本以本次服务端核验为准。</text></view>
   <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{addressError || error}}" class="error">{{addressError || error}}</view>
+  <view wx:if="{{addressError || error}}" class="error" aria-role="alert">{{addressError || error}}</view>
   <view wx:if="{{receiptStatus}}" class="notice" aria-role="status">{{receiptStatus}}</view>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator>
-  <button bindtap="onReload" disabled="{{busy}}">重新核验目标与原请求</button>
-  <button wx:if="{{busy}}" bindtap="onStopWaiting">停止等待</button>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <wu-f7-button wx:if="{{busy}}" class="quiet" bind:press="onStopWaiting" variant="plain">停止等待</wu-f7-button>
+  <wu-f7-block wx:if="{{management &amp;&amp; management.availability === 'unavailable'}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact"><view class="section-title">当前只能查看</view><view class="notice">关联资料暂不能安全同步，当前不可执行管理操作。请重新核验后再试。</view></wu-f7-block>
   <view wx:if="{{management &amp;&amp; !management.canClearCustomAvatar &amp;&amp; management.availability !== 'unavailable'}}" class="notice">当前没有可清除的自定义头像；未选择头像或目录头像不适用此操作。</view>
-  <view wx:if="{{management &amp;&amp; management.canClearCustomAvatar &amp;&amp; !frozen}}" class="card">
-    <view class="section-title">目标公开昵称：{{management.displayName}}</view>
-    <view class="meta">目标：{{management.target.kind}} · {{management.target.id}} · 资料版本 {{management.revision}}</view>
-    <button bindtap="onClearCustomAvatar" disabled="{{busy}}">清除当前自定义头像</button>
-  </view>
-  <view wx:if="{{confirming === 'clear' &amp;&amp; management.canClearCustomAvatar &amp;&amp; !frozen}}" class="card" aria-role="alert">
+  <wu-f7-block wx:if="{{management &amp;&amp; management.canClearCustomAvatar &amp;&amp; !frozen}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="identity-row"><view class="identity-mark"><wu-icon name="person" tone="muted" size="25" /></view><view><view class="section-title">{{management.displayName}}</view><view class="meta">当前公开身份 · 资料版本 {{management.revision}}</view></view></view>
+    <wu-f7-button class="disclosure" bind:press="onToggleDetails" aria-expanded="{{detailsExpanded}}" variant="plain">来源与核验信息<wu-icon name="{{detailsExpanded ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="18" /></wu-f7-button><view wx:if="{{detailsExpanded}}" class="reference">来源类型：{{management.target.kind === 'post' ? '主题' : '回复'}}<view>内容编号：{{management.target.id}}</view><view>资料版本：{{management.revision}}</view></view>
+    <wu-f7-button class="primary" bind:press="onClearCustomAvatar" disabled="{{busy}}" variant="fill">继续核对头像清除</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{confirming === 'clear' &amp;&amp; management.canClearCustomAvatar &amp;&amp; !frozen}}" class="confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact">
     <view class="section-title">确认清除「{{management.displayName}}」的当前自定义头像？</view>
-    <view class="notice">将清除此账号的当前自定义头像，影响包括其他地区的非匿名头像展示。清除后显示未选择头像，并向对方发送私有系统通知。匿名分身保持不变。已下载或正在展示的图片不会即时从所有设备消失。头像或资料版本已变化时需要重新确认。</view>
-    <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认清除头像并通知对方</button>
-    <button bindtap="onClose" disabled="{{busy}}">返回</button>
-  </view>
-  <view wx:if="{{frozen}}" class="card">
+    <view class="notice">将清除此账号的当前自定义头像，影响包括其他地区的非分身头像展示。清除后显示未选择头像，并向对方发送私有系统通知。分身保持不变。已下载或正在展示的图片不会即时从所有设备消失。头像或资料版本已变化时需要重新确认。</view>
+    <wu-f7-button class="primary destructive" bind:press="onSubmit" disabled="{{busy || frozen}}" variant="fill" tone="danger">确认清除头像并通知对方</wu-f7-button>
+    <wu-f7-button class="quiet" bind:press="onClose" disabled="{{busy}}" variant="plain">返回</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{frozen}}" class="recovery" strong="{{true}}" inset="{{true}}" spacing="compact">
     <view class="section-title">原头像管理请求待确认</view>
-    <view wx:if="{{pendingTarget}}" class="meta">{{pendingTarget.kind}} · {{pendingTarget.id}} · {{pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
+    <view wx:if="{{pendingTarget}}" class="meta">{{pendingTarget.kind === 'post' ? '主题' : '回复'}} · {{pendingTarget.id}} · {{pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
     <view class="notice">查询不到回执不代表原请求不会完成。确认结果或取消成功前不能创建新请求，请保留本机数据。</view>
-    <button bindtap="onRecover" disabled="{{busy || !pendingRequestId}}">查询原头像管理回执</button>
-    <button bindtap="onRetry" disabled="{{busy || !pendingRequestId}}">重试原头像管理请求</button>
-    <button bindtap="onCancelRequest" disabled="{{busy || !pendingRequestId}}">取消原头像管理请求</button>
-  </view>
-  <view wx:if="{{confirming === 'cancel'}}" class="card" aria-role="alert">
+    <wu-f7-button class="primary" bind:press="onRecover" disabled="{{busy || !pendingRequestId}}" variant="fill">查询原头像管理回执</wu-f7-button>
+    <wu-f7-button class="secondary" bind:press="onRetry" disabled="{{busy || !pendingRequestId}}" variant="tonal">重试原头像管理请求</wu-f7-button>
+    <wu-f7-button class="quiet" bind:press="onCancelRequest" disabled="{{busy || !pendingRequestId}}" variant="plain">取消原头像管理请求</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{confirming === 'cancel'}}" class="confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact">
     <view>确认取消原头像管理请求？已经完成的清除仍返回原结果，不会自动恢复旧头像。</view>
-    <button bindtap="onConfirmCancel" disabled="{{busy}}">确认取消原请求</button>
-    <button bindtap="onClose" disabled="{{busy}}">返回</button>
-  </view>
+    <wu-f7-button class="primary" bind:press="onConfirmCancel" disabled="{{busy}}" variant="fill">确认取消原请求</wu-f7-button>
+    <wu-f7-button class="quiet" bind:press="onClose" disabled="{{busy}}" variant="plain">返回</wu-f7-button>
+  </wu-f7-block>
   <view wx:if="{{!target &amp;&amp; !frozen &amp;&amp; !busy}}" class="notice">没有待确认请求时，请从具体公开身份内容进入头像管理。</view>
-  <navigator class="link" url="/pages/community-mine/community-mine">我的发布与请求恢复 →</navigator>
-  <navigator class="link" url="/pages/profile/profile">查看我的当前资料 →</navigator>
+  <navigator class="link" url="/pages/community-mine/community-mine">我的发布与请求恢复<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <navigator class="link" url="/pages/profile/profile">查看我的当前资料<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
 </view>

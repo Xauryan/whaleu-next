@@ -1,31 +1,127 @@
-<import src="../../ratings/common.wxml" />
-<view class="screen">
-  <navigator class="link" url="/pages/canteen-floor-scores/canteen-floor-scores">食堂楼层评分 →</navigator>
-  <navigator class="link" url="/pages/major-directory/major-directory">院系专业目录与实名文字讨论 →</navigator>
-  <navigator class="link" url="/pages/window-ratings/window-ratings">食堂窗口目录、可修改整数评分与原请求恢复 →</navigator>
-  <navigator class="link" url="/pages/course-ratings/course-ratings">课程目录、首次三维评分与原请求恢复 →</navigator>
-<navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global">校园范围评分：明确选择校园 →</navigator>
-  <view class="eyebrow">WHALEU · 校园评分</view><view class="title">发现值得评价的校园事物</view>
-  <navigator class="link" url="/pages/rating-recovery/rating-recovery">独立查询评分与文字操作结果 →</navigator>
-  <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
-  <view class="card"><view class="section-title">{{regionId ? '地区目录' : '全局目录'}}</view>
-    <view class="notice">浏览校区不会授予认证或管理权限。地区选项由服务器当前授权决定。</view>
-    <button bindtap="onRegions" disabled="{{busy}}">选择可访问地区</button>
-    <button data-id="" bindtap="onRegion">返回全局根目录</button>
-    <button wx:for="{{regions}}" wx:key="id" data-id="{{item.id}}" bindtap="onRegion">{{item.label}}{{item.relation === 'home' ? ' · 身份地区' : item.relation === 'managed' ? ' · 管理范围' : ' · 关联地区'}}</button>
-    <view wx:if="{{regionsLoaded &amp;&amp; !regions.length}}" class="meta">当前没有可选择的地区；全局目录仍独立核验。</view>
+<import src="../../ratings/framework7-product.wxml" />
+<view class="screen rating-product f7-ios-theme f7-rating-product">
+  <view class="product-heading product-toolbar">
+    <wu-f7-button class="plain-button" data-panel="more" aria-label="更多评分功能" bind:press="onTogglePanel" variant="plain">
+      <wu-icon name="more" size="20" />
+    </wu-f7-button>
   </view>
-  <button wx:if="{{hasSession}}" bindtap="onCreateCategories" disabled="{{busy}}">管理员创建分类：先核验当前范围</button>
+  <view class="product-entry-row">
+    <navigator class="product-entry" url="/pages/course-ratings/course-ratings">
+      课程
+    </navigator>
+    <navigator class="product-entry" url="/pages/window-ratings/window-ratings">
+      食堂窗口
+    </navigator>
+    <navigator class="product-entry" url="/pages/major-directory/major-directory">
+      专业
+    </navigator>
+  </view>
+  <view wx:if="{{uiPanel === 'more'}}" class="product-disclosure">
+    <navigator class="link" url="/pages/canteen-floor-scores/canteen-floor-scores">
+      食堂楼层评分
+    </navigator>
+    <navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global">
+      按校园浏览
+    </navigator>
+    <navigator class="link" url="/pages/rating-recovery/rating-recovery">
+      查询上次操作
+    </navigator>
+    <wu-f7-button wx:if="{{hasSession}}" disabled="{{busy}}" bind:press="onCreateCategories" variant="tonal">
+      管理分类
+    </wu-f7-button>
+  </view>
+  <view class="product-section-heading">
+    <view class="section-title">
+      {{regionId ? '地区目录' : '全局目录'}}
+    </view>
+    <wu-f7-button class="plain-button" data-panel="scope" bind:press="onTogglePanel" variant="plain">
+      切换范围
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiPanel === 'scope'}}" class="product-disclosure">
+    <wu-f7-button disabled="{{busy}}" bind:press="onRegions" variant="tonal">
+      查看可访问地区
+    </wu-f7-button>
+    <wu-f7-button data-id="" bind:press="onRegion" variant="tonal">
+      全局目录
+    </wu-f7-button>
+    <wu-f7-button wx:for="{{regions}}" wx:key="id" data-id="{{item.id}}" bind:press="onRegion" variant="tonal">
+      {{item.label}}{{item.relation === 'home' ? ' · 身份地区' : item.relation === 'managed' ? ' · 管理范围' : ' · 关联地区'}}
+    </wu-f7-button>
+    <view wx:if="{{regionsLoaded &amp;&amp; !regions.length}}" class="meta">
+      暂无可选择的地区
+    </view>
+  </view>
+  <wu-f7-block class="product-state" spacing="compact">
+    <template is="product-rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh,loaded}}" />
+  </wu-f7-block>
   <block wx:if="{{loaded}}">
-    <view class="section-title">{{parentId ? '下一级分类' : '根分类'}}</view>
-    <view wx:for="{{categories}}" wx:key="id" class="card"><view class="section-title">{{item.name}}</view><view class="body">{{item.description}}</view><view class="meta">第 {{item.level}} 级分类</view><button data-id="{{item.id}}" bindtap="onCategory" disabled="{{busy}}">进入分类 →</button><button data-id="{{item.id}}" bindtap="onRandom" disabled="{{busy}}">随机选择：先确认范围 →</button><button wx:if="{{item.kind === 'general'}}" data-id="{{item.id}}" bindtap="onCreateTarget" disabled="{{busy || frozen}}">申请创建此分类的评分对象</button></view>
-    <view wx:if="{{!categories.length}}" class="empty">{{parentId ? '当前分类没有可见子分类' : '当前范围暂无分类'}}</view>
-    <button wx:if="{{canMoreCategories}}" bindtap="onMoreCategories" disabled="{{busy}}">继续加载分类</button>
-    <block wx:if="{{parentId}}"><button data-id="{{parentId}}" bindtap="onRandom" disabled="{{busy}}">从当前分类随机选择：先确认范围 →</button><view class="section-title">直属评价目标</view>
-      <view wx:for="{{targets}}" wx:key="id" class="card"><view class="section-title">{{item.name}}</view><view class="body">{{item.description}}</view><block wx:if="{{subscriptions[item.id] &amp;&amp; subscriptions[item.id].status === 'known'}}"><view class="meta">{{subscriptions[item.id].count}} 人码住 · {{subscriptions[item.id].subscribed ? '已订阅此目标' : '未订阅此目标'}}</view><button data-id="{{item.id}}" bindtap="onSubscription" disabled="{{busy || frozen}}">{{subscriptions[item.id].subscribed ? '取消码住' : '码住，接收新评价与回复'}}</button></block><block wx:else><view class="notice">订阅状态和人数暂不可用，请刷新后再试。</view><button disabled="{{true}}">码住暂不可用</button></block><button data-id="{{item.id}}" bindtap="onTarget" disabled="{{busy}}">查看评分与文字评价 →</button></view>
-      <view wx:if="{{!targets.length}}" class="empty">此分类当前没有可见的直属目标</view>
-      <button wx:if="{{canMoreTargets}}" bindtap="onMoreTargets" disabled="{{busy}}">继续加载目标</button>
+    <view wx:for="{{categories}}" wx:key="id" class="product-list-row">
+      <wu-f7-list spacing="compact" class="f7-rating-navigation">
+        <wu-f7-list-item class="product-row-open" data-id="{{item.id}}" disabled="{{busy}}" bind:press="onCategory" link="{{true}}" title="{{item.name}}" last="{{true}}" />
+      </wu-f7-list>
+      <view wx:if="{{item.description}}" class="meta">
+        {{item.description}}
+      </view>
+      <wu-f7-button class="plain-button" data-panel="category:{{item.id}}" bind:press="onTogglePanel" variant="plain">
+        更多
+      </wu-f7-button>
+      <view wx:if="{{uiPanel === 'category:' + item.id}}" class="product-disclosure">
+        <wu-f7-button data-id="{{item.id}}" disabled="{{busy}}" bind:press="onRandom" variant="tonal">
+          随机选一个
+        </wu-f7-button>
+        <wu-f7-button wx:if="{{item.kind === 'general'}}" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onCreateTarget" variant="tonal">
+          添加评分对象
+        </wu-f7-button>
+      </view>
+    </view>
+    <view wx:if="{{!categories.length}}" class="empty">
+      {{parentId ? '暂无更多分类' : '当前范围暂无分类'}}
+    </view>
+    <wu-f7-button wx:if="{{canMoreCategories}}" disabled="{{busy}}" bind:press="onMoreCategories" variant="tonal">
+      加载更多分类
+    </wu-f7-button>
+    <block wx:if="{{parentId}}">
+      <view class="product-section-heading">
+        <view class="section-title">
+          评分对象
+        </view>
+        <wu-f7-button class="plain-button" data-id="{{parentId}}" disabled="{{busy}}" bind:press="onRandom" variant="plain">
+          随机选一个
+        </wu-f7-button>
+      </view>
+      <view wx:for="{{targets}}" wx:key="id" class="product-list-row">
+        <wu-f7-list spacing="compact" class="f7-rating-navigation">
+          <wu-f7-list-item class="product-row-open" data-id="{{item.id}}" disabled="{{busy}}" bind:press="onTarget" link="{{true}}" title="{{item.name}}" last="{{true}}" />
+        </wu-f7-list>
+        <view wx:if="{{item.description}}" class="meta">
+          {{item.description}}
+        </view>
+        <block wx:if="{{subscriptions[item.id] &amp;&amp; subscriptions[item.id].status === 'known'}}">
+          <view class="product-inline-actions">
+            <view class="meta">
+              {{subscriptions[item.id].count}} 人码住
+            </view>
+            <wu-f7-button class="plain-button" data-id="{{item.id}}" disabled="{{busy || frozen}}" bind:press="onSubscription" variant="plain">
+              {{subscriptions[item.id].subscribed ? '取消码住' : '码住'}}
+            </wu-f7-button>
+          </view>
+        </block>
+        <block wx:else>
+          <view class="meta">
+            订阅状态暂不可用
+          </view>
+          <wu-f7-button class="plain-button" disabled="{{true}}" variant="plain">
+            码住暂不可用
+          </wu-f7-button>
+        </block>
+      </view>
+      <view wx:if="{{!targets.length}}" class="empty">
+        这个分类暂无评分对象
+      </view>
+      <wu-f7-button wx:if="{{canMoreTargets}}" disabled="{{busy}}" bind:press="onMoreTargets" variant="tonal">
+        加载更多
+      </wu-f7-button>
     </block>
   </block>
-  <view class="notice">图片未接入。目录只展示当前有效来源，不会自动填入示例或旧专项课程、食堂资料。</view>
 </view>

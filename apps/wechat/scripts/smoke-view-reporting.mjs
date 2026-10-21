@@ -184,12 +184,19 @@ export async function smokeViewReporting({
         (item) => item.selector === `#view-${post.id}` && !item.disconnected,
       )
       .at(-1);
+  const intersectDetail = () => {
+    // Analytics and account-local history independently observe the same viewport.
+    for (const observation of observations.filter(
+      (item) => item.selector === `#view-${post.id}` && !item.disconnected,
+    ))
+      observation.callback({ intersectionRatio: 0.001 });
+  };
   try {
     const detail = mount('community-detail', { postId: post.id });
     await flush();
     assert.equal(detail.data.loaded, true);
     assert.equal(events.length, 0, 'GET/render alone must not report');
-    target().callback({ intersectionRatio: 0.001 });
+    intersectDetail();
     assert.equal(events.length, 1);
     detail.onReload();
     await flush();
@@ -201,7 +208,7 @@ export async function smokeViewReporting({
     detail.onHide();
     detail.onShow();
     await flush();
-    target().callback({ intersectionRatio: 0.001 });
+    intersectDetail();
     assert.equal(events.length, 2);
     detail.onUnload();
     const feed = mount('community-feed');

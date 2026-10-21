@@ -1,0 +1,1085 @@
+{
+  "src/pages/errand-list/errand-list.wxml": {
+    "sourceSha256": "900b9bd13d4c237266fd31f42314034250e57f349ab68c57171c431ea6f7a19e",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "errand-toolbar-link",
+          "url": "/pages/errand-mine/errand-mine"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "errand-icon-link",
+          "url": "/pages/errand-notices/errand-notices",
+          "aria-label": "跑腿通知"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-tab {{filter === 'all' ? 'active' : ''}}",
+          "data-field": "filter",
+          "data-value": "all",
+          "bindtap": "onChoice",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-tab {{filter === 'pending' ? 'active' : ''}}",
+          "data-field": "filter",
+          "data-value": "pending",
+          "bindtap": "onChoice",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-sort-toggle",
+          "data-field": "sort",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-choice {{sort === 'created' ? 'selected' : ''}}",
+          "data-field": "sort",
+          "data-value": "created",
+          "bindtap": "onChoice",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.sort}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-choice {{sort === 'reward' ? 'selected' : ''}}",
+          "data-field": "sort",
+          "data-value": "reward",
+          "bindtap": "onChoice",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.sort}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-choice {{direction === 'desc' ? 'selected' : ''}}",
+          "data-field": "direction",
+          "data-value": "desc",
+          "bindtap": "onChoice",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.sort}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-choice {{direction === 'asc' ? 'selected' : ''}}",
+          "data-field": "direction",
+          "data-value": "asc",
+          "bindtap": "onChoice",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.sort}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-order-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onOrder",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMore}}",
+          "class": "errand-text-button errand-load-more",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canMore}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{adminAvailable}}",
+          "class": "errand-admin-link",
+          "url": "/pages/errand-admin/errand-admin"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{adminAvailable}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{regionId}}",
+          "class": "errand-primary",
+          "bindtap": "onCompose",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{regionId}}"
+          },
+          {
+            "wx:if": "{{regionId}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/errand-mine/errand-mine.wxml": {
+    "sourceSha256": "acc87256ae568d24e9dc55098e933fed240162cd378ace16b5886a3637f1db7f",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "errand-toolbar-link",
+          "url": "/pages/errand-list/errand-list"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "errand-icon-link",
+          "url": "/pages/errand-notices/errand-notices",
+          "aria-label": "跑腿通知"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{relation === 'published' ? 'active' : ''}}",
+          "data-field": "relation",
+          "data-value": "published",
+          "bindtap": "onChoice",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{relation === 'accepted' ? 'active' : ''}}",
+          "data-field": "relation",
+          "data-value": "accepted",
+          "bindtap": "onChoice",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-order-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onOrder",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMore}}",
+          "class": "errand-text-button errand-load-more",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canMore}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/errand-detail/errand-detail.wxml": {
+    "sourceSha256": "a7c05ac3c294e7843df98153155322324f61a4060586191d98c91f0af04435e6",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "errand-toolbar-link",
+          "url": "/pages/errand-mine/errand-mine"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{detail.publicMedia}}",
+          "wx:key": "bindingId",
+          "class": "errand-media-button",
+          "data-value": "{{item.slot}}",
+          "bindtap": "onPreviewOrderImage",
+          "disabled": "{{orderImage.status === 'loading'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{detail.publicMedia && detail.publicMedia.length}}"
+          },
+          {
+            "wx:for": "{{detail.publicMedia}}",
+            "wx:key": "bindingId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{detail.privateMedia}}",
+          "wx:key": "bindingId",
+          "class": "errand-media-button",
+          "data-value": "{{item.slot}}",
+          "bindtap": "onPreviewOrderImage",
+          "disabled": "{{orderImage.status === 'loading'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{detail.relation !== 'none' && detail.privateMedia && detail.privateMedia.length}}"
+          },
+          {
+            "wx:for": "{{detail.privateMedia}}",
+            "wx:key": "bindingId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "bindtap": "onCloseOrderImage"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{orderImage.status !== 'idle'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{targetServices.canPreview}}",
+          "class": "errand-text-button",
+          "bindtap": "onPreviewTargetQr",
+          "disabled": "{{targetServices.busy || targetQr.status === 'loading'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{targetServices.visible}}"
+          },
+          {
+            "wx:if": "{{targetServices.canPreview}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button errand-muted",
+          "bindtap": "onDismissTargetNotice",
+          "disabled": "{{targetServices.busy}}",
+          "loading": "{{targetServices.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{targetServices.visible}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "bindtap": "onCloseTargetQr"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{targetQr.status !== 'idle'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-disclosure",
+          "data-field": "details",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{detail.capabilities.delete}}",
+          "class": "errand-text-button errand-danger",
+          "data-action": "delete",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{detail.capabilities.delete}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{detail.capabilities.cancel}}",
+          "class": "errand-secondary",
+          "data-action": "cancel",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{detail.capabilities.accept || detail.capabilities.cancel || detail.capabilities.complete}}"
+          },
+          {
+            "wx:if": "{{detail.capabilities.cancel}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{detail.capabilities.accept}}",
+          "class": "errand-primary",
+          "bindtap": "onAccept",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{detail.capabilities.accept || detail.capabilities.cancel || detail.capabilities.complete}}"
+          },
+          {
+            "wx:if": "{{detail.capabilities.accept}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{detail.capabilities.complete}}",
+          "class": "errand-primary",
+          "data-action": "complete",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{detail.capabilities.accept || detail.capabilities.cancel || detail.capabilities.complete}}"
+          },
+          {
+            "wx:if": "{{detail.capabilities.complete}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "bindtap": "onToggleLast",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{acceptModal}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "data-field": "wechat",
+          "value": "{{contacts.wechat}}",
+          "bindinput": "onContact",
+          "maxlength": "-1",
+          "placeholder": "微信 · 最多50字",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{acceptModal}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "data-field": "phone",
+          "value": "{{contacts.phone}}",
+          "bindinput": "onContact",
+          "type": "number",
+          "maxlength": "11",
+          "placeholder": "电话 · 最多11位数字",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{acceptModal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-primary",
+          "bindtap": "onConfirmAccept",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{acceptModal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button errand-muted",
+          "bindtap": "onCloseAccept"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{acceptModal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-primary {{confirmAction === 'complete' ? '' : 'errand-destructive'}}",
+          "bindtap": "onConfirmCommand",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmAction}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button errand-muted",
+          "bindtap": "onDismiss",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmAction}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/errand-compose/errand-compose.wxml": {
+    "sourceSha256": "3cc84606eaf0a64d1075fd27b3ed3a8baed44f7c748bc225e6cf0c8db87c8169",
+    "actions": [
+      {
+        "tag": "input",
+        "attrs": {
+          "class": "errand-title-input",
+          "data-field": "title",
+          "value": "{{form.title}}",
+          "bindinput": "onForm",
+          "maxlength": "-1",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}",
+          "placeholder": "需要同学帮你做什么？"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "class": "errand-description-input",
+          "data-field": "publicText",
+          "value": "{{form.publicText}}",
+          "bindinput": "onForm",
+          "maxlength": "-1",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}",
+          "placeholder": "写清取送地点、物品和具体要求，方便同学接单"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "data-field": "expectedTimeText",
+          "value": "{{form.expectedTimeText}}",
+          "bindinput": "onForm",
+          "maxlength": "-1",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}",
+          "placeholder": "例如今晚八点前 · 最多50字"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "data-field": "reward",
+          "value": "{{form.reward}}",
+          "bindinput": "onForm",
+          "maxlength": "101",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}",
+          "placeholder": "1–500元，可填写小数"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "bindtap": "onPublisherContacts",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "data-field": "wechat",
+          "value": "{{form.wechat}}",
+          "bindinput": "onForm",
+          "maxlength": "-1",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}",
+          "placeholder": "填写微信号 · 最多50字"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "data-field": "phone",
+          "value": "{{form.phone}}",
+          "bindinput": "onForm",
+          "maxlength": "11",
+          "type": "number",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}",
+          "placeholder": "填写联系电话 · 最多11位"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-disclosure",
+          "data-field": "private",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "class": "errand-private-input",
+          "data-field": "privateText",
+          "value": "{{form.privateText}}",
+          "bindinput": "onForm",
+          "maxlength": "-1",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}",
+          "placeholder": "例如取件码、详细位置 · 最多200字"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanels.private}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-disclosure",
+          "data-field": "images",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "data-value": "{{item.slot}}",
+          "bindtap": "onChooseOrderImage",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanels.images}}"
+          },
+          {
+            "wx:for": "{{imagePublication.images}}",
+            "wx:key": "slot"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "data-value": "{{item.slot}}",
+          "bindtap": "onRecoverOrderImage",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanels.images}}"
+          },
+          {
+            "wx:for": "{{imagePublication.images}}",
+            "wx:key": "slot"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button errand-muted",
+          "data-value": "{{item.slot}}",
+          "bindtap": "onRemoveOrderImage",
+          "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanels.images}}"
+          },
+          {
+            "wx:for": "{{imagePublication.images}}",
+            "wx:key": "slot"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-primary",
+          "bindtap": "onPublish",
+          "disabled": "{{busy || imagePublication.busy || !regionId}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "bindtap": "onRecoverImagePublication",
+          "disabled": "{{imagePublication.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imagePublication.hasDraft || imagePublication.message}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{imagePublication.frozen}}",
+          "class": "errand-primary",
+          "bindtap": "onRetryImagePublication",
+          "disabled": "{{imagePublication.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imagePublication.hasDraft || imagePublication.message}}"
+          },
+          {
+            "wx:if": "{{imagePublication.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{imagePublication.hasDraft}}",
+          "class": "errand-text-button errand-danger",
+          "bindtap": "onCancelImageDraft",
+          "disabled": "{{imagePublication.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imagePublication.hasDraft || imagePublication.message}}"
+          },
+          {
+            "wx:if": "{{imagePublication.hasDraft}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{imagePublication.confirmedOrderId}}",
+          "class": "errand-toolbar-link",
+          "url": "/pages/errand-detail/errand-detail?orderId={{imagePublication.confirmedOrderId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{imagePublication.hasDraft || imagePublication.message}}"
+          },
+          {
+            "wx:if": "{{imagePublication.confirmedOrderId}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/errand-notices/errand-notices.wxml": {
+    "sourceSha256": "71cebfbeefcf6c4acd75a165607220ea3b78acb0b72305e6b9e501f64615077d",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "errand-toolbar-link",
+          "url": "/pages/errand-mine/errand-mine"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-icon-button",
+          "aria-label": "刷新通知",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "wx:if": "{{item.kind === 'accepted' || item.kind === 'completed'}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOrder",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.kind === 'accepted' || item.kind === 'completed'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "wx:if": "{{!item.readAt}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{!item.readAt}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "wx:if": "{{canMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canMore}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/errand-list/product.wxml": {
+    "sourceSha256": "09e4f7930a46a8d65a62c1026a6a8d15f45c151e71414ed34cdefaa5e4890c57",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-icon-button",
+          "aria-label": "刷新订单",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "errand-text-button",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{confirmedOrderId}}",
+          "class": "errand-text-button",
+          "data-id": "{{confirmedOrderId}}",
+          "bindtap": "onOrder",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmedOrderId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-campus-switch",
+          "data-field": "campus",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onCampusQuery",
+          "bindconfirm": "onCampusSearch",
+          "maxlength": "100",
+          "placeholder": "搜索学校或校区",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.campus || !regionLabel}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "errand-text-button",
+          "bindtap": "onCampusSearch",
+          "disabled": "{{busy || frozen || !configured}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.campus || !regionLabel}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "class": "errand-campus-result",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCampus",
+          "disabled": "{{busy || frozen || !item.isActive}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.campus || !regionLabel}}"
+          },
+          {
+            "wx:for": "{{campuses}}",
+            "wx:key": "id"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -8,6 +8,7 @@ import { profileOk } from '../support/media/profile-runtime-fixture.js';
 import { withCommunityScopeWriter } from '../support/community-scope-fixtures.js';
 import { CommentComponentSettlement } from '../../src/community/comment-component/settlement.js';
 import { DatabaseService } from '../../src/database/database.js';
+import { MediaContentSnapshotFacade } from '../../src/media/content-snapshot.facade.js';
 
 /** Actual canonical publications and independent HTTP owner; no fabricated grants
  * outside this explicitly disposable fixture and no fake jury/owner effects. */
@@ -16,7 +17,28 @@ test(
   { timeout: 240000 },
   async (t) => {
     const f = await adminDiscussionRemovalFixture(true);
-    t.after(() => f.close());
+    let restoreReadBatch: (() => void) | undefined = undefined;
+    t.after(async () => {
+      try {
+        await f.close();
+      } finally {
+        restoreReadBatch?.();
+      }
+    });
+    // This fixture's moderation app needs the genuine metadata-only reader,
+    // alongside its existing Media proof. Keep the caller's client and budget.
+    const snapshot = f.moderationApp.get(MediaContentSnapshotFacade);
+    const previousReadBatch = Object.getOwnPropertyDescriptor(
+      snapshot,
+      'readBatch',
+    );
+    restoreReadBatch = () => {
+      if (previousReadBatch)
+        Object.defineProperty(snapshot, 'readBatch', previousReadBatch);
+      else Reflect.deleteProperty(snapshot, 'readBatch');
+    };
+    const genuineSnapshot = f.app.get(MediaContentSnapshotFacade);
+    snapshot.readBatch = genuineSnapshot.readBatch.bind(genuineSnapshot);
     const owner = await f.actor(),
       author = await f.actor(),
       admin = await f.actor(),

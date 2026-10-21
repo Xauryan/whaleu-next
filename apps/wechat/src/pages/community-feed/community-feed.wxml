@@ -8,37 +8,137 @@
 <import src="../../community/block-recovery.wxml" />
 <import src="../../community/trading-summary.wxml" />
 <import src="../../identity-privacy/view.wxml" />
-<view class="screen"><view wx:if="{{relatedCampusDistribution === 'unavailable'}}" class="notice">关联学校展示范围暂不可确认，当前仅展示已核验内容，不能据此判断关联学校没有帖子。请稍后刷新。</view><navigator class="link" url="/pages/feedback/feedback">全站意见与建议 →</navigator><navigator class="link" url="/pages/rating-catalog/rating-catalog">校园评分与文字评价 →</navigator><navigator class="link" url="/pages/errand-list/errand-list">校园跑腿 →</navigator><navigator class="link" url="/pages/activity-list/activity-list">校园活动（按身份校区核验） →</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/public-profile/public-profile">我的公开主页 →</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-liked/community-liked">我的点赞历史 →</navigator><template is="report-recovery" data="{{report}}" />
-  <template is="announcement-popup" data="{{popup:announcementPopup.popup,status:announcementPopup.status,error:announcementPopup.error,image:announcementImageView}}" />
-  <navigator wx:if="{{campusId}}" class="link" url="/pages/announcements/announcements?campusId={{campusId}}">查看当前浏览校区公告 →</navigator>
-  <navigator wx:else class="link" url="/pages/announcements/announcements">查看全体公告 →</navigator>
-  <view class="eyebrow">WHALEU · 校园社区</view><view class="title">与校园里的你相遇</view>
-  <view class="subtitle">按发布时间探索你选择的地区。浏览校区不代表学生认证或管理权限。</view>
-  <view class="actions"><navigator class="link" url="/pages/directory-hub/directory-hub">校园群聊、组织与公众号目录 →</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/system-notices/system-notices">系统通知 {{systemNoticesBadge.loaded ? "（未读 " + systemNoticesBadge.unreadCount + "）" : "（未读数待刷新）"}}</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/report-progress/report-progress">举报与陪审结果恢复</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-updates/community-updates">社区更新 {{updatesBadge.loaded ? '（未读 ' + updatesBadge.unreadCount + '）' : '（未读数待刷新）'}}</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-saved/community-saved">我的收藏</navigator><navigator class="link" url="/pages/login/login">登录与会话</navigator><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-mine/community-mine">我的发布与结果恢复</navigator></view>
-  <view class="card"><view class="section-title">浏览校园</view><input value="{{query}}" bindinput="onQuery" bindconfirm="onSearch" placeholder="搜索学校或校区" maxlength="100" /><button class="secondary" bindtap="onSearch" disabled="{{busy || !configured}}">搜索校园</button>
-    <view class="chips"><view wx:for="{{campuses}}" wx:key="id" class="chip {{campusId === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="onCampus">{{item.fullName}}{{item.isActive ? '' : '（不可用）'}}</view></view>
-    <view wx:if="{{campusName}}" class="meta">浏览校区：{{campusName}}</view>
-    <view class="scope">{{space ? (space.kind === 'global' ? '全站社区 · ' : '地区社区 · ') + space.name : '尚未解析可用的社区地区'}}</view>
-    <view class="chips"><view wx:if="{{campusId}}" class="chip" bindtap="onRegional">返回校区地区</view><view wx:for="{{globalSpaces}}" wx:key="id" class="chip" data-id="{{item.id}}" bindtap="onGlobal">主动切换：{{item.name}}</view></view>
-    <view wx:if="{{space &amp;&amp; space.kind === 'regional'}}" class="chips"><view wx:for="{{categories}}" wx:key="key" class="chip {{category === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onCategory">{{item.label}}</view></view>
+<template name="waterfall-post">
+  <view id="view-{{item.id}}" class="post-card">
+    <navigator class="post-open" aria-label="{{hasSession ? '查看帖子与讨论' : '登录查看帖子'}}" url="{{hasSession ? '/pages/community-detail/community-detail?postId=' + item.id + '&amp;viewSpaceId=' + space.id : '/pages/login/login'}}">
+      <view wx:if="{{item.images.length}}" class="post-thumbnail-box" style="padding-top: {{item.images[0].height / item.images[0].width &gt; 1.5 ? 150 : item.images[0].height / item.images[0].width &lt; 0.6 ? 60 : item.images[0].height / item.images[0].width * 100}}%;">
+        <image wx:if="{{feedImages[item.id] &amp;&amp; feedImages[item.id].localSrc}}" class="post-thumbnail" src="{{feedImages[item.id].localSrc}}" mode="aspectFit" data-id="{{item.id}}" data-src="{{feedImages[item.id].localSrc}}" data-view-id="{{feedImages[item.id].viewId}}" binderror="onFeedImageError" aria-label="帖子图片" />
+        <view wx:else class="post-thumbnail-placeholder"><wu-icon name="image" tone="muted" size="26" /><text>{{feedImages[item.id] &amp;&amp; feedImages[item.id].status === 'loading' ? '正在读取' : '点开查看图片'}}</text></view>
+      </view>
+      <view class="post-copy">
+        <view wx:if="{{item.isRelatedCampusSync}}" class="source-label">来自 {{item.sourceRegion.name}} · 关联学校同步</view>
+        <view class="post-body {{item.images.length ? 'post-media-title' : ''}}">{{item.text}}</view>
+        <view wx:if="{{item.trading}}" class="trade-preview"><view class="trade-price">{{item.trading.price.kind === 'exact' ? item.trading.price.amount + ' 元' : item.trading.price.text}}</view><view class="attachment-meta">{{item.trading.resolution === 'resolved' ? '已售出／已解决' : item.trading.urgency === 'urgent' ? '低价急出' : '校园交易'}} · {{item.trading.location}}</view></view>
+        <view wx:if="{{item.component.kind === 'poll'}}" class="post-attachment"><view class="attachment-label"><wu-icon name="chart" tone="accent" size="14" /><text>投票 · {{item.component.poll.selectionMode === 'single' ? '单选' : '多选'}}</text></view><view class="attachment-title">{{item.component.poll.question}}</view><view class="attachment-meta">{{item.component.poll.expired ? '已结束' : '进入帖子参与'}}</view></view>
+        <view wx:if="{{item.component.kind === 'formation'}}" class="post-attachment"><view class="attachment-label"><wu-icon name="people" tone="accent" size="14" /><text>一起组队</text></view><view class="attachment-title">{{item.component.formation.theme}}</view><view class="attachment-meta">{{item.component.formation.memberCount}} / {{item.component.formation.capacity}} 人 · {{item.component.formation.status === 'full' ? '已满员' : '查看组队'}}</view></view>
+        <view wx:if="{{item.images.length &amp;&amp; (!feedImages[item.id] || !feedImages[item.id].localSrc)}}" class="media-unavailable"><wu-icon name="image" tone="muted" size="14" /><text>{{item.images.length}} 张图片 · {{feedImages[item.id] &amp;&amp; feedImages[item.id].status === 'loading' ? '正在读取' : '点开查看'}}</text></view>
+      </view>
+    </navigator>
+    <button wx:if="{{item.component.kind === 'rating_target_link'}}" class="rating-link-preview" data-id="{{item.id}}" bindtap="onRatingTargetLink" disabled="{{busy}}"><wu-icon name="star" tone="accent" size="14" /><text>{{item.component.target.name}}</text><wu-icon name="chevron-right" size="12" /></button>
+    <view class="post-footer">
+      <button wx:if="{{item.author.kind === 'named'}}" class="post-avatar" aria-label="查看公开身份头像" data-id="{{item.id}}" bindtap="onAuthorAvatar" disabled="{{busy || block.busy || block.frozen}}"><wu-icon name="person" tone="accent" size="15" /></button>
+      <view wx:else class="post-avatar anonymous-avatar" aria-label="分身身份"><wu-icon name="shield" tone="muted" size="14" /></view>
+      <text wx:if="{{item.author.kind === 'named'}}" class="author-name" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}}</text>
+      <text wx:else class="author-name">{{item.author.displayName}}</text>
+      <navigator class="post-stat" aria-label="{{item.likeCount}} 个赞" url="{{hasSession ? '/pages/community-detail/community-detail?postId=' + item.id + '&amp;viewSpaceId=' + space.id : '/pages/login/login'}}"><wu-icon name="heart" tone="{{item.viewer.isLiked ? 'pink' : 'muted'}}" size="16" /><text>{{item.likeCount}}</text></navigator>
+    </view>
+    <view class="card-context"><text>{{item.author.kind === 'anonymous' ? '分身 · ' : ''}}{{item.space.name}}</text><button class="post-more" aria-label="更多帖子操作" data-id="{{item.id}}" bindtap="onPostMenu"><wu-icon name="more" tone="muted" size="17" /></button></view>
+    <view wx:if="{{expandedPostId === item.id}}" class="post-menu">
+      <text wx:if="{{item.viewer.isSelf}}" class="self-label">我的帖子</text>
+      <template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" />
+      <view class="post-time">{{item.publishedAt}}</view>
+      <view wx:if="{{item.images.length}}" class="meta">{{item.images.length}} 张图片 · 图片需授权读取，进入帖子查看</view>
+      <template wx:if="{{item.trading}}" is="trading-summary" data="{{listing:item.trading,tradingLabels}}" />
+      <view class="post-secondary-stats"><view class="post-stat" aria-label="{{item.commentCount === null ? '回复数量暂不可用' : item.commentCount + ' 条根回复'}}"><wu-icon name="message" size="16" />{{item.commentCount === null ? '—' : item.commentCount}}</view><view class="post-stat {{item.viewer.isSaved ? 'is-saved' : ''}}" aria-label="{{item.saveCount}} 次收藏{{item.viewer.isSaved ? '，已收藏' : ''}}"><wu-icon name="bookmark" tone="{{item.viewer.isSaved ? 'accent' : 'default'}}" size="16" />{{item.saveCount}}</view></view>
+      <navigator wx:if="{{hasSession}}" url="/pages/community-detail/community-detail?postId={{item.id}}&amp;viewSpaceId={{space.id}}">查看完整帖子与讨论 <wu-icon name="chevron-right" size="13" /></navigator>
+      <navigator wx:else url="/pages/login/login">登录查看 <wu-icon name="chevron-right" size="13" /></navigator>
+      <button wx:if="{{hasSession &amp;&amp; !item.viewer.isSelf}}" data-id="{{item.id}}" bindtap="onReportPost" disabled="{{busy || report.busy || report.frozen}}">举报此内容</button>
+      <navigator url="/pages/report-progress/report-progress?kind=post&amp;id={{item.id}}">举报进度与陪审 <wu-icon name="chevron-right" size="13" /></navigator>
+      <button wx:if="{{hasSession &amp;&amp; item.author.kind === 'named' &amp;&amp; !item.viewer.isSelf}}" data-id="{{item.id}}" bindtap="onBlockPost" disabled="{{busy || block.busy || block.frozen}}">拉黑此公开身份作者</button>
+    </view>
+    <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[item.id]}}" />
   </view>
-  <view wx:if="{{category === 'trading'}}" class="card"><view class="section-title">交易分类 · 普通与急出均可查看</view><view class="chips"><view class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bindtap="onTradingSubtype">全部交易</view><view wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype">{{item.label}}</view></view><view class="notice">普通社区浏览不包含急出；请在此查看急出交易。急出群推送尚未接入。</view></view>
-  <navigator wx:if="{{space}}" class="link" url="/pages/community-hot/community-hot?spaceId={{space.id}}">查看当前社区热门 →</navigator>
-  <navigator class="link" url="/pages/community-search/community-search?scope=all{{campusId ? '&amp;campusId=' + campusId : ''}}">搜索全部社区的帖子 →</navigator>
-  <navigator wx:if="{{campusId &amp;&amp; space}}" class="link" url="/pages/community-search/community-search?campusId={{campusId}}&amp;spaceId={{space.id}}{{category !== 'all' ? '&amp;category=' + category : ''}}{{tradingSubtype ? '&amp;tradingSubtype=' + tradingSubtype : ''}}">搜索当前社区的帖子 →</navigator>
+</template>
+<view class="screen home-screen">
+  <wu-safe-top />
+  <view class="home-header">
+    <button class="header-icon" aria-label="校园浏览菜单" bindtap="onToggleHomeMenu"><wu-icon name="menu" size="22" /></button>
+    <view class="home-tabs">
+      <button class="home-tab {{homeTab === 'following' ? 'selected' : ''}}" bindtap="onFollowing">关注</button>
+      <button class="home-tab campus-tab {{homeTab === 'campus' ? 'selected' : ''}}" bindtap="onHomeCampus">{{campusName || '选择校园'}}</button>
+      <button class="home-tab {{homeTab === 'global' ? 'selected' : ''}}" bindtap="onHomeGlobal">校际</button>
+      <navigator wx:if="{{space}}" class="home-tab" url="/pages/community-hot/community-hot?spaceId={{space.id}}">热榜</navigator>
+      <button wx:else class="home-tab" bindtap="onHotUnavailable">热榜</button>
+    </view>
+    <navigator class="header-icon search-button" aria-label="搜索全部社区的帖子" url="/pages/community-search/community-search?scope=all{{campusId ? '&amp;campusId=' + campusId : ''}}"><wu-icon name="search" size="22" /></navigator>
+  </view>
+  <view wx:if="{{showHomeMenu}}" class="home-menu card">
+    <view class="menu-brand">WhaleU</view>
+    <button class="menu-row" bindtap="onToggleCampusPicker"><wu-icon name="location" size="21" /><text>{{campusName || '选择浏览校园'}}</text><wu-icon name="chevron-down" size="15" /></button>
+    <navigator wx:if="{{campusId}}" class="menu-row" url="/pages/announcements/announcements?campusId={{campusId}}"><wu-icon name="bell" size="21" /><text>校园公告</text><wu-icon name="chevron-right" size="15" /></navigator>
+    <navigator wx:else class="menu-row" url="/pages/announcements/announcements"><wu-icon name="bell" size="21" /><text>全体公告</text><wu-icon name="chevron-right" size="15" /></navigator>
+    <button class="menu-row" bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}"><wu-icon name="refresh" size="21" /><text>刷新当前内容</text></button>
+    <button class="menu-row" bindtap="onToggleReadingNotes"><wu-icon name="book" size="21" /><text>浏览说明</text><wu-icon name="{{showReadingNotes ? 'chevron-up' : 'chevron-down'}}" size="15" /></button>
+    <view wx:if="{{showReadingNotes}}" class="reading-notes meta">浏览、点赞、收藏和投票各自接受服务端校验，不因发布暂不可用而一并关闭，也不要求学号认证。发布资格、身份校区、内容审核与图片能力各自核验。普通社区浏览不包含急出，请在校园交易查看。真实设备与历史数据导入尚未验收。</view>
+  </view>
+
+  <template is="report-recovery" data="{{report}}" />
   <template is="block-recovery" data="{{block}}" />
-  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{identityOverlay.notice}}" class="notice">{{identityOverlay.notice}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <navigator wx:if="{{hasSession &amp;&amp; space}}" class="link" url="/pages/community-compose/community-compose?spaceId={{space.id}}&amp;category={{category === 'all' ? 'discussion' : category}}">{{category === 'trading' ? '发布校园交易' : '写一条新帖子'}} →</navigator>
-  <button wx:if="{{space}}" class="secondary" bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新信息流</button><button wx:else class="secondary" bindtap="onReload" disabled="{{busy}}">重新加载校园与地区</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
-  <template is="scoped-post-pin" data="{{postPin,hasSession}}" />
-  <view wx:for="{{posts}}" wx:key="id" id="view-{{item.id}}" class="card"><view class="author"><button wx:if="{{item.author.kind === 'named'}}" size="mini" data-id="{{item.id}}" bindtap="onAuthorAvatar" disabled="{{busy || block.busy || block.frozen}}">查看头像</button><text wx:if="{{item.author.kind === 'named'}}" class="link" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}} →</text><text wx:else>{{item.author.displayName}}</text><template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" /><text class="badge">{{item.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text><text wx:if="{{item.viewer.isSelf}}" class="badge">我</text></view><view class="meta">{{item.space.name}} · {{item.publishedAt}}</view><view wx:if="{{item.isRelatedCampusSync}}" class="badge">来自 {{item.sourceRegion.name}} · 关联学校同步</view><view class="body">{{item.text}}</view><template is="rating-target-link-card" data="{{component:item.component,postId:item.id,busy}}" /><template wx:if="{{item.trading}}" is="trading-summary" data="{{listing:item.trading,tradingLabels}}" /><view wx:if="{{item.component.kind === 'poll'}}" class="scope">投票 · {{item.component.poll.selectionMode === 'single' ? '单选' : '多选'}} · {{item.component.poll.question}}<view class="meta">{{item.component.poll.expired ? '已结束' : '进入帖子参与'}}</view></view><view wx:if="{{item.component.kind === 'formation'}}" class="notice">组队：{{item.component.formation.theme}} · {{item.component.formation.memberCount}} / {{item.component.formation.capacity}} 人 · {{item.component.formation.status === 'full' ? '已满员' : '进入帖子查看'}}</view><template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[item.id]}}" /><view wx:if="{{item.images.length}}" class="notice">图片暂不可用，等待安全下载接入</view><view class="meta">{{item.likeCount}} 赞 · {{item.saveCount}} 收藏{{item.viewer.isSaved ? "（已收藏）" : ""}} · {{item.commentCount}} 条根评论</view><button wx:if="{{!item.viewer.isSelf}}" data-id="{{item.id}}" bindtap="onReportPost" disabled="{{busy || report.busy || report.frozen}}">举报此内容</button><navigator class="link" url="/pages/report-progress/report-progress?kind=post&amp;id={{item.id}}">举报进度与陪审 →</navigator><button wx:if="{{hasSession &amp;&amp; item.author.kind === 'named' &amp;&amp; !item.viewer.isSelf}}" class="secondary" data-id="{{item.id}}" bindtap="onBlockPost" disabled="{{busy || block.busy || block.frozen}}">拉黑此公开身份作者</button><navigator wx:if="{{hasSession}}" class="link" url="/pages/community-detail/community-detail?postId={{item.id}}&amp;viewSpaceId={{space.id}}">查看讨论与收藏设置 →</navigator></view>
-  <view wx:if="{{loaded &amp;&amp; space &amp;&amp; !posts.length}}" class="empty">{{relatedCampusDistribution === 'unavailable' ? '本次没有已核验可展示的帖子；关联学校范围仍待核验。' : '暂时没有可展示的帖子。这里不会生成示例内容。'}}</view>
-  <view wx:if="{{continuation === 'login_required'}}" class="notice">访客仅可预览前十条帖子。登录后查看详情，继续浏览还需手机号验证。</view><view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">当前仅可查看前十条；继续浏览需要手机号验证。授权服务需环境单独启用。</view><view wx:if="{{loaded &amp;&amp; posts.length &amp;&amp; continuation === 'end'}}" class="meta">{{relatedCampusDistribution === 'unavailable' ? '已展示本次可核验内容；关联学校范围仍待核验。' : '已到当前信息流末尾'}}</view>
-  <button wx:if="{{canLoadMore}}" class="secondary" bindtap="onMore" disabled="{{busy}}">加载更多</button>
-  <view class="notice">浏览、点赞、收藏和投票各自接受服务端校验，不因发布暂不可用而一并关闭，也不要求学号认证。发布资格、身份校区、内容审核与图片能力各自核验。真实设备与历史数据导入尚未验收。</view>
-<template is="named-avatar-preview" data="{{avatar:namedAvatar}}" />
+  <template is="announcement-popup" data="{{popup:announcementPopup.popup,status:announcementPopup.status,error:announcementPopup.error,image:announcementImageView}}" />
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+
+  <view wx:if="{{homeTab === 'following' &amp;&amp; (!hasSession || !followingAvailable)}}" class="home-empty following-empty">
+    <view class="empty-orbit"><wu-icon name="people" tone="accent" size="30" /></view>
+    <view class="empty-title">把喜欢的校园声音，留在这里</view>
+    <view class="empty-description">{{!hasSession ? '登录后关注喜欢的公开身份作者，在这里查看他们的真实动态。' : '关注服务暂未连接，不会用推荐帖子代替你的关注。'}}</view>
+    <navigator wx:if="{{!hasSession}}" class="primary" url="/pages/login/login">登录后查看关注</navigator>
+    <button wx:else class="primary" bindtap="onHomeCampus">去看看校园</button>
+  </view>
+
+  <block wx:if="{{homeTab !== 'following' || hasSession &amp;&amp; followingAvailable}}">
+
+    <view wx:if="{{showCampusPicker || !campusId}}" class="campus-picker card">
+      <view class="section-title">找到你的校园</view>
+      <view class="picker-description">选择你想浏览的学校或校区。</view>
+      <view class="campus-search"><input value="{{query}}" bindinput="onQuery" bindconfirm="onSearch" confirm-type="search" placeholder="搜索学校或校区" maxlength="100" /><button class="search-submit" bindtap="onSearch" disabled="{{busy || !configured}}">搜索</button></view>
+      <scroll-view wx:if="{{campuses.length}}" class="campus-results" scroll-y>
+        <button wx:for="{{campuses}}" wx:key="id" class="campus-result {{campusId === item.id ? 'is-selected' : ''}}" data-id="{{item.id}}" bindtap="onCampus" disabled="{{busy || !item.isActive}}"><text>{{item.fullName}}</text><text wx:if="{{!item.isActive}}" class="campus-result-mark">暂不可用</text><wu-icon wx:else name="{{campusId === item.id ? 'check' : 'chevron-right'}}" tone="{{campusId === item.id ? 'accent' : 'default'}}" size="18" /></button>
+      </scroll-view>
+      <view wx:elif="{{!busy}}" class="meta">{{configured ? '还没有匹配的校园，试试其他名称。' : '校园服务暂未连接，请稍后重试。'}}</view>
+      <view class="picker-footnote">浏览选择不会更改身份认证或个人校区偏好。</view>
+    </view>
+
+    <view wx:if="{{homeTab === 'global'}}" class="global-scopes">
+      <view wx:if="{{globalSpaces.length}}" class="global-label">选择校际社区</view>
+      <view class="chips"><button wx:for="{{globalSpaces}}" wx:key="id" class="chip {{space &amp;&amp; space.id === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="onGlobal" disabled="{{busy}}">{{item.name}}</button></view>
+      <view wx:if="{{!globalSpaces.length &amp;&amp; !busy}}" class="home-empty"><view class="empty-title">{{campusId ? '暂无可用的校际社区' : '先选择一个校园'}}</view><view class="empty-description">{{campusId ? '当前没有已开放的校际社区。你仍可以返回校园浏览。' : '选择浏览校园后，查看对应的校际社区。'}}</view><button class="secondary" bindtap="onHomeCampus">返回校园</button></view>
+      <view wx:elif="{{(!space || space.kind !== 'global') &amp;&amp; !busy}}" class="meta">点选上方社区，看看不同校园的声音。</view>
+    </view>
+
+    <block wx:if="{{homeTab === 'following' &amp;&amp; following &amp;&amp; space || !following &amp;&amp; space &amp;&amp; (homeTab === 'campus' &amp;&amp; space.kind === 'regional' || homeTab === 'global' &amp;&amp; space.kind === 'global')}}">
+      <scroll-view wx:if="{{space.kind === 'regional'}}" class="category-scroll" scroll-x enhanced show-scrollbar="{{false}}"><view class="category-list"><button wx:for="{{categories}}" wx:key="key" class="category-pill {{category === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onCategory" disabled="{{busy}}">{{item.label}}</button></view></scroll-view>
+      <view wx:if="{{category === 'trading'}}" class="trading-filters card"><view class="section-title">校园交易</view><view class="chips"><button class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bindtap="onTradingSubtype" disabled="{{busy}}">全部交易</button><button wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype" disabled="{{busy}}">{{item.label}}</button></view><view class="meta">普通与急出均可查看。急出群推送尚未接入。</view></view>
+      <view wx:if="{{following}}" class="following-scope">仅看关注作者的公开动态 · {{space.name}}</view>
+      <view wx:if="{{relatedCampusDistribution === 'unavailable'}}" class="notice coverage-notice">关联学校展示范围暂不可确认，当前仅展示已核验内容，不能据此判断关联学校没有帖子。请稍后刷新。</view>
+      <view wx:if="{{identityOverlay.notice}}" class="notice">{{identityOverlay.notice}}</view>
+      <view wx:if="{{busy || !loaded}}" class="status" aria-role="status">{{status}}</view>
+      <button wx:if="{{busy}}" class="cancel-button" bindtap="onCancel">停止等待</button>
+      <template wx:if="{{!following}}" is="scoped-post-pin" data="{{postPin,hasSession}}" />
+
+      <view class="feed-waterfall">
+        <view class="waterfall-column">
+          <block wx:for="{{postColumns[0]}}" wx:key="id">
+            <template is="waterfall-post" data="{{item,space,hasSession,busy,block,report,expandedPostId,identityOverlay,experienceColorStyles,tradingLabels,feedImages}}" />
+          </block>
+        </view>
+        <view class="waterfall-column">
+          <block wx:for="{{postColumns[1]}}" wx:key="id">
+            <template is="waterfall-post" data="{{item,space,hasSession,busy,block,report,expandedPostId,identityOverlay,experienceColorStyles,tradingLabels,feedImages}}" />
+          </block>
+        </view>
+      </view>
+
+      <view wx:if="{{loaded &amp;&amp; space &amp;&amp; !posts.length &amp;&amp; (following || !postPin.item)}}" class="home-empty"><view class="empty-orbit"><wu-icon name="post" tone="accent" size="30" /></view><view class="empty-title">{{following ? '让喜欢的声音慢慢聚在一起' : '等一段新的校园故事'}}</view><view class="empty-description">{{relatedCampusDistribution === 'unavailable' ? '本次没有已核验可展示的帖子；关联学校范围仍待核验。' : following ? '这个范围暂时没有关注作者的公开动态。去校园看看，点击公开作者的名字进入主页关注。分身内容不会进入关注列表。' : '暂时没有可展示的帖子。这里不会生成示例内容。'}}</view><navigator wx:if="{{hasSession &amp;&amp; !following}}" class="empty-compose" url="/pages/community-compose/community-compose?spaceId={{space.id}}&amp;category={{category === 'all' ? 'discussion' : category}}">{{category === 'trading' ? '发布校园交易' : '写一条新帖子'}} <wu-icon name="plus" tone="accent" size="18" /></navigator></view>
+      <view wx:if="{{continuation === 'login_required'}}" class="notice">访客仅可预览前十条帖子。登录后查看详情，继续浏览还需手机号验证。<navigator class="quiet-link" url="/pages/login/login">前往登录 <wu-icon name="chevron-right" tone="accent" size="13" /></navigator></view>
+      <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">当前仅可查看前十条；继续浏览需要手机号验证。授权服务需环境单独启用。<navigator class="quiet-link" url="/pages/phone-binding/phone-binding">前往手机号授权验证 <wu-icon name="chevron-right" tone="accent" size="13" /></navigator></view>
+      <view wx:if="{{loaded &amp;&amp; posts.length &amp;&amp; continuation === 'end'}}" class="feed-end">{{relatedCampusDistribution === 'unavailable' ? '已展示本次可核验内容；关联学校范围仍待核验。' : following ? '你已经看完当前的关注动态' : '你已经看完当前的校园动态'}}</view>
+      <button wx:if="{{canLoadMore}}" class="secondary load-more" bindtap="onMore" disabled="{{busy}}" loading="{{busy}}">加载更多</button>
+      <navigator wx:if="{{!following &amp;&amp; campusId &amp;&amp; space}}" class="feed-search" url="/pages/community-search/community-search?campusId={{campusId}}&amp;spaceId={{space.id}}{{category !== 'all' ? '&amp;category=' + category : ''}}{{tradingSubtype ? '&amp;tradingSubtype=' + tradingSubtype : ''}}">找一找当前社区的帖子 <wu-icon name="chevron-right" tone="accent" size="13" /></navigator>
+    </block>
+    <view wx:if="{{homeTab === 'following' &amp;&amp; !space || homeTab === 'campus' &amp;&amp; (!space || space.kind !== 'regional')}}" class="scope-empty"><view class="status" aria-role="status">{{space ? '当前校园暂无可用的地区社区，可以切换校园或选择校际社区。' : status}}</view><button class="secondary" bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">重新加载校园</button></view>
+
+  </block>
+  <template is="named-avatar-preview" data="{{avatar:namedAvatar}}" />
 </view>
-
-<navigator wx:if="{{continuation === 'phone_verification_required'}}" class="text-link" url="/pages/phone-binding/phone-binding">前往手机号授权验证</navigator>
-
 <template is="post-pin-management" data="{{management:postPinManagement}}" />
+<wu-tab-bar selected="home" space-id="{{space ? space.id : ''}}" />

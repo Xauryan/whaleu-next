@@ -208,7 +208,7 @@ export class SchoolPostingPolicyController {
       pending: true,
       pendingRequestId: pending.command.clientRequestId,
       pendingRegionId: pending.regionId,
-      pendingSummary: `基于版本 ${pending.command.expectedRevision}；未认证发帖${policy.unverifiedPostEnabled ? '开启' : '关闭'}；未认证评论${policy.unverifiedCommentEnabled ? '开启' : '关闭'}；分类：${policy.unverifiedCategories.map((key) => postingPolicyLabels[key]).join('、') || '无'}；关联学校同步${policy.relatedSyncEnabled === true ? '开启' : policy.relatedSyncEnabled === false ? '关闭' : '保持旧版请求'}；有效期：${policy.expiry.kind === 'at' ? policy.expiry.validUntil : '政策豁免，不设到期时间'}`,
+      pendingSummary: `基于版本 ${pending.command.expectedRevision}；未认证发帖${policy.unverifiedPostEnabled ? '开启' : '关闭'}；未认证回复${policy.unverifiedCommentEnabled ? '开启' : '关闭'}；分类：${policy.unverifiedCategories.map((key) => postingPolicyLabels[key]).join('、') || '无'}；关联学校同步${policy.relatedSyncEnabled === true ? '开启' : policy.relatedSyncEnabled === false ? '关闭' : '保持旧版请求'}；有效期：${policy.expiry.kind === 'at' ? policy.expiry.validUntil : '政策豁免，不设到期时间'}`,
       status: '有一笔原保存请求待确认，请先查询结果或取消原请求',
     });
   }
@@ -285,7 +285,7 @@ export class SchoolPostingPolicyController {
       categories: form ? this.categoryRows(form) : [],
       effectiveAt: policy?.effectiveAt ?? '',
       currentPolicySummary: policy
-        ? `关联学校同步：${policy.relatedSyncEnabled ? '开启' : '关闭'}；未认证发帖：${policy.unverifiedPostEnabled ? '开启' : '关闭'}；未认证评论：${policy.unverifiedCommentEnabled ? '开启' : '关闭'}；发帖分类：${policy.unverifiedCategories.map((key) => postingPolicyLabels[key]).join('、') || '无'}`
+        ? `关联学校同步：${policy.relatedSyncEnabled ? '开启' : '关闭'}；未认证发帖：${policy.unverifiedPostEnabled ? '开启' : '关闭'}；未认证回复：${policy.unverifiedCommentEnabled ? '开启' : '关闭'}；发帖分类：${policy.unverifiedCategories.map((key) => postingPolicyLabels[key]).join('、') || '无'}`
         : '',
       expiryLabel: policy
         ? policy.expiry.kind === 'at'

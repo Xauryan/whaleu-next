@@ -1,29 +1,332 @@
-<view class="screen">
- <view class="eyebrow">WHALEU · 组织</view><view class="title">{{publicRead ? '组织详情' : id ? '组织管理与审核' : '申请新组织'}}</view>
- <view wx:if="{{stateLabel}}" class="meta">{{stateLabel}} · {{roleLabel}} · 内容版本 {{revision}} · 权限版本 {{authorityVersion}}</view>
- <view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{status}}" class="notice">{{status}}</view>
- <view wx:if="{{pending}}" class="card"><view>有一笔组织操作尚未确认。处理完成前不能发送新操作。</view><button bindtap="onRecover" disabled="{{busy}}">恢复原操作结果</button><button bindtap="onRetry" disabled="{{busy}}">重试同一请求</button><button bindtap="onCancelPending" disabled="{{busy}}">取消原请求</button></view>
- <button bindtap="onRefresh" disabled="{{busy}}">重新加载</button>
- <view wx:if="{{publicDetail}}" class="card"><view class="section-title">{{publicDetail.data.name}}</view><view>{{publicDetail.data.introText}}</view><view wx:if="{{publicDetail.data.platform === 'qq'}}">QQ群号：{{publicDetail.data.qqGroupNumber}}</view><navigator wx:if="{{publicDetail.management.available}}" url="/pages/organization-editor/organization-editor?id={{id}}">管理此组织 →</navigator></view>
- <view wx:if="{{form}}" class="card">
-  <view wx:if="{{!id}}"><button data-kind="school" bindtap="onKind">校园群</button><button data-kind="org" bindtap="onKind">组织社团</button><button data-kind="official" bindtap="onKind">公众号</button><view>当前类型：{{form.kind}}</view>
-   <view wx:if="{{form.kind !== 'official'}}"><button data-platform="qq" bindtap="onPlatform">QQ群</button><button data-platform="wechat" bindtap="onPlatform">微信群</button></view><view>当前平台：{{form.platform}}</view>
-   <view wx:for="{{categories}}" wx:key="id"><button data-id="{{item.id}}" bindtap="onCategory">{{item.name}} {{form.categoryId === item.id ? '已选择' : ''}}</button></view><button wx:if="{{moreCategories}}" bindtap="onMoreCategories">更多分类</button>
+<view class="information-screen editor-screen f7-ios-theme f7-information-screen">
+  <wu-f7-block spacing="compact" class="f7-information-header">
+    <view class="toolbar">
+      <view class="scope-caption">
+        <wu-icon name="{{publicRead ? 'people' : 'edit'}}" size="18" />
+        <text>
+          {{publicRead ? '校园组织' : id ? '编辑组织资料' : '新组织申请'}}
+          <text wx:if="{{stateLabel}}">
+            · {{stateLabel}}
+          </text>
+        </text>
+      </view>
+      <wu-f7-button class="icon-button" aria-label="重新加载组织资料" disabled="{{busy}}" bind:press="onRefresh">
+        <wu-icon name="refresh" size="19" />
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">
+      {{error}}
+    </view>
+    <view wx:if="{{status}}" class="status" aria-role="status">
+      {{status}}
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{pending}}" class="recovery" spacing="compact" strong="{{true}}" inset="{{true}}">
+    <view class="recovery-title">
+      有一笔操作等待确认
+    </view>
+    <view class="notice">
+      处理完成前，不能发送新操作。
+    </view>
+    <wu-f7-button class="primary-button" disabled="{{busy}}" bind:press="onRecover" variant="fill" size="large">
+      查询原操作结果
+    </wu-f7-button>
+    <view class="actions">
+      <wu-f7-button class="quiet-button" disabled="{{busy}}" bind:press="onRetry">
+        重试同一请求
+      </wu-f7-button>
+      <wu-f7-button class="quiet-button" disabled="{{busy}}" bind:press="onCancelPending">
+        取消原请求
+      </wu-f7-button>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{publicDetail}}" class="public-organization" spacing="compact">
+    <view class="public-symbol">
+      <wu-icon name="{{publicDetail.data.kind === 'official' ? 'post' : publicDetail.data.kind === 'school' ? 'message' : 'people'}}" size="36" />
+    </view>
+    <text class="organization-name" selectable="true">
+      {{publicDetail.data.name}}
+    </text>
+    <text class="organization-description" selectable="true">
+      {{publicDetail.data.introText}}
+    </text>
+    <view wx:if="{{publicDetail.data.platform === 'qq'}}" class="public-contact">
+      <text class="field-label">
+        QQ群号
+      </text>
+      <text class="contact-value" selectable="true">
+        {{publicDetail.data.qqGroupNumber}}
+      </text>
+    </view>
+    <navigator wx:if="{{publicDetail.management.available}}" class="utility-row" url="/pages/organization-editor/organization-editor?id={{id}}">
+      <wu-icon name="edit" size="21" />
+      <text>
+        管理此组织
+      </text>
+      <wu-icon name="chevron-right" size="14" />
+    </navigator>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{form}}" class="organization-form" spacing="compact">
+    <view wx:if="{{!id}}" class="new-organization-options">
+      <view class="field-label">
+        类型
+      </view>
+      <view class="segmented">
+        <wu-f7-button class="segment {{form.kind === 'school' ? 'selected' : ''}}" data-kind="school" bind:press="onKind" variant="{{form.kind === 'school' ? 'fill' : 'tonal'}}">
+          校园群
+        </wu-f7-button>
+        <wu-f7-button class="segment {{form.kind === 'org' ? 'selected' : ''}}" data-kind="org" bind:press="onKind" variant="{{form.kind === 'org' ? 'fill' : 'tonal'}}">
+          组织社团
+        </wu-f7-button>
+        <wu-f7-button class="segment {{form.kind === 'official' ? 'selected' : ''}}" data-kind="official" bind:press="onKind" variant="{{form.kind === 'official' ? 'fill' : 'tonal'}}">
+          公众号
+        </wu-f7-button>
+      </view>
+      <view wx:if="{{form.kind !== 'official'}}" class="platform-options">
+        <view class="field-label">
+          平台
+        </view>
+        <view class="segmented">
+          <wu-f7-button class="segment {{form.platform === 'qq' ? 'selected' : ''}}" data-platform="qq" bind:press="onPlatform" variant="{{form.platform === 'qq' ? 'fill' : 'tonal'}}">
+            QQ群
+          </wu-f7-button>
+          <wu-f7-button class="segment {{form.platform === 'wechat' ? 'selected' : ''}}" data-platform="wechat" bind:press="onPlatform" variant="{{form.platform === 'wechat' ? 'fill' : 'tonal'}}">
+            微信群
+          </wu-f7-button>
+        </view>
+      </view>
+      <view class="field-label category-label">
+        分类
+      </view>
+      <view class="category-options">
+        <view wx:for="{{categories}}" wx:key="id">
+          <wu-f7-button class="category-option {{form.categoryId === item.id ? 'selected' : ''}}" data-id="{{item.id}}" bind:press="onCategory" variant="{{form.categoryId === item.id ? 'tonal' : 'plain'}}">
+            <text>
+              {{item.name}}
+            </text>
+            <wu-icon wx:if="{{form.categoryId === item.id}}" name="check" tone="accent" size="16" />
+          </wu-f7-button>
+        </view>
+      </view>
+      <wu-f7-button wx:if="{{moreCategories}}" class="quiet-button" bind:press="onMoreCategories">
+        更多分类
+      </wu-f7-button>
+    </view>
+    <view class="field">
+      <view class="field-label">
+        名称
+      </view>
+      <wu-f7-input class="name-input" data-field="name" value="{{form.name}}" maxlength="20" placeholder="给组织起个名字，最多10字" disabled="{{busy || pending || (detail &amp;&amp; !detail.permissions.edit)}}" bind:input="onField" aria-label="给组织起个名字，最多10字" />
+    </view>
+    <view class="field">
+      <view class="field-label">
+        介绍
+      </view>
+      <textarea data-field="introText" value="{{form.introText}}" bindinput="onField" maxlength="2000" placeholder="介绍活动、成员和加入方式，最多1000字" disabled="{{busy || pending || (detail &amp;&amp; !detail.permissions.edit)}}" />
+    </view>
+    <view class="field" wx:if="{{form.platform === 'qq'}}">
+      <view class="field-label">
+        QQ群号
+      </view>
+      <wu-f7-input wx:if="{{form.platform === 'qq'}}" data-field="qqGroupNumber" value="{{form.qqGroupNumber}}" maxlength="16" placeholder="填写5–16位群号" disabled="{{busy || pending || (detail &amp;&amp; !detail.permissions.edit)}}" bind:input="onField" aria-label="填写5–16位群号" />
+    </view>
+  </wu-f7-block>
+  <view wx:if="{{form &amp;&amp; (!detail || detail.permissions.edit)}}" class="save-actions">
+    <wu-f7-button class="primary-button" loading="{{busy}}" disabled="{{busy || pending}}" bind:press="onSave" variant="fill" size="large">
+      {{id ? '保存修改' : '保存申请草稿'}}
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{detail &amp;&amp; detail.permissions.submit}}" class="quiet-button" disabled="{{busy || pending}}" bind:press="onSubmit">
+      提交学校管理员审核
+    </wu-f7-button>
   </view>
-  <input data-field="name" value="{{form.name}}" bindinput="onField" maxlength="20" placeholder="名称，最多10字" disabled="{{busy || pending || (detail &amp;&amp; !detail.permissions.edit)}}" />
-  <textarea data-field="introText" value="{{form.introText}}" bindinput="onField" maxlength="2000" placeholder="介绍，最多1000字" disabled="{{busy || pending || (detail &amp;&amp; !detail.permissions.edit)}}" />
-  <input wx:if="{{form.platform === 'qq'}}" data-field="qqGroupNumber" value="{{form.qqGroupNumber}}" bindinput="onField" maxlength="16" placeholder="5–16位QQ群号" disabled="{{busy || pending || (detail &amp;&amp; !detail.permissions.edit)}}" />
- </view>
- <view wx:if="{{pendingImages.length}}" class="card"><view class="section-title">尚未解决的原图片上传</view><view class="notice">按原内容版本恢复或取消。旧版本图片不能自动套用到新内容。取消未绑定上传不会撤销已提交的组织修改，已绑定图片仅确认历史结果。</view><view wx:for="{{pendingImages}}" wx:key="key"><view>{{item.label}} · 原内容版本 {{item.applicationRevision}}</view><button data-slot="{{item.slot}}" data-revision="{{item.applicationRevision}}" data-action="recover" bindtap="onPendingImage" disabled="{{busy || pending || upload.status === 'working'}}">恢复原图片请求</button><button data-slot="{{item.slot}}" data-revision="{{item.applicationRevision}}" data-action="cancel" bindtap="onPendingImage" disabled="{{busy || pending || upload.status === 'working'}}">取消原图片请求</button></view></view>
- <view wx:if="{{upload.message}}" class="notice">{{upload.message}} {{upload.progress}}%</view>
- <view wx:for="{{slots}}" wx:key="slot" class="card"><view>{{item.label}} · {{item.configured ? '已配置' : '未配置'}} · {{item.change === 'replace' ? '待替换' : item.change === 'remove' ? '待移除' : '保持当前'}}</view>
-  <button wx:if="{{item.configured}}" data-slot="{{item.slot}}" bindtap="onPreviewImage">查看当前图片</button>
-  <view wx:if="{{detail &amp;&amp; detail.permissions.edit &amp;&amp; !publicRead}}"><button data-slot="{{item.slot}}" bindtap="onPickImage" disabled="{{busy || pending || upload.status === 'working'}}">选择并审核图片</button><button data-slot="{{item.slot}}" bindtap="onRecoverImage" disabled="{{busy || pending}}">恢复原上传</button><button data-slot="{{item.slot}}" bindtap="onCancelImage" disabled="{{busy || pending}}">取消原上传</button><button data-slot="{{item.slot}}" bindtap="onRemoveImage" disabled="{{busy || pending}}">保存时移除</button><button data-slot="{{item.slot}}" bindtap="onKeepImage" disabled="{{busy || pending}}">保持当前</button></view>
- </view>
- <view wx:if="{{image.message}}" class="notice">{{image.message}}</view><view wx:if="{{image.src}}" class="card"><image src="{{image.src}}" mode="widthFix" /><button bindtap="onCloseImage">关闭图片</button></view>
- <view wx:if="{{form &amp;&amp; (!detail || detail.permissions.edit)}}"><button bindtap="onSave" loading="{{busy}}" disabled="{{busy || pending}}">{{id ? '保存修改' : '保存申请草稿'}}</button><button wx:if="{{detail &amp;&amp; detail.permissions.submit}}" bindtap="onSubmit" disabled="{{busy || pending}}">提交学校管理员审核</button></view>
- <view wx:if="{{detail &amp;&amp; detail.permissions.review}}" class="card"><view>请核对完整申请。业务审批不会代替图片安全审核。</view><textarea value="{{reason}}" bindinput="onReason" maxlength="500" placeholder="拒绝理由（拒绝时必填）" /><button bindtap="onApprove" disabled="{{busy || pending}}">批准并授予申请人唯一所有权</button><button bindtap="onReject" disabled="{{busy || pending}}">拒绝申请</button></view>
- <view wx:if="{{detail &amp;&amp; detail.members.length}}" class="card"><view class="section-title">管理成员</view><view wx:for="{{detail.members}}" wx:key="grantId"><view>{{item.profile ? item.profile.displayName : '资料暂不可用'}} · {{item.role === 'organization_owner' ? '所有者' : '管理员'}}</view><button wx:if="{{detail &amp;&amp; detail.permissions.manageMembers &amp;&amp; item.profile &amp;&amp; item.role !== 'organization_owner'}}" data-id="{{item.profile.profileId}}" bindtap="onRemoveAdmin" disabled="{{busy || pending}}">移除管理员</button></view></view>
- <view wx:if="{{detail &amp;&amp; detail.permissions.manageMembers}}" class="card"><input value="{{lookupInput}}" bindinput="onLookupInput" placeholder="对方公开主页ID" /><button bindtap="onLookup" disabled="{{busy || pending}}">查找本校认证成员</button><view wx:if="{{person}}">{{person.displayName}}<button bindtap="onAddAdmin" disabled="{{busy || pending}}">添加管理员</button><view wx:if="{{detail &amp;&amp; detail.permissions.transferOwner}}"><view class="notice">转让后真实旧所有者降为管理员；唯一所有权交给此成员，请核对接收人。</view><button bindtap="onTransfer" disabled="{{busy || pending}}">转让所有权给此成员</button></view></view></view>
- <navigator url="/pages/organizations/organizations">我管理的组织与申请 →</navigator>
+  <wu-f7-block wx:if="{{pendingImages.length}}" class="recovery" spacing="compact" strong="{{true}}" inset="{{true}}">
+    <view class="recovery-title">
+      有图片上传等待确认
+    </view>
+    <view class="notice">
+      按原内容版本恢复或取消，旧版本图片不会自动用于新内容。取消未绑定上传不会撤销组织修改；已绑定图片仅确认历史结果。
+    </view>
+    <view wx:for="{{pendingImages}}" wx:key="key" class="pending-image">
+      <view>
+        {{item.label}}
+      </view>
+      <view class="meta">
+        原内容版本 {{item.applicationRevision}}
+      </view>
+      <view class="actions">
+        <wu-f7-button class="quiet-button" data-slot="{{item.slot}}" data-revision="{{item.applicationRevision}}" data-action="recover" disabled="{{busy || pending || upload.status === 'working'}}" bind:press="onPendingImage">
+          恢复原图片请求
+        </wu-f7-button>
+        <wu-f7-button class="quiet-button" data-slot="{{item.slot}}" data-revision="{{item.applicationRevision}}" data-action="cancel" disabled="{{busy || pending || upload.status === 'working'}}" bind:press="onPendingImage">
+          取消原图片请求
+        </wu-f7-button>
+      </view>
+    </view>
+  </wu-f7-block>
+  <view wx:if="{{upload.message}}" class="notice">
+    {{upload.message}} {{upload.progress}}%
+  </view>
+  <wu-f7-list wx:if="{{slots.length &amp;&amp; !publicRead}}" class="media-section-heading" spacing="compact" strong="{{true}}">
+    <wu-f7-list-item class="disclosure" bind:press="onToggleMediaSection" link="{{true}}" title-slot="{{true}}" aria-label="图片与二维码">
+      <view slot="title" class="f7-information-row-label">
+        <text>
+          图片与二维码
+        </text>
+        <wu-icon name="{{showMedia ? 'chevron-up' : 'chevron-down'}}" size="14" />
+      </view>
+    </wu-f7-list-item>
+  </wu-f7-list>
+  <view wx:if="{{publicRead || showMedia}}">
+    <view wx:for="{{slots}}" wx:key="slot" class="media-slot">
+      <view class="slot-header">
+        <wu-icon name="image" size="23" />
+        <view class="slot-copy">
+          <view class="slot-label">
+            {{item.label}}
+          </view>
+          <view class="meta">
+            {{item.change === 'replace' ? '保存后替换' : item.change === 'remove' ? '保存后移除' : item.configured ? '已配置' : '未配置'}}
+          </view>
+        </view>
+        <wu-f7-button wx:if="{{item.configured}}" class="text-button" data-slot="{{item.slot}}" bind:press="onPreviewImage">
+          查看
+        </wu-f7-button>
+      </view>
+      <view wx:if="{{detail &amp;&amp; detail.permissions.edit &amp;&amp; !publicRead}}">
+        <wu-f7-list-item class="disclosure" data-slot="{{item.slot}}" bind:press="onToggleMedia" link="{{true}}" title-slot="{{true}}" aria-label="管理图片">
+          <view slot="title" class="f7-information-row-label">
+            <text>
+              管理图片
+            </text>
+            <wu-icon name="{{expandedMedia[item.slot] ? 'chevron-up' : 'chevron-down'}}" size="14" />
+          </view>
+        </wu-f7-list-item>
+        <view wx:if="{{expandedMedia[item.slot]}}" class="media-actions">
+          <wu-f7-button class="secondary-button" data-slot="{{item.slot}}" disabled="{{busy || pending || upload.status === 'working'}}" bind:press="onPickImage" variant="tonal">
+            选择并审核图片
+          </wu-f7-button>
+          <view class="actions">
+            <wu-f7-button class="quiet-button" data-slot="{{item.slot}}" disabled="{{busy || pending}}" bind:press="onRecoverImage">
+              恢复原上传
+            </wu-f7-button>
+            <wu-f7-button class="quiet-button" data-slot="{{item.slot}}" disabled="{{busy || pending}}" bind:press="onCancelImage">
+              取消原上传
+            </wu-f7-button>
+          </view>
+          <view class="actions">
+            <wu-f7-button class="danger-button" data-slot="{{item.slot}}" disabled="{{busy || pending}}" bind:press="onRemoveImage" tone="danger">
+              保存时移除
+            </wu-f7-button>
+            <wu-f7-button class="quiet-button" data-slot="{{item.slot}}" disabled="{{busy || pending}}" bind:press="onKeepImage">
+              保持当前
+            </wu-f7-button>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  <view wx:if="{{image.message}}" class="notice">
+    {{image.message}}
+  </view>
+  <view wx:if="{{image.src}}" class="image-reader">
+    <image src="{{image.src}}" mode="widthFix" />
+    <wu-f7-button class="quiet-button" bind:press="onCloseImage">
+      关闭图片
+    </wu-f7-button>
+  </view>
+  <wu-f7-block wx:if="{{detail &amp;&amp; detail.permissions.review}}" class="review-section" spacing="compact">
+    <view class="section-heading">
+      审核申请
+    </view>
+    <view class="notice">
+      请核对完整申请。业务审批不会代替图片安全审核。
+    </view>
+    <textarea value="{{reason}}" bindinput="onReason" maxlength="500" placeholder="拒绝理由（拒绝时必填）" />
+    <wu-f7-button class="primary-button" disabled="{{busy || pending}}" bind:press="onApprove" variant="fill" size="large">
+      批准并授予申请人唯一所有权
+    </wu-f7-button>
+    <wu-f7-button class="danger-button" disabled="{{busy || pending}}" bind:press="onReject" tone="danger">
+      拒绝申请
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-list wx:if="{{detail &amp;&amp; (detail.members.length || detail.permissions.manageMembers)}}" class="member-disclosure" spacing="compact" strong="{{true}}">
+    <wu-f7-list-item class="disclosure" bind:press="onToggleMembers" link="{{true}}" title-slot="{{true}}" aria-label="管理成员">
+      <view slot="title" class="f7-information-row-label">
+        <text>
+          管理成员
+        </text>
+        <wu-icon name="{{showMembers ? 'chevron-up' : 'chevron-down'}}" size="14" />
+      </view>
+    </wu-f7-list-item>
+  </wu-f7-list>
+  <view wx:if="{{showMembers}}">
+    <view wx:if="{{detail &amp;&amp; detail.members.length}}" class="members">
+      <view wx:for="{{detail.members}}" wx:key="grantId" class="member-row">
+        <view class="member-identity">
+          <wu-icon name="person" size="23" />
+          <view>
+            <view>
+              {{item.profile ? item.profile.displayName : '资料暂不可用'}}
+            </view>
+            <view class="meta">
+              {{item.role === 'organization_owner' ? '所有者' : '管理员'}}
+            </view>
+          </view>
+        </view>
+        <wu-f7-button wx:if="{{detail &amp;&amp; detail.permissions.manageMembers &amp;&amp; item.profile &amp;&amp; item.role !== 'organization_owner'}}" class="danger-button" data-id="{{item.profile.profileId}}" disabled="{{busy || pending}}" bind:press="onRemoveAdmin" tone="danger">
+          移除
+        </wu-f7-button>
+      </view>
+    </view>
+    <wu-f7-block wx:if="{{detail &amp;&amp; detail.permissions.manageMembers}}" class="member-lookup" spacing="compact">
+      <view class="field-label">
+        添加本校认证成员
+      </view>
+      <wu-f7-input value="{{lookupInput}}" placeholder="对方公开主页ID" bind:input="onLookupInput" aria-label="对方公开主页ID" />
+      <wu-f7-button class="secondary-button" disabled="{{busy || pending}}" bind:press="onLookup" variant="tonal">
+        查找成员
+      </wu-f7-button>
+      <view wx:if="{{person}}" class="lookup-result">
+        <view class="person-name">
+          {{person.displayName}}
+        </view>
+        <wu-f7-button class="quiet-button" disabled="{{busy || pending}}" bind:press="onAddAdmin">
+          添加管理员
+        </wu-f7-button>
+        <view wx:if="{{detail &amp;&amp; detail.permissions.transferOwner}}">
+          <view class="notice">
+            转让后，旧所有者降为管理员；唯一所有权交给此成员，请核对接收人。
+          </view>
+          <wu-f7-button class="danger-button" disabled="{{busy || pending}}" bind:press="onTransfer" tone="danger">
+            转让所有权给此成员
+          </wu-f7-button>
+        </view>
+      </view>
+    </wu-f7-block>
+  </view>
+  <wu-f7-list wx:if="{{stateLabel}}" class="reading-notes" spacing="compact" strong="{{true}}">
+    <wu-f7-list-item class="disclosure" bind:press="onToggleInfo" link="{{true}}" title-slot="{{true}}" aria-label="角色与版本信息">
+      <view slot="title" class="f7-information-row-label">
+        <text>
+          角色与版本信息
+        </text>
+        <wu-icon name="{{showInfo ? 'chevron-up' : 'chevron-down'}}" size="14" />
+      </view>
+    </wu-f7-list-item>
+    <view wx:if="{{showInfo}}">
+      <view>
+        {{stateLabel}}{{roleLabel ? ' · ' + roleLabel : ''}}
+      </view>
+      <view>
+        内容版本 {{revision}} · 权限版本 {{authorityVersion}}
+      </view>
+    </view>
+  </wu-f7-list>
+  <navigator class="utility-row organizations-link" url="/pages/organizations/organizations">
+    <wu-icon name="people" size="22" />
+    <text>
+      我的组织与申请
+    </text>
+    <wu-icon name="chevron-right" size="14" />
+  </navigator>
 </view>

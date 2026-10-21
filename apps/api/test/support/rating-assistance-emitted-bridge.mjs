@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { parse, render } from '../../../wechat/scripts/smoke-ratings.mjs';
+import { createNativePgControls } from './native-pg-control-adapter.mjs';
 const require = createRequire(import.meta.url);
 const nativeRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -217,23 +218,29 @@ export function emittedAssistanceClient(f, actor = f.creator) {
       return parsed;
     }
     const parsed = tree(path.join(dist, `pages/${name}/${name}.wxml`));
-    const nodes = () =>
-      flatten(
-        render(
-          parsed.children.filter(
-            (n) =>
-              typeof n === 'string' || n.tag !== 'template' || !n.attrs.name,
-          ),
-          page.data,
-          templates,
+    const renderNodes = () =>
+      render(
+        parsed.children.filter(
+          (n) => typeof n === 'string' || n.tag !== 'template' || !n.attrs.name,
         ),
+        page.data,
+        templates,
       );
+    const nodes = () => flatten(renderNodes());
+    const native = createNativePgControls({
+      page,
+      pageFile: file.slice(0, -3),
+      dist,
+      renderNodes,
+    });
     const event = async (handler, dataset = {}, value = '') => {
       const control = nodes().find(
         (node) =>
           typeof node !== 'string' &&
           (node.attrs.bindtap === handler ||
-            node.attrs.bindinput === handler) &&
+            node.attrs.bindinput === handler ||
+            node.attrs['bind:press'] === handler ||
+            node.attrs['bind:input'] === handler) &&
           Object.entries(dataset).every(
             ([k, v]) => node.attrs[`data-${k}`] === String(v),
           ),
@@ -244,7 +251,7 @@ export function emittedAssistanceClient(f, actor = f.creator) {
       );
       assert.notEqual(control.attrs.disabled, 'true', `${handler} is enabled`);
       assert.equal(typeof page[handler], 'function');
-      await page[handler]({ currentTarget: { dataset }, detail: { value } });
+      await native.dispatch(handler, dataset, value);
       await idle(page);
     };
     const show = async (query) => {

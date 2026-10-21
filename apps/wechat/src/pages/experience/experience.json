@@ -1,1 +1,9 @@
-{ "navigationBarTitleText": "我的经验与头衔" }
+{
+  "navigationBarTitleText": "我的经验与头衔",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon",
+    "wu-f7-block": "../../components/f7-block/f7-block",
+    "wu-f7-button": "../../components/f7-button/f7-button",
+    "wu-f7-input": "../../components/f7-input/f7-input"
+  }
+}

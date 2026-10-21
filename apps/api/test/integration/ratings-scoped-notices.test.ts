@@ -80,6 +80,7 @@ interface NoticeView {
     status: string;
   }>;
   unreadCount: number | null;
+  noticeReadKey: string;
   identityCampusId: string | null;
   viewCampusId: string | null;
 }
@@ -723,6 +724,23 @@ test(
           assert.equal(parsed['replyId'] ?? null, row.reply_id);
           assert.ok(parsed['protocolGeneration']);
           assert.doesNotMatch(path, /contextToken|contextId|regionId|NoticeId/);
+          // Navigation resolves current authority but never acknowledges exposure.
+          assert.deepEqual(
+            client.transport.sent.filter((sent) => sent.method === 'PUT'),
+            [],
+          );
+          assert.equal(
+            (await noticeRows()).find(
+              (item) => item.notice_id === row.notice_id,
+            )!.read_at,
+            null,
+          );
+          assert.ok(client.view().noticeReadKey);
+          await client.controller.acknowledgeNotice(
+            row.kind,
+            row.notice_id,
+            `${client.view().noticeReadKey}:${row.notice_id}`,
+          );
           assert.deepEqual(
             client.transport.sent.filter((sent) => sent.method === 'PUT'),
             [
@@ -749,6 +767,12 @@ test(
           );
           assert.equal(client.view().detail?.id, target.id);
           assert.equal(client.view().discussion?.root.id, root.id);
+          assert.equal(
+            client.transport.sent.filter((sent) => sent.method === 'PUT')
+              .length,
+            1,
+            'Loading a destination must not acknowledge the notice again',
+          );
           if (row.reply_id)
             assert.ok(
               client.view().replies.some((item) => item.id === row.reply_id),

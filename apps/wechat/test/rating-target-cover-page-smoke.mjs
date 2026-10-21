@@ -1,3 +1,4 @@
+import { createRatingEmittedBridge } from './rating-native-emitted-harness.mjs';
 /** Emitted Page + repository WXML conditional model; not physical-device rendering. */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -261,7 +262,12 @@ const source = readFileSync(
 );
 const tree = parse(source);
 const templates = Object.fromEntries(
-  ['ratings/common.wxml', 'ratings/target-cover.wxml']
+  [
+    'ratings/common.wxml',
+    'ratings/product.wxml',
+    'ratings/framework7-product.wxml',
+    'ratings/target-cover.wxml',
+  ]
     .flatMap(
       (file) => parse(readFileSync(path.join(dist, file), 'utf8')).children,
     )
@@ -286,18 +292,35 @@ const buttons = (page, handler) =>
   nodes(page).filter(
     (node) =>
       typeof node !== 'string' &&
-      node.tag === 'button' &&
-      node.attrs.bindtap === handler,
+      (node.tag === 'button' || node.tag === 'wu-f7-button') &&
+      (node.attrs.bindtap === handler || node.attrs['bind:press'] === handler),
   );
 const text = (page) =>
   nodes(page)
     .filter((node) => typeof node === 'string')
     .join(' ');
 const tap = (page, handler) => {
+  if (
+    handler.startsWith('onCover') &&
+    !buttons(page, handler).length &&
+    page.data.loaded
+  ) {
+    const disclosure = buttons(page, 'onTogglePanel').find(
+      (node) => node.attrs['data-panel'] === 'cover',
+    );
+    assert.ok(disclosure, 'Cover editor has a real disclosure control');
+    assert.notEqual(disclosure.attrs.disabled, 'true');
+    assert.ok(
+      page.__ratingEmittedBridge.tap('onTogglePanel', { panel: 'cover' }),
+    );
+  }
   const button = buttons(page, handler)[0];
   assert.ok(button, `Mounted button ${handler} is visible`);
   assert.notEqual(button.attrs.disabled, 'true', `${handler} is enabled`);
-  page[handler]({ currentTarget: { dataset: {} } });
+  assert.ok(
+    page.__ratingEmittedBridge.tap(handler),
+    `${handler} executes its rendered native boundary`,
+  );
 };
 const mount = async (mode) => {
   let page;
@@ -309,6 +332,11 @@ const mount = async (mode) => {
     page.data = { ...page.data, ...patch };
     done?.();
   };
+  page.__ratingEmittedBridge = createRatingEmittedBridge({
+    page,
+    pageFile: path.join(dist, 'pages/rating-scoped/rating-scoped'),
+    dist,
+  });
   pages.push(page);
   page.onLoad({
     mode,
@@ -318,6 +346,15 @@ const mount = async (mode) => {
   page.onShow();
   await drain();
   assert.equal(page.data.loaded, true);
+  if (mode === 'create' || mode === 'edit') {
+    const disclosure = buttons(page, 'onTogglePanel').find(
+      (node) => node.attrs['data-panel'] === 'cover',
+    );
+    assert.ok(disclosure, 'Cover disclosure remains reachable');
+    assert.ok(
+      page.__ratingEmittedBridge.tap('onTogglePanel', { panel: 'cover' }),
+    );
+  }
   return page;
 };
 try {
@@ -326,7 +363,21 @@ try {
   const create = await mount('create');
   assert.equal(buttons(create, 'onCoverKeep').length, 0);
   assert.equal(buttons(create, 'onCoverClear').length, 1);
+  const beforeDraft = commands.length;
+  assert.ok(
+    create.__ratingEmittedBridge.input('onName', '  原始封面对象 🐳  '),
+  );
+  assert.equal(create.data.name, '  原始封面对象 🐳  ');
+  assert.equal(
+    commands.length,
+    beforeDraft,
+    'Input is not a definition submission',
+  );
   create.onUnload();
+  assert.equal(
+    create.__ratingEmittedBridge.input('onName', '不得恢复隐藏草稿'),
+    false,
+  );
   const edit = await mount('edit');
   for (const [handler, action] of [
     ['onCoverKeep', 'keep'],
@@ -397,14 +448,14 @@ try {
     expiring.onUnload();
   }
   const detail = await mount('detail');
-  assert.ok(text(detail).includes('7 人评分 · 3'));
-  assert.ok(text(detail).includes('0 赞'));
+  assert.match(text(detail), /3\s+7 人评分/);
+  assert.ok(text(detail).includes('赞 0'));
   assert.equal(buttons(detail, 'onCompose').length, 1);
   canComment = false;
   tap(detail, 'onRefresh');
   await drain();
   assert.equal(buttons(detail, 'onCompose').length, 0);
-  assert.ok(text(detail).includes('7 人评分 · 3'));
+  assert.match(text(detail), /3\s+7 人评分/);
   assert.equal(text(detail).includes('true'), false);
   assert.equal(text(detail).includes('false'), false);
   assert.ok(reads.some((context) => context.protocolVersion === 2));
@@ -413,7 +464,8 @@ try {
   const random = await mount('random');
   tap(random, 'onDraw');
   await drain();
-  assert.ok(text(random).includes('满足条件的不同对象：23'));
+  assert.equal(random.data.randomResult.candidateCount, 23);
+  assert.ok(text(random).includes('候选对象：23'));
   console.log(
     'Ratings cover emitted Page/WXML smoke passed; synthetic mounted projection, not device acceptance.',
   );

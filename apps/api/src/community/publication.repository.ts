@@ -1,4 +1,5 @@
 import { AccountPolicy } from '../safety/account-policy/decorator.js';
+import { ContentReferenceAllocation } from './content-references/allocation.js';
 import { CommunityMediaBatchPublicationProof } from './media/batch-publication-proof.js';
 import type { MediaBatchPublicationCancellation } from '../media/batch-protocol.js';
 import { TextReviewSubmission } from './text-review/contracts.js';
@@ -85,6 +86,11 @@ export class PublicationRepository {
     private readonly views: CommunityViewEnrollment,
     @Inject(CommunityCommentEnrollment)
     private readonly comments: CommunityCommentEnrollment,
+    @Inject(ContentReferenceAllocation)
+    private readonly references: Pick<
+      ContentReferenceAllocation,
+      'allocateForPublication'
+    >,
     @Optional()
     @Inject(TextReviewRuntime)
     private readonly reviews?: TextReviewRuntime,
@@ -194,6 +200,18 @@ export class PublicationRepository {
         };
         if (reviewOnly)
           throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+        await this.references.allocateForPublication(
+          {
+            kind:
+              operation === 'publish_post'
+                ? 'post'
+                : operation === 'publish_comment'
+                  ? 'comment'
+                  : 'reply',
+            targetId: receipt.resourceId,
+          },
+          tx,
+        );
       } catch (error) {
         if (
           reviewOnly &&

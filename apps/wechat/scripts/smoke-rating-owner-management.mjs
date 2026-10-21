@@ -1,3 +1,7 @@
+import {
+  pressRecoveryControl,
+  readRecoveryDependency,
+} from '../test/framework7-rating-recovery-native-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -14,6 +18,15 @@ export async function smokeRatingOwnerManagement({
   extension = 'js',
 }) {
   const module = (name) => require(path.join(dist, `${name}.${extension}`));
+  const eventOptions = (page) => ({
+    page,
+    dist,
+    extension,
+    pageFile: path.join(dist, 'pages/target-owner-delete/target-owner-delete'),
+  });
+  const press = (page, handler, dataset = {}) =>
+    pressRecoveryControl(eventOptions(page), handler, dataset);
+
   const { ApiClient } = module('api/client');
   const { WechatTransport } = module('platform/wechat');
   const { createCommunityRuntime } = module('community/runtime');
@@ -156,7 +169,10 @@ export async function smokeRatingOwnerManagement({
     'utf8',
   );
   const common = parse(
-    readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8'),
+    readRecoveryDependency(
+      path.join(dist, 'pages/target-owner-delete/target-owner-delete'),
+      dist,
+    ),
   );
   const templates = Object.fromEntries(
     common.children
@@ -188,8 +204,8 @@ export async function smokeRatingOwnerManagement({
     for (const [
       ,
       handler,
-    ] of `${source}${readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8').split('<template name="rating-like">')[0]}`.matchAll(
-      /bind(?:tap|input)="([^"]+)"/g,
+    ] of `${source}${readRecoveryDependency(path.join(dist, 'pages/target-owner-delete/target-owner-delete'), dist).split('<template name="rating-like">')[0]}`.matchAll(
+      /bind(?::press|:input|tap|input)="([^"]+)"/g,
     ))
       assert.equal(
         typeof page[handler],
@@ -230,7 +246,7 @@ export async function smokeRatingOwnerManagement({
         path.join(dist, 'pages/rating-detail/rating-detail.wxml'),
         'utf8',
       ),
-      /bindtap="onOwnerDeletion"/,
+      /bind:press="onOwnerDeletion"/,
     );
     assert.match(
       readFileSync(
@@ -247,15 +263,15 @@ export async function smokeRatingOwnerManagement({
     page.onConfirmDelete();
     await flush();
     assert.equal(requests.length, 1);
-    page.onDelete();
+    press(page, 'onDelete');
     assert.match(visible(page), /评分和互动历史会保留/);
     assert.match(visible(page), /删除后无法恢复/);
-    page.onDismissDelete();
+    press(page, 'onDismissDelete');
     assert.equal(page.data.deleteConfirmation, false);
     state.loseCommand = true;
     state.hideReceipt = true;
-    page.onDelete();
-    page.onConfirmDelete();
+    press(page, 'onDelete');
+    press(page, 'onConfirmDelete');
     page.onConfirmDelete();
     await flush();
     assert.equal(state.writes, 1);
@@ -269,13 +285,13 @@ export async function smokeRatingOwnerManagement({
     assert.equal(recovered.data.frozen, true);
     assert.deepEqual(journal(), originalJournal);
     assert.equal(requests.filter((r) => r.path.endsWith('/context')).length, 1);
-    recovered.onRetry();
+    press(recovered, 'onRetry');
     await flush();
     assert.equal(state.writes, 1);
     assert.deepEqual(journal(), originalJournal);
     state.loseCommand = false;
     state.hideReceipt = false;
-    recovered.onRecover();
+    press(recovered, 'onRecover');
     await flush();
     assert.equal(journal(), null);
     assert.match(recovered.data.receiptStatus, /历史操作/);
@@ -296,10 +312,10 @@ export async function smokeRatingOwnerManagement({
       requests.some((r) => r.path.endsWith('/cancel')),
       false,
     );
-    cancellation.onCancelDeletion();
+    press(cancellation, 'onCancelDeletion');
     assert.match(visible(cancellation), /不会恢复对象/);
     state.loseCancel = true;
-    cancellation.onConfirmCancelDeletion();
+    press(cancellation, 'onConfirmCancelDeletion');
     await flush();
     assert.ok(journal());
     cancellation.onHide();

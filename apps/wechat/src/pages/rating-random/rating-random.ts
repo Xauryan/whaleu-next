@@ -7,7 +7,7 @@ import {
 } from '../../ratings/random-controller';
 
 Page({
-  data: { ...initialRatingRandomView() },
+  data: { ...initialRatingRandomView(), uiPanel: '' },
   route: null as { readonly categoryId: string } | null,
   controller: undefined as RatingRandomController | undefined,
   navigator: undefined as DirectoryNavigator | undefined,
@@ -30,6 +30,7 @@ Page({
         current.credentials?.accountId !== owner.credentials?.accountId
       ) {
         owner = current;
+        this.setData({ uiPanel: '' });
         this.navigator?.dispose();
       }
     });
@@ -41,6 +42,7 @@ Page({
     );
   },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.navigator?.dispose();
     this.controller = undefined;
@@ -57,9 +59,21 @@ Page({
       this.setData({ error: '暂不能打开评分详情，请重试' }),
     );
     this.controller = new RatingRandomController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        ...(!view.hasSession || !view.loaded ? { uiPanel: '' } : {}),
+      }),
     );
     this.controller.load(this.route);
+  },
+  onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel;
+    if (typeof panel !== 'string' || !/^[a-zA-Z0-9:_-]{1,100}$/.test(panel))
+      return;
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
+  onClosePanel() {
+    this.setData({ uiPanel: '' });
   },
   onRefresh() {
     this.onShow();
@@ -104,6 +118,7 @@ Page({
     this.navigator?.open(this.controller?.targetPath() ?? null);
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
     this.navigator?.dispose();

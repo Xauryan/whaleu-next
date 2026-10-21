@@ -1,0 +1,93 @@
+import type { WhaleuApp } from '../../app';
+import { ClientError } from '../../api/errors';
+import {
+  initialSocialNoticesView,
+  socialNoticeKind,
+  SocialNoticesController,
+  type SocialNoticeKind,
+} from './controller';
+Page({
+  data: { ...initialSocialNoticesView(null), showCoverage: false },
+  kind: null as SocialNoticeKind | null,
+  controller: undefined as SocialNoticesController | undefined,
+  generation: 0,
+  onLoad(query: unknown) {
+    this.onHide();
+    this.kind = socialNoticeKind(query);
+    this.setData({
+      ...initialSocialNoticesView(this.kind),
+      showCoverage: false,
+    });
+  },
+  async onShow() {
+    this.onHide();
+    if (!this.kind) {
+      this.setData({ error: '互动消息链接无效' });
+      return;
+    }
+    const runtime = getApp<WhaleuApp>().community;
+    if (!runtime) {
+      this.setData({ error: '环境未初始化，请重新打开小程序' });
+      return;
+    }
+    const generation = this.generation;
+    this.controller = new SocialNoticesController(
+      runtime,
+      this.kind,
+      (view) => {
+        if (generation === this.generation) this.setData({ ...view });
+      },
+      (url) =>
+        new Promise<void>((resolve, reject) => {
+          if (!wx.navigateTo) {
+            reject(new ClientError('configuration', 'Navigation unavailable'));
+            return;
+          }
+          wx.navigateTo({
+            url,
+            success: resolve,
+            fail: () => reject(new ClientError('network', 'Navigation failed')),
+          });
+        }),
+    );
+    await this.controller.load();
+  },
+  onReload() {
+    void this.onShow();
+  },
+  async onPullDownRefresh() {
+    try {
+      await this.onShow();
+    } finally {
+      wx.stopPullDownRefresh?.();
+    }
+  },
+  onCoverage() {
+    this.setData({ showCoverage: !this.data.showCoverage });
+  },
+  onMore(event: { currentTarget: { dataset: { source?: string } } }) {
+    void this.controller?.more(event.currentTarget.dataset.source);
+  },
+  onOpen(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.controller?.open(event.currentTarget.dataset.id);
+  },
+  onRead(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.controller?.acknowledge(event.currentTarget.dataset.id);
+  },
+  onCancel() {
+    this.controller?.cancel();
+  },
+  onHide() {
+    this.generation++;
+    this.controller?.dispose();
+    this.controller = undefined;
+    this.setData({
+      ...initialSocialNoticesView(this.kind),
+      showCoverage: false,
+    });
+  },
+  onUnload() {
+    this.onHide();
+    this.kind = null;
+  },
+});

@@ -12,12 +12,12 @@ const MAX_CONCURRENT_COUNTS = 2;
 const COUNT_SOURCE_STATEMENT_MS = 100;
 export const SMALL_COUNT_PROOF_CANDIDATES = 1024;
 export const SMALL_COUNT_PROOF_BUDGET_MS = 500;
-export interface CountScanResult<T extends number | bigint = number> {
+export interface CountScanResult<T = number> {
   value: T;
   candidates: number;
 }
 
-export type CurrentOptionalCount<T extends number | bigint = number> =
+export type CurrentOptionalCount<T = number> =
   | {
       status: 'known';
       value: T;
@@ -38,7 +38,7 @@ interface TimeoutSettings {
 
 export class OptionalCountUnavailable extends Error {}
 
-const unavailable = <T extends number | bigint>(): CurrentOptionalCount<T> => ({
+const unavailable = <T>(): CurrentOptionalCount<T> => ({
   status: 'unavailable',
   value: null,
   optionalUntil: null,
@@ -125,7 +125,7 @@ export class OptionalCountRunner {
       Math.max(0, poolMax - 1),
     );
   }
-  async attempt<T extends number | bigint>(
+  async attempt<T = number>(
     tx: PoolClient,
     scan: (
       read: PoolClient,
@@ -138,6 +138,12 @@ export class OptionalCountRunner {
       read: PoolClient,
     ) => Promise<CountProofCollector | null>,
     fence: (read: PoolClient) => Promise<void>,
+    policy?: {
+      valid(value: T): boolean;
+      equal(left: T, right: T): boolean;
+      /** Remaining shared finalization budget, never a fresh budget per item. */
+      proofBudgetMs?: () => number;
+    },
   ): Promise<CurrentOptionalCount<T>> {
     if (
       this.admission.active >= this.maxConcurrent ||
@@ -185,9 +191,12 @@ export class OptionalCountRunner {
       const value = scanned.value;
       if (
         performance.now() >= expires ||
-        (typeof value === 'number'
-          ? !Number.isSafeInteger(value) || value < 0
-          : value < 0n)
+        !(
+          policy?.valid(value) ??
+          (typeof value === 'number'
+            ? Number.isSafeInteger(value) && value >= 0
+            : typeof value === 'bigint' && value >= 0n)
+        )
       )
         throw new OptionalCountUnavailable();
       await tx.query(
@@ -212,7 +221,15 @@ export class OptionalCountRunner {
           // Independent bounded proof for the formerly supported small set.
           // Unrelated committed churn does not discard exact small counts. All
           // source fences are final-only/NOWAIT; no locking scalar path follows.
-          const finalExpires = performance.now() + SMALL_COUNT_PROOF_BUDGET_MS;
+          const allowance = Math.min(
+            SMALL_COUNT_PROOF_BUDGET_MS,
+            policy?.proofBudgetMs?.() ?? SMALL_COUNT_PROOF_BUDGET_MS,
+          );
+          if (!Number.isFinite(allowance) || allowance <= 0) {
+            this.admission.active--;
+            return false;
+          }
+          const finalExpires = performance.now() + allowance;
           const finalRead = budgetedClient(tx, finalExpires, 100, 1);
           try {
             await fence(finalRead);
@@ -224,7 +241,10 @@ export class OptionalCountRunner {
               },
               SMALL_COUNT_PROOF_CANDIDATES,
             );
-            return performance.now() < finalExpires && current.value === value;
+            return (
+              performance.now() < finalExpires &&
+              (policy?.equal(current.value, value) ?? current.value === value)
+            );
           } catch (error) {
             if (optionalFailure(error)) return false;
             throw error;

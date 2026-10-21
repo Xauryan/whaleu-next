@@ -92,6 +92,7 @@ function fixture(authors: string[] = [author]) {
               )
                 return [{ author_id: block.blocked_id }];
               if (
+                sql.includes('UNION') &&
                 block.blocked_id === requester &&
                 ids.includes(block.blocker_id)
               )
@@ -519,4 +520,35 @@ test('each owner exports its narrow snapshot facade through its own module', () 
       (Reflect.getMetadata('exports', module) as unknown[]).includes(facade),
     );
   }
+});
+
+test('discussion list child snapshots ignore incoming blocks but retain outgoing and coverage uncertainty', async () => {
+  const f = fixture();
+  f.state.blocks.push({ blocker_id: author, blocked_id: viewer, active: true });
+  const facade = new SafetyContentVisibilityFacade();
+  assert.equal(
+    (
+      await facade.checkBatch(viewer, [author], f.tx, 'list_projection')
+    ).facts.get(author)?.decision,
+    'allow',
+  );
+  assert.equal(
+    (await facade.checkBatch(viewer, [author], f.tx)).facts.get(author)
+      ?.decision,
+    'deny',
+  );
+  f.state.blocks.push({ blocker_id: viewer, blocked_id: author, active: true });
+  assert.equal(
+    (
+      await facade.checkBatch(viewer, [author], f.tx, 'list_projection')
+    ).facts.get(author)?.decision,
+    'deny',
+  );
+  f.state.heads.delete(author);
+  assert.equal(
+    (
+      await facade.checkBatch(viewer, [author], f.tx, 'list_projection')
+    ).facts.get(author)?.decision,
+    'unknown',
+  );
 });

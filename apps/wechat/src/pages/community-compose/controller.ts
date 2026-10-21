@@ -755,7 +755,7 @@ export class ComposeController extends CommunityController<ComposeView> {
             this.update({
               frozen: true,
               canSubmit: false,
-              blocker: '请先恢复或取消原评论对象的整批图片',
+              blocker: '请先恢复或取消原回复对象的整批图片',
             });
             throw error;
           }
@@ -860,7 +860,7 @@ export class ComposeController extends CommunityController<ComposeView> {
           relatedCampusSyncNotice:
             target.operation === 'publish_post' && !trading && !feedback
               ? result.capability?.relatedCampusSync?.availability === 'allowed'
-                ? '自愿将这一条帖子展示给当前关联学校。评论、点赞和分身共用同一条内容；关联关系变化会改变展示范围。不会公开你的具体身份校区。'
+                ? '自愿将这一条帖子展示给当前关联学校。回复、点赞和分身共用同一条内容；关联关系变化会改变展示范围。不会公开你的具体身份校区。'
                 : '当前无法启用关联学校同步，仍可按原范围发帖。需身份校区与发帖学校一致，并由服务端核验学校配置和同步策略。'
               : '',
           isTrading: trading,
@@ -1010,7 +1010,7 @@ export class ComposeController extends CommunityController<ComposeView> {
           : false,
       effectiveIdentity:
         pending.payload.authorMode === 'anonymous'
-          ? '匿名身份（原请求，保持不变）'
+          ? '分身身份（原请求，保持不变）'
           : '公开身份（原请求，保持不变）',
       commentsPolicy:
         pending.operation === 'publish_post'
@@ -1023,7 +1023,7 @@ export class ComposeController extends CommunityController<ComposeView> {
         pending.operation === 'publish_post'
           ? '帖子'
           : pending.operation === 'publish_comment'
-            ? '评论'
+            ? '回复'
             : '回复',
       replyTargetName:
         pending.operation === 'publish_reply' ? '原回复对象（目标已冻结）' : '',
@@ -1336,7 +1336,7 @@ export class ComposeController extends CommunityController<ComposeView> {
     else if (this.mediaMode === 'conflict')
       blocker = '先分别恢复旧图片与整批图片记录';
     else if (this.identityConflict)
-      blocker = '历史评论身份偏好冲突，请明确选择匿名或公开身份';
+      blocker = '历史回复身份偏好冲突，请明确选择分身或公开身份';
     else if (!this.draftSaved) blocker = '草稿尚未可靠保存，暂不能发布';
     else if (!publication || publication.availability !== 'allowed')
       blocker = reasonMessage(publication?.reason ?? 'COMMUNITY_UNAVAILABLE');
@@ -1348,9 +1348,9 @@ export class ComposeController extends CommunityController<ComposeView> {
     else if (!modes?.includes(this.view.authorMode))
       blocker = '所选身份不被允许；不会自动改成公开身份，请自行选择';
     else if (isComment && !this.parentPost?.viewer.canComment)
-      blocker = '此帖当前不可评论';
+      blocker = '此帖当前不可回复';
     else if (this.view.commentsPolicy === 'restricted' && !canDisableComments)
-      blocker = '当前账号无权限制评论，请手动改为开放评论';
+      blocker = '当前账号无权限制回复，请手动改为开放回复';
     else if (
       !boundedText(
         this.view.text.replace(/\r\n/g, '\n'),
@@ -1385,7 +1385,7 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.view.mediaSelected > 0)
     )
       blocker =
-        '当前仅开放实名纯文字审核。请明确关闭投票、组队和匿名私信，并移除图片；不会自动改动原草稿';
+        '当前仅开放实名纯文字审核。请明确关闭投票、组队和分身私信，并移除图片；不会自动改动原草稿';
     if (!blocker && this.view.pollDraft.enabled) {
       try {
         pollDraftComponent(this.view.pollDraft);
@@ -1399,7 +1399,7 @@ export class ComposeController extends CommunityController<ComposeView> {
         blocker = '组队仅用于非交易帖子，不能与投票或内部链接同时添加';
       else if (!this.view.formationDraft.contactConsent)
         blocker =
-          '请阅读并确认：填写的联系方式将向有权查看此帖的组内成员提供，匿名时也可能识别你的身份';
+          '请阅读并确认：填写的联系方式将向有权查看此帖的组内成员提供，分身时也可能识别你的身份';
       else {
         try {
           formationDraftComponent(this.view.formationDraft);
@@ -1448,7 +1448,7 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.view.formationDraft.enabled ||
         this.view.mediaSelected > 0)
     )
-      blocker = '评分卡片不能与同步、图片、投票、组队或匿名私信同时发布';
+      blocker = '评分卡片不能与同步、图片、投票、组队或分身私信同时发布';
     if (!blocker && this.view.mediaBusy) blocker = '请先等待当前图片操作完成';
     if (
       !blocker &&
@@ -1466,10 +1466,10 @@ export class ComposeController extends CommunityController<ComposeView> {
       effectiveIdentity:
         this.view.authorMode === 'anonymous'
           ? this.view.identityForced
-            ? '匿名楼主（本帖评论必须匿名）'
+            ? '分身楼主（本帖回复必须分身）'
             : this.view.formationDraft.enabled
-              ? '匿名身份（公开展示匿名形象；组内联系方式仍可能识别你）'
-              : '匿名身份（不会公开个人资料）'
+              ? '分身身份（公开展示分身形象；组内联系方式仍可能识别你）'
+              : '分身身份（不会公开个人资料）'
           : '公开身份（显示昵称与公开资料身份）',
     });
   }

@@ -1,0 +1,3 @@
+@import '../../window-discussion/window-discussion.wxss';
+
+@import '../../ratings/management.wxss';

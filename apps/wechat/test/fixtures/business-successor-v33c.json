@@ -1,0 +1,41 @@
+{
+  "baselineManifest": "28f996f090a8335506f37cda778692e60cdfb4205bb37e50654f585893084527",
+  "sources": {
+    "src/app.json": {
+      "before": "0698088457fad2bb9e327a3ef75645171a9cd62fbb3bcad793f31aefe2b14143",
+      "after": "a2aa5bd0b5bc34098f1667ab7a9ef3e3bc84bbcb2d6c38e3361ff668449d6feb",
+      "evidence": "test/fixtures/business-successor-v33c-before-0.txt",
+      "reason": "manual-timetable-route-registration"
+    },
+    "src/community/contract.ts": {
+      "before": "c9261cf92a519f057452b895a70cec925670cda1df3605734fefe35b2644c2c8",
+      "after": "8500a1d3d3cf609d7aaa243a4aeea65e7595c8116d5f063752406bec27cda048",
+      "evidence": "test/fixtures/business-successor-v33c-before-1.txt",
+      "reason": "optional-private-discussion-count-contract"
+    },
+    "src/pages/community-feed/community-feed.wxml": {
+      "before": "d923b7c02d5c33457f431a160ef64dc70635afaa8fe1e5b92629651c4eec89b6",
+      "after": "6547bf5f8cfa51de9a36e655a3c028c82a75cc082f6581458ea56a349e810e2e",
+      "evidence": "test/fixtures/business-successor-v33c-before-2.txt",
+      "reason": "optional-private-discussion-count-contract"
+    },
+    "src/pages/community-detail/controller.ts": {
+      "before": "5c2c2156f4eafc4d07ddd217ad25a838201e1a8c6ab5d9fcd11473dfdcc52f01",
+      "after": "26c9fc775b3f2ceb228a00ec81781f3d5ded27c7a45923c0bb73ccc012394324",
+      "evidence": "test/fixtures/business-successor-v33c-before-3.txt",
+      "reason": "optional-private-discussion-count-contract"
+    },
+    "src/post-pins/feed.wxml": {
+      "before": "f932c92ae444cf6450f7aa94db9653660ec757732ce9f9dd87db046a874f98c1",
+      "after": "ab35b8938569ca204c0da0387497337c7939952a04e8c10c3f04ac6f888bf5bd",
+      "evidence": "test/fixtures/business-successor-v33c-before-4.txt",
+      "reason": "optional-private-discussion-count-contract"
+    },
+    "src/pages/feedback/feedback.wxml": {
+      "before": "1f5ab7790886eb704da6cc004fa46a5e124c24ee249b6d3a5ae2cb724aff8fac",
+      "after": "db7f874a43a0a05300af78ed1f7bd9b1617f2602706c4a9c5e0b8150b7a3d63e",
+      "evidence": "test/fixtures/business-successor-v33c-before-5.txt",
+      "reason": "optional-private-discussion-count-contract"
+    }
+  }
+}

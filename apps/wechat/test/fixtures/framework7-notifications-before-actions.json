@@ -1,0 +1,836 @@
+{
+  "src/pages/community-updates/community-updates.wxml": {
+    "sourceSha256": "289e25793b5fea951c21cb0761614885faaf3df1234c96eea0ac86c61e4af88d",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}",
+          "aria-label": "刷新帖子互动"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "notice-secondary",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "notice-action",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-action",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "class": "notice-read",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{!item.readAt}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "class": "notice-action",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canLoadMore}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/community-saved/community-saved"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/community-feed/community-feed"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/major-discussion-notices/major-discussion-notices"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/window-discussion-notices/window-discussion-notices"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/rating-updates/rating-updates"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/rating-updates/rating-updates.wxml": {
+    "sourceSha256": "59e0d8f160a2359244a3e3e340cbde3f3566bf5285ae5e47fd7739e1f25042e2",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "data-category": "reply",
+          "bindtap": "onCategory",
+          "class": "notice-tab {{category === 'reply' ? 'active' : 'secondary'}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-category": "like",
+          "bindtap": "onCategory",
+          "class": "notice-tab {{category === 'like' ? 'active' : 'secondary'}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-category": "subscription",
+          "bindtap": "onCategory",
+          "class": "notice-tab {{category === 'subscription' ? 'active' : 'secondary'}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-icon-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}",
+          "aria-label": "刷新评分互动"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "notice-secondary",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "notice-action",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-action",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "class": "notice-read",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{!item.readAt}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMore}}",
+          "class": "notice-action",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canMore}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/rating-catalog/rating-catalog"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/rating-scoped/rating-scoped?mode=catalog&scope=global"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/community-updates/community-updates"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/window-discussion-notices/window-discussion-notices.wxml": {
+    "sourceSha256": "7b4ef07c0e8cddb67dba1144899d9ee1d21b44aad655b551bdc079d6e3d9677f",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-icon-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "aria-label": "刷新食堂互动"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "notice-action",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "notice-secondary",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.kind === 'reply' && item.preview.thumbnail}}",
+          "class": "notice-action",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onNoticeImage",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          },
+          {
+            "wx:if": "{{item.kind === 'reply' && item.preview.thumbnail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-action",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "class": "notice-read",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{!item.readAt}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "class": "notice-action",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/window-discussion-recovery/window-discussion-recovery"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/major-discussion-notices/major-discussion-notices.wxml": {
+    "sourceSha256": "e35de2c108a7e46aafcb17d2d7861b468ff35df0ce160c48b10fb6c273cc9b9a",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-icon-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "aria-label": "刷新专业互动"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "notice-action",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "notice-secondary",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.kind === 'reply' && item.preview.thumbnail}}",
+          "class": "notice-action",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onNoticeImage",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          },
+          {
+            "wx:if": "{{item.kind === 'reply' && item.preview.thumbnail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-action",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "class": "notice-read",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{!item.readAt}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "class": "notice-action",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-secondary",
+          "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/social-notices/social-notices.wxml": {
+    "sourceSha256": "1d053c01e605d7206791e7eeb9f0dae53e739adf6507f9862943b6ec9eb2f077",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "aria-label": "刷新互动消息"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/login/login",
+          "class": "notice-action"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-action",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "social-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onOpen",
+          "disabled": "{{item.busy || !item.available}}",
+          "aria-label": "{{item.title}}，{{item.action}}"
+        },
+        "scopes": [
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:for": "{{rows}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.unread}}",
+          "class": "notice-read",
+          "data-id": "{{item.id}}",
+          "bindtap": "onRead",
+          "disabled": "{{item.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:for": "{{rows}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{item.unread}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.canMore}}",
+          "class": "notice-action",
+          "bindtap": "onMore",
+          "data-source": "{{item.key}}",
+          "disabled": "{{item.busy}}",
+          "loading": "{{item.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:for": "{{sources}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:if": "{{item.canMore}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "notice-secondary",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-secondary",
+          "bindtap": "onCoverage",
+          "aria-expanded": "{{showCoverage}}"
+        },
+        "scopes": [
+          {
+            "wx:else": ""
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/system-notices/system-notices.wxml": {
+    "sourceSha256": "88ee84cd1e320abcd1b2e61ccf80f06bdfdbc2c91defc6ebc8473ecbf9bdaa8d",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-icon-button",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "aria-label": "刷新系统消息"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "notice-secondary",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "notice-action",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.source === 'verification' || item.source === 'feedback' || item.kind === 'accepted' || item.kind === 'completed'}}",
+          "class": "notice-action",
+          "data-id": "{{item.key}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:if": "{{item.source !== 'system'}}"
+          },
+          {
+            "wx:if": "{{item.source === 'verification' || item.source === 'feedback' || item.kind === 'accepted' || item.kind === 'completed'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-action",
+          "url": "/pages/profile/profile"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:elif": "{{item.kind === 'profile_nickname_reset'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-action",
+          "url": "/pages/account-status/account-status"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:elif": "{{item.kind === 'account_punishment_issued' || item.kind === 'account_punishment_released'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "notice-action",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.appealId}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:elif": "{{item.kind === 'account_appeal_decided'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "class": "notice-read",
+          "data-id": "{{item.key}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:if": "{{!item.readAt}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "class": "notice-action",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canLoadMore}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-secondary",
+          "bindtap": "onSources"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/notice-thread/notice-thread.wxml": {
+    "sourceSha256": "d06431f624e6106e50c1e18bac42d16e860a2b4c8f3351b453a718602db8b3b0",
+    "actions": []
+  }
+}

@@ -1,0 +1,71 @@
+import { systemNoticeRows } from '../../notifications/details';
+import type { WhaleuApp } from '../../app';
+import {
+  SystemTimelineController,
+  initialSystemTimelineView,
+} from '../../notifications/system-timeline';
+
+Page({
+  data: { ...initialSystemTimelineView(), showSources: false },
+  controller: undefined as SystemTimelineController | undefined,
+  onShow() {
+    this.controller?.dispose();
+    this.controller = undefined;
+    const runtime = getApp<WhaleuApp>().community;
+    if (!runtime) {
+      this.setData({
+        ...initialSystemTimelineView(),
+        error: '环境未初始化，请重新打开小程序',
+      });
+      return;
+    }
+    this.controller = new SystemTimelineController(
+      runtime,
+      (view) => this.setData({ ...view, items: systemNoticeRows(view.items) }),
+      getApp<WhaleuApp>().identity?.api,
+      (url) =>
+        new Promise<void>((resolve, reject) => {
+          if (!wx.navigateTo) {
+            reject(new Error('暂时无法打开'));
+            return;
+          }
+          wx.navigateTo({
+            url,
+            success: () => resolve(),
+            fail: () => reject(new Error('暂时无法打开')),
+          });
+        }),
+    );
+    void this.controller.load();
+  },
+  onSources() {
+    this.setData({ showSources: !this.data.showSources });
+  },
+  onReload() {
+    void this.controller?.load();
+  },
+  onMore() {
+    void this.controller?.more();
+  },
+  onRead(event: { currentTarget: { dataset: { id: string } } }) {
+    void this.controller?.acknowledge(event.currentTarget.dataset.id);
+  },
+  onOpen(event: { currentTarget: { dataset: { id: string } } }) {
+    const controller = this.controller;
+    void controller?.open(event.currentTarget.dataset.id).catch(() => {
+      if (this.controller === controller)
+        this.setData({ error: '暂时无法打开，请重试' });
+    });
+  },
+  onCancel() {
+    this.controller?.cancel();
+  },
+  onHide() {
+    this.setData({ showSources: false });
+    this.controller?.dispose();
+    this.controller = undefined;
+  },
+  onUnload() {
+    this.onHide();
+  },
+});

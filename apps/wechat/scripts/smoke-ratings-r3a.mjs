@@ -1,3 +1,7 @@
+import {
+  pressRecoveryControl,
+  readRecoveryDependency,
+} from '../test/framework7-rating-recovery-native-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -122,7 +126,10 @@ export async function smokeRatingsR3A({ app, dist, flush }) {
     path.join(dist, 'pages/rating-deletion/rating-deletion.wxml'),
     'utf8',
   );
-  const common = readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8');
+  const pageFile = path.join(dist, 'pages/rating-deletion/rating-deletion');
+  const common = readRecoveryDependency(pageFile, dist);
+  const press = (page, handler) =>
+    pressRecoveryControl({ page, pageFile, dist }, handler);
   const templates = Object.fromEntries(
     parse(common)
       .children.filter((n) => typeof n !== 'string')
@@ -134,7 +141,7 @@ export async function smokeRatingsR3A({ app, dist, flush }) {
     );
   const shown = (page) => render(parse(source).children, page.data, templates);
   const buttons = (page, handler) =>
-    nodes(shown(page)).filter((n) => n.attrs.bindtap === handler);
+    nodes(shown(page)).filter((n) => n.attrs['bind:press'] === handler);
   const mount = () => {
     let page;
     const old = globalThis.Page,
@@ -152,7 +159,7 @@ export async function smokeRatingsR3A({ app, dist, flush }) {
       page.data = { ...page.data, ...data };
     };
     for (const [, handler] of (source + common).matchAll(
-      /bind(?:tap|input)="([^"]+)"/g,
+      /bind(?::press|tap|input)="([^"]+)"/g,
     ))
       if (handler !== 'onLike')
         assert.equal(typeof page[handler], 'function', `R3A ${handler}`);
@@ -166,24 +173,24 @@ export async function smokeRatingsR3A({ app, dist, flush }) {
     await flush();
     assert.equal(requests.length, 0);
     assert.equal(buttons(page, 'onConfirm').length, 0);
-    page.onAdmin();
+    press(page, 'onAdmin');
     await flush();
     assert.equal(buttons(page, 'onConfirm').length, 0);
     assert.equal(commands.length, 0);
     authorized = true;
-    page.onAdmin();
+    press(page, 'onAdmin');
     await flush();
     assert.equal(buttons(page, 'onConfirm').length, 1);
     assert.match(JSON.stringify(shown(page)), /确认以管理员身份删除/);
     assert.equal(JSON.stringify(page.data).includes('contextRevision'), false);
-    page.onCancel();
+    press(page, 'onCancel');
     assert.equal(buttons(page, 'onConfirm').length, 0);
     assert.equal(minted, 0);
-    page.onAdmin();
+    press(page, 'onAdmin');
     await flush();
     lose = true;
-    page.onConfirm();
-    page.onConfirm();
+    press(page, 'onConfirm');
+    press(page, 'onConfirm');
     await flush();
     assert.equal(commands.length, 1);
     assert.equal(minted, 1);

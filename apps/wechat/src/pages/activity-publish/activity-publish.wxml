@@ -1,20 +1,81 @@
-<view class="page">
- <view class="title">发布活动</view><text>选择已审核、本人当前管理的本校组织。内容和图片通过独立审核后才会公开。</text>
- <view class="actions"><button bindtap="onCatalog">新发布活动</button><button bindtap="onMine">本人发布历史</button></view>
- <view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{status}}">{{status}}</view>
- <view wx:if="{{pending}}" class="card"><text>原请求 {{pendingId}} 已冻结，请先恢复或取消；重复点击不会重复发布。</text><button bindtap="onRecover" disabled="{{busy}}">检查审核并恢复发布</button><button bindtap="onRetry" disabled="{{busy}}">重试完全相同的原请求</button><button bindtap="onCancelOriginal" disabled="{{busy}}">取消原请求</button></view>
- <view wx:if="{{!id}}" class="card"><view>主办方</view><button wx:for="{{organizers}}" wx:key="organizationId" data-id="{{item.organizationId}}" bindtap="onOrganizer" disabled="{{busy || pending}}">{{item.name}} {{selected && selected.organizationId === item.organizationId ? '（已选择）' : ''}}</button><text wx:if="{{loaded && !organizers.length}}">没有可发布活动的组织，请先申请组织并获得真实管理身份。</text><button wx:if="{{moreOrganizers}}" bindtap="onMoreOrganizers">更多组织</button></view>
- <view wx:if="{{!draft || draft.state !== 'published'}}" class="card">
-  <view>标题（最多50字）</view><input value="{{form.title}}" maxlength="50" data-field="title" bindinput="onField" disabled="{{busy || pending}}" />
-  <view>活动类型（可多选）：{{form.types}}</view><view class="actions"><button data-type="online" bindtap="onType" disabled="{{busy || pending}}">线上</button><button data-type="offline" bindtap="onType" disabled="{{busy || pending}}">线下</button><button data-type="reward" bindtap="onType" disabled="{{busy || pending}}">有奖</button></view>
-  <view>活动时间（自由文本，线下必填）</view><input value="{{form.activityTime}}" maxlength="200" data-field="activityTime" bindinput="onField" disabled="{{busy || pending}}" />
-  <view>活动地点（自由文本，线下必填）</view><input value="{{form.activityLocation}}" maxlength="200" data-field="activityLocation" bindinput="onField" disabled="{{busy || pending}}" />
-  <view>介绍（最多1000字）</view><textarea value="{{form.description}}" maxlength="1000" data-field="description" bindinput="onField" disabled="{{busy || pending}}" />
-  <view>结束时间（选填，ISO时间含时区；留空为未指定）</view><input value="{{endAtInput}}" placeholder="2026-12-01T18:00:00+08:00" data-field="endAt" bindinput="onField" disabled="{{busy || pending}}" />
-  <view>公开展示主办方主二维码</view><switch checked="{{form.showOrganizerQr}}" bindchange="onQr" disabled="{{busy || pending}}" /><text>开启后，同校读者可查看组织当前公开的主二维码。</text>
-  <button wx:if="{{!id}}" bindtap="onCreate" disabled="{{busy || pending || !selected}}">创建活动草稿</button>
- </view>
- <view wx:if="{{draft && draft.state === 'draft'}}" class="card"><view>封面必填，详情图最多9张。图片审核就绪后保存到草稿。</view><view wx:for="{{slots}}" wx:key="slot"><text>{{item.label}}：{{item.configured ? '已选择' : '未选择'}} {{item.changed ? '（待保存）' : ''}}</text><view class="actions"><button data-slot="{{item.slot}}" bindtap="onUpload" disabled="{{busy || pending || upload.status === 'working'}}">上传/更换</button><button data-slot="{{item.slot}}" bindtap="onPreview" disabled="{{busy || pending || !item.configured || item.changed}}">查看已保存图片</button><button data-slot="{{item.slot}}" bindtap="onRemove" disabled="{{busy || pending}}">移除</button></view></view><text>{{upload.message}}</text><view wx:for="{{pendingImages}}" wx:key="slot"><text>{{item.slot}} 原上传待恢复</text><button data-slot="{{item.slot}}" data-revision="{{item.revision}}" data-action="recover" bindtap="onPendingImage">恢复图片</button><button data-slot="{{item.slot}}" data-revision="{{item.revision}}" data-action="cancel" bindtap="onPendingImage">取消原图片</button></view><button bindtap="onDiscardDraft" disabled="{{busy || pending || upload.status === 'working'}}">放弃未发布草稿</button><button bindtap="onSave" disabled="{{busy || pending || upload.status === 'working'}}">保存内容和图片</button><button bindtap="onPublish" disabled="{{busy || pending || dirty || upload.status === 'working'}}">提交审核并发布</button></view>
- <image wx:if="{{image.status === 'ready'}}" src="{{image.src}}" mode="widthFix" /><text>{{image.message}}</text>
- <button wx:if="{{draft && draft.state === 'published'}}" bindtap="onPublished">查看已发布活动</button>
+<view class="f7-ios-theme activity-page activity-publish-page">
+  <view class="activity-toolbar">
+    <wu-f7-button class="activity-text-button activity-muted" bind:press="onCatalog" variant="plain">校园活动<wu-icon name="chevron-right" size="14" /></wu-f7-button>
+    <wu-f7-button class="activity-text-button activity-muted" bind:press="onMine" variant="plain">我的发布</wu-f7-button>
+  </view>
+  <view wx:if="{{error}}" class="activity-error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{status}}" class="activity-status" aria-role="status">{{status}}</view>
+  <wu-f7-block wx:if="{{pending}}" class="activity-recovery" strong="{{true}}" spacing="compact">
+    <view class="activity-section-title">这次提交还在确认中</view>
+    <view class="activity-caption">先查看原提交的结果，再继续编辑。重试不会重复发布。</view>
+    <wu-f7-button class="activity-primary" bind:press="onRecover" disabled="{{busy}}" variant="fill" size="large">查看结果并继续</wu-f7-button>
+    <view class="activity-inline-actions"><wu-f7-button class="activity-text-button" bind:press="onRetry" disabled="{{busy}}" variant="plain">重试原提交</wu-f7-button><wu-f7-button class="activity-text-button activity-muted" bind:press="onCancelOriginal" disabled="{{busy}}" variant="plain">取消原提交</wu-f7-button></view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{!id}}" class="activity-organizer-picker" strong="{{true}}" spacing="compact">
+    <view class="activity-section-title">主办方</view><view class="activity-caption">选择你管理的已审核校内组织。</view>
+    <wu-f7-button wx:for="{{organizers}}" wx:key="organizationId" class="activity-organizer-option {{selected &amp;&amp; selected.organizationId === item.organizationId ? 'selected' : ''}}" data-id="{{item.organizationId}}" bind:press="onOrganizer" disabled="{{busy || pending}}" variant="{{selected &amp;&amp; selected.organizationId === item.organizationId ? 'tonal' : 'plain'}}"><wu-icon name="people" size="21" /><text class="activity-organizer-option-name">{{item.name}}</text><wu-icon wx:if="{{selected &amp;&amp; selected.organizationId === item.organizationId}}" name="check" tone="accent" size="19" /></wu-f7-button>
+    <view wx:if="{{loaded && !organizers.length}}" class="activity-caption">暂无可发布的组织。需要先获得已审核校内组织的管理身份。</view>
+    <wu-f7-button wx:if="{{moreOrganizers}}" class="activity-text-button" bind:press="onMoreOrganizers" disabled="{{busy || pending}}" variant="plain">更多组织<wu-icon name="chevron-down" size="14" /></wu-f7-button>
+  </wu-f7-block>
+  <view wx:if="{{!draft || draft.state !== 'published'}}">
+    <wu-f7-block class="activity-writing-canvas" strong="{{true}}" spacing="compact">
+      <wu-f7-input class="activity-title-input" value="{{form.title}}" maxlength="50" data-field="title" bind:input="onField" disabled="{{busy || pending}}" placeholder="给活动起一个名字" aria-label="活动标题，最多50字" />
+      <view class="activity-input-count">{{titleCount}} / 50</view>
+      <textarea class="activity-description-input" value="{{form.description}}" maxlength="1000" data-field="description" bindinput="onField" disabled="{{busy || pending}}" placeholder="介绍活动内容、参与方式和需要准备的物品…" aria-label="活动介绍，最多1000字" auto-height="true" />
+      <view class="activity-input-count">{{descriptionCount}} / 1000</view>
+    </wu-f7-block>
+    <view class="activity-form-section">
+      <view class="activity-field-label">活动形式<text class="activity-field-hint">可多选</text></view>
+      <view class="activity-type-choices">
+        <wu-f7-button class="activity-choice {{typeSelected.online ? 'selected' : ''}}" data-type="online" bind:press="onType" disabled="{{busy || pending}}" variant="{{typeSelected.online ? 'fill' : 'tonal'}}" round="{{true}}"><wu-icon wx:if="{{typeSelected.online}}" name="check" tone="accent" size="14" />线上</wu-f7-button>
+        <wu-f7-button class="activity-choice {{typeSelected.offline ? 'selected' : ''}}" data-type="offline" bind:press="onType" disabled="{{busy || pending}}" variant="{{typeSelected.offline ? 'fill' : 'tonal'}}" round="{{true}}"><wu-icon wx:if="{{typeSelected.offline}}" name="check" tone="accent" size="14" />线下</wu-f7-button>
+        <wu-f7-button class="activity-choice {{typeSelected.reward ? 'selected' : ''}}" data-type="reward" bind:press="onType" disabled="{{busy || pending}}" variant="{{typeSelected.reward ? 'fill' : 'tonal'}}" round="{{true}}"><wu-icon wx:if="{{typeSelected.reward}}" name="check" tone="accent" size="14" />有奖</wu-f7-button>
+      </view>
+    </view>
+    <view class="activity-form-rows">
+      <view class="activity-form-row"><wu-icon name="clock" size="21" /><view class="activity-form-field"><view class="activity-field-label">活动时间<text class="activity-field-hint">{{typeSelected.offline ? '线下活动必填' : '选填'}}</text></view><wu-f7-input value="{{form.activityTime}}" maxlength="200" data-field="activityTime" bind:input="onField" disabled="{{busy || pending}}" placeholder="例如：周六 14:00—16:00" /></view></view>
+      <view class="activity-form-row"><wu-icon name="location" size="21" /><view class="activity-form-field"><view class="activity-field-label">活动地点<text class="activity-field-hint">{{typeSelected.offline ? '线下活动必填' : '选填'}}</text></view><wu-f7-input value="{{form.activityLocation}}" maxlength="200" data-field="activityLocation" bind:input="onField" disabled="{{busy || pending}}" placeholder="填写集合地点或线上参与地点" /></view></view>
+    </view>
+    <wu-f7-block class="activity-section" strong="{{true}}" spacing="compact">
+      <wu-f7-button class="activity-disclosure" data-field="options" bind:press="onTogglePanel" variant="plain"><text>更多设置</text><wu-icon name="{{uiPanels.options ? 'chevron-up' : 'chevron-down'}}" size="14" /></wu-f7-button>
+      <view wx:if="{{uiPanels.options}}" class="activity-disclosure-content">
+        <view class="activity-field-label">结束时间<text class="activity-field-hint">选填</text></view>
+        <wu-f7-input class="activity-option-input" value="{{endAtInput}}" placeholder="2026-12-01T18:00:00+08:00" data-field="endAt" bind:input="onField" disabled="{{busy || pending}}" />
+        <view class="activity-footnote">填写带时区的完整时间，留空表示未指定。</view>
+        <view class="activity-setting-row"><view class="activity-setting-copy"><view class="activity-field-label">公开主办方二维码</view><view class="activity-caption">同校读者可查看组织当前公开的主二维码。</view></view><wu-f7-toggle checked="{{form.showOrganizerQr}}" bind:change="onQr" disabled="{{busy || pending}}"  aria-label="公开主办方二维码"/></view>
+      </view>
+    </wu-f7-block>
+    <view wx:if="{{!id}}" class="activity-submit-area">
+      <view class="activity-caption">下一步添加封面和图片。审核通过后才会公开。</view>
+      <wu-f7-button wx:if="{{!id}}" class="activity-primary" bind:press="onCreate" disabled="{{busy || pending || !selected}}" variant="fill" size="large">下一步，添加图片</wu-f7-button>
+    </view>
+  </view>
+  <wu-f7-block wx:if="{{draft && draft.state === 'draft'}}" class="activity-draft-media" strong="{{true}}" spacing="compact">
+    <view class="activity-section-title">活动图片</view>
+    <view class="activity-caption">添加一张封面，最多可附 9 张详情图。</view>
+    <view wx:for="{{slots}}" wx:key="slot">
+      <view wx:if="{{item.slot === 'cover' || uiPanels.gallery || item.configured || item.changed}}" class="activity-upload-row {{item.slot === 'cover' ? 'activity-cover-row' : ''}}">
+        <view class="activity-upload-symbol"><wu-icon name="{{item.configured ? 'image' : 'plus'}}" size="24" /></view>
+        <view class="activity-upload-content"><view class="activity-upload-label">{{item.slot === 'cover' ? '封面' : item.label}}<text wx:if="{{item.slot === 'cover'}}" class="activity-footnote">必填</text></view><view class="activity-footnote">{{item.changed ? '待保存' : item.configured ? '已添加' : '未添加'}}</view><view class="activity-upload-actions">
+          <wu-f7-button class="activity-text-button" data-slot="{{item.slot}}" bind:press="onUpload" disabled="{{busy || pending || upload.status === 'working'}}" variant="plain">{{item.configured ? '更换' : '添加图片'}}</wu-f7-button>
+          <wu-f7-button wx:if="{{item.configured}}" class="activity-text-button activity-muted" data-slot="{{item.slot}}" bind:press="onPreview" disabled="{{busy || pending || !item.configured || item.changed}}" variant="plain">预览</wu-f7-button>
+          <wu-f7-button wx:if="{{item.configured || item.changed}}" class="activity-text-button activity-muted" data-slot="{{item.slot}}" bind:press="onRemove" disabled="{{busy || pending}}" variant="plain">移除</wu-f7-button>
+        </view></view>
+      </view>
+    </view>
+    <wu-f7-button class="activity-disclosure" data-field="gallery" bind:press="onTogglePanel" variant="plain"><text>{{uiPanels.gallery ? '收起详情图' : '添加详情图'}}</text><wu-icon name="{{uiPanels.gallery ? 'chevron-up' : 'plus'}}" size="16" /></wu-f7-button>
+    <view wx:if="{{upload.message}}" class="activity-status" aria-role="status">{{upload.message}}</view>
+    <wu-f7-block wx:for="{{pendingImages}}" wx:key="slot" class="activity-recovery" strong="{{true}}" spacing="compact">
+      <view class="activity-section-title">图片上传待确认</view><view class="activity-caption">{{item.slot === 'cover' ? '活动封面' : '活动详情图'}}尚未完成，请继续原上传。</view>
+      <view class="activity-inline-actions"><wu-f7-button class="activity-text-button" data-slot="{{item.slot}}" data-revision="{{item.revision}}" data-action="recover" bind:press="onPendingImage" disabled="{{busy || pending || upload.status === 'working'}}" variant="plain">继续上传</wu-f7-button><wu-f7-button class="activity-text-button activity-muted" data-slot="{{item.slot}}" data-revision="{{item.revision}}" data-action="cancel" bind:press="onPendingImage" disabled="{{busy || pending || upload.status === 'working'}}" variant="plain">取消这张图片</wu-f7-button></view>
+    </wu-f7-block>
+    <view class="activity-submit-area">
+      <view class="activity-caption">{{dirty ? '先保存修改，再提交审核。' : '内容与图片审核通过后，活动才会公开。'}}</view>
+      <view class="activity-submit-buttons"><wu-f7-button class="{{dirty ? 'activity-primary' : 'activity-secondary'}}" bind:press="onSave" disabled="{{busy || pending || upload.status === 'working'}}" variant="{{dirty ? 'fill' : 'tonal'}}" size="large">保存草稿</wu-f7-button><wu-f7-button class="{{dirty ? 'activity-secondary' : 'activity-primary'}}" bind:press="onPublish" disabled="{{busy || pending || dirty || upload.status === 'working'}}" variant="{{dirty ? 'tonal' : 'fill'}}" size="large">提交审核并发布</wu-f7-button></view>
+    </view>
+    <view wx:if="{{uiPanels.options}}" class="activity-discard"><wu-f7-button class="activity-text-button activity-danger" bind:press="onDiscardDraft" disabled="{{busy || pending || upload.status === 'working'}}" variant="plain" tone="danger">放弃未发布草稿</wu-f7-button></view>
+  </wu-f7-block>
+  <view wx:if="{{image.status === 'ready' || image.message}}" class="activity-preview-image"><image wx:if="{{image.status === 'ready'}}" class="activity-saved-image" src="{{image.src}}" mode="widthFix" /><view class="activity-caption">{{image.message}}</view></view>
+  <view wx:if="{{draft &amp;&amp; draft.state === 'published'}}" class="activity-published-state"><wu-icon name="check" tone="accent" size="42" /><view class="activity-empty-title">活动已发布</view><view class="activity-caption">{{draft.content.title}}</view></view>
+  <wu-f7-button wx:if="{{draft && draft.state === 'published'}}" class="activity-primary" bind:press="onPublished" variant="fill" size="large">查看已发布活动</wu-f7-button>
 </view>

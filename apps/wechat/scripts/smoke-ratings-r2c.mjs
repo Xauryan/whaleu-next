@@ -1,3 +1,4 @@
+import { createRatingEmittedBridge } from '../test/rating-native-emitted-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -460,7 +461,10 @@ export async function smokeRatingsR2C({ app, dist, flush }) {
         path.join(dist, `pages/rating-${mode}/rating-${mode}.wxml`),
         'utf8',
       ),
-    common = readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8');
+    common =
+      readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8') +
+      readFileSync(path.join(dist, 'ratings/product.wxml'), 'utf8') +
+      readFileSync(path.join(dist, 'ratings/framework7-product.wxml'), 'utf8');
   const templates = Object.fromEntries(
     parse(common)
       .children.filter((n) => typeof n !== 'string')
@@ -474,9 +478,11 @@ export async function smokeRatingsR2C({ app, dist, flush }) {
       typeof n === 'string' ? [] : [n, ...nodes(n.children)],
     );
   const buttons = (mode, page, handler) =>
-    nodes(shown(mode, page)).filter((n) => n.attrs.bindtap === handler);
+    nodes(shown(mode, page)).filter(
+      (n) => n.attrs.bindtap === handler || n.attrs['bind:press'] === handler,
+    );
   const tap = (page, handler, dataset = {}) =>
-    page[handler]({ currentTarget: { dataset } });
+    page.__ratingEmittedBridge.tap(handler, dataset);
   const mount = (mode, route = {}) => {
     let page;
     const oldPage = globalThis.Page;
@@ -495,12 +501,17 @@ export async function smokeRatingsR2C({ app, dist, flush }) {
     };
     for (const [, handler] of (
       source(mode) + (source(mode).includes('<template') ? common : '')
-    ).matchAll(/bind(?:tap|input)="([^"]+)"/g))
+    ).matchAll(/bind(?::(?:press|input)|tap|input)="([^"]+)"/g))
       assert.equal(
         typeof page[handler],
         'function',
         `emitted ${mode}.${handler}`,
       );
+    page.__ratingEmittedBridge = createRatingEmittedBridge({
+      page,
+      pageFile: path.join(dist, `pages/rating-${mode}/rating-${mode}`),
+      dist,
+    });
     pages.push(page);
     page.onLoad(route);
     page.onShow();
@@ -558,7 +569,7 @@ export async function smokeRatingsR2C({ app, dist, flush }) {
     assert.equal(detail.data.loaded, true);
     assert.ok(visible('detail', detail).includes(rootBody));
     assert.equal(buttons('detail', detail, 'onSubscription').length, 0);
-    assert.ok(visible('detail', detail).includes('订阅状态和人数暂不可用'));
+    assert.ok(visible('detail', detail).includes('订阅状态暂不可用'));
     assert.equal(visible('detail', detail).includes('0 人码住'), false);
     detail.onUnload();
     state.unknown = false;
@@ -636,8 +647,8 @@ export async function smokeRatingsR2C({ app, dist, flush }) {
     await flush();
     assert.equal(updates.data.category, 'subscription');
     assert.ok(visible('updates', updates).includes(authorName));
-    assert.ok(visible('updates', updates).includes('码住的目标有新评价'));
-    assert.ok(visible('updates', updates).includes('码住的目标有新回复'));
+    assert.ok(visible('updates', updates).includes('订阅的目标有新评价'));
+    assert.ok(visible('updates', updates).includes('订阅的目标有新回复'));
     for (const currentNotice of [noticeId, replyNoticeId]) {
       const before = reads.length;
       tap(updates, 'onOpen', { id: currentNotice });
@@ -656,6 +667,24 @@ export async function smokeRatingsR2C({ app, dist, flush }) {
       const page = mount('thread', route);
       await flush();
       assert.equal(page.data.loaded, true);
+      assert.equal(
+        reads.length,
+        before,
+        'receiving content does not acknowledge its notice',
+      );
+      page.onRefresh();
+      await flush();
+      page.onCollapse();
+      page.onExpand();
+      await flush();
+      assert.equal(page.data.loaded, true);
+      assert.equal(
+        reads.length,
+        before,
+        'refresh and expand remain nonmutating',
+      );
+      tap(updates, 'onRead', { id: currentNotice });
+      await flush();
       assert.equal(reads.length, before + 1);
       assert.ok(
         reads
@@ -822,6 +851,6 @@ export async function smokeRatingsR2C({ app, dist, flush }) {
     login();
   }
   console.log(
-    'Ratings R2C emitted handlers + strict HTTP gateways + bounded WXML smoke passed: detail current subscription, 50-card serial batches, unknown/cancellation/region fences, immutable v3 recovery and independent subscription root/reply notice read (synthetic only; no device/PostgreSQL/XP/notice-worker/external delivery proof).',
+    'Ratings R2C emitted handlers + strict HTTP gateways + bounded WXML smoke passed: detail current subscription, 50-card serial batches, unknown/cancellation/region fences, immutable v3 recovery and independent explicit subscription root/reply notice read without read-on-load (synthetic only; no device/PostgreSQL/XP/notice-worker/external delivery proof).',
   );
 }

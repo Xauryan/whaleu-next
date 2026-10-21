@@ -1,0 +1,882 @@
+{
+  "errand-list": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{adminAvailable}}",
+        "url": "/pages/errand-admin/errand-admin"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{adminAvailable}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/errand-notices/errand-notices"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/errand-mine/errand-mine"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "filter",
+        "data-value": "all",
+        "bindtap": "onChoice",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "filter",
+        "data-value": "pending",
+        "bindtap": "onChoice",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "sort",
+        "data-value": "created",
+        "bindtap": "onChoice",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "sort",
+        "data-value": "reward",
+        "bindtap": "onChoice",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "direction",
+        "data-value": "desc",
+        "bindtap": "onChoice",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "direction",
+        "data-value": "asc",
+        "bindtap": "onChoice",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{regionId}}",
+        "bindtap": "onCompose",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{regionId}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onOrder",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{items}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMore}}",
+        "bindtap": "onMore",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{canMore}}"
+        }
+      ]
+    }
+  ],
+  "errand-detail": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/errand-mine/errand-mine"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{detail.publicMedia}}",
+        "wx:key": "bindingId",
+        "data-value": "{{item.slot}}",
+        "bindtap": "onPreviewOrderImage",
+        "disabled": "{{orderImage.status === 'loading'}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{detail.publicMedia && detail.publicMedia.length}}"
+        },
+        {
+          "wx:for": "{{detail.publicMedia}}",
+          "wx:key": "bindingId"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{detail.privateMedia}}",
+        "wx:key": "bindingId",
+        "data-value": "{{item.slot}}",
+        "bindtap": "onPreviewOrderImage",
+        "disabled": "{{orderImage.status === 'loading'}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{detail.relation !== 'none' && detail.privateMedia && detail.privateMedia.length}}"
+        },
+        {
+          "wx:for": "{{detail.privateMedia}}",
+          "wx:key": "bindingId"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseOrderImage"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{orderImage.status !== 'idle'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{targetServices.canPreview}}",
+        "bindtap": "onPreviewTargetQr",
+        "disabled": "{{targetServices.busy || targetQr.status === 'loading'}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{targetServices.visible}}"
+        },
+        {
+          "wx:if": "{{targetServices.canPreview}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissTargetNotice",
+        "disabled": "{{targetServices.busy}}",
+        "loading": "{{targetServices.busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{targetServices.visible}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseTargetQr"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{targetQr.status !== 'idle'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{detail.capabilities.accept}}",
+        "bindtap": "onAccept",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{detail.capabilities.accept}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{detail.capabilities.cancel}}",
+        "data-action": "cancel",
+        "bindtap": "onConfirm",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{detail.capabilities.cancel}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{detail.capabilities.complete}}",
+        "data-action": "complete",
+        "bindtap": "onConfirm",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{detail.capabilities.complete}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{detail.capabilities.delete}}",
+        "data-action": "delete",
+        "bindtap": "onConfirm",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        },
+        {
+          "wx:if": "{{detail.capabilities.delete}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onToggleLast",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{acceptModal}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "wechat",
+        "value": "{{contacts.wechat}}",
+        "bindinput": "onContact",
+        "maxlength": "-1",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{acceptModal}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "phone",
+        "value": "{{contacts.phone}}",
+        "bindinput": "onContact",
+        "type": "number",
+        "maxlength": "11",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{acceptModal}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmAccept",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{acceptModal}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseAccept"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{acceptModal}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmCommand",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{confirmAction}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismiss",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{confirmAction}}"
+        }
+      ]
+    }
+  ],
+  "errand-compose": [
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "title",
+        "value": "{{form.title}}",
+        "bindinput": "onForm",
+        "maxlength": "-1",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "data-field": "publicText",
+        "value": "{{form.publicText}}",
+        "bindinput": "onForm",
+        "maxlength": "-1",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "data-field": "privateText",
+        "value": "{{form.privateText}}",
+        "bindinput": "onForm",
+        "maxlength": "-1",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "expectedTimeText",
+        "value": "{{form.expectedTimeText}}",
+        "bindinput": "onForm",
+        "maxlength": "-1",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "reward",
+        "value": "{{form.reward}}",
+        "bindinput": "onForm",
+        "maxlength": "101",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "wechat",
+        "value": "{{form.wechat}}",
+        "bindinput": "onForm",
+        "maxlength": "-1",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "data-field": "phone",
+        "value": "{{form.phone}}",
+        "bindinput": "onForm",
+        "maxlength": "11",
+        "type": "number",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPublisherContacts",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-value": "{{item.slot}}",
+        "bindtap": "onChooseOrderImage",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        },
+        {
+          "wx:for": "{{imagePublication.images}}",
+          "wx:key": "slot"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-value": "{{item.slot}}",
+        "bindtap": "onRecoverOrderImage",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        },
+        {
+          "wx:for": "{{imagePublication.images}}",
+          "wx:key": "slot"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-value": "{{item.slot}}",
+        "bindtap": "onRemoveOrderImage",
+        "disabled": "{{busy || imagePublication.busy || imagePublication.frozen}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        },
+        {
+          "wx:for": "{{imagePublication.images}}",
+          "wx:key": "slot"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPublish",
+        "disabled": "{{busy || imagePublication.busy || !regionId}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecoverImagePublication",
+        "disabled": "{{imagePublication.busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{imagePublication.hasDraft || imagePublication.message}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{imagePublication.frozen}}",
+        "bindtap": "onRetryImagePublication",
+        "disabled": "{{imagePublication.busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{imagePublication.hasDraft || imagePublication.message}}"
+        },
+        {
+          "wx:if": "{{imagePublication.frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{imagePublication.hasDraft}}",
+        "bindtap": "onCancelImageDraft",
+        "disabled": "{{imagePublication.busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{imagePublication.hasDraft || imagePublication.message}}"
+        },
+        {
+          "wx:if": "{{imagePublication.hasDraft}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{imagePublication.confirmedOrderId}}",
+        "url": "/pages/errand-detail/errand-detail?orderId={{imagePublication.confirmedOrderId}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{imagePublication.hasDraft || imagePublication.message}}"
+        },
+        {
+          "wx:if": "{{imagePublication.confirmedOrderId}}"
+        }
+      ]
+    }
+  ],
+  "errand-mine": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/errand-notices/errand-notices"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/errand-list/errand-list"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "relation",
+        "data-value": "published",
+        "bindtap": "onChoice",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-field": "relation",
+        "data-value": "accepted",
+        "bindtap": "onChoice",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onOrder",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{items}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMore}}",
+        "bindtap": "onMore",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{canMore}}"
+        }
+      ]
+    }
+  ],
+  "errand-notices": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/errand-mine/errand-mine"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{busy}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.kind === 'accepted' || item.kind === 'completed'}}",
+        "data-id": "{{item.noticeId}}",
+        "bindtap": "onOrder",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{items}}",
+          "wx:key": "noticeId"
+        },
+        {
+          "wx:if": "{{item.kind === 'accepted' || item.kind === 'completed'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!item.readAt}}",
+        "data-id": "{{item.noticeId}}",
+        "bindtap": "onRead",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{items}}",
+          "wx:key": "noticeId"
+        },
+        {
+          "wx:if": "{{!item.readAt}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMore}}",
+        "bindtap": "onMore",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{canMore}}"
+        }
+      ]
+    }
+  ],
+  "common": [
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRetry",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{busy}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{confirmedOrderId}}",
+        "data-id": "{{confirmedOrderId}}",
+        "bindtap": "onOrder",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{confirmedOrderId}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{campusQuery}}",
+        "bindinput": "onCampusQuery",
+        "bindconfirm": "onCampusSearch",
+        "maxlength": "100",
+        "disabled": "{{busy || frozen}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCampusSearch",
+        "disabled": "{{busy || frozen || !configured}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{campuses}}",
+        "wx:key": "id",
+        "data-id": "{{item.id}}",
+        "bindtap": "onCampus",
+        "disabled": "{{busy || frozen || !item.isActive}}"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id"
+        }
+      ]
+    }
+  ]
+}

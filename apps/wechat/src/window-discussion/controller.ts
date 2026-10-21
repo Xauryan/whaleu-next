@@ -1,9 +1,10 @@
+import { windowDiscussionError } from './errors';
+export { windowDiscussionError } from './errors';
 import { decodeDiscussionV2Page } from './v2-contract';
 import type { WindowDiscussionComposition } from './image-runtime';
 import { ClientError, clientError } from '../api/errors';
 import {
   CommunityController,
-  communityError,
   initialCommunityView,
   type CommunityView,
 } from '../community/controller';
@@ -95,43 +96,7 @@ export const initialWindowDiscussionView = (): WindowDiscussionView => ({
   focusCommentId: '',
   ownReferences: [],
 });
-export function windowDiscussionError(error: unknown): string {
-  const f = clientError(error);
-  if (f.kind === 'protocol') return communityError(f);
-  return (
-    (
-      {
-        PHONE_VERIFICATION_REQUIRED:
-          '请先验证手机号；原操作回执和自己的点赞仍可独立查询',
-        WINDOW_CATALOG_UNAVAILABLE: '窗口来源暂不能确认；原操作仍可独立恢复',
-        WINDOW_NOT_FOUND: '窗口当前不可查看；原操作仍可独立恢复',
-        WINDOW_DISCUSSION_NOT_FOUND: '这条评论当前不可查看，请重新加载',
-        WINDOW_DISCUSSION_BUDGET_UNAVAILABLE:
-          '完整讨论当前无法核验，暂不展示不完整的内容或数量；这不代表没有评论',
-        WINDOW_DISCUSSION_NOTICE_NOT_FOUND:
-          '此通知不存在或不属于当前账号，请重新核验通知列表',
-        DISCOVERY_RESTART_REQUIRED:
-          '讨论或通知已变化，请从第一页重新核验；旧分页已清除',
-        WINDOW_DISCUSSION_HISTORY_UNAVAILABLE:
-          '评论或点赞历史暂不能确认，不能当作没有评论或零个赞',
-        WINDOW_DISCUSSION_MEMBERSHIP_CONFLICT:
-          '自己的点赞已在别处变化，请重新查询并明确确认',
-        WINDOW_REVISION_CONFLICT: '窗口目录已变化，请刷新后重新确认',
-        WINDOW_DISCUSSION_CURSOR_INVALID: '分页已失效，请从第一页重新加载',
-        WINDOW_DISCUSSION_RESTART_REQUIRED:
-          '评论或排序已变化，请从第一页重新加载',
-        WINDOW_DISCUSSION_TARGET_UNAVAILABLE:
-          '这条通知的当前内容不可查看，未打开旧内容',
-        REQUEST_NOT_FOUND:
-          '暂未查到原回执；重试仍使用原请求，取消必须取得服务端回执',
-        CONTENT_REVIEW_UNAVAILABLE:
-          '当前内容审核暂不能确认；待确认的原请求仍可查询或明确取消',
-        SAFETY_ACTION_RESTRICTED:
-          '当前账号暂不能访问公开讨论；原回执和自己的点赞仍可独立查询',
-      } as Record<string, string>
-    )[f.details.serverCode ?? ''] ?? communityError(error)
-  );
-}
+
 const missing = (e: unknown): boolean => {
   const f = clientError(e);
   return (
@@ -391,7 +356,7 @@ export class WindowDiscussionController extends CommunityController<WindowDiscus
             ? '原讨论操作结果待确认'
             : p.items.length
               ? '当前讨论已核验'
-              : '当前已确认没有' + (rootId ? '回复' : '评论'),
+              : '当前已确认没有' + (rootId ? '回复' : '回复'),
         });
       },
       (e) => {
@@ -544,7 +509,7 @@ export class WindowDiscussionController extends CommunityController<WindowDiscus
     this.ownLocator = null;
     this.update({ own: null, canUnlike: false, confirming: null });
     if (!windowId(windowIdValue) || !windowId(commentId)) {
-      this.update({ error: '请输入完整有效的窗口与评论编号' });
+      this.update({ error: '请输入完整有效的窗口与回复编号' });
       return;
     }
     await this.run(

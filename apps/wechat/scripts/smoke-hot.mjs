@@ -2,10 +2,85 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import {
+  parsePreviewWxml,
+  evaluatePreviewExpression,
+} from './preview-wxml.mjs';
 const require = createRequire(import.meta.url);
 
 // Actual emitted page/controller/API/decoders and native rendering hooks; synthetic server responses.
 export async function smokeHot({ app, dist, mountPage, flush, postWire }) {
+  // Resolve the actual emitted native binding and dispatch through Component.
+  // Host datasets stay on the original Page boundary; no direct tap alias.
+  let buttonDefinition;
+  const previousComponent = globalThis.Component;
+  const buttonFile = path.join(dist, 'components/f7-button/f7-button.js');
+  globalThis.Component = (definition) => {
+    buttonDefinition = definition;
+  };
+  try {
+    delete require.cache[require.resolve(buttonFile)];
+    require(buttonFile);
+  } finally {
+    globalThis.Component = previousComponent;
+  }
+  assert.ok(buttonDefinition);
+  const flatten = (node) => [
+    node,
+    ...node.children.flatMap((child) =>
+      typeof child === 'string' ? [] : flatten(child),
+    ),
+  ];
+  const bindings = flatten(
+    parsePreviewWxml(
+      readFileSync(
+        path.join(dist, 'pages/community-hot/community-hot.wxml'),
+        'utf8',
+      ),
+    ),
+  );
+  const hotPress = (page, handler, patch = {}) => {
+    const node = bindings.find((item) => item.attrs['bind:press'] === handler);
+    assert.equal(node?.tag, 'wu-f7-button', handler);
+    const scope = { ...page.data, ...patch };
+    const evaluate = (value) =>
+      value?.startsWith('{{')
+        ? evaluatePreviewExpression(value.slice(2, -2), scope)
+        : value;
+    const dataset = Object.fromEntries(
+      Object.entries(node.attrs)
+        .filter(([key]) => key.startsWith('data-'))
+        .map(([key, value]) => [key.slice(5), evaluate(value)]),
+    );
+    let dispatched = 0;
+    const instance = {
+      properties: Object.fromEntries(
+        Object.entries(buttonDefinition.properties).map(([name, value]) => [
+          name,
+          structuredClone(value.value),
+        ]),
+      ),
+      data: structuredClone(buttonDefinition.data),
+      setData(patch) {
+        Object.assign(this.data, patch);
+      },
+      triggerEvent(name, detail, options) {
+        assert.equal(name, 'press');
+        assert.deepEqual(options, { bubbles: false, composed: false });
+        dispatched += 1;
+        page[handler]({ detail, currentTarget: { dataset } });
+      },
+    };
+    instance.properties.disabled = Boolean(evaluate(node.attrs.disabled));
+    instance.properties.loading = Boolean(evaluate(node.attrs.loading));
+    buttonDefinition.lifetimes?.attached?.call(instance);
+    buttonDefinition.methods.onPress.call(instance);
+    buttonDefinition.lifetimes?.detached?.call(instance);
+    assert.equal(
+      dispatched,
+      instance.properties.disabled || instance.properties.loading ? 0 : 1,
+    );
+  };
   const { ApiClient } = require(path.join(dist, 'api/client.js'));
   const { HttpHotGateway } = require(
     path.join(dist, 'community/hot-gateway.js'),
@@ -192,8 +267,8 @@ export async function smokeHot({ app, dist, mountPage, flush, postWire }) {
     assert.deepEqual(events, [{ kind: 'list_exposure', postId: post.id }]);
     const old = target();
     const before = requests.length;
-    page.onNext();
-    page.onNext();
+    hotPress(page, 'onNext');
+    hotPress(page, 'onNext');
     assert.deepEqual(page.data.posts, []);
     old.callback({ intersectionRatio: 1 });
     advance(1000);
@@ -207,14 +282,14 @@ export async function smokeHot({ app, dist, mountPage, flush, postWire }) {
     );
     assert.equal(page.data.canPrevious, true);
     currentText = '重新读取后的当前正文';
-    page.onPrevious();
-    page.onPrevious();
+    hotPress(page, 'onPrevious');
+    hotPress(page, 'onPrevious');
     await flush();
     assert.equal(page.data.posts[0].text, currentText);
     assert.equal(page.data.canPrevious, false);
     assert.equal(new URL(requests.at(-1).url).searchParams.get('cursor'), null);
     for (const range of ranges.slice(1)) {
-      page.onRange({ currentTarget: { dataset: { key: range } } });
+      hotPress(page, 'onRange', { item: { key: range } });
       assert.deepEqual(page.data.posts, []);
       assert.equal(page.data.space, null);
       await flush();
@@ -225,31 +300,31 @@ export async function smokeHot({ app, dist, mountPage, flush, postWire }) {
       );
     }
     mode = 'expired';
-    page.onNext();
+    hotPress(page, 'onNext');
     await flush();
     assert.equal(page.data.restartRequired, true);
     assert.equal(page.data.canPrevious, false);
     assert.deepEqual(page.data.posts, []);
     mode = 'normal';
-    page.onRefresh();
+    hotPress(page, 'onRefresh');
     await flush();
     mode = 'loop';
-    page.onNext();
+    hotPress(page, 'onNext');
     await flush();
     assert.equal(page.data.loaded, false);
     assert.equal(page.data.canNext, false);
     mode = 'unavailable';
-    page.onRefresh();
+    hotPress(page, 'onRefresh');
     await flush();
     assert.equal(page.data.loaded, false);
     assert.match(page.data.status, /暂不可用/);
     mode = 'private';
-    page.onRefresh();
+    hotPress(page, 'onRefresh');
     await flush();
     assert.deepEqual(page.data.posts, []);
     assert.equal(JSON.stringify(page.data).includes('1.0000'), false);
     mode = 'normal';
-    page.onRefresh();
+    hotPress(page, 'onRefresh');
     await flush();
     target().callback({ intersectionRatio: 0.5 });
     advance(500);

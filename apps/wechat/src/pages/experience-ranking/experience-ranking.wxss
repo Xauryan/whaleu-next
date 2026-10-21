@@ -1,24 +1,125 @@
 @import '../../experience/public-display.wxss';
-.page {
-  padding: 24rpx;
+page {
+  background: var(--wu-surface);
 }
-.title {
-  font-size: 36rpx;
-  font-weight: 600;
-  margin-bottom: 16rpx;
+.ranking-page {
+  padding: 32rpx 32rpx calc(64rpx + env(safe-area-inset-bottom));
 }
-.hint {
-  color: #626b78;
-  font-size: 26rpx;
-  margin: 16rpx 0;
+.ranking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
 }
-.error {
-  color: #a12424;
-  margin: 16rpx 0;
+.ranking-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80rpx;
+  width: 80rpx;
+  padding: 0;
+  margin: 0 -12rpx 0 0;
+  background: transparent;
 }
-.card {
+.ranking-note,
+.ranking-status,
+.ranking-footnote {
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  line-height: 1.65;
+  margin: 16rpx 0 28rpx;
+}
+.ranking-error {
+  color: var(--wu-danger);
+  background: var(--wu-danger-bg);
   padding: 20rpx;
-  margin-top: 16rpx;
-  background: #fff;
   border-radius: 16rpx;
 }
+.ranking-cancel {
+  margin: 16rpx 0;
+  padding: 0;
+  background: transparent;
+  color: var(--wu-accent);
+  font-size: 27rpx;
+}
+.ranking-person {
+  display: flex;
+  gap: 24rpx;
+  align-items: center;
+  padding: 28rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.ranking-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96rpx;
+  width: 96rpx;
+  border-radius: 50%;
+  background: var(--wu-bg);
+  flex-shrink: 0;
+}
+.ranking-information {
+  flex: 1;
+  min-width: 0;
+}
+.ranking-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--wu-text);
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1.5;
+  min-height: 64rpx;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.ranking-page .public-experience {
+  margin: 4rpx 0 0;
+  gap: 10rpx;
+}
+.ranking-page .public-experience-title {
+  border-radius: 8rpx;
+}
+.ranking-page .public-experience-title-text {
+  background: var(--wu-surface);
+  color: var(--wu-text);
+}
+.ranking-page .public-experience-level {
+  background: var(--wu-bg);
+  color: var(--wu-secondary);
+}
+.ranking-page .public-experience-status,
+.ranking-page .public-experience-color {
+  color: var(--wu-secondary);
+}
+.ranking-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  text-align: center;
+  padding: 110rpx 20rpx;
+  color: var(--wu-secondary);
+  font-size: 26rpx;
+}
+.ranking-footnote {
+  margin-top: 36rpx;
+}
+.ranking-header .ranking-note {
+  flex: 1;
+  margin: 0;
+}
+.ranking-header {
+  margin-bottom: 24rpx;
+}
+.ranking-refresh {
+  flex-shrink: 0;
+}
+
+@import '../public-profile/framework7-personal.wxss';

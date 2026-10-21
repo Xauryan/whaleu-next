@@ -85,6 +85,7 @@ function fixture(
       enrollment,
       { enrollPublishedPost: async () => {} },
       { enrollPublishedPost: async () => {} },
+      { allocateForPublication: async () => ({ state: 'inactive' }) },
     ),
   };
 }

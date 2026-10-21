@@ -1,6 +1,95 @@
 <import src="../../window-discussion/common.wxml" />
-<view class="screen"><view class="title">窗口讨论通知</view><view class="status">{{status}}</view><view wx:if="{{readStatus}}" class="notice">{{readStatus}}</view><view wx:if="{{error}}" class="error">{{error}}</view><navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator><button bindtap="onRefresh" disabled="{{busy}}">重新核验通知</button><button wx:if="{{busy}}" bindtap="onCancelWait">停止等待</button>
-<block wx:if="{{loaded}}"><view class="meta">当前未读 {{unreadCount}} 条 · 第 {{pageNumber}} 页</view><view wx:for="{{items}}" wx:key="noticeId" class="card"><view>{{item.readAt ? '已读' : '未读'}} · {{item.createdAt}}</view><block wx:if="{{item.status === 'available'}}"><view>{{item.kind === 'like' ? '赞' : '回复'}} · {{item.preview.author.displayName}}</view><view class="body">{{item.preview.text}}</view><button wx:if="{{item.kind === 'reply' &amp;&amp; item.preview.thumbnail}}" data-id="{{item.noticeId}}" bindtap="onNoticeImage" disabled="{{busy}}">查看回复首图</button><button data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy}}">核验当前内容后打开</button></block><view wx:else class="notice">当前内容不可查看</view><button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy}}">将此通知标为已读</button></view><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button></block>
-<view class="notice">打开内容不会自动标为已读。通知只表示本地记录，不代表推送送达。</view><navigator class="link" url="/pages/window-discussion-recovery/window-discussion-recovery">独立回执恢复与自己的点赞 →</navigator></view>
-
+<view class="notice-page f7-ios-theme f7-notifications-page">
+  <view class="notice-toolbar">
+    <view wx:if="{{loaded}}" class="notice-count">
+      {{unreadCount === null ? '未读数暂不可用' : unreadCount + ' 条未读'}} · 第 {{pageNumber}} 页
+    </view>
+    <wu-f7-button class="notice-icon-button" disabled="{{busy}}" aria-label="刷新食堂互动" bind:press="onRefresh">
+      <wu-icon name="refresh" size="21" />
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiStatus}}" class="notice-state" aria-role="status">
+    {{uiStatus}}
+  </view>
+  <view wx:if="{{readStatus}}" class="notice-state" aria-role="status">
+    {{readStatus}}
+  </view>
+  <view wx:if="{{error}}" class="notice-state notice-error" aria-role="alert">
+    {{error}}
+  </view>
+  <navigator wx:if="{{!hasSession}}" class="notice-action" url="/pages/login/login">
+    登录后查看
+  </navigator>
+  <wu-f7-button wx:if="{{busy}}" class="notice-secondary" bind:press="onCancelWait">
+    停止等待
+  </wu-f7-button>
+  <block wx:if="{{loaded}}">
+    <wu-f7-list spacing="compact" class="notice-list">
+      <view wx:for="{{items}}" wx:key="noticeId" class="notice-event">
+        <view class="notice-symbol {{item.kind === 'like' ? 'notice-symbol-like' : ''}}">
+          <wu-icon name="{{item.status === 'available' ? (item.kind === 'like' ? 'heart' : 'reply') : 'bell'}}" tone="{{item.kind === 'like' ? 'coral' : 'accent'}}" size="23" />
+          <view wx:if="{{!item.readAt}}" class="notice-unread" aria-label="未读" />
+        </view>
+        <view class="notice-content">
+          <block wx:if="{{item.status === 'available'}}">
+            <view class="notice-author">
+              {{item.preview.author.displayName}}
+            </view>
+            <view class="notice-context">
+              {{item.kind === 'like' ? '你的内容收到了赞' : '回复了你的帖子'}}
+            </view>
+            <view class="notice-body">
+              {{item.preview.text}}
+            </view>
+          </block>
+          <view class="notice-state" wx:else>
+            这条内容暂不可查看
+          </view>
+          <view class="notice-time">
+            {{item.timeLabel}} · {{item.readAt ? '已读' : '未读'}}
+          </view>
+          <view class="notice-actions">
+            <block wx:if="{{item.status === 'available'}}">
+              <wu-f7-button wx:if="{{item.kind === 'reply' &amp;&amp; item.preview.thumbnail}}" class="notice-action" data-id="{{item.noticeId}}" disabled="{{busy}}" bind:press="onNoticeImage">
+                <wu-icon name="image" tone="accent" size="18" />
+                查看图片
+              </wu-f7-button>
+              <wu-f7-button class="notice-action" data-id="{{item.noticeId}}" disabled="{{busy}}" bind:press="onOpen">
+                {{item.kind === 'like' ? '查看获赞内容' : '查看回复'}}
+                <wu-icon name="chevron-right" tone="accent" size="14" />
+              </wu-f7-button>
+            </block>
+            <wu-f7-button wx:if="{{!item.readAt}}" class="notice-read" data-id="{{item.noticeId}}" disabled="{{busy}}" bind:press="onRead">
+              标为已读
+            </wu-f7-button>
+          </view>
+        </view>
+      </view>
+    </wu-f7-list>
+    <wu-f7-block wx:if="{{!items.length}}" class="notice-empty" spacing="compact">
+      <view class="notice-empty-content">
+        <wu-icon name="message" tone="muted" size="34" />
+        <text class="notice-empty-title">
+          还没有食堂互动
+        </text>
+        <text class="notice-empty-detail">
+          新的回复与赞会显示在这里
+        </text>
+      </view>
+    </wu-f7-block>
+    <wu-f7-button wx:if="{{canNext}}" class="notice-action" disabled="{{busy}}" bind:press="onNext">
+      下一页
+    </wu-f7-button>
+  </block>
+  <wu-f7-block class="notice-footer" spacing="compact">
+    <view class="notice-footer-content">
+      <view class="notice-hint">
+        查看内容不会自动标为已读。
+      </view>
+      <navigator class="notice-secondary" url="/pages/window-discussion-recovery/window-discussion-recovery">
+        查看待确认操作与我的赞
+      </navigator>
+    </view>
+  </wu-f7-block>
+</view>
 <template is="discussion-gallery" data="{{galleryOpen,gallerySrc,galleryStatus,galleryIndex,galleryCount}}" />

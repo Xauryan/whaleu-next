@@ -1,17 +1,67 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 私信</view><view class="title">我的私信 <text wx:if="{{unread !== null}}" class="badge">{{unread}}</text></view>
-  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看私信</navigator>
-  <navigator class="link" url="/pages/private-message-recovery/private-message-recovery">{{pending ? '有原请求待确认，进入恢复页 →' : '私信请求恢复 →'}}</navigator>
-  <button bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">{{browsingOlder || needsRestart ? '刷新并回到第一页' : '刷新私信'}}</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
-  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前已核验范围内暂无私信</view>
-  <view wx:for="{{items}}" wx:key="id" class="card" data-id="{{item.conversation.id}}" bindlongpress="onHideConversation">
-    <navigator url="/pages/private-message-detail/private-message-detail?conversationId={{item.conversation.id}}"><view class="row"><view class="section-title">{{item.conversation.peer.displayName}}</view><text wx:if="{{item.conversation.unreadCount}}" class="badge">{{item.conversation.unreadCount}}</text></view>
-      <view class="meta">我：{{item.conversation.self.mode === 'anonymous' ? '本帖分身' : '公开身份'}} · 对方：{{item.conversation.peer.mode === 'anonymous' ? '本帖分身' : '公开身份'}}</view>
-      <view class="preview">{{!item.latest ? '消息暂不可查看' : item.latest.state === 'text' ? item.latest.text : item.latest.state === 'image' ? '[图片]' : item.latest.state === 'recalled' ? '消息已撤回' : '消息暂不可查看'}}</view><view class="meta">{{item.updatedAt}}</view></navigator>
-    <button size="mini" data-id="{{item.conversation.id}}" bindtap="onHideConversation" disabled="{{busy || pending}}">隐藏会话</button>
+<view class="f7-ios-theme private-list">
+  <view class="list-heading">
+    <view class="list-title">我的私信<text wx:if="{{unread > 0}}" class="unread-total">{{unread}}</text></view>
+    <button class="icon-button" bindtap="onToggleMenu" aria-label="私信选项" aria-expanded="{{uiMenu}}">
+      <wu-icon name="more" tone="muted" size="24" />
+    </button>
   </view>
-  <button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}">查看更多</button>
-  <view wx:if="{{confirmHide}}" class="confirm" aria-role="dialog"><view class="section-title">隐藏此会话？</view><view class="notice">只清理你的列表和当前未读，历史不会删除；新消息可能让会话重新出现。</view><button bindtap="onConfirmHide" disabled="{{busy || pending}}">确认隐藏</button><button bindtap="onDismiss">取消</button></view>
-  <view class="notice">私信未读数独立于社区更新。当前仅提供文字私信；图片和站外通知投递尚未开放。</view>
+  <view wx:if="{{uiMenu}}" class="list-menu">
+    <wu-f7-button disabled="{{busy}}" loading="{{busy}}" bind:press="onReload">{{browsingOlder || needsRestart ? '刷新并回到第一页' : '刷新私信'}}</wu-f7-button>
+    <navigator class="menu-link" url="/pages/private-message-recovery/private-message-recovery">请求恢复<wu-icon name="chevron-right" tone="muted" size="16" /></navigator>
+    <view wx:if="{{coverage === 'local'}}" class="menu-footnote">仅显示已核验的本地历史</view>
+  </view>
+  <navigator wx:if="{{pending}}" class="pending-row" url="/pages/private-message-recovery/private-message-recovery">
+    <wu-icon name="clock" tone="muted" size="18" />
+    <text>有一条请求尚未确认</text>
+    <text class="text-action">查看</text>
+  </navigator>
+  <view wx:if="{{error}}" class="state-error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{busy}}" class="load-status" aria-role="status">
+    <text>正在更新…</text>
+    <wu-f7-button wx:if="{{busy}}" bind:press="onCancel">停止等待</wu-f7-button>
+  </view>
+  <view wx:if="{{needsRestart || (!loaded &amp;&amp; !busy &amp;&amp; hasSession &amp;&amp; !error)}}" class="load-status" aria-role="status">{{status}}</view>
+  <navigator wx:if="{{!hasSession}}" class="login-entry" url="/pages/login/login">
+    <wu-icon name="message" tone="muted" size="36" />
+    <view class="empty-title">登录后查看私信</view>
+    <text class="text-action">去登录</text>
+  </navigator>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty-state">
+    <wu-icon name="message" tone="muted" size="36" />
+    <view class="empty-title">还没有私信</view>
+    <view class="empty-note">新的聊天会出现在这里</view>
+  </view>
+  <wu-f7-list class="conversation-list" spacing="compact" strong="{{true}}">
+    <view wx:for="{{uiItems}}" wx:key="id" class="conversation-item" data-id="{{item.conversation.id}}" bindlongpress="onHideConversation">
+      <navigator class="conversation-link" url="/pages/private-message-detail/private-message-detail?conversationId={{item.conversation.id}}">
+        <view class="conversation-avatar">
+          <text>{{item.initial}}</text>
+          <view wx:if="{{item.conversation.unreadCount}}" class="unread-dot" />
+        </view>
+        <view class="conversation-copy">
+          <view class="conversation-top">
+            <text class="conversation-name">{{item.conversation.peer.displayName}}</text>
+            <text class="conversation-time">{{item.timeLabel}}</text>
+          </view>
+          <view class="conversation-preview">{{!item.latest ? '消息暂不可查看' : item.latest.state === 'text' ? item.latest.text : item.latest.state === 'image' ? '[图片]' : item.latest.state === 'recalled' ? '消息已撤回' : '消息暂不可查看'}}</view>
+          <text wx:if="{{item.conversation.self.mode === 'anonymous' || item.conversation.peer.mode === 'anonymous'}}" class="conversation-identity">分身会话</text>
+        </view>
+      </navigator>
+      <wu-f7-button class="row-more" data-id="{{item.conversation.id}}" aria-label="会话选项" bind:press="onToggleRow">
+        <wu-icon name="more" tone="muted" size="18" />
+      </wu-f7-button>
+      <view wx:if="{{uiRowMenu === item.id}}" class="row-menu">
+        <wu-f7-button size="mini" data-id="{{item.conversation.id}}" disabled="{{busy || pending}}" bind:press="onHideConversation">隐藏会话</wu-f7-button>
+      </view>
+    </view>
+  </wu-f7-list>
+  <wu-f7-button wx:if="{{canMore}}" class="more-link" disabled="{{busy}}" bind:press="onMore">查看更多</wu-f7-button>
+  <view wx:if="{{confirmHide}}" class="sheet-backdrop">
+    <view class="action-sheet" aria-role="dialog" aria-label="隐藏此会话">
+      <view class="sheet-title">隐藏此会话？</view>
+      <view class="sheet-note">历史不会删除，收到新消息后会重新出现在列表。</view>
+      <wu-f7-button class="sheet-action danger" disabled="{{busy || pending}}" bind:press="onConfirmHide" tone="danger" size="large">确认隐藏</wu-f7-button>
+      <wu-f7-button class="sheet-action" bind:press="onDismiss" size="large">取消</wu-f7-button>
+    </view>
+  </view>
 </view>

@@ -172,8 +172,9 @@ function mount(name) {
     const node = nodes().find(
       (node) =>
         typeof node !== 'string' &&
-        node.tag === 'button' &&
-        node.attrs.bindtap === handler &&
+        ((node.tag === 'button' && node.attrs.bindtap === handler) ||
+          (node.tag === 'wu-f7-button' &&
+            node.attrs['bind:press'] === handler)) &&
         match(node),
     );
     assert.ok(node, 'Actual WXML renders ' + handler);
@@ -183,7 +184,62 @@ function mount(name) {
         .filter(([key]) => key.startsWith('data-'))
         .map(([key, value]) => [key.slice(5), value]),
     );
-    return page[handler]({ currentTarget: { dataset } });
+    if (node.tag === 'button')
+      return page[handler]({ currentTarget: { dataset } });
+    // Execute the actual emitted native Component boundary, then supply the
+    // current custom-component target dataset exactly as native WXML does.
+    // Slot/child targets never substitute their dataset for this owner target.
+    let definition;
+    const previousComponent = globalThis.Component;
+    globalThis.Component = (value) => {
+      definition = value;
+    };
+    const componentPath = path.join(dist, 'components/f7-button/f7-button.js');
+    try {
+      delete require.cache[require.resolve(componentPath)];
+      require(componentPath);
+    } finally {
+      globalThis.Component = previousComponent;
+    }
+    assert.ok(definition);
+    let dispatched = 0;
+    let result;
+    const instance = {
+      data: structuredClone(definition.data ?? {}),
+      properties: {
+        ...Object.fromEntries(
+          Object.entries(definition.properties ?? {}).map(([key, property]) => [
+            key,
+            property.value,
+          ]),
+        ),
+        disabled: node.attrs.disabled === 'true',
+        loading: node.attrs.loading === 'true',
+      },
+      triggerEvent(name, detail, options) {
+        assert.equal(name, 'press');
+        assert.deepEqual(detail, {});
+        assert.deepEqual(options, { bubbles: false, composed: false });
+        dispatched++;
+        result = page[handler]({
+          detail,
+          currentTarget: { dataset },
+          target: { dataset: {} },
+        });
+      },
+    };
+    definition.lifetimes?.attached?.call(instance);
+    try {
+      definition.methods.onPress.call(instance, {
+        currentTarget: {
+          dataset: { interactionKey: instance.properties.interactionKey },
+        },
+      });
+    } finally {
+      definition.lifetimes?.detached?.call(instance);
+    }
+    assert.equal(dispatched, 1);
+    return result;
   };
   return { page, nodes, tap };
 }

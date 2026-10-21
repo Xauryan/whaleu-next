@@ -16,9 +16,16 @@ import type {
   ActivityMediaReadView,
   ActivityMediaUploadTarget,
 } from '../../activities/media-runtime';
+import {
+  activityPublicationPresentation,
+  initialActivityPanels,
+  toggledActivityPanels,
+} from '../activity-list/presentation';
 Page({
   data: {
     ...initialActivityPublicationView(),
+    ...activityPublicationPresentation(initialActivityPublicationView()),
+    uiPanels: initialActivityPanels(),
     upload: {
       status: 'idle',
       message: '',
@@ -70,7 +77,7 @@ Page({
       app.community.newRequestId,
       (view) => {
         this.id = view.id || null;
-        this.setData({ ...view });
+        this.setData({ ...view, ...activityPublicationPresentation(view) });
         this.refreshPendingImages();
       },
       (id) => app.activityMedia?.reconcile(id) ?? Promise.resolve(),
@@ -94,6 +101,14 @@ Page({
   },
   onOrganizer(e: { currentTarget: { dataset: { id: string } } }) {
     this.controller?.chooseOrganizer(e.currentTarget.dataset.id);
+  },
+  onTogglePanel(e: { currentTarget: { dataset: { field: string } } }) {
+    this.setData({
+      uiPanels: toggledActivityPanels(
+        this.data.uiPanels,
+        e.currentTarget.dataset.field,
+      ),
+    });
   },
   onMoreOrganizers() {
     void this.controller?.moreOrganizers();
@@ -230,6 +245,8 @@ Page({
     this.reader = undefined;
     this.setData({
       ...initialActivityPublicationView(),
+      ...activityPublicationPresentation(initialActivityPublicationView()),
+      uiPanels: initialActivityPanels(),
       upload: { status: 'idle', message: '', progress: 0 },
       image: { status: 'idle', src: '', message: '' },
       pendingImages: [],

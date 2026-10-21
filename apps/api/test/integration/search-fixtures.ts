@@ -11,6 +11,7 @@ import type { PoolClient } from 'pg';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { loadConfig } from '../../src/config/config.js';
+import type { RuntimeConfig } from '../../src/config/config.js';
 import {
   poolOptions,
   supportedPostgresVersion,
@@ -62,7 +63,24 @@ export interface PrivateSearchPosition {
     id: string;
   } | null;
 }
-export async function searchHarness() {
+export interface DiscussionOrderCutoverHooks {
+  createApp(
+    config: RuntimeConfig,
+    phase: 'historical-0167' | 'current',
+  ): Promise<INestApplication>;
+  createActor(app: INestApplication): ReturnType<typeof createRuntimeActor>;
+}
+export async function searchHarness(
+  options: {
+    deferMigrationsFrom?: '0168_community_discussion_order.sql';
+    discussionOrderCutover?: DiscussionOrderCutoverHooks;
+  } = {},
+) {
+  assert.ok(
+    options.discussionOrderCutover === undefined ||
+      options.deferMigrationsFrom === '0168_community_discussion_order.sql',
+    'Discussion cutover hooks require the exact 0168 deferred suffix',
+  );
   const database = process.env['TEST_DATABASE_URL'];
   assert.ok(
     database,
@@ -82,21 +100,128 @@ export async function searchHarness() {
   const pool = new Pool(poolOptions(config));
   let suite: PoolClient | undefined, app: INestApplication | undefined;
   let owns = false,
-    locked = false;
+    locked = false,
+    closed = false,
+    attemptedDeferred = false,
+    appliedDeferred = false,
+    failedCutover = false,
+    attemptedRestart = false;
   let observer: ReturnType<typeof observeExactQueries> | undefined;
+  let restarting: Promise<void> | undefined;
+  const currentApp = () => {
+    assert.ok(
+      app && !closed && !failedCutover,
+      'Search fixture application is closed or restarting',
+    );
+    return app;
+  };
+  const currentObserver = () => {
+    assert.ok(
+      observer && !closed && !failedCutover,
+      'Search fixture observer is closed or restarting',
+    );
+    return observer;
+  };
+  const startApp = async (phase: 'historical-0167' | 'current') => {
+    const next = options.discussionOrderCutover
+      ? await options.discussionOrderCutover.createApp(config, phase)
+      : await NestFactory.create(AppModule.register(config), { logger: false });
+    try {
+      configureHttp(next);
+      await next.init();
+      return next;
+    } catch (error) {
+      await next.close();
+      throw error;
+    }
+  };
+  const closeApp = async (old: typeof app, oldObserver: typeof observer) => {
+    const failures: unknown[] = [];
+    try {
+      oldObserver?.restore();
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      await old?.close();
+    } catch (error) {
+      failures.push(error);
+    }
+    if (failures.length === 1) throw failures[0];
+    if (failures.length > 1)
+      throw new AggregateError(
+        failures,
+        'Search fixture observer and application cleanup failed',
+      );
+  };
+  const restartCurrentApp = async () => {
+    assert.ok(
+      options.discussionOrderCutover,
+      'Only the exact discussion cutover may restart',
+    );
+    assert.ok(
+      appliedDeferred,
+      'The complete deferred suffix must succeed before restart',
+    );
+    assert.ok(
+      !closed && !restarting && !attemptedRestart,
+      'Search fixture restart may only be attempted once',
+    );
+    attemptedRestart = true;
+    const work = (async () => {
+      const old = app,
+        oldObserver = observer;
+      app = undefined;
+      observer = undefined;
+      await closeApp(old, oldObserver);
+      const next = await startApp('current');
+      if (closed) {
+        await next.close();
+        throw new Error('Search fixture closed while rebuilding');
+      }
+      try {
+        observer = observeExactQueries(next);
+        app = next;
+      } catch (error) {
+        await next.close();
+        throw error;
+      }
+    })();
+    restarting = work;
+    try {
+      await work;
+    } finally {
+      restarting = undefined;
+    }
+  };
   const close = async () => {
-    observer?.restore();
-    await app?.close();
-    if (owns)
-      for (const schema of migrationSchemaNames)
-        await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
-    if (locked)
-      await suite?.query('SELECT pg_advisory_unlock($1,$2)', [
-        MIGRATION_LOCK[0],
-        2,
-      ]);
-    suite?.release();
-    await pool.end();
+    if (closed) return;
+    closed = true;
+    await restarting?.catch(() => undefined);
+    const old = app,
+      oldObserver = observer;
+    app = undefined;
+    observer = undefined;
+    try {
+      await closeApp(old, oldObserver);
+    } finally {
+      try {
+        if (owns)
+          for (const schema of migrationSchemaNames)
+            await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+      } finally {
+        try {
+          if (locked)
+            await suite?.query('SELECT pg_advisory_unlock($1,$2)', [
+              MIGRATION_LOCK[0],
+              2,
+            ]);
+        } finally {
+          suite?.release();
+          await pool.end();
+        }
+      }
+    }
   };
   try {
     suite = await pool.connect();
@@ -126,27 +251,66 @@ export async function searchHarness() {
       'Refusing existing WhaleU schemas',
     );
     owns = true;
-    await runMigrations(
-      pool,
-      await readMigrations(
-        fileURLToPath(new URL('../../migrations', import.meta.url)),
-      ),
-      { mode: 'up' },
+    const allMigrations = await readMigrations(
+      fileURLToPath(new URL('../../migrations', import.meta.url)),
     );
-    app = await NestFactory.create(AppModule.register(config), {
-      logger: false,
+    assert.ok(
+      options.deferMigrationsFrom === undefined ||
+        options.deferMigrationsFrom === '0168_community_discussion_order.sql',
+      'Only the explicit discussion ordering cutover fixture may defer migrations',
+    );
+    const deferredIndex =
+      options.deferMigrationsFrom === undefined
+        ? allMigrations.length
+        : allMigrations.findIndex(
+            (m) => m.name === options.deferMigrationsFrom,
+          );
+    assert.ok(
+      deferredIndex >= 0,
+      'Deferred migration must be an exact ordered suffix',
+    );
+    await runMigrations(pool, allMigrations.slice(0, deferredIndex), {
+      mode: 'up',
     });
-    configureHttp(app);
-    await app.init();
-    const application = app,
-      http = app.getHttpServer();
+    const migrationPlan = {
+      appliedInitially: allMigrations
+        .slice(0, deferredIndex)
+        .map((m) => m.name),
+      deferred: allMigrations.slice(deferredIndex).map((m) => m.name),
+    };
+    const applyDeferredMigrations = async () => {
+      assert.ok(
+        options.deferMigrationsFrom,
+        'Default fixtures already apply every migration',
+      );
+      assert.equal(
+        attemptedDeferred,
+        false,
+        'Deferred suffix may only be attempted once',
+      );
+      attemptedDeferred = true; // A failed cutover is never relabeled as a successful retry.
+      try {
+        const applied = await runMigrations(pool, allMigrations, {
+          mode: 'up',
+        });
+        appliedDeferred = true;
+        return applied;
+      } catch (error) {
+        failedCutover = true;
+        throw error;
+      }
+    };
+    app = await startApp(
+      options.discussionOrderCutover ? 'historical-0167' : 'current',
+    );
     const policyId = await seedReviewPolicy(pool);
     observer = observeExactQueries(app);
-    const observed = observer;
     const world = async () => {
       const scope = await seedCommunityScope(pool);
       const actor = async (campus = scope.home): Promise<SearchActor> => {
-        const value = await createRuntimeActor(application);
+        const value = await (options.discussionOrderCutover
+          ? options.discussionOrderCutover.createActor(currentApp())
+          : createRuntimeActor(currentApp()));
         const affiliation = await setRuntimeVerification(
           pool,
           value.accountId,
@@ -160,7 +324,7 @@ export async function searchHarness() {
           scope,
           campus.campusId,
         );
-        const changed = await request(http)
+        const changed = await request(currentApp().getHttpServer())
           .patch('/v1/me/profile')
           .set('Authorization', `Bearer ${value.accessToken}`)
           .send({
@@ -169,7 +333,7 @@ export async function searchHarness() {
             bio: '',
           });
         assert.equal(changed.status, 200, JSON.stringify(changed.body));
-        const reference = await request(http)
+        const reference = await request(currentApp().getHttpServer())
           .get('/v1/me/public-profile-ref')
           .set('Authorization', `Bearer ${value.accessToken}`);
         assert.equal(reference.status, 200, JSON.stringify(reference.body));
@@ -193,7 +357,7 @@ export async function searchHarness() {
         owner = author,
       ): Promise<EffectiveContentEnvelopeV1> =>
         postApprovalEnvelopeV1(
-          application,
+          currentApp(),
           pool,
           owner.accountId,
           input(extra),
@@ -220,9 +384,9 @@ export async function searchHarness() {
         const body = input(extra);
         const approval = await approveEnvelope(
           pool,
-          await postApprovalEnvelope(application, pool, owner.accountId, body),
+          await postApprovalEnvelope(currentApp(), pool, owner.accountId, body),
         );
-        const result = await request(http)
+        const result = await request(currentApp().getHttpServer())
           .post('/v1/community/posts')
           .set('Authorization', `Bearer ${owner.accessToken}`)
           .send(body);
@@ -238,7 +402,7 @@ export async function searchHarness() {
         query: Record<string, unknown> = {},
         viewer: SearchActor | null = reader,
       ) => {
-        const call = request(http)
+        const call = request(currentApp().getHttpServer())
           .get('/v1/community/search')
           .query({
             spaceId: scope.home.spaceId,
@@ -341,11 +505,20 @@ export async function searchHarness() {
       }
     };
     return {
-      app: application,
-      http,
+      get app() {
+        return currentApp();
+      },
+      get http() {
+        return currentApp().getHttpServer();
+      },
       pool,
       policyId,
-      observer: observed,
+      applyDeferredMigrations,
+      restartCurrentApp,
+      migrationPlan,
+      get observer() {
+        return currentObserver();
+      },
       world,
       position,
       writeBlock,

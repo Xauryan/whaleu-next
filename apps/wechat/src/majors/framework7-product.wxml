@@ -1,0 +1,45 @@
+<!-- Native Framework7 v9.2.0 presentation; existing Page and controller ownership is unchanged. -->
+<template name="major-status">
+  <view wx:if="{{status &amp;&amp; (!loaded || busy)}}" class="major-status">
+    {{status}}
+  </view>
+  <view wx:if="{{error}}" class="major-error">
+    {{error}}
+  </view>
+  <navigator wx:if="{{!hasSession}}" class="major-link" url="/pages/login/login">
+    登录后继续
+    <wu-icon name="chevron-right" size="16" />
+  </navigator>
+  <view wx:if="{{uiPanel === 'options' || !loaded || error}}" class="major-inline-actions">
+    <wu-f7-button class="major-quiet" disabled="{{busy}}" bind:press="onRefresh" variant="plain">
+      <wu-icon name="refresh" size="18" />
+      重新加载
+    </wu-f7-button>
+  </view>
+  <wu-f7-button wx:if="{{busy}}" class="major-quiet" bind:press="onCancelWait" variant="plain">
+    停止等待
+  </wu-f7-button>
+</template>
+<template name="major-summary">
+  <block wx:if="{{summary.kind === 'known'}}">
+    <view class="major-meta">
+      {{summary.rootCount}} 个主题
+    </view>
+    <view wx:if="{{summary.hotComment}}" class="major-highlight">
+      <view class="major-meta">
+        热门主题 · {{summary.hotComment.likes}} 个赞
+      </view>
+      <view class="major-body">
+        {{summary.hotComment.body}}
+      </view>
+    </view>
+  </block>
+  <view class="major-meta" wx:else>
+    讨论摘要暂不可用
+  </view>
+</template>
+<template name="major-item">
+  <wu-f7-list-item class="major-list-row" data-id="{{item.id}}" disabled="{{busy}}" bind:press="onDetail" link="{{true}}" title="{{item.majorName}}" subtitle="{{item.collegeName}} · {{item.departmentId}}系" aria-label="{{item.majorName + '，' + item.collegeName + '，' + item.departmentId + '系，' + (item.summary.kind === 'known' ? item.summary.rootCount + ' 个主题' : '讨论摘要暂不可用')}}">
+    <template is="major-summary" data="{{summary:item.summary}}" />
+  </wu-f7-list-item>
+</template>

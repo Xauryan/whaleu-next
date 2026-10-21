@@ -1,3 +1,4 @@
+import { SYNTHETIC_APP } from '../account-deletion/synthetic-policy.js';
 import { APP_CONFIG } from '../config/config.js';
 import type { RuntimeConfig } from '../config/config.js';
 import { initializeNativeVerificationAccount } from '../verification/lifecycle.js';
@@ -36,6 +37,7 @@ interface SessionRow {
   id: string;
   account_id: string;
   status: 'active' | 'blocked';
+  lifecycle: 'active' | 'cooling' | 'erasing' | 'completed';
   access_expires_at: Date;
   refresh_expires_at: Date;
   absolute_expires_at: Date;
@@ -70,13 +72,13 @@ interface DmAccountFact {
 async function dmAccountState(accountId: string, tx: PoolClient, lock = false) {
   const row =
     (
-      await tx.query<{ status: string; state_version: string }>(
-        `SELECT status,xmin::text state_version FROM whaleu_identity.accounts WHERE id=$1${lock ? ' FOR SHARE' : ''}`,
+      await tx.query<{ status: string; lifecycle: string; state_version: string }>(
+        `SELECT status,lifecycle,xmin::text state_version FROM whaleu_identity.accounts WHERE id=$1${lock ? ' FOR SHARE' : ''}`,
         [accountId],
       )
     ).rows[0] ?? null;
   return {
-    active: row?.status === 'active',
+    active: row?.status === 'active' && row.lifecycle === 'active',
     fingerprint: ownerFingerprint(row),
   };
 }
@@ -124,7 +126,7 @@ export class IdentityRepository {
     return (
       (
         await tx.query<{ status: string }>(
-          'SELECT status FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE',
+          "SELECT status FROM whaleu_identity.accounts WHERE id=$1 AND lifecycle='active' FOR SHARE",
           [accountId],
         )
       ).rows[0]?.status === 'active'
@@ -236,6 +238,10 @@ export class IdentityRepository {
       );
       const accountId = existing.rows[0]?.account_id ?? randomUUID();
       if (!existing.rows[0]) {
+        // The explicit synthetic registrar owns its HMAC guard. Never let ordinary
+        // login auto-register that reserved rehearsal namespace around the guard.
+        if (identity.appId === SYNTHETIC_APP)
+          throw new ApplicationError('AUTHENTICATION_REQUIRED');
         await client.query(
           'INSERT INTO whaleu_identity.accounts (id) VALUES ($1)',
           [accountId],
@@ -259,12 +265,14 @@ export class IdentityRepository {
             client,
           );
       }
-      const account = await client.query<{ status: string }>(
-        'SELECT status FROM whaleu_identity.accounts WHERE id=$1 FOR UPDATE',
+      const account = await client.query<{ status: string; lifecycle: string }>(
+        'SELECT status,lifecycle FROM whaleu_identity.accounts WHERE id=$1 FOR UPDATE',
         [accountId],
       );
       if (account.rows[0]?.status !== 'active')
         throw new ApplicationError('ACCOUNT_BLOCKED');
+      if (account.rows[0]?.lifecycle !== 'active')
+        throw new ApplicationError('SESSION_REVOKED');
       const now = await databaseTime(client);
       // A fresh login has a bounded number of active device sessions; do not silently allow unbounded rows.
       await client.query(
@@ -300,17 +308,28 @@ export class IdentityRepository {
     // Return errors out of the transaction, so replay revocation is COMMITTED before throwing.
     const outcome = await this.database.transaction(
       async (client): Promise<SessionView | ApplicationErrorCode> => {
-        // Lock by session, not just token: different generations serialize too.
-        const result = await client.query<RefreshRow>(
-          `SELECT s.*, a.status, r.consumed_at
-        FROM whaleu_identity.refresh_tokens r JOIN whaleu_identity.sessions s ON s.id=r.session_id
-        JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE r.token_hash=$1 FOR UPDATE OF s`,
+        // Account -> session -> exact refresh token, matching authentication and
+        // deletion. A join's row-lock evaluation order is not an order guarantee.
+        const reference = (await client.query<{account_id:string;session_id:string}>(
+          'SELECT s.account_id,r.session_id FROM whaleu_identity.refresh_tokens r JOIN whaleu_identity.sessions s ON s.id=r.session_id WHERE r.token_hash=$1',
           [refreshHash],
+        )).rows[0];
+        if (!reference) return 'AUTHENTICATION_REQUIRED';
+        await client.query('SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE', [reference.account_id]);
+        await client.query('SELECT id FROM whaleu_identity.sessions WHERE id=$1 AND account_id=$2 FOR UPDATE', [reference.session_id,reference.account_id]);
+        await client.query('SELECT token_hash FROM whaleu_identity.refresh_tokens WHERE token_hash=$1 AND session_id=$2 FOR UPDATE', [refreshHash,reference.session_id]);
+        // Fresh statement AFTER every wait. Never trust the unlocked discovery.
+        const result = await client.query<RefreshRow>(
+          `SELECT s.*, a.status, a.lifecycle, r.consumed_at
+        FROM whaleu_identity.refresh_tokens r JOIN whaleu_identity.sessions s ON s.id=r.session_id
+        JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE r.token_hash=$1 AND s.id=$2 AND a.id=$3`,
+          [refreshHash,reference.session_id,reference.account_id],
         );
         const row = result.rows[0];
         if (!row) return 'AUTHENTICATION_REQUIRED';
         if (row.revoked_at) return 'SESSION_REVOKED';
         if (row.status !== 'active') return 'ACCOUNT_BLOCKED';
+        if (row.lifecycle !== 'active') return 'SESSION_REVOKED';
         const now = await databaseTime(client);
         if (
           row.refresh_expires_at.getTime() <= now ||
@@ -322,7 +341,8 @@ export class IdentityRepository {
           'SELECT consumed_at FROM whaleu_identity.refresh_tokens WHERE token_hash=$1',
           [refreshHash],
         );
-        if (token.rows[0]!.consumed_at) {
+        if (!token.rows[0]) return 'AUTHENTICATION_REQUIRED';
+        if (token.rows[0].consumed_at) {
           await client.query(
             "UPDATE whaleu_identity.sessions SET revoked_at=$2, revoke_reason='refresh_replay' WHERE id=$1",
             [row.id, new Date(now)],
@@ -391,7 +411,7 @@ export class IdentityRepository {
       );
       lockedSession = target.session_id;
     }
-    const sql = `SELECT s.*, a.status, t.expires_at AS token_expires_at, clock_timestamp() AS now
+    const sql = `SELECT s.*, a.status, a.lifecycle, t.expires_at AS token_expires_at, clock_timestamp() AS now
       FROM whaleu_identity.access_tokens t JOIN whaleu_identity.sessions s ON s.id=t.session_id
       JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE t.token_hash=$1 AND ($2::uuid IS NULL OR s.id=$2) ${transaction ? 'FOR SHARE OF t' : ''}`;
     const result = transaction
@@ -414,6 +434,7 @@ export class IdentityRepository {
       ).rows[0]!.now;
     if (row.revoked_at) throw new ApplicationError('SESSION_REVOKED');
     if (row.status !== 'active') throw new ApplicationError('ACCOUNT_BLOCKED');
+    if (row.lifecycle !== 'active') throw new ApplicationError('SESSION_REVOKED');
     if (row.token_expires_at <= row.now || row.absolute_expires_at <= row.now)
       throw new ApplicationError('ACCESS_TOKEN_EXPIRED');
     if (transaction)

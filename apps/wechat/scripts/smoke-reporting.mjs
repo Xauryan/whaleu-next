@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 /** Real emitted native handlers/gateway/decoders/journals; every API row is synthetic. */
 export async function smokeReporting({
@@ -201,7 +202,14 @@ export async function smokeReporting({
     );
     await flush();
     assert.equal(current.data.report.frozen, true);
-    current.onReportReceipt();
+    const recoveryPress = createNativePressBridge({
+      page: current,
+      pageFile: path.join(dist, 'pages/report-progress/report-progress'),
+      dist,
+    });
+    const receiptButton = recoveryPress.capture('onReportReceipt');
+    assert.equal(receiptButton.press(), true);
+    receiptButton.detach();
     await flush();
     assert.equal(current.data.report.frozen, false);
     assert.match(current.data.report.receiptStatus, /不代表已审核或已删除/);
@@ -251,9 +259,11 @@ export async function smokeReporting({
     for (const file of [
       'community/report-recovery.wxml',
       'community/report-progress.wxml',
+      'pages/report-progress/report-progress.wxml',
+      'pages/report-progress/recovery.wxml',
     ]) {
       const template = readFileSync(path.join(dist, file), 'utf8');
-      for (const match of template.matchAll(/bindtap="([^"]+)"/g))
+      for (const match of template.matchAll(/bind(?:tap|:press)="([^"]+)"/g))
         assert.equal(typeof current[match[1]], 'function', match[1]);
       assert.equal(
         /reason-input|evidence|ownerAccountId|reporterId|jurorId|studentNumber|requestSubscribeMessage/.test(

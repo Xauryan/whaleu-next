@@ -13,6 +13,7 @@ type Tap = {
 export function registerWindowRatingPage(mode: WindowMode): void {
   Page({
     data: {
+      uiPanel: '',
       ...initialWindowRatingView(),
       scores: windowScoreChoices.map((value) => ({
         value,
@@ -47,6 +48,7 @@ export function registerWindowRatingPage(mode: WindowMode): void {
           current.credentials?.accountId !== owner.credentials?.accountId
         ) {
           owner = current;
+          this.setData({ uiPanel: '' });
           this.navigator?.dispose();
           if (this.controller)
             this.navigator = new DirectoryNavigator(wx, () =>
@@ -59,6 +61,7 @@ export function registerWindowRatingPage(mode: WindowMode): void {
       });
     },
     onShow() {
+      this.setData({ uiPanel: '' });
       this.controller?.dispose();
       this.navigator?.dispose();
       this.controller = undefined;
@@ -79,6 +82,7 @@ export function registerWindowRatingPage(mode: WindowMode): void {
       this.controller = new WindowRatingController(runtime, mode, (view) =>
         this.setData({
           ...view,
+          ...(!view.hasSession || !view.loaded ? { uiPanel: '' } : {}),
           floorLabels: [
             '全部楼层',
             ...view.floorOptions.map((item) => item.label),
@@ -91,6 +95,14 @@ export function registerWindowRatingPage(mode: WindowMode): void {
         }),
       );
       void this.controller.load(this.windowId);
+    },
+    onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+      const panel = event.currentTarget.dataset.panel;
+      if (typeof panel === 'string' && /^[a-zA-Z0-9:_-]{1,100}$/.test(panel))
+        this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+    },
+    onClosePanel() {
+      this.setData({ uiPanel: '' });
     },
     onRefresh() {
       void this.controller?.reload();
@@ -169,6 +181,7 @@ export function registerWindowRatingPage(mode: WindowMode): void {
       void this.controller?.submit();
     },
     onHide() {
+      this.setData({ uiPanel: '' });
       this.navigator?.dispose();
       this.controller?.dispose();
       this.navigator = undefined;

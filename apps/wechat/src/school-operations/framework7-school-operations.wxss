@@ -1,0 +1,77 @@
+/* Framework7 v9.2.0 native hosts; component-isolated geometry stays authoritative.
+ * Existing native inputs, pickers, checkbox/radio groups and confirmation masks
+ * retain their business ownership and accessibility/keyboard semantics. */
+@import '../design/framework7-ios.wxss';
+.ops-native {
+  background: var(--f7-page-bg-color);
+  color: var(--f7-text-color);
+  padding: 8px 0 calc(32px + env(safe-area-inset-bottom));
+}
+.ops-native > .ops-context,
+.ops-native > .notice,
+.ops-native > .hint,
+.ops-native > .status,
+.ops-native > .meta,
+.ops-native > .error,
+.ops-native > .footnote,
+.ops-native > .ops-related,
+.ops-native > navigator,
+.ops-native > label,
+.ops-native > input,
+.ops-native > wu-f7-button {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.ops-native > input {
+  width: calc(100% - 32px);
+}
+.ops-native .ops-context {
+  padding: 12px 8px 4px;
+}
+.ops-page.ops-native wu-f7-block,
+.ops-page.ops-native wu-f7-block.card {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.ops-page.ops-native wu-f7-button {
+  display: block;
+  min-width: 44px;
+  min-height: 44px;
+  width: auto;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  line-height: normal;
+}
+.ops-page.ops-native .chips wu-f7-button {
+  flex: 1 1 100px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+.ops-native .ops-image-slot wu-f7-button {
+  display: inline-block;
+  margin-right: 8px;
+}
+.ops-native .section-title,
+.ops-native .card-title,
+.ops-native .ops-person-title {
+  font-size: 17px;
+}
+.ops-native .ops-announcement-row > .meta {
+  display: block;
+}
+.ops-native .modal-mask {
+  /* Keep the original owner-controlled native confirmation, not a new overlay. */
+  z-index: 30;
+}
+.ops-native .modal wu-f7-button {
+  margin-top: 12px;
+}

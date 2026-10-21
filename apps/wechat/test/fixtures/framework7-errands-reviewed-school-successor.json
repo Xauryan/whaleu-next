@@ -1,0 +1,38 @@
+{
+  "src/pages/errand-admin/errand-admin.json": {
+    "before": "833fa1f34e161021edc8d88af1e5fe8e5b7824b64476149430f53eb6f0dee589",
+    "beforeEvidence": "test/fixtures/framework7-errands-errand-admin-before-json.txt",
+    "after": "ba00c706a94d509b7616936d3e3ca037f4298e7e6aca28eace1c2ffb3174426c",
+    "successorEvidence": "test/framework7-school-operations-migration.test.ts"
+  },
+  "src/pages/errand-admin/errand-admin.wxml": {
+    "before": "c4551baa4a80d78e7f4c49298b5d0b9ee1e2dfa78c100ff0aa614d7840e13b7b",
+    "beforeEvidence": "test/fixtures/framework7-errands-errand-admin-before-wxml.txt",
+    "after": "43bb359c74b3bfef10d89b0e6570a1aa10376effee282ae8e29c88c35c8c7592",
+    "successorEvidence": "test/framework7-school-operations-migration.test.ts"
+  },
+  "src/pages/errand-admin/errand-admin.wxss": {
+    "before": "5872c5676b7a76d943399b7afd487bfe0f63f55412bc312aa2f073c734023a2a",
+    "beforeEvidence": "test/fixtures/framework7-errands-errand-admin-before-wxss.txt",
+    "after": "9ad85797f811cff05942cba60742bc148dd57a26b9ba8c5808bf940177e18741",
+    "successorEvidence": "test/framework7-school-operations-migration.test.ts"
+  },
+  "src/pages/errand-restrictions/errand-restrictions.json": {
+    "before": "584e0318c35eb6ae9816ec7956071d2ef561d2982ac07113cbac56f7a5157e04",
+    "beforeEvidence": "test/fixtures/framework7-errands-errand-restrictions-before-json.txt",
+    "after": "82d0d4a03fdfdbc2900c8e1b1c28ef54b1dc8b8e1e9e4c60635c3acf1bec4148",
+    "successorEvidence": "test/framework7-school-operations-migration.test.ts"
+  },
+  "src/pages/errand-restrictions/errand-restrictions.wxml": {
+    "before": "7be93d140d739ac33797c19e9f9d61f1276ffe70194de89f57a7eb71ce241c40",
+    "beforeEvidence": "test/fixtures/framework7-errands-errand-restrictions-before-wxml.txt",
+    "after": "88eda906f4c54e32acf7b2f01958019e40dd6cb790650f8e1a0ccb09301f1697",
+    "successorEvidence": "test/framework7-school-operations-migration.test.ts"
+  },
+  "src/pages/errand-restrictions/errand-restrictions.wxss": {
+    "before": "5872c5676b7a76d943399b7afd487bfe0f63f55412bc312aa2f073c734023a2a",
+    "beforeEvidence": "test/fixtures/framework7-errands-errand-restrictions-before-wxss.txt",
+    "after": "9ad85797f811cff05942cba60742bc148dd57a26b9ba8c5808bf940177e18741",
+    "successorEvidence": "test/framework7-school-operations-migration.test.ts"
+  }
+}

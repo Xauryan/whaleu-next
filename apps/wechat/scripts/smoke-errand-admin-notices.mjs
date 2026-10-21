@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 import {
   parseErrandWxml as parse,
   renderErrandWxml as render,
@@ -190,11 +191,23 @@ export async function smokeErrandAdminNotices({ app, dist, flush }) {
       'notice rendering must not fetch order/profile/contact detail',
     );
     assert.equal(requests.filter((r) => r.method === 'PUT').length, 0);
+    assert.deepEqual(
+      page.data.items,
+      items,
+      'presentation must preserve exact source timestamps and notice DTOs',
+    );
+    for (const item of items) {
+      const label = page.data.timeLabels[item.noticeId].createdAt;
+      assert.match(label, /^\d{4}年\d{1,2}月\d{1,2}日 \d{2}:\d{2}$/);
+      assert.notEqual(label, now);
+    }
     const visible = nodes(presented(page));
-    const cards = visible.filter((node) => node.attrs.class === 'card');
+    const cards = visible.filter(
+      (node) => node.attrs.class === 'errand-notice-row',
+    );
     assert.equal(cards.length, items.length);
     assert.equal(
-      visible.filter((node) => node.attrs.bindtap === 'onOrder').length,
+      visible.filter((node) => node.attrs['bind:press'] === 'onOrder').length,
       2,
     );
     assert.ok(
@@ -231,16 +244,20 @@ export async function smokeErrandAdminNotices({ app, dist, flush }) {
       if (item.kind === 'feature_restricted') {
         assert.ok(
           text.includes(
-            item.endsAt === null ? '期限：永久' : `结束时间：${end}`,
+            item.endsAt === null
+              ? '期限：永久'
+              : `结束时间：${page.data.timeLabels[item.noticeId].endsAt}`,
           ),
         );
         assert.ok(text.includes('适用范围：所有地区'));
       }
       if (item.kind === 'feature_released') {
-        assert.ok(text.includes(`解除时间：${now}`));
         assert.ok(
-          text.includes('仅解除上述编号对应的一条限制。其他限制仍可能生效'),
+          text.includes(
+            `解除时间：${page.data.timeLabels[item.noticeId].releasedAt}`,
+          ),
         );
+        assert.ok(text.includes('仅解除这一条限制，其他限制仍可能生效。'));
         assert.ok(!text.includes('全部恢复'));
       }
       if (!['accepted', 'completed'].includes(item.kind))
@@ -252,15 +269,28 @@ export async function smokeErrandAdminNotices({ app, dist, flush }) {
       0,
       'forged/stale datasets cannot open administrative notices',
     );
-    page.onOrder(tap(items[0].noticeId));
-    page.onOrder(tap(items[0].noticeId));
+    const bridge = createNativePressBridge({
+      page,
+      pageFile: path.join(dist, 'pages/errand-notices/errand-notices'),
+      dist,
+    });
+    const press = (handler, id, repeat = false) => {
+      const control = bridge.capture(handler, { id });
+      try {
+        control.press();
+        if (repeat) control.press();
+      } finally {
+        control.detach();
+      }
+    };
+    press('onOrder', items[0].noticeId, true);
     assert.equal(navigation.length, 1);
     assert.equal(
       navigation[0].url,
       `/pages/errand-detail/errand-detail?orderId=${orderId}`,
     );
     navigation[0].success();
-    page.onOrder(tap(items[1].noticeId));
+    press('onOrder', items[1].noticeId);
     assert.equal(navigation.length, 2);
     navigation[1].success();
     await assert.rejects(
@@ -274,8 +304,7 @@ export async function smokeErrandAdminNotices({ app, dist, flush }) {
     );
     const deletionId = items[2].noticeId;
     state.readHold = deferred();
-    page.onRead(tap(deletionId));
-    page.onRead(tap(deletionId));
+    press('onRead', deletionId, true);
     await flush();
     assert.equal(requests.filter((r) => r.method === 'PUT').length, 1);
     state.readHold.resolve();
@@ -285,7 +314,9 @@ export async function smokeErrandAdminNotices({ app, dist, flush }) {
     assert.equal(page.data.unreadCount, items.length - 1);
     assert.ok(
       content(
-        nodes(presented(page)).filter((node) => node.attrs.class === 'card')[2],
+        nodes(presented(page)).filter(
+          (node) => node.attrs.class === 'errand-notice-row',
+        )[2],
       ).includes(reason),
     );
     const listCount = requests.length;

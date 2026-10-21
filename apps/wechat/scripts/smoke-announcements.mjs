@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 const deferred = () => {
   let resolve;
@@ -168,15 +169,31 @@ export async function smokeAnnouncements({ app, dist, mountPage, flush }) {
     assert.equal(list.data.hasSession, false);
     assert.equal(list.data.items.length, 20);
     assert.equal(list.data.changesNotice, '最近30天新公告 9007199254740993 条');
-    list.onNext();
+    const listControls = createNativePressBridge({
+      page: list,
+      pageFile: path.join(dist, 'pages/announcements/announcements'),
+      dist,
+    });
+    const press = (handler) => {
+      const control = listControls.capture(handler);
+      assert.equal(control.press(), true, `Emitted native press: ${handler}`);
+      control.detach();
+    };
+    press('onNext');
     await flush();
     assert.equal(list.data.pageNumber, 2);
     assert.equal(list.data.items[0].id, other);
-    list.onPrevious();
+    press('onPrevious');
     await flush();
     assert.equal(list.data.pageNumber, 1);
-    list.onAnnouncement({ currentTarget: { dataset: { id } } });
-    list.onAnnouncement({ currentTarget: { dataset: { id } } });
+    const announcementControl = listControls.capture('onAnnouncement', {
+      id,
+    });
+    assert.equal(announcementControl.press(), true);
+    // The first action clears this list. Replaying the old native hit must
+    // neither relabel the removed item nor dispatch a second navigation.
+    assert.equal(announcementControl.press(), false);
+    announcementControl.detach();
     assert.equal(navigation.length, 1);
     assert.equal(list.data.items.length, 0);
     assert.equal(
@@ -340,11 +357,17 @@ export async function smokeAnnouncements({ app, dist, mountPage, flush }) {
         path.join(dist, `pages/${name}/${name}.wxml`),
         'utf8',
       );
-      assert.match(source, /selectable="true"/);
+      if (name === 'announcement-detail')
+        assert.match(source, /selectable="true"/);
+      else assert.match(source, /item\.title/);
       assert.doesNotMatch(source, /rich-text|previewImage|https?:\/\/|未读/);
       for (const tag of source.matchAll(/<image\b[^>]*>/g))
         assert.match(tag[0], /src="\{\{image\.src\}\}"/);
-      for (const match of source.matchAll(/bindtap="([^"]+)"/g))
+      const bindings = [
+        ...source.matchAll(/(?:bindtap|bind:press)="([^"]+)"/g),
+      ];
+      assert.equal(bindings.length, name === 'announcements' ? 9 : 4);
+      for (const match of bindings)
         assert.equal(
           typeof (name === 'announcements' ? list : detail)[match[1]],
           'function',

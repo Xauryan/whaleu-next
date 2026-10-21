@@ -1,2 +1,4 @@
-@import '../../experience/public-display.wxss';
-@import '../../community/forms.wxss';
+@import '../community-search/discovery.wxss';
+@import '../community-saved/collection.wxss';
+
+@import '../community-saved/framework7-collections.wxss';

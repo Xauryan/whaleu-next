@@ -1,1 +1,2 @@
-@import '../../activities/activities.wxss';
+@import '../../design/framework7-ios.wxss';
+@import '../activity-list/framework7-product.wxss';

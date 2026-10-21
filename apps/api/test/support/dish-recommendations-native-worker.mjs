@@ -150,8 +150,17 @@ process.once('message', async (input) => {
         'durable original dish request',
         h,
       );
+    function openDishPanel(h) {
+      if (h.page.data.uiPanel !== 'dish')
+        h.tap('onTogglePanel', { panel: 'dish' });
+      assert.equal(h.page.data.uiPanel, 'dish');
+    }
+    function editName(h, value) {
+      openDishPanel(h);
+      h.event('bind:input', 'onName', { value, cursor: value.length });
+    }
     async function select(h, name, kind = 'recommend') {
-      h.event('bindinput', 'onName', { value: name });
+      editName(h, name);
       h.tap('onLookup');
       await until(
         () => !h.page.data.busy && h.page.data.own !== null,
@@ -201,13 +210,26 @@ process.once('message', async (input) => {
     let h = mount();
     await loaded(h);
     assert.deepEqual(h.page.data.items, []);
+    openDishPanel(h);
     const inputNode = h
       .nodes()
-      .find((node) => typeof node !== 'string' && node.tag === 'input');
+      .find(
+        (node) =>
+          typeof node !== 'string' &&
+          node.tag === 'wu-f7-input' &&
+          node.attrs['bind:input'] === 'onName',
+      );
     assert.equal(inputNode.attrs.maxlength, '-1');
+    const nativeInput = h.captureInput('onName');
+    try {
+      assert.equal(nativeInput.instance.properties.maxlength, -1);
+      assert.equal(nativeInput.instance.data.nativeMaxlength, -1);
+    } finally {
+      nativeInput.detach();
+    }
     const beforeInvalid = requests.length;
     for (const name of [' ', 'a\n', '\ud800', '😀'.repeat(11)]) {
-      h.event('bindinput', 'onName', { value: name });
+      editName(h, name);
       h.tap('onLookup');
       await idle(h);
       assert.equal(h.page.data.own, null);
@@ -399,7 +421,7 @@ process.once('message', async (input) => {
     const unknown = mount('window-dishes', input.unknownId);
     await idle(unknown);
     assert.equal(unknown.page.data.loaded, false);
-    unknown.event('bindinput', 'onName', { value: '未知菜' });
+    editName(unknown, '未知菜');
     unknown.tap('onLookup');
     await until(
       () => !unknown.page.data.busy && unknown.page.data.own !== null,
@@ -439,7 +461,7 @@ process.once('message', async (input) => {
     h.tap('onRefresh');
     await loaded(h);
     // Stop waiting fences the full refresh sequence, including the follow-on own lookup.
-    h.event('bindinput', 'onName', { value: emoji });
+    editName(h, emoji);
     h.tap('onLookup');
     await idle(h);
     const stoppedList = transport.holdNext(path),
@@ -478,7 +500,7 @@ process.once('message', async (input) => {
     assert.equal(h.page.data.own.active, false);
     await submit(h, emoji);
     const held = transport.holdNext(`${path}/my-membership`);
-    h.event('bindinput', 'onName', { value: emoji });
+    editName(h, emoji);
     h.tap('onLookup');
     await held.arrived;
     login(input.other);

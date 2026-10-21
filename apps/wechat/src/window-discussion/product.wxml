@@ -1,0 +1,370 @@
+<template name="product-discussion-status">
+  <view wx:if="{{!loaded || busy}}" class="discussion-status" aria-role="status"
+    >{{status}}</view
+  >
+  <view wx:if="{{error}}" class="discussion-error" aria-role="alert"
+    >{{error}}</view
+  >
+  <view wx:if="{{receiptStatus}}" class="discussion-notice"
+    >{{receiptStatus}}</view
+  >
+  <navigator
+    wx:if="{{!hasSession}}"
+    class="discussion-link"
+    url="/pages/login/login"
+    >登录后继续</navigator
+  >
+  <view
+    wx:if="{{uiPanel === 'tools' || !loaded || error || restartRequired}}"
+    class="discussion-tools"
+  >
+    <button class="discussion-tool" bindtap="onRefresh" disabled="{{busy}}">
+      <wu-icon name="refresh" size="19" />重新加载
+    </button>
+  </view>
+  <button
+    class="discussion-text-button"
+    wx:if="{{busy}}"
+    bindtap="onCancelWait"
+  >
+    停止等待
+  </button>
+  <view wx:if="{{frozen}}" class="discussion-recovery">
+    <view class="discussion-section-title">上次操作结果待确认</view>
+    <view class="discussion-meta">窗口：{{recoveryWindowId}}</view>
+    <view class="discussion-meta"
+      >操作：{{recoveryOperation}} · {{recoveryPhase === 'cancel' ?
+      '已确认取消，等待服务端结果' : '提交结果待确认'}}</view
+    >
+    <view wx:if="{{recoveryCommentId}}" class="discussion-meta"
+      >帖子：{{recoveryCommentId}}</view
+    >
+    <view class="discussion-notice"
+      >请查询或重试原请求，不要创建替代请求。停止等待不会取消服务端操作。</view
+    >
+    <view class="discussion-recovery-actions">
+      <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
+      <button bindtap="onRetry" disabled="{{busy}}">
+        重试原{{recoveryPhase === 'cancel' ? '取消' : '请求'}}
+      </button>
+      <button
+        wx:if="{{recoveryPhase === 'submit'}}"
+        bindtap="onRequestCancellation"
+        disabled="{{busy}}"
+      >
+        查询后申请取消
+      </button>
+    </view>
+    <view wx:if="{{confirming === 'cancel'}}" class="discussion-confirmation">
+      <view class="discussion-section-title">取消这次请求？</view>
+      <view class="discussion-notice">若已完成，以原回执为准。</view>
+      <button
+        class="discussion-primary"
+        bindtap="onConfirmCancellation"
+        disabled="{{busy}}"
+      >
+        确认服务端取消
+      </button>
+      <button
+        class="discussion-text-button"
+        bindtap="onCloseConfirmation"
+        disabled="{{busy}}"
+      >
+        返回
+      </button>
+    </view>
+  </view>
+</template>
+
+<template name="product-discussion-item">
+  <view
+    class="discussion-item {{focusCommentId === item.id ? 'discussion-focused' : ''}} {{item.rootId ? 'discussion-reply' : 'discussion-topic'}}"
+  >
+    <view class="discussion-byline">
+      <view class="discussion-author">{{item.author.displayName}}</view>
+      <view wx:if="{{timeLabels[item.id]}}" class="discussion-time"
+        >{{timeLabels[item.id]}}</view
+      >
+    </view>
+    <view wx:if="{{item.addressedAuthor}}" class="discussion-addressed"
+      >回复 {{item.addressedAuthor.displayName}}</view
+    >
+    <view wx:if="{{item.body}}" class="discussion-body">{{item.body}}</view>
+    <view
+      wx:if="{{item.images &amp;&amp; item.images.length}}"
+      class="discussion-images"
+    >
+      <button
+        wx:for="{{item.images}}"
+        wx:for-item="image"
+        wx:key="bindingId"
+        class="discussion-image-button"
+        data-id="{{item.id}}"
+        data-index="{{image.ordinal}}"
+        bindtap="onImage"
+        disabled="{{busy || imageBusy}}"
+      >
+        <wu-icon name="image" size="21" /><text
+          >图片 {{image.ordinal + 1}}</text
+        >
+      </button>
+    </view>
+    <view class="discussion-item-actions">
+      <button
+        class="discussion-inline-button {{item.isLiked ? 'discussion-liked' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onLike"
+        disabled="{{busy || frozen || confirming}}"
+        aria-label="{{item.isLiked ? '取消我的赞' : '点赞'}}，{{item.likes}} 个赞"
+      >
+        <wu-icon
+          name="{{item.isLiked ? 'heart-filled' : 'heart'}}"
+          size="19"
+        /><text>{{item.likes}}</text>
+      </button>
+      <button
+        wx:if="{{mode === 'roots'}}"
+        class="discussion-inline-button"
+        data-id="{{item.id}}"
+        bindtap="onThread"
+        disabled="{{busy}}"
+      >
+        <wu-icon name="message" size="19" /><text
+          >{{item.replyCount}} 条回复</text
+        >
+      </button>
+      <button
+        wx:elif="{{item.rootId}}"
+        class="discussion-inline-button"
+        data-id="{{item.id}}"
+        bindtap="onReply"
+        disabled="{{busy || frozen || confirming}}"
+      >
+        <wu-icon name="reply" size="19" /><text>回复</text>
+      </button>
+    </view>
+  </view>
+</template>
+
+<template name="product-discussion-form">
+  <view wx:if="{{loaded &amp;&amp; !frozen}}">
+    <view
+      wx:if="{{uiPanel === 'compose' &amp;&amp; !confirming}}"
+      class="discussion-sheet-backdrop"
+    >
+      <view class="discussion-sheet">
+        <view class="discussion-sheet-header">
+          <view class="discussion-section-title"
+            >{{mode === 'thread' ? '写回复' : '发布主题'}}</view
+          >
+          <button
+            class="discussion-icon-button"
+            bindtap="onClosePanel"
+            aria-label="收起编辑"
+          >
+            <wu-icon name="close" size="22" />
+          </button>
+        </view>
+        <view class="discussion-meta">公开昵称</view>
+        <view wx:if="{{mode === 'thread'}}" class="discussion-reply-target"
+          ><text
+            >{{replyTarget ? '回复 ' + replyTarget.author.displayName :
+            '回复主题作者'}}</text
+          ><button
+            wx:if="{{replyTarget}}"
+            class="discussion-text-button"
+            bindtap="onReplyRoot"
+            disabled="{{busy || imageBusy || imageFrozen || confirming}}"
+          >
+            改为回复主题
+          </button></view
+        >
+        <textarea
+          value="{{body}}"
+          maxlength="-1"
+          bindinput="onBody"
+          disabled="{{busy || imageBusy || imageFrozen || confirming}}"
+          placeholder="{{mode === 'thread' ? '说说你的想法…' : '这家窗口，有什么想分享？'}}"
+        />
+        <view class="discussion-compose-meta">{{bodyBytes}} / 8000 字节</view>
+        <view wx:if="{{imageEnabled}}" class="discussion-photo-tools">
+          <view class="discussion-photo-actions"
+            ><button
+              class="discussion-inline-button"
+              data-source="album"
+              bindtap="onPickImage"
+              disabled="{{busy || imageBusy || imageFrozen || confirming || imageCount &gt;= 3}}"
+            >
+              <wu-icon name="image" size="23" />相册</button
+            ><button
+              class="discussion-inline-button"
+              data-source="camera"
+              bindtap="onPickImage"
+              disabled="{{busy || imageBusy || imageFrozen || confirming || imageCount &gt;= 3}}"
+            >
+              <wu-icon name="camera" size="23" />拍照</button
+            ><text class="discussion-meta">{{imageCount}} / 3 张</text></view
+          >
+          <view class="discussion-photo-note"
+            >JPEG / PNG，每张最多 5
+            MiB。更换或排序需先取消整组并确认结果。</view
+          >
+        </view>
+        <template
+          is="product-discussion-image-state"
+          data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}"
+        />
+        <button
+          class="discussion-primary"
+          bindtap="onConfirmPublish"
+          disabled="{{busy || imageBusy || imageFrozen || confirming || !canPublish}}"
+        >
+          {{mode === 'thread' ? '核对回复' : '核对主题'}}
+        </button>
+      </view>
+    </view>
+  </view>
+  <view wx:if="{{confirming === 'publish'}}" class="discussion-sheet-backdrop">
+    <view class="discussion-sheet discussion-confirmation">
+      <view class="discussion-section-title">确认公开发布</view>
+      <view class="discussion-body">{{body}}</view>
+      <view class="discussion-notice"
+        >使用公开昵称，发布以上原文与 {{imageCount}}
+        张图片，图片顺序保持不变。</view
+      >
+      <template
+        is="product-discussion-image-state"
+        data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}"
+      />
+      <button class="discussion-primary" bindtap="onSubmit" disabled="{{busy}}">
+        确认发表
+      </button>
+      <button
+        class="discussion-text-button"
+        bindtap="onCloseConfirmation"
+        disabled="{{busy}}"
+      >
+        返回修改
+      </button>
+    </view>
+  </view>
+  <view
+    wx:if="{{confirming === 'like' &amp;&amp; selectedComment}}"
+    class="discussion-sheet-backdrop"
+  >
+    <view class="discussion-sheet discussion-confirmation">
+      <view class="discussion-section-title"
+        >确认{{selectedComment.isLiked ? '取消我的赞' : '点赞'}}</view
+      >
+      <view class="discussion-body">{{selectedComment.body}}</view>
+      <view class="discussion-notice"
+        >只修改自己的点赞，不覆盖其他设备上的新版本。</view
+      >
+      <template
+        is="product-discussion-image-state"
+        data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}"
+      />
+      <button class="discussion-primary" bindtap="onSubmit" disabled="{{busy}}">
+        确认这次{{selectedComment.isLiked ? '取消点赞' : '点赞'}}
+      </button>
+      <button
+        class="discussion-text-button"
+        bindtap="onCloseConfirmation"
+        disabled="{{busy}}"
+      >
+        返回
+      </button>
+    </view>
+  </view>
+</template>
+
+<template name="product-discussion-image-state">
+  <view
+    wx:if="{{imageEnabled &amp;&amp; (imageStatus || imagePending || imageBusy)}}"
+    class="discussion-recovery discussion-image-state"
+  >
+    <view class="discussion-section-title"
+      >{{imagePending ? '图片与发布进度' : '图片'}}</view
+    >
+    <view class="discussion-notice">{{imageStatus}}</view>
+    <view wx:if="{{imageBusy}}" class="discussion-meta"
+      >进度 {{imageProgress}}%</view
+    >
+    <view wx:if="{{imagePending}}" class="discussion-meta"
+      >原请求：{{imageRequestId}}。离开页面后仅保留恢复编号，不保留文字或图片文件。</view
+    >
+    <view class="discussion-recovery-actions">
+      <button
+        wx:if="{{imageRecoverable}}"
+        bindtap="onRecoverImages"
+        disabled="{{busy || imageBusy}}"
+      >
+        查询原图片讨论回执
+      </button>
+      <button
+        wx:if="{{imageRecoverable}}"
+        bindtap="onRequestImageCancel"
+        disabled="{{busy || imageBusy}}"
+      >
+        取消整组图片与发布
+      </button>
+    </view>
+    <view wx:if="{{imageCancelConfirm}}" class="discussion-confirmation">
+      <view class="discussion-section-title">取消这组图片和发布？</view>
+      <view class="discussion-notice"
+        >将取消此原请求及其图片上传；已发表的请求以原回执为准。</view
+      >
+      <button
+        class="discussion-primary"
+        bindtap="onConfirmImageCancel"
+        disabled="{{busy || imageBusy}}"
+      >
+        确认取消原请求
+      </button>
+      <button
+        class="discussion-text-button"
+        bindtap="onCloseImageCancel"
+        disabled="{{busy || imageBusy}}"
+      >
+        返回
+      </button>
+    </view>
+    <button
+      class="discussion-text-button"
+      wx:if="{{imageBusy}}"
+      bindtap="onCancelWait"
+    >
+      停止等待并保留恢复编号
+    </button>
+  </view>
+</template>
+
+<template name="product-discussion-gallery">
+  <view wx:if="{{galleryOpen}}" class="discussion-gallery">
+    <view class="discussion-gallery-toolbar"
+      ><view>{{galleryIndex + 1}} / {{galleryCount}}</view
+      ><button bindtap="onCloseGallery" aria-label="关闭图片">
+        <wu-icon name="close" tone="white" size="24" /></button
+    ></view>
+    <view wx:if="{{galleryStatus}}" class="discussion-notice"
+      >{{galleryStatus}}</view
+    >
+    <image
+      wx:if="{{gallerySrc}}"
+      src="{{gallerySrc}}"
+      mode="aspectFit"
+      class="discussion-gallery-image"
+    />
+    <view class="discussion-gallery-actions"
+      ><button bindtap="onImagePrevious" disabled="{{galleryIndex === 0}}">
+        上一张</button
+      ><button
+        bindtap="onImageNext"
+        disabled="{{galleryIndex + 1 &gt;= galleryCount}}"
+      >
+        下一张
+      </button></view
+    >
+    <view class="discussion-meta">离开页面后图片会关闭</view>
+  </view>
+</template>

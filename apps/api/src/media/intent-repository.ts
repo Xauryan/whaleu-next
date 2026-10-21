@@ -1,3 +1,5 @@
+import { reserveProfileCoverRequestMarker } from './profile-cover-request-marker.js';
+import { profileCoverMediaRequestHash } from './contracts-profile-cover.js';
 import { majorDiscussionMediaRequestHash } from './contracts-major-discussion.js';
 import { windowDiscussionMediaRequestHash } from './contracts-window-discussion.js';
 import { privateMessageMediaRequestHash } from './contracts-private-message.js';
@@ -81,6 +83,8 @@ export class MediaIntentRepository {
     const verificationEvidence =
       'protocol' in input &&
       input.protocol === 'verification-evidence-media-v1';
+    const profileCover =
+      'protocol' in input && input.protocol === 'profile-cover-v1';
     const profile =
       'protocol' in input && input.protocol === 'profile-media-v1';
     const announcement =
@@ -100,97 +104,104 @@ export class MediaIntentRepository {
     const ratings =
       'protocol' in input && input.protocol === 'ratings-target-media-v1';
     const v3 = 'protocolVersion' in input;
-    const protocol = majorDiscussion
-      ? 17
-      : windowDiscussion
-        ? 16
-        : privateMessage
-          ? 15
-          : errand
-            ? 14
-            : verificationEvidence
-              ? 13
-              : announcement
-                ? 12
-                : activity
-                  ? 11
-                  : organization
-                    ? 10
-                    : schoolQr
-                      ? 9
-                      : categoryIcon
-                        ? 8
-                        : ratingsDiscussion
-                          ? 7
-                          : ratings
-                            ? 6
-                            : profile
-                              ? 5
-                              : v3
-                                ? input.protocolVersion
-                                : v2
-                                  ? 2
-                                  : 1;
-    const requestHash = majorDiscussion
-      ? majorDiscussionMediaRequestHash(scope.actorAccountId, input)
-      : windowDiscussion
-        ? windowDiscussionMediaRequestHash(scope.actorAccountId, input)
-        : privateMessage
-          ? privateMessageMediaRequestHash(scope.actorAccountId, input)
-          : errand
-            ? errandMediaRequestHash(scope.actorAccountId, input)
-            : verificationEvidence
-              ? verificationEvidenceMediaRequestHash(
-                  scope.actorAccountId,
-                  input,
-                )
-              : announcement
-                ? announcementMediaRequestHash(scope.actorAccountId, input)
-                : activity
-                  ? activityMediaRequestHash(scope.actorAccountId, input)
-                  : organization
-                    ? organizationMediaRequestHash(scope.actorAccountId, input)
-                    : schoolQr
-                      ? schoolQrMediaRequestHash(scope.actorAccountId, input)
-                      : categoryIcon
-                        ? categoryIconMediaRequestHash(
-                            scope.actorAccountId,
-                            input,
-                          )
-                        : ratingsDiscussion
-                          ? ratingsDiscussionMemberHash(
+    const protocol = profileCover
+      ? 18
+      : majorDiscussion
+        ? 17
+        : windowDiscussion
+          ? 16
+          : privateMessage
+            ? 15
+            : errand
+              ? 14
+              : verificationEvidence
+                ? 13
+                : announcement
+                  ? 12
+                  : activity
+                    ? 11
+                    : organization
+                      ? 10
+                      : schoolQr
+                        ? 9
+                        : categoryIcon
+                          ? 8
+                          : ratingsDiscussion
+                            ? 7
+                            : ratings
+                              ? 6
+                              : profile
+                                ? 5
+                                : v3
+                                  ? input.protocolVersion
+                                  : v2
+                                    ? 2
+                                    : 1;
+    const requestHash = profileCover
+      ? profileCoverMediaRequestHash(scope.actorAccountId, input)
+      : majorDiscussion
+        ? majorDiscussionMediaRequestHash(scope.actorAccountId, input)
+        : windowDiscussion
+          ? windowDiscussionMediaRequestHash(scope.actorAccountId, input)
+          : privateMessage
+            ? privateMessageMediaRequestHash(scope.actorAccountId, input)
+            : errand
+              ? errandMediaRequestHash(scope.actorAccountId, input)
+              : verificationEvidence
+                ? verificationEvidenceMediaRequestHash(
+                    scope.actorAccountId,
+                    input,
+                  )
+                : announcement
+                  ? announcementMediaRequestHash(scope.actorAccountId, input)
+                  : activity
+                    ? activityMediaRequestHash(scope.actorAccountId, input)
+                    : organization
+                      ? organizationMediaRequestHash(
+                          scope.actorAccountId,
+                          input,
+                        )
+                      : schoolQr
+                        ? schoolQrMediaRequestHash(scope.actorAccountId, input)
+                        : categoryIcon
+                          ? categoryIconMediaRequestHash(
                               scope.actorAccountId,
                               input,
                             )
-                          : ratings
-                            ? ratingsMediaRequestHash(
+                          : ratingsDiscussion
+                            ? ratingsDiscussionMemberHash(
                                 scope.actorAccountId,
                                 input,
                               )
-                            : profile
-                              ? profileMediaRequestHash(
+                            : ratings
+                              ? ratingsMediaRequestHash(
                                   scope.actorAccountId,
                                   input,
                                 )
-                              : v3
-                                ? (input.protocolVersion === 4
-                                    ? discussionMemberHash
-                                    : mediaMemberRequestHash)(
+                              : profile
+                                ? profileMediaRequestHash(
                                     scope.actorAccountId,
-                                    input.batchIdentity,
-                                    {
-                                      clientRequestId: input.clientRequestId,
-                                      memberId: input.memberId,
-                                      sourceSlot: input.ordinal,
-                                      declaration: input.declaration,
-                                    },
+                                    input,
                                   )
-                                : v2
-                                  ? mediaRequestHash(
+                                : v3
+                                  ? (input.protocolVersion === 4
+                                      ? discussionMemberHash
+                                      : mediaMemberRequestHash)(
                                       scope.actorAccountId,
-                                      input,
+                                      input.batchIdentity,
+                                      {
+                                        clientRequestId: input.clientRequestId,
+                                        memberId: input.memberId,
+                                        sourceSlot: input.ordinal,
+                                        declaration: input.declaration,
+                                      },
                                     )
-                                  : null;
+                                  : v2
+                                    ? mediaRequestHash(
+                                        scope.actorAccountId,
+                                        input,
+                                      )
+                                    : null;
     if (ratingsDiscussion) {
       const batch = await tx.query(
         `SELECT id FROM whaleu_media.ratings_discussion_batches WHERE id=$1 AND actor_id=$2 AND state='editing' AND server_scope_id=$3 AND scope_revision=$4 AND identity_hash=$5 FOR UPDATE NOWAIT`,
@@ -257,6 +268,15 @@ export class MediaIntentRepository {
         input.clientRequestId,
         tx,
       );
+    if (profileCover) {
+      if (!requestHash) throw new ApplicationError('MEDIA_UNAVAILABLE');
+      await reserveProfileCoverRequestMarker(
+        scope.actorAccountId,
+        input.clientRequestId,
+        requestHash,
+        tx,
+      );
+    }
     if (profile) {
       if (!requestHash) throw new ApplicationError('MEDIA_UNAVAILABLE');
       await reserveProfileRequestMarker(
@@ -283,6 +303,7 @@ export class MediaIntentRepository {
           organization ||
           schoolQr ||
           categoryIcon ||
+          profileCover ||
           profile ||
           ratings ||
           ratingsDiscussion ||
@@ -437,7 +458,7 @@ export class MediaIntentRepository {
       await tx.query<IntentRow>(
         `INSERT INTO whaleu_media.upload_intents
       (id,actor_id,client_request_id,canonical_intent_hash,purpose,audience,owner_kind,resource_kind,target_kind,resource_id,content_version,scope_revision,slot,ordinal,policy_revision,declared_bytes,declared_mime,expires_at,protocol_version,request_hash,declared_sha256)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,${majorDiscussion ? '(SELECT expires_at FROM whaleu_media.major_discussion_scopes WHERE id=$10 AND actor_id=$2)' : windowDiscussion ? '(SELECT expires_at FROM whaleu_media.window_discussion_scopes WHERE id=$10 AND actor_id=$2)' : privateMessage ? '(SELECT expires_at FROM whaleu_media.private_message_scopes WHERE id=$10 AND actor_id=$2)' : errand ? '(SELECT expires_at FROM whaleu_media.errand_scopes WHERE id=$10 AND actor_id=$2)' : verificationEvidence ? '(SELECT expires_at FROM whaleu_media.verification_evidence_scopes WHERE id=$10 AND actor_id=$2)' : announcement ? '(SELECT expires_at FROM whaleu_announcements.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : activity ? '(SELECT expires_at FROM whaleu_activities.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : organization ? '(SELECT expires_at FROM whaleu_organizations.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : schoolQr ? '(SELECT expires_at FROM whaleu_school_configuration.qr_upload_scopes WHERE id=$10 AND actor_id=$2)' : categoryIcon ? '(SELECT expires_at FROM whaleu_ratings.category_icon_upload_scopes WHERE id=$10 AND actor_id=$2)' : ratingsDiscussion ? '(SELECT expires_at FROM whaleu_media.ratings_discussion_batches WHERE server_scope_id=$10 AND actor_id=$2)' : scope.ownerKind === 'ratings' ? '(SELECT expires_at FROM whaleu_ratings.target_cover_upload_scopes WHERE id=$10 AND actor_id=$2)' : scope.ownerKind === 'profile' ? '(SELECT expires_at FROM whaleu_profile.avatar_edits WHERE id=$10 AND actor_id=$2)' : "clock_timestamp()+interval '30 minutes'"},$18,$19,$20) RETURNING *`,
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,${profileCover ? '(SELECT expires_at FROM whaleu_profile.cover_edits WHERE id=$10 AND actor_id=$2)' : majorDiscussion ? '(SELECT expires_at FROM whaleu_media.major_discussion_scopes WHERE id=$10 AND actor_id=$2)' : windowDiscussion ? '(SELECT expires_at FROM whaleu_media.window_discussion_scopes WHERE id=$10 AND actor_id=$2)' : privateMessage ? '(SELECT expires_at FROM whaleu_media.private_message_scopes WHERE id=$10 AND actor_id=$2)' : errand ? '(SELECT expires_at FROM whaleu_media.errand_scopes WHERE id=$10 AND actor_id=$2)' : verificationEvidence ? '(SELECT expires_at FROM whaleu_media.verification_evidence_scopes WHERE id=$10 AND actor_id=$2)' : announcement ? '(SELECT expires_at FROM whaleu_announcements.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : activity ? '(SELECT expires_at FROM whaleu_activities.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : organization ? '(SELECT expires_at FROM whaleu_organizations.media_upload_scopes WHERE id=$10 AND actor_id=$2)' : schoolQr ? '(SELECT expires_at FROM whaleu_school_configuration.qr_upload_scopes WHERE id=$10 AND actor_id=$2)' : categoryIcon ? '(SELECT expires_at FROM whaleu_ratings.category_icon_upload_scopes WHERE id=$10 AND actor_id=$2)' : ratingsDiscussion ? '(SELECT expires_at FROM whaleu_media.ratings_discussion_batches WHERE server_scope_id=$10 AND actor_id=$2)' : scope.ownerKind === 'ratings' ? '(SELECT expires_at FROM whaleu_ratings.target_cover_upload_scopes WHERE id=$10 AND actor_id=$2)' : scope.ownerKind === 'profile' ? '(SELECT expires_at FROM whaleu_profile.avatar_edits WHERE id=$10 AND actor_id=$2)' : "clock_timestamp()+interval '30 minutes'"},$18,$19,$20) RETURNING *`,
         [
           id,
           scope.actorAccountId,
@@ -469,8 +490,8 @@ export class MediaIntentRepository {
     );
     if (v2)
       await tx.query(
-        `INSERT INTO whaleu_media.upload_request_fences(actor_id,client_request_id,request_hash,intent_id,state${majorDiscussion || windowDiscussion || privateMessage || errand || verificationEvidence || announcement || activity || organization || schoolQr || categoryIcon ? ',protocol_namespace' : ''})
-       VALUES($1,$2,$3,$4,'active'${majorDiscussion ? ',17' : windowDiscussion ? ',16' : privateMessage ? ',15' : errand ? ',14' : verificationEvidence ? ',13' : announcement ? ',12' : activity ? ',11' : organization ? ',10' : schoolQr ? ',9' : categoryIcon ? ',8' : ''})`,
+        `INSERT INTO whaleu_media.upload_request_fences(actor_id,client_request_id,request_hash,intent_id,state${profileCover || majorDiscussion || windowDiscussion || privateMessage || errand || verificationEvidence || announcement || activity || organization || schoolQr || categoryIcon ? ',protocol_namespace' : ''})
+       VALUES($1,$2,$3,$4,'active'${profileCover ? ',18' : majorDiscussion ? ',17' : windowDiscussion ? ',16' : privateMessage ? ',15' : errand ? ',14' : verificationEvidence ? ',13' : announcement ? ',12' : activity ? ',11' : organization ? ',10' : schoolQr ? ',9' : categoryIcon ? ',8' : ''})`,
         [scope.actorAccountId, input.clientRequestId, requestHash, id],
       );
     return this.receipt(created, tx);
@@ -588,3 +609,6 @@ export async function reserveMediaRequestKey(
 /** Profile uses the shared reservations and exact intent foundation; its issuer
  * accepts only the independently versioned Profile prepare contract. */
 export class ProfileMediaIntentRepository extends MediaIntentRepository {}
+
+/** Independent cover issuer; never accepts an avatar prepare capability. */
+export class ProfileCoverMediaIntentRepository extends MediaIntentRepository {}

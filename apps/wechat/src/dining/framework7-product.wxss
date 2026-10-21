@@ -1,0 +1,55 @@
+/* Native Framework7 v9.2.0 five-page dining presentation only.
+ * Existing controllers own scores, identity, confirmation and receipt recovery. */
+@import '../design/framework7-ios.wxss';
+
+.f7-dining-product {
+  color: var(--f7-text-color);
+}
+.f7-dining-product wu-f7-button,
+.f7-dining-product wu-f7-input,
+.f7-dining-product wu-f7-list,
+.f7-dining-product wu-f7-list-item,
+.f7-dining-product wu-f7-block {
+  display: block;
+  min-width: 0;
+}
+.f7-dining-product .dp-tabs {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.f7-dining-product .dp-tabs wu-f7-button,
+.f7-dining-product .dp-options wu-f7-button {
+  flex: none;
+}
+.f7-dining-product .dp-destinations wu-f7-button {
+  flex: 1;
+  min-width: 0;
+}
+.f7-dining-product .dp-open {
+  padding: 0;
+}
+.f7-dining-product .dp-row + .dp-row {
+  border-top: 0;
+}
+.f7-dining-product .dp-score-choices wu-f7-button {
+  width: 100%;
+  min-width: 0;
+}
+.f7-dining-product wu-f7-input {
+  margin: 16px 0;
+}
+.f7-dining-product .dp-sheet > wu-f7-button + wu-f7-button,
+.f7-dining-product .dp-recovery wu-f7-button,
+.f7-dining-product .dp-disclosure > wu-f7-button {
+  margin-top: 8px;
+}
+/* Host layout only. Isolated native components own button/input colors,
+ * selection, min 44px targets, pressed and disabled states. */
+.f7-dining-product wu-f7-button.score-selected {
+  background: transparent !important;
+}
+.f7-dining-product wu-f7-input.window-field {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}

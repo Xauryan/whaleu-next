@@ -1,0 +1,132 @@
+<view class="screen rating-product">
+  <view class="product-heading product-toolbar"
+    ><button
+      class="plain-button"
+      data-panel="info"
+      bindtap="onTogglePanel"
+      aria-label="随机选择说明"
+    >
+      <wu-icon name="more" size="20" />
+    </button></view
+  >
+  <view wx:if="{{uiPanel === 'info'}}" class="product-disclosure"
+    ><view class="meta"
+      >每次从完整候选范围独立随机选择，可能再次选中同一个对象。指定最低均分时，只有达到条件的已评分对象才会参与；统计无法确认时不会进行抽取。</view
+    ></view
+  >
+  <view wx:if="{{!loaded || busy}}" class="status" aria-role="status"
+    >{{status}}</view
+  ><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view
+  ><navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login"
+    >登录后继续</navigator
+  >
+  <view class="product-toolbar"
+    ><button class="plain-button" bindtap="onRefresh">重选条件</button
+    ><button class="plain-button" wx:if="{{busy}}" bindtap="onCancel">
+      停止等待
+    </button></view
+  >
+  <block wx:if="{{categoryId &amp;&amp; hasSession &amp;&amp; configured}}">
+    <view wx:if="{{result}}" class="product-hero">
+      <block wx:if="{{result.item}}"
+        ><view class="meta">这次选中了</view
+        ><view class="title">{{result.item.target.name}}</view
+        ><view class="body">{{result.item.target.description}}</view>
+        <block wx:if="{{result.item.summary.status === 'known'}}"
+          ><view
+            wx:if="{{result.item.summary.count &gt; 0}}"
+            class="product-score-summary"
+            ><view class="product-score-number"
+              >{{result.item.summary.average}}</view
+            ><view class="meta"
+              >{{result.item.summary.count}} 人评分</view
+            ></view
+          ><view wx:else class="meta">暂无评分</view></block
+        ><view wx:else class="notice">评分数据暂不可用</view>
+        <view class="meta"
+          >{{result.item.regionId ? '学校校区地区目录' : '全局目录'}} · 从
+          {{result.candidateCount}} 个候选中选出</view
+        ><button class="primary" bindtap="onTarget" disabled="{{busy}}">
+          查看评分与评价
+        </button> </block
+      ><view wx:else class="empty">没有符合条件的对象，试试放宽筛选</view>
+    </view>
+    <view class="product-section"
+      ><view class="product-section-heading"
+        ><view class="section-title"
+          >{{campus ? campus.institutionName : '全局范围'}}</view
+        ><button
+          class="plain-button"
+          data-panel="scope"
+          bindtap="onTogglePanel"
+        >
+          选择范围
+        </button></view
+      ><view wx:if="{{campus}}" class="meta"
+        >{{campus.fullName}} · 包含所属学校全部校区地区与全局</view
+      >
+      <view wx:if="{{uiPanel === 'scope'}}" class="product-disclosure"
+        ><button bindtap="onGlobal">仅全局</button
+        ><button bindtap="onCampusPicker" disabled="{{pickerOpen}}">
+          选择学校与校区</button
+        ><view class="meta">范围独立选择，不沿用目录或身份校区。</view></view
+      >
+      <view class="section-title">最低均分</view
+      ><input
+        type="digit"
+        value="{{minimumAverageInput}}"
+        bindinput="onMinimumAverage"
+        placeholder="不限；1–5 分，最多一位小数"
+      />
+      <button
+        class="primary"
+        bindtap="onDraw"
+        loading="{{busy &amp;&amp; !pickerOpen}}"
+        disabled="{{busy || pickerOpen}}"
+      >
+        {{result ? '再选一个' : '随机选一个'}}
+      </button>
+    </view>
+    <view wx:if="{{pickerOpen}}" class="modal-mask"
+      ><view class="modal"
+        ><view class="section-title">选择学校与校区</view
+        ><input
+          value="{{campusQuery}}"
+          bindinput="onCampusQuery"
+          placeholder="学校或校区名称"
+        /><input
+          value="{{campusDistrict}}"
+          bindinput="onCampusDistrict"
+          placeholder="地区（选填）"
+        /><button bindtap="onSearchCampuses" disabled="{{busy}}">
+          搜索校区
+        </button>
+        <view wx:for="{{campuses}}" wx:key="id" class="product-list-row"
+          ><view class="section-title">{{item.fullName}}</view
+          ><view class="meta">{{item.institutionName}} · {{item.district}}</view
+          ><button
+            data-id="{{item.id}}"
+            bindtap="onChooseCampus"
+            disabled="{{busy || !item.isActive || !item.institutionId}}"
+          >
+            {{item.isActive ? item.institutionId ? '选择此校区所属学校' :
+            '暂不可选择' : '暂不可选择'}}
+          </button></view
+        >
+        <button
+          wx:if="{{hasPreviousCampuses}}"
+          bindtap="onPreviousCampuses"
+          disabled="{{busy}}"
+        >
+          上一页</button
+        ><button
+          wx:if="{{hasNextCampuses}}"
+          bindtap="onNextCampuses"
+          disabled="{{busy}}"
+        >
+          下一页</button
+        ><button bindtap="onCloseCampusPicker">关闭选择</button>
+      </view></view
+    >
+  </block>
+</view>

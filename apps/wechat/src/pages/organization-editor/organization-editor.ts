@@ -27,6 +27,10 @@ import type {
 Page({
   data: {
     ...initialOrganizationEditorView(),
+    showInfo: false,
+    showMembers: false,
+    showMedia: false,
+    expandedMedia: {} as Record<string, boolean>,
     pendingImages: [] as readonly (OrganizationMediaUploadTarget & {
       key: string;
       label: string;
@@ -138,6 +142,10 @@ Page({
     this.reader = undefined;
     this.setData({
       ...initialOrganizationEditorView(),
+      showInfo: false,
+      showMembers: false,
+      showMedia: false,
+      expandedMedia: {},
       upload: { status: 'idle', message: '', progress: 0 },
       image: { status: 'idle', src: '', message: '' },
       pendingImages: [],
@@ -217,6 +225,25 @@ Page({
     }
     if (this.controller === controller && this.uploader === uploader)
       this.refreshPendingImages();
+  },
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
+  },
+  onToggleMediaSection() {
+    this.setData({ showMedia: !this.data.showMedia });
+  },
+  onToggleMembers() {
+    this.setData({ showMembers: !this.data.showMembers });
+  },
+  onToggleMedia(event: { currentTarget: { dataset: { slot: string } } }) {
+    const slot = event.currentTarget.dataset.slot;
+    if (!this.data.slots.some((item) => item.slot === slot)) return;
+    this.setData({
+      expandedMedia: {
+        ...this.data.expandedMedia,
+        [slot]: !this.data.expandedMedia[slot],
+      },
+    });
   },
   onRefresh() {
     this.onShow();

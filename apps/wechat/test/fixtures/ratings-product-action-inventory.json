@@ -1,0 +1,1565 @@
+{
+  "pages/rating-catalog/rating-catalog.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/canteen-floor-scores/canteen-floor-scores"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/major-directory/major-directory"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/window-ratings/window-ratings"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/course-ratings/course-ratings"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-recovery/rating-recovery"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRegions",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "",
+        "bindtap": "onRegion"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{regions}}",
+        "wx:key": "id",
+        "data-id": "{{item.id}}",
+        "bindtap": "onRegion"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{hasSession}}",
+        "bindtap": "onCreateCategories",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onCategory",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onRandom",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.kind === 'general'}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onCreateTarget",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMoreCategories}}",
+        "bindtap": "onMoreCategories",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{parentId}}",
+        "bindtap": "onRandom",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onSubscription",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onTarget",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMoreTargets}}",
+        "bindtap": "onMoreTargets",
+        "disabled": "{{busy}}"
+      }
+    }
+  ],
+  "pages/rating-detail/rating-detail.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-recovery/rating-recovery"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{hasSession}}",
+        "bindtap": "onOwnerEditing"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{hasSession}}",
+        "bindtap": "onOwnerDeletion"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "time",
+        "data-order": "desc",
+        "bindtap": "onSort",
+        "disabled": "{{frozen || !hasSession || !configured}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "time",
+        "data-order": "asc",
+        "bindtap": "onSort",
+        "disabled": "{{frozen || !hasSession || !configured}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "likes",
+        "data-order": "desc",
+        "bindtap": "onSort",
+        "disabled": "{{frozen || !hasSession || !configured}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "likes",
+        "data-order": "asc",
+        "bindtap": "onSort",
+        "disabled": "{{frozen || !hasSession || !configured}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{detail.id}}",
+        "bindtap": "onSubscription",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{scores}}",
+        "wx:key": "*this",
+        "data-score": "{{item}}",
+        "bindtap": "onScore",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{detail.allowedActions.createComment}}",
+        "bindtap": "onCompose",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onDiscussion",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onDeletionOptions",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.isMine &amp;&amp; item.allowedActions.delete}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onDelete",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMoreComments}}",
+        "bindtap": "onMoreComments",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmScore",
+        "disabled": "{{busy || frozen}}",
+        "loading": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissScore"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{detail.allowedActions.authorModes}}",
+        "wx:key": "*this",
+        "data-mode": "{{item}}",
+        "bindtap": "onAuthorMode",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{text}}",
+        "bindinput": "onText",
+        "maxlength": "-1",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPublish",
+        "disabled": "{{busy || frozen || !authorMode || textLength &lt; 1 || textLength &gt; 500}}",
+        "loading": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseComposer"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmDelete",
+        "disabled": "{{busy || frozen}}",
+        "loading": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissDelete"
+      }
+    }
+  ],
+  "pages/rating-thread/rating-thread.wxml": [
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDeletionOptions",
+        "disabled": "{{busy || frozen || !hasSession}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{collapsed}}",
+        "bindtap": "onExpand",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{discussion.root.id}}",
+        "bindtap": "onDeletionOptions",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{discussion.allowedActions.createReply}}",
+        "bindtap": "onRootReply",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCollapse"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{anchorReplyId}}",
+        "bindtap": "onFirst",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.allowedActions.reply}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onReply",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onDeletionOptions",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.isMine &amp;&amp; item.allowedActions.delete}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onDelete",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMore}}",
+        "bindtap": "onMore",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{discussion.allowedActions.authorModes}}",
+        "wx:key": "*this",
+        "data-mode": "{{item}}",
+        "bindtap": "onAuthorMode",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{text}}",
+        "bindinput": "onText",
+        "maxlength": "-1",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPublish",
+        "disabled": "{{busy || frozen || !authorMode || textLength &lt; 1 || textLength &gt; 500}}",
+        "loading": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismiss"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmDelete",
+        "disabled": "{{busy || frozen}}",
+        "loading": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismiss"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-recovery/rating-recovery"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-updates/rating-updates"
+      }
+    }
+  ],
+  "pages/rating-create/rating-create.wxml": [
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{name}}",
+        "bindinput": "onName",
+        "maxlength": "200",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{description}}",
+        "bindinput": "onDescription",
+        "maxlength": "1000",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCreate",
+        "disabled": "{{busy || frozen || !name}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancelCreation",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmCancelCreation",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissCancelCreation",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-catalog/rating-catalog"
+      }
+    }
+  ],
+  "pages/rating-scoped/rating-scoped.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/window-ratings/window-ratings"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/course-ratings/course-ratings"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRequestCancelPending",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancelPending",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissCancelPending"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onOpenCampuses",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCampus",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{campusQuery}}",
+        "bindinput": "onCampusQuery"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSearchCampuses",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{campuses}}",
+        "wx:key": "id",
+        "data-id": "{{item.id}}",
+        "bindtap": "onCampus",
+        "disabled": "{{busy || !item.isActive}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{campusPage &gt; 1}}",
+        "bindtap": "onPreviousCampuses",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{hasMoreCampuses}}",
+        "bindtap": "onNextCampuses",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseCampuses"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{frozen}}",
+        "url": "/pages/rating-category-manage/rating-category-manage?scope=global"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{hasSession &amp;&amp; mode === 'catalog'}}",
+        "bindtap": "onCategoryManagement",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{mode === 'detail' || mode === 'thread'}}",
+        "bindtap": "onDiscussionImages",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{categoryIcon.state !== 'idle'}}",
+        "bindtap": "onCloseCategoryIcon"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{detail}}",
+        "bindtap": "onCoverOpen"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.hasIcon}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onCategoryIcon",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "catalog",
+        "data-id": "{{item.id}}",
+        "bindtap": "onNavigate",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "random",
+        "data-id": "{{item.id}}",
+        "bindtap": "onNavigate",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.kind === 'general'}}",
+        "data-mode": "create",
+        "data-id": "{{item.id}}",
+        "bindtap": "onNavigate",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMoreCategories}}",
+        "bindtap": "onMoreCategories",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "wx:if": "{{coverThumbnails[item.id].localSrc}}",
+        "src": "{{coverThumbnails[item.id].localSrc}}",
+        "mode": "aspectFit",
+        "binderror": "onCoverThumbError",
+        "data-id": "{{item.id}}",
+        "bindtap": "onCoverOpen"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.hasCover}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onCoverOpen"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "detail",
+        "data-id": "{{item.id}}",
+        "bindtap": "onNavigate",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onDiscussionImages",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{subscriptions[item.id] &amp;&amp; subscriptions[item.id].status === 'known'}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onSubscription",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMoreTargets}}",
+        "bindtap": "onMoreTargets",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{detail.ratingTargetLink}}",
+        "bindtap": "onRatingLinkCompose",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{scores}}",
+        "wx:key": "*this",
+        "data-score": "{{item}}",
+        "bindtap": "onScore",
+        "disabled": "{{busy || frozen || !detail.allowedActions.setScore}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{subscriptions[detail.id] &amp;&amp; subscriptions[detail.id].status === 'known'}}",
+        "data-id": "{{detail.id}}",
+        "bindtap": "onSubscription",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "edit",
+        "bindtap": "onNavigate",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCleanup",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{detail.allowedActions.createComment}}",
+        "bindtap": "onCompose",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "time",
+        "data-order": "desc",
+        "bindtap": "onSort",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "likes",
+        "data-order": "desc",
+        "bindtap": "onSort",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "thread",
+        "data-id": "{{item.id}}",
+        "bindtap": "onNavigate",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onCleanup",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMoreComments}}",
+        "bindtap": "onMoreComments",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{discussion.allowedActions.createReply}}",
+        "bindtap": "onCompose",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{discussion.root.id}}",
+        "bindtap": "onCleanup",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.allowedActions.reply}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onCompose",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onCleanup",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMoreReplies}}",
+        "bindtap": "onMoreReplies",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{name}}",
+        "bindinput": "onName",
+        "disabled": "{{busy || frozen}}",
+        "maxlength": "-1"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{description}}",
+        "bindinput": "onDescription",
+        "disabled": "{{busy || frozen}}",
+        "maxlength": "-1"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDefinitionConfirm",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDefinitionCommit",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDefinitionDismiss"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{minimumAverageInput}}",
+        "bindinput": "onMinimumAverage",
+        "type": "digit",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDraw",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRandomTarget",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-kind": "updates",
+        "bindtap": "onNoticeKind",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-kind": "like-updates",
+        "bindtap": "onNoticeKind",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-kind": "subscription-updates",
+        "bindtap": "onNoticeKind",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.noticeId}}",
+        "bindtap": "onNotice",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.noticeId}}",
+        "bindtap": "onDiscussionImageNotice",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMoreNotices}}",
+        "bindtap": "onMoreNotices",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmScore",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissScore"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{authorModes}}",
+        "wx:key": "*this",
+        "data-mode": "{{item}}",
+        "bindtap": "onAuthorMode",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{text}}",
+        "bindinput": "onText",
+        "disabled": "{{busy || frozen}}",
+        "maxlength": "-1"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPublish",
+        "disabled": "{{busy || frozen || !authorMode || !text}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseComposer"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "catalog",
+        "bindtap": "onSection",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "updates",
+        "bindtap": "onSection",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-mode": "subscriptions",
+        "bindtap": "onSection",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-recovery/rating-recovery"
+      }
+    }
+  ],
+  "pages/rating-random/rating-random.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onGlobal"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCampusPicker",
+        "disabled": "{{pickerOpen}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "type": "digit",
+        "value": "{{minimumAverageInput}}",
+        "bindinput": "onMinimumAverage"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDraw",
+        "loading": "{{busy &amp;&amp; !pickerOpen}}",
+        "disabled": "{{busy || pickerOpen}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{campusQuery}}",
+        "bindinput": "onCampusQuery"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{campusDistrict}}",
+        "bindinput": "onCampusDistrict"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSearchCampuses",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onChooseCampus",
+        "disabled": "{{busy || !item.isActive || !item.institutionId}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{hasPreviousCampuses}}",
+        "bindtap": "onPreviousCampuses",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{hasNextCampuses}}",
+        "bindtap": "onNextCampuses",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseCampusPicker"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onTarget",
+        "disabled": "{{busy}}"
+      }
+    }
+  ],
+  "pages/course-ratings/course-ratings.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/course-comments/course-comments"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{searchDraft}}",
+        "maxlength": "80",
+        "bindinput": "onSearchInput",
+        "bindconfirm": "onSearch",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "picker",
+      "attrs": {
+        "range": "{{departmentLabels}}",
+        "value": "{{departmentIndex}}",
+        "bindchange": "onDepartment",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{categoryDraft}}",
+        "maxlength": "80",
+        "bindinput": "onCategoryInput",
+        "bindconfirm": "onSearch",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "rating",
+        "bindtap": "onSort",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "time",
+        "bindtap": "onSort",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSearch",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onCourse",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canNext}}",
+        "bindtap": "onNext",
+        "disabled": "{{busy}}"
+      }
+    }
+  ],
+  "pages/course-rating-detail/course-rating-detail.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/course-comments/course-comments?courseId={{detail.course.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{scores}}",
+        "wx:key": "*this",
+        "data-axis": "gradeScore",
+        "data-score": "{{item}}",
+        "bindtap": "onScore",
+        "disabled": "{{busy || confirming}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{scores}}",
+        "wx:key": "*this",
+        "data-axis": "abilityScore",
+        "data-score": "{{item}}",
+        "bindtap": "onScore",
+        "disabled": "{{busy || confirming}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{scores}}",
+        "wx:key": "*this",
+        "data-axis": "overallScore",
+        "data-score": "{{item}}",
+        "bindtap": "onScore",
+        "disabled": "{{busy || confirming}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirm",
+        "disabled": "{{busy || !canSubmit || confirming}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSubmit",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/course-ratings/course-ratings"
+      }
+    }
+  ],
+  "pages/course-comments/course-comments.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{hasSession}}",
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancelWait"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRetry",
+        "disabled": "{{busy || confirming === 'cancel'}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRequestCancellation",
+        "disabled": "{{busy || confirming === 'cancel'}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmCancellation",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "likes",
+        "bindtap": "onSort",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "time",
+        "bindtap": "onSort",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onConfirmLike",
+        "disabled": "{{busy || frozen || confirming}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canNext}}",
+        "bindtap": "onNext",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{body}}",
+        "maxlength": "8000",
+        "bindinput": "onBody",
+        "disabled": "{{busy || confirming}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmPublish",
+        "disabled": "{{busy || !canPublish || confirming}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSubmit",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSubmit",
+        "disabled": "{{busy || frozen}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{courseId}}",
+        "url": "/pages/course-rating-detail/course-rating-detail?courseId={{courseId}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/course-ratings/course-ratings"
+      }
+    }
+  ],
+  "ratings/common.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRetry",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-category-manage/rating-category-manage?scope=global"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-category-create/rating-category-create"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/rating-scoped/rating-scoped?mode=recovery"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}",
+        "loading": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{id}}",
+        "bindtap": "onLike",
+        "disabled": "{{busy || frozen}}"
+      }
+    }
+  ],
+  "course-ratings/common.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{hasSession &amp;&amp; error === '请先完成手机号验证，再重新加载课程评分'}}",
+        "url": "/pages/phone-binding/phone-binding"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRetry",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}",
+        "loading": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      }
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+/* Page composition for native Framework7 v9.2.0 ports (MIT).
+ * List/Block/Button geometry lives in reusable components. These rules only
+ * arrange domain content; source tokens never replace owner state or guards.
+ * Copyright (c) 2014 Vladimir Kharlampidi. See docs/vendor/framework7-v9.2.0/LICENSE. */
+@import '../../design/framework7-ios.wxss';
+.f7-forms-screen {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 1px 0 calc(24px + env(safe-area-inset-bottom));
+  background: var(--f7-page-bg-color);
+  color: var(--f7-text-color);
+  font-size: var(--f7-font-size);
+  line-height: var(--f7-line-height);
+}
+.f7-forms-screen .toolbar,
+.f7-forms-screen .context-strip,
+.f7-forms-screen .row-top,
+.f7-forms-screen .row-actions,
+.f7-forms-screen .contact-row,
+.f7-forms-screen .pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.f7-forms-screen .toolbar {
+  min-height: 44px;
+}
+.f7-forms-screen .meta,
+.f7-forms-screen .scope-caption,
+.f7-forms-screen .status,
+.f7-forms-screen .notice,
+.f7-forms-screen .source-label,
+.f7-forms-screen .entry-labels,
+.f7-forms-screen .media-state,
+.f7-forms-screen .service-unavailable,
+.f7-forms-screen .setting-note {
+  color: var(--f7-block-footer-text-color);
+  font-size: var(--f7-block-footer-font-size);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.f7-forms-screen .status,
+.f7-forms-screen .notice,
+.f7-forms-screen .error {
+  margin: 8px 0;
+}
+.f7-forms-screen .error {
+  color: var(--f7-input-error-text-color, #ff3b30);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.f7-forms-screen .link,
+.f7-forms-screen .login-link,
+.f7-forms-screen .back-link,
+.f7-forms-screen .utility-row,
+.f7-forms-screen .setting-row,
+.f7-forms-screen .campus-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--f7-theme-color);
+  font-size: 15px;
+}
+.f7-forms-screen .utility-row text,
+.f7-forms-screen .setting-row text {
+  flex: 1;
+}
+.f7-forms-screen .empty,
+.f7-forms-screen .search-start {
+  padding: 24px 0;
+  text-align: center;
+}
+.f7-forms-screen .empty-title {
+  margin: 12px 0 6px;
+  font-size: var(--f7-block-title-font-size);
+  font-weight: var(--f7-block-title-font-weight);
+  color: var(--f7-block-title-text-color);
+}
+.f7-forms-screen .contact-value {
+  font-size: 20px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.f7-forms-screen .image-reader image {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  margin: 12px auto;
+}
+.f7-forms-screen .media-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}

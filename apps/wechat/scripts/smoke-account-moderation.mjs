@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse, render } from './smoke-ratings.mjs';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 export async function smokeAccountModeration({ dist }) {
   const emitted = (name) => require(path.join(dist, `${name}.js`));
@@ -139,9 +140,20 @@ export async function smokeAccountModeration({ dist }) {
   const flush = async () => {
     for (let i = 0; i < 200; i++) await Promise.resolve();
   };
-  const template = parse(
-    readFileSync(path.join(dist, 'account-moderation/screen.wxml'), 'utf8'),
-  ).children.find((n) => typeof n !== 'string' && n.tag === 'template');
+  function templatesFor(file, templates = {}) {
+    const tree = parse(readFileSync(file, 'utf8'));
+    for (const node of tree.children) {
+      if (typeof node === 'string') continue;
+      if (node.tag === 'import')
+        templatesFor(
+          path.resolve(path.dirname(file), node.attrs.src),
+          templates,
+        );
+      if (node.tag === 'template' && node.attrs.name)
+        templates[node.attrs.name] = node;
+    }
+    return templates;
+  }
   function mount(name, query = {}) {
     let page;
     globalThis.Page = (value) => {
@@ -164,9 +176,34 @@ export async function smokeAccountModeration({ dist }) {
     );
     const nodes = () =>
       flat(
-        render(tree.children, page.data, { 'account-moderation': template }),
+        render(
+          tree.children,
+          page.data,
+          templatesFor(path.join(dist, `pages/${name}/${name}.wxml`)),
+        ),
       );
+    const nativeOwner = [
+      'account-status',
+      'safety-appeal',
+      'safety-appeal-management',
+      'safety-punishment-management',
+    ].includes(name);
+    const nativePress = nativeOwner
+      ? createNativePressBridge({
+          page,
+          pageFile: path.join(dist, `pages/${name}/${name}`),
+          dist,
+        })
+      : null;
     const event = (handler, detail = {}, dataset = {}) => {
+      // Consumer and management presses use the actual registered Component.
+      // Native textarea events retain the original raw control boundary.
+      if (nativePress?.find(handler, dataset)) {
+        const capture = nativePress.capture(handler, dataset);
+        assert.equal(capture.press(), true, `Native consumer press ${handler}`);
+        capture.detach();
+        return;
+      }
       const n = nodes().find(
         (n) =>
           typeof n !== 'string' &&

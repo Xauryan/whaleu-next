@@ -9,7 +9,20 @@ test('Profile uses the shared recoverable system picker and leaves dedicated cho
   const page = source('pages/profile/profile.ts'),
     template = source('pages/profile/profile.wxml');
   assert.doesNotMatch(template, /open-type="chooseAvatar"|bindchooseavatar/);
-  assert.match(template, /bindtap="onChooseCustomAvatar"/);
+  const pickerButton = template.match(
+    /<wu-f7-button\b[^>]*bind:press="onChooseCustomAvatar"[^>]*>/,
+  )?.[0];
+  assert.ok(pickerButton);
+  assert.ok(
+    pickerButton.includes(
+      'disabled="{{!avatar.canChoose || avatar.busy || loading || saving || profileDirty || preferencesDirty}}"',
+    ),
+  );
+  assert.doesNotMatch(pickerButton, /data-/);
+  assert.match(
+    template,
+    /<wu-f7-block wx:if="{{showAvatarTools \|\| avatar.canSave \|\| avatar.needsRecovery \|\| avatar.busy \|\| avatar.error}}" class="card avatar-editor-tools"/,
+  );
   assert.match(page, /avatarController\?\.chooseCustomAvatar\(\)/);
   assert.match(template, /src="{{avatar\.previewSrc}}"/);
   assert.match(template, /src="{{avatarRead\.localSrc}}"/);

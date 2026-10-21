@@ -1,0 +1,9 @@
+<view class="f7-ios-theme f7-input {{focused ? 'f7-input-focused' : ''}} {{errorText ? 'f7-input-invalid' : ''}} {{disabled ? 'f7-input-disabled' : ''}}" catchtap="onConsumeTap">
+  <view wx:if="{{label}}" class="f7-input-label">{{label}}</view>
+  <view class="f7-input-wrap">
+    <input class="f7-input-control" value="{{value}}" type="{{nativeType}}" password="{{password}}" placeholder="{{placeholder}}" placeholder-class="f7-input-placeholder" maxlength="{{nativeMaxlength}}" disabled="{{disabled || readOnly}}" focus="{{focus && mounted && pageVisible && !disabled && !readOnly}}" confirm-type="{{nativeConfirmType}}" confirm-hold="{{confirmHold}}" adjust-position="{{adjustPosition}}" cursor-spacing="{{nativeCursorSpacing}}" selection-start="{{nativeSelectionStart}}" selection-end="{{nativeSelectionEnd}}" aria-label="{{(ariaLabel || label || placeholder || '输入') + ((errorText || description) ? '，' + (errorText || description) : '')}}" catchinput="onInput" catchfocus="onFocus" catchblur="onBlur" catchconfirm="onConfirm" />
+    <button wx:if="{{clearable && value && !disabled && !readOnly}}" class="f7-input-clear" aria-label="清空{{ariaLabel || label || placeholder || '输入'}}" hover-class="f7-input-clear-pressed" catchtap="onClear"><view class="f7-input-clear-icon" aria-hidden="true" /></button>
+  </view>
+  <view wx:if="{{errorText}}" class="f7-input-error">{{errorText}}</view>
+  <view wx:elif="{{description}}" class="f7-input-info">{{description}}</view>
+</view>

@@ -1,0 +1,23 @@
+<view class="f7-forms-screen f7-ios-theme settings-screen">
+  <wu-f7-block spacing="compact">
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{validationError}}" class="error" aria-role="alert">{{validationError}}</view>
+    <view wx:if="{{loading || saving || needsReload}}" class="status" aria-role="status">{{status}}</view>
+    <navigator wx:if="{{!hasSession &amp;&amp; !loading}}" class="setting-row" url="/pages/login/login">
+      登录后设置
+      <wu-icon name="chevron-right" size="15" tone="muted" />
+    </navigator>
+  </wu-f7-block>
+  <wu-f7-list wx:if="{{loaded}}" class="settings-group" spacing="compact" inset="{{true}}" strong="{{true}}">
+    <view wx:for="{{preferences}}" wx:key="key" class="preference-row">
+      <wu-f7-toggle id="{{item.key}}" checked="{{item.checked}}" data-key="{{item.key}}" disabled="{{loading || saving || needsReload}}" bind:change="onPreference" aria-label="{{item.label}}" label="{{item.label}}" />
+      <view wx:if="{{item.key === 'hideProfilePosts' || item.key === 'defaultAllowAnonymousDm' || item.key === 'activitySubscribed'}}" class="setting-note">{{item.hint}}</view>
+    </view>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact">
+    <wu-f7-button wx:if="{{preferencesDirty || saving}}" class="primary" loading="{{saving}}" disabled="{{!preferencesDirty || loading || saving || needsReload}}" bind:press="onSavePreferences" variant="fill">保存设置</wu-f7-button>
+    <wu-f7-button wx:if="{{preferencesDirty}}" class="secondary" disabled="{{loading || saving}}" bind:press="onCancelEdits" variant="tonal">取消修改</wu-f7-button>
+    <wu-f7-button wx:if="{{loading || saving}}" class="secondary" bind:press="onCancelOperation" variant="tonal">停止等待</wu-f7-button>
+    <wu-f7-button wx:if="{{!loading &amp;&amp; !saving &amp;&amp; (error || needsReload || !loaded)}}" class="secondary" bind:press="onReload" variant="tonal">重新加载</wu-f7-button>
+  </wu-f7-block>
+</view>

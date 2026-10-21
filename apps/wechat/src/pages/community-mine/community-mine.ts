@@ -10,8 +10,17 @@ import {
 } from '../../community/trading-contract';
 import type { WhaleuApp } from '../../app';
 import { MineController, initialMineView } from './controller';
+/** View-only date label. Original timestamps stay on the DTO for all actions. */
+function displayDate(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 Page({
   data: {
+    showTools: false,
     ownerVisibility: initialOwnerVisibilityView(),
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     ...initialMineView(),
@@ -54,6 +63,9 @@ Page({
   },
   controller: undefined as MineController | undefined,
   authorNavigator: undefined as AuthorNavigator | undefined,
+  onToggleTools() {
+    this.setData({ showTools: !this.data.showTools });
+  },
   onShow() {
     this.ownerVisibilityController?.dispose();
     this.ownerVisibilityController = undefined;
@@ -78,7 +90,13 @@ Page({
     );
     void this.ownerVisibilityController.load();
     this.controller = new MineController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        publications: view.publications.map((item) => ({
+          ...item,
+          publishedAtLabel: displayDate(item.publishedAt),
+        })),
+      }),
     );
     void this.controller.load();
   },

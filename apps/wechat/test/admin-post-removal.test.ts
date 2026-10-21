@@ -689,7 +689,7 @@ test('native page has explicit irreversible post/discussion confirmation and ano
   ])
     assert.match(page, new RegExp(`on${handler}\\(`));
   assert.match(page, /controller\?\.dispose/);
-  assert.match(wxml, /评论、回复将不可访问/);
+  assert.match(wxml, /此主题及其全部回复将不可访问/);
   assert.match(wxml, /私有系统通知/);
   assert.match(wxml, /没有恢复此帖的管理入口/);
   assert.match(wxml, /停止等待不会取消服务器处理/);
@@ -700,7 +700,7 @@ test('native page has explicit irreversible post/discussion confirmation and ano
   );
   const detail = source('pages/community-detail/community-detail.wxml');
   const entry = detail.match(
-    /<button[^>]*bindtap="onAdminPostRemoval"[^>]*>[^<]*<\/button>/,
+    /<wu-f7-button[^>]*bind:press="onAdminPostRemoval"[^>]*>[^<]*<\/wu-f7-button>/,
   )?.[0];
   assert.ok(entry);
   assert.match(entry, /!post.viewer.isSelf/);
@@ -708,7 +708,7 @@ test('native page has explicit irreversible post/discussion confirmation and ano
   assert.match(detail, /删除我的帖子/);
   assert.match(
     source('pages/community-mine/community-mine.wxml'),
-    /恢复本账号原管理员删帖请求/,
+    /bind:press="onToggleTools"[\s\S]*wx:if="\{\{showTools\}\}"[\s\S]*原管理请求恢复[\s\S]*url="\/pages\/admin-post-removal\/admin-post-removal">\s*<text>主题删除<\/text>/,
   );
 });
 

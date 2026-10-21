@@ -1,0 +1,20 @@
+<view class="management-page">
+  <view class="page-heading"><view class="section-label">本账号的管理提醒</view><button class="icon-button" bindtap="onReload" disabled="{{busy}}" loading="{{busy}}" aria-label="刷新反馈通知"><wu-icon name="refresh" tone="accent" size="22" /></button></view>
+  <view class="scope"><wu-icon name="shield" tone="muted" size="18" /><text>仅当前获授权的超级管理员可查看本账号提醒。打开反馈时会重新核验当前帖子权限。</text></view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{loaded}}" class="section-label">未读 {{unreadCount}} 条</view>
+  <button wx:if="{{busy}}" class="quiet" bindtap="onCancel">停止等待</button>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看本账号的提醒<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <view wx:for="{{items}}" wx:key="noticeId" class="case-row">
+    <view class="row-heading"><view class="section-title">收到一条公开反馈</view><view class="read-state"><text wx:if="{{!item.readAt}}" class="unread-dot"></text>{{item.readAt ? '已读' : '未读'}}</view></view>
+    <view class="meta">{{item.createdAt}}</view>
+    <view wx:if="{{item.available === false}}" class="notice">反馈当前不可查看；请刷新后重试</view>
+    <button class="secondary" data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy || item.available === false}}">查看反馈</button>
+    <button wx:if="{{!item.readAt}}" class="quiet" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy || item.available === false}}">标记此条已读</button>
+  </view>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty"><wu-icon name="bell" tone="muted" size="34" /><view class="section-title">暂无反馈通知</view><view class="notice">新的公开反馈提醒会显示在这里。</view></view>
+  <button wx:if="{{canLoadMore}}" class="quiet" bindtap="onMore" disabled="{{busy}}">加载更多反馈通知</button>
+  <button class="disclosure" bindtap="onToggleDetails" aria-expanded="{{detailsExpanded}}">关于反馈提醒<wu-icon name="{{detailsExpanded ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="18" /></button>
+  <view wx:if="{{detailsExpanded}}" class="notice">这里只是站内通知模拟，尚未接入微信订阅消息。通知不包含作者身份或原文快照；浏览列表和打开反馈不会自动标记已读。</view>
+</view>

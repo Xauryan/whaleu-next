@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "我的服务",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon",
+    "wu-f7-list": "../../components/f7-list/f7-list",
+    "wu-f7-list-item": "../../components/f7-list-item/f7-list-item"
+  }
+}

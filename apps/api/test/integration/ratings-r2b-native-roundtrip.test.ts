@@ -655,14 +655,6 @@ test(
             false,
             'Opening the source list only resolves a locator',
           );
-          recipient.transport.beforeSend = (sent) => {
-            if (sent.path.endsWith(`/${notice.noticeId}/read`))
-              assert.equal(
-                recipient.threadView().loaded,
-                true,
-                'The receiving page applied current content before mark-read',
-              );
-          };
           const route = Object.fromEntries(
             new URL(navigation, directoryNativeOrigin).searchParams,
           );
@@ -676,6 +668,18 @@ test(
             recipient.threadView().anchorReplyId,
             subject.reply?.id ?? '',
           );
+          assert.equal(
+            recipient.transport.sent
+              .slice(start)
+              .some((sent) => sent.method === 'PUT'),
+            false,
+            'Receiving current content does not acknowledge any notice',
+          );
+          assert.deepEqual(
+            await recipient.runtime.ratingLikeUpdates.unread(recipient.cancel),
+            { unreadCount: 1 },
+          );
+          await recipient.updates.acknowledge(notice.noticeId);
           const requests = recipient.transport.sent.slice(start);
           assert.ok(
             requests.some(

@@ -59,6 +59,11 @@ import {
   syntheticAssertion,
 } from '../support/verification-fixtures.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
+import {
+  assertPostCounts,
+  withoutPostCounts,
+  withoutReplyCount,
+} from '../support/named-read-count-contract.js';
 
 // The real native gateways/decoders/controllers connect over an actual HTTP
 // socket to Nest and real PostgreSQL. Only platform I/O, provider exchange and
@@ -854,17 +859,23 @@ test(
             clientFailure('http', 404, 'REPLY_NOT_FOUND'),
           );
           const counts: PostView = await a.community.post(postC, cancel);
-          assert.equal(counts.commentCount, 3);
-          assert.equal(counts.replyCount, 1);
-          assert.equal(counts.discussionCount, 4);
+          // Optional counts are all exact or all unavailable; list membership
+          // and direct-read authorization above remain mandatory either way.
+          assertPostCounts(counts, { comments: 3, replies: 1 });
           assert.deepEqual(
-            await a.community.post(anonymousB, cancel),
-            beforeAnonymous,
+            withoutPostCounts(await a.community.post(anonymousB, cancel), {
+              comments: 0,
+              replies: 0,
+            }),
+            withoutPostCounts(beforeAnonymous, { comments: 0, replies: 0 }),
             'Anonymous post projection is unchanged by hidden author pair',
           );
           assert.deepEqual(
-            await a.community.comment(rootAnonymousB, cancel),
-            beforeAnonRoot,
+            withoutReplyCount(
+              await a.community.comment(rootAnonymousB, cancel),
+              0,
+            ),
+            withoutReplyCount(beforeAnonRoot, 0),
             'Anonymous root projection is unchanged',
           );
           const saved: { items: { post: PostView }[] } =

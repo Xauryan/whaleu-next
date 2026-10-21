@@ -5,6 +5,10 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import type { Pool } from 'pg';
+import { APP_CONFIG } from '../../src/config/config.js';
+import { IdentityRepository } from '../../src/identity/identity.repository.js';
+import { hashToken } from '../../src/identity/tokens.js';
+import { INSTITUTIONAL_PROVIDER } from '../../src/verification/institutional/provider.js';
 import {
   institutionalSsoFixture,
   institutionalSyntheticTransition,
@@ -12,6 +16,7 @@ import {
 import {
   syntheticAssertion,
   insertSyntheticAssertion,
+  setSyntheticSnapshot,
 } from '../support/verification-fixtures.js';
 import { inTransaction } from '../../src/database/database.js';
 import {
@@ -67,8 +72,47 @@ test(
   async (t) => {
     const f = await institutionalSsoFixture({ maximumMigration: 145 });
     t.after(() => f.close());
-    const a = await f.actor(),
-      first = await f.prepare(a);
+    const historicalApp = f.app,
+      historicalHttp = historicalApp.getHttpServer(),
+      historicalIdentity = historicalApp.get(IdentityRepository),
+      historicalConfig = historicalApp.get(APP_CONFIG);
+    assert.equal(historicalApp.get(INSTITUTIONAL_PROVIDER), f.verifier);
+    const a = await f.actor();
+    assert.equal(f.historicalPrefix, 145);
+    assert.deepEqual(
+      (
+        await f.pool.query(
+          'SELECT (SELECT count(*)::int FROM whaleu_verification.account_heads WHERE account_id=$1) heads,(SELECT count(*)::int FROM whaleu_verification.native_enrollments WHERE account_id=$1) native_enrollments',
+          [a.accountId],
+        )
+      ).rows[0],
+      { heads: 0, native_enrollments: 0 },
+    );
+    // The historical actor has no implicit native enrollment. Only explicitly
+    // reconciled covered absence can enter the real SSO eligibility path;
+    // missing phone/application history remains unknown, not verified absence.
+    const absent = (kind: 'affiliation' | 'student_number') =>
+      syntheticAssertion(a.accountId, f.home.institutionId, kind, {
+        assertion_state: 'unverified',
+        method: 'reconciled_import',
+        issuer_institution_id: null,
+        source_issuer_institution_id: null,
+        origin_region_id: null,
+        student_number: null,
+        phone_binding_reference: null,
+        verified_at: null,
+        expiry_kind: 'policy_exempt',
+        expires_at: null,
+      });
+    const baseline = await setSyntheticSnapshot(
+      f.pool,
+      a.accountId,
+      [absent('affiliation'), absent('student_number')],
+      'none',
+      'missing',
+    );
+    assert.equal(baseline.revision, 1);
+    const first = await f.prepare(a);
     ok(
       await f.authorize(
         a,
@@ -77,6 +121,13 @@ test(
         await f.mint(a.accountId, first.command.requestId),
       ),
     );
+    const firstReceipt = await f.read(a, first.command.requestId);
+    ok(firstReceipt);
+    assert.equal(firstReceipt.body.state, 'completed');
+    assert.deepEqual(firstReceipt.body.changedFacts, [
+      'affiliation',
+      'student_number',
+    ]);
     const prepared = await f.prepare(a),
       before = await state(f.pool, a.accountId);
     const requestBefore = (
@@ -161,15 +212,68 @@ test(
       ).rows[0].row,
       requestBefore,
     );
+    // A historical owner must still refuse the upgraded schema. Its public
+    // endpoint translates that exact-prefix assertion to ordinary unavailable.
+    await assert.rejects(
+      historicalIdentity.authenticate(hashToken(a.accessToken)),
+      /Historical Identity cannot cross an upgrade/,
+    );
+    const opaque = await f.mint(a.accountId, prepared.command.requestId),
+      providerCalls = f.transport.calls,
+      returnedPayloads = f.transport.returnedPayloads;
+    const refused = await f.authorize(
+      a,
+      prepared.command.requestId,
+      prepared.hash,
+      opaque,
+    );
+    assert.equal(refused.status, 503, JSON.stringify(refused.body));
+    assert.equal(refused.body.error.code, 'INSTITUTIONAL_SSO_UNAVAILABLE');
+    assert.equal(f.transport.calls, providerCalls);
+    assert.equal(f.transport.returnedPayloads, returnedPayloads);
+    assert.deepEqual(
+      (
+        await f.pool.query(
+          'SELECT to_jsonb(q) row FROM whaleu_verification.institutional_requests q WHERE account_id=$1 AND request_id=$2',
+          [a.accountId, prepared.command.requestId],
+        )
+      ).rows[0].row,
+      requestBefore,
+    );
+    // Rebuild, rather than teaching the retained historical owner a new prefix.
+    // The same synthetic verifier retains the already-enrolled opaque response.
+    await f.restartApp();
+    assert.equal(f.historicalPrefix, undefined);
+    assert.notEqual(f.app, historicalApp);
+    assert.notEqual(f.app.getHttpServer(), historicalHttp);
+    assert.equal(historicalHttp.listening, false);
+    assert.equal(f.app.getHttpServer().listening, true);
+    assert.notEqual(f.app.get(IdentityRepository), historicalIdentity);
+    assert.ok(f.app.get(IdentityRepository) instanceof IdentityRepository);
+    assert.equal(f.app.get(INSTITUTIONAL_PROVIDER), f.verifier);
+    assert.deepEqual(f.app.get(APP_CONFIG), historicalConfig);
     const completed = await f.authorize(
       a,
       prepared.command.requestId,
       prepared.hash,
-      await f.mint(a.accountId, prepared.command.requestId),
+      opaque,
     );
     ok(completed);
     assert.equal(completed.body.state, 'completed');
     assert.deepEqual(completed.body.changedFacts, []);
+    assert.equal(completed.body.requestId, prepared.command.requestId);
+    assert.equal(completed.body.requestHash, prepared.hash);
+    assert.equal(f.transport.calls, providerCalls + 1);
+    assert.equal(f.transport.returnedPayloads, returnedPayloads + 1);
+    assert.equal(
+      (
+        await f.pool.query(
+          'SELECT session_id FROM whaleu_verification.institutional_requests WHERE account_id=$1 AND request_id=$2',
+          [a.accountId, prepared.command.requestId],
+        )
+      ).rows[0].session_id,
+      a.sessionId,
+    );
   },
 );
 

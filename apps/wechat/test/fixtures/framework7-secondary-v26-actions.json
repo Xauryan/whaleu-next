@@ -1,0 +1,546 @@
+{
+  "campus-tools": {
+    "sourceSha256": "0e4916520e30f13263661f5dbe337c44797eda8004cf4b61c9fbab79527b20ba",
+    "typescriptSha256": "a4c7f1ea2885b146f196ec6955396e2c09f23838598f73660ea0adfbc48c7612",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onChooseCampus",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "aria-label": "刷新当前资料",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onContinueGuest"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{query}}",
+          "placeholder": "搜索校园名称",
+          "maxlength": "100",
+          "bindinput": "onQuery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{choosing}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{choosing}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onSelectCampus",
+          "disabled": "{{busy || !item.isActive}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{choosing}}"
+          },
+          {
+            "wx:for": "{{campuses}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPrevious",
+          "disabled": "{{busy || !hasPrevious}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{choosing}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onNext",
+          "disabled": "{{busy || !hasNext}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{choosing}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy || item.state !== 'enabled'}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{entries}}",
+            "wx:key": "id"
+          }
+        ]
+      }
+    ]
+  },
+  "directory-hub": {
+    "sourceSha256": "7400195816b67ac0d5bf4844b9639c6f6644975795714f4c03b9b2ec12d02d1b",
+    "typescriptSha256": "b6fe6f5a012bf5a832c74c9fa3f231da5bd87a700ec4541f00027c2f4084b775",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{loaded}}",
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{directoryKinds}}",
+          "wx:key": "*this",
+          "data-kind": "{{item}}",
+          "bindtap": "onKind"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{directoryKinds}}",
+            "wx:key": "*this"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/identity-campus/identity-campus"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "aria-label": "{{restartRequired ? '重新加载目录' : '刷新当前类型'}}",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{categories}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCategory",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPrevious",
+          "disabled": "{{busy || !canPrevious}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onNext",
+          "disabled": "{{busy || !canNext}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/major-directory/major-directory"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/rating-scoped/rating-scoped?mode=catalog&scope=global"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/organizations/organizations"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleInfo"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "directory-list": {
+    "sourceSha256": "e1a1ac9a44442a878ff53d86fb9361de67b092dc181d1576916f7f8243e3a966",
+    "typescriptSha256": "3dd9b942c79ef621df430387bb6714f4faac9c1222ad200a78af4e5829c916ca",
+    "actions": [
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{inputDraft}}",
+          "bindinput": "onInput",
+          "bindconfirm": "onSubmit",
+          "confirm-type": "search",
+          "maxlength": "200",
+          "placeholder": "搜索{{directoryKindLabels[kind]}}名称"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{!configured || !hasSession}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClear"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "aria-label": "{{restartRequired ? '重新加载首批结果' : '刷新目录结果'}}",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{entries}}",
+          "wx:key": "id",
+          "bindtap": "onEntry",
+          "data-id": "{{item.id}}",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{entries}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPrevious",
+          "disabled": "{{busy || !canPrevious}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onNext",
+          "disabled": "{{busy || !canNext}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "aria-label": "刷新本平台组织",
+          "bindtap": "onNativeRefresh",
+          "disabled": "{{nativeDirectory.busy}}",
+          "loading": "{{nativeDirectory.busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{nativeDirectory.items}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onNativeEntry"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{nativeDirectory.items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{nativeDirectory.more}}",
+          "bindtap": "onNativeMore",
+          "disabled": "{{nativeDirectory.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{nativeDirectory.more}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/identity-campus/identity-campus"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleInfo"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/directory-hub/directory-hub?kind={{kind}}"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "browsing-history": {
+    "sourceSha256": "1917f2bbc1d108fd6ba981b7948ed7fba5389381a45f72052715ffc593979dc2",
+    "typescriptSha256": "fa8b03642acafd83e4645536b40b437612d5f50bb68fb353f448b9dac9a1fb15",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}",
+          "aria-label": "刷新浏览记录"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestClear",
+          "disabled": "{{busy || !hasSession}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{items}}",
+          "wx:key": "postId",
+          "data-id": "{{item.postId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "postId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canPrevious}}",
+          "bindtap": "onPrevious",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canPrevious}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canMore}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissClear"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmClear}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmClear"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmClear}}"
+          }
+        ]
+      }
+    ]
+  }
+}

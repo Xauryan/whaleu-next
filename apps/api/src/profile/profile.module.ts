@@ -1,3 +1,13 @@
+import { ProfileCoverReviewFacade } from '../community/content-review/profile-cover-review.facade.js';
+import { ProfileCoverService, PROFILE_COVER_RUNTIME } from './cover/service.js';
+import type { ProfileCoverRuntime } from './cover/service.js';
+import { ProfileCoverUploadApplication } from './cover/upload-application.js';
+import { ProfileCoverDelivery } from './cover/delivery.js';
+import {
+  ProfileCoverOwnedController,
+  ProfileCoverPublicController,
+  ProfileCoverMultipartInterceptor,
+} from './cover/controller.js';
 import { hashToken } from '../identity/tokens.js';
 import { MediaDeliveryBudgetModule } from '../media/delivery-budget.module.js';
 import { MediaDeliveryBudgetPool } from '../media/delivery-budget.js';
@@ -116,10 +126,58 @@ export class ProfileController {
   ],
   controllers: [
     ProfileController,
+    ProfileCoverOwnedController,
+    ProfileCoverPublicController,
     ProfileAvatarOwnedController,
     ProfileAvatarPublicController,
   ],
   providers: [
+    { provide: PROFILE_COVER_RUNTIME, useValue: null },
+    {
+      provide: ProfileCoverService,
+      inject: [
+        DatabaseService,
+        IdentityService,
+        ProfileRepository,
+        ProfileVisibilityFacade,
+        ProfileAvatarSafetyFacade,
+        PROFILE_COVER_RUNTIME,
+        ProfileCoverReviewFacade,
+      ],
+      useFactory: (
+        database: DatabaseService,
+        identity: IdentityService,
+        profiles: ProfileRepository,
+        safety: ProfileVisibilityFacade,
+        actorSafety: ProfileAvatarSafetyFacade,
+        runtime: ProfileCoverRuntime | null,
+        reviews: ProfileCoverReviewFacade,
+      ) =>
+        new ProfileCoverService(
+          database,
+          identity,
+          profiles,
+          safety,
+          actorSafety,
+          runtime,
+          reviews,
+        ),
+    },
+    {
+      provide: ProfileCoverUploadApplication,
+      inject: [ProfileCoverService],
+      useFactory: (owner: ProfileCoverService) =>
+        new ProfileCoverUploadApplication(owner),
+    },
+    {
+      provide: ProfileCoverDelivery,
+      inject: [ProfileCoverService, MediaDeliveryBudgetPool],
+      useFactory: (
+        owner: ProfileCoverService,
+        budget: MediaDeliveryBudgetPool,
+      ) => new ProfileCoverDelivery(owner, budget),
+    },
+    ProfileCoverMultipartInterceptor,
     { provide: PROFILE_AVATAR_RUNTIME, useValue: null },
     {
       provide: ProfileAvatarService,
@@ -174,6 +232,9 @@ export class ProfileController {
     ProfileAdminParticipantFacade,
   ],
   exports: [
+    ProfileCoverService,
+    ProfileCoverUploadApplication,
+    PROFILE_COVER_RUNTIME,
     ProfileRepository,
     ProfileAvatarService,
     ProfileAvatarUploadApplication,

@@ -1,0 +1,317 @@
+import { AccountPolicy } from '../../safety/account-policy/decorator.js';
+import { batchCategoryChildContextAllowed } from '../category-reclassification/child-context.js';
+import { resolvePostCategories } from '../category-reclassification/read-proof.js';
+import { currentCategoryCursorScope } from '../current-category-cursor.js';
+import { Inject, Injectable } from '@nestjs/common';
+import { z } from 'zod';
+import {
+  DiscoveryCursorRepository,
+  discoveryCursorBucket,
+} from '../discovery-cursors.js';
+import { DISCOVERY_SCAN_BATCH } from '../profile-discovery.facade.js';
+import type { PoolClient } from 'pg';
+import { ApplicationError } from '../../http/application-error.js';
+import { IdentityService } from '../../identity/identity.service.js';
+import { lockSafetyPolicy } from '../../safety/locks.js';
+import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
+import { CommunityAccessService } from '../community-access.service.js';
+import { CommunitySerializer } from '../community-serialization.js';
+import { CommunityRepository } from '../community.repository.js';
+import type {
+  StoredComment,
+  StoredPost,
+  StoredReply,
+} from '../community.repository.js';
+import type { PublicationPage, PublicationPageQuery } from './contracts.js';
+import {
+  comparePublicationAnchors,
+  publicationCursorScope,
+  publicationAnchorSchema,
+} from './cursor.js';
+import type { PublicationAnchor } from './cursor.js';
+import { PublicationHistoryRepository } from './repository.js';
+import type { PublicationCandidate } from './repository.js';
+
+const positionSchema = z.strictObject({
+  v: z.literal(1),
+  kind: z.literal('publication'),
+  after: publicationAnchorSchema,
+  visible: publicationAnchorSchema.nullable(),
+});
+const candidateAnchor = (item: PublicationCandidate): PublicationAnchor => ({
+  targetKind: item.kind,
+  at: item.published_at.toISOString(),
+  id: item.record_id,
+});
+@Injectable()
+export class PublicationHistoryService {
+  constructor(
+    @Inject(CommunityRepository)
+    private readonly community: CommunityRepository,
+    @Inject(CommunityAccessService)
+    private readonly access: CommunityAccessService,
+    @Inject(CommunitySerializer)
+    private readonly serializer: CommunitySerializer,
+    @Inject(IdentityService) private readonly identity: IdentityService,
+    @Inject(PublicationHistoryRepository)
+    private readonly publications: PublicationHistoryRepository,
+    @Inject(DiscoveryCursorRepository)
+    private readonly cursors: DiscoveryCursorRepository,
+  ) {}
+
+  private async lockedContent(
+    candidates: PublicationCandidate[],
+    tx: PoolClient,
+  ) {
+    const posts = new Map<string, StoredPost>();
+    const roots = new Map<string, StoredComment>();
+    const replies = new Map<string, StoredReply>();
+    // Acquire every parent before roots, then every exact reply. No row-locking
+    // like candidate query or nested per-candidate parent acquisition is allowed.
+    for (const id of [
+      ...new Set(candidates.map((item) => item.post_id)),
+    ].sort())
+      posts.set(id, await this.community.post(id, tx));
+    for (const id of [
+      ...new Set(
+        candidates.flatMap((item) =>
+          item.root_comment_id ? [item.root_comment_id] : [],
+        ),
+      ),
+    ].sort())
+      roots.set(id, await this.community.comment(id, tx, true));
+    for (const id of [
+      ...new Set(
+        candidates
+          .filter((item) => item.kind === 'reply')
+          .map((item) => item.target_id),
+      ),
+    ].sort())
+      replies.set(id, await this.community.reply(id, tx, true));
+    await resolvePostCategories([...posts.keys()], tx);
+    await batchCategoryChildContextAllowed(
+      [
+        ...[...roots.values()].map((row) => ({
+          kind: 'comment' as const,
+          id: row.id,
+          postId: row.post_id,
+        })),
+        ...[...replies.values()].map((row) => ({
+          kind: 'reply' as const,
+          id: row.id,
+          postId: row.post_id,
+        })),
+      ],
+      tx,
+    );
+    return { posts, roots, replies };
+  }
+
+  @AccountPolicy('browse', 'entry')
+  list(token: string, query: PublicationPageQuery): Promise<PublicationPage> {
+    return this.community.database.transaction(
+      async (tx) => {
+        await lockSafetyPolicy(tx);
+        enableSafetyRelationshipProof(tx);
+        const session = await this.identity.session(token, tx);
+        const actor = session.accountId;
+        const scope = await currentCategoryCursorScope(
+          publicationCursorScope(
+            actor,
+            session.sessionId,
+            query.limit,
+            query.kind,
+            query.identity,
+          ),
+          tx,
+        );
+        const position = query.cursor
+          ? await this.cursors.get(query.cursor, scope, tx, (value) =>
+              positionSchema.parse(value),
+            )
+          : null;
+        const seek = position?.after ?? null;
+        const guard = position?.visible ?? null;
+        if (guard && seek && comparePublicationAnchors(seek, guard) < 0)
+          throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+        const candidates = await this.publications.candidates(
+          actor,
+          query,
+          seek,
+          DISCOVERY_SCAN_BATCH + 1,
+          tx,
+        );
+        const guardCandidate = guard
+          ? await this.publications.guard(actor, query, guard, tx)
+          : null;
+        if (guard && !guardCandidate)
+          throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+        const { posts, roots, replies } = await this.lockedContent(
+          [...candidates, ...(guardCandidate ? [guardCandidate] : [])],
+          tx,
+        );
+        const finalCandidates = await this.publications.candidates(
+          actor,
+          query,
+          seek,
+          DISCOVERY_SCAN_BATCH + 1,
+          tx,
+        );
+        const keys = new Set(
+          candidates.map((item) => `${item.kind}:${item.target_id}`),
+        );
+        if (
+          finalCandidates.some(
+            (item) => !keys.has(`${item.kind}:${item.target_id}`),
+          )
+        )
+          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+        const postVisibility = new Map<string, boolean>();
+        const rootVisibility = new Map<string, boolean>();
+        const visible = async (candidate: PublicationCandidate) => {
+          // Re-read the exact current record only AFTER its full parent chain is
+          // locked. A concurrent owner deletion or author-mode change must never return the stale ID.
+          const current = await this.publications.current(
+            actor,
+            query,
+            candidate,
+            tx,
+          );
+          if (!current) return null;
+          const post = posts.get(candidate.post_id)!;
+          if (!postVisibility.has(post.id)) {
+            try {
+              await this.access.projectionPost(post.id, actor, tx);
+              postVisibility.set(post.id, true);
+            } catch (error) {
+              if (
+                !(error instanceof ApplicationError) ||
+                error.code !== 'POST_NOT_FOUND'
+              )
+                throw error;
+              postVisibility.set(post.id, false);
+            }
+          }
+          if (!postVisibility.get(post.id)) return null;
+          let target: StoredPost | StoredComment = post;
+          if (candidate.root_comment_id) {
+            const root = roots.get(candidate.root_comment_id)!;
+            if (root.post_id !== post.id)
+              throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            if (!rootVisibility.has(root.id))
+              rootVisibility.set(
+                root.id,
+                await this.access.visible(actor, root, tx, 'direct_post'),
+              );
+            if (!rootVisibility.get(root.id)) return null;
+            target = root;
+          }
+          if (candidate.kind === 'reply') {
+            const reply = replies.get(candidate.target_id)!;
+            if (
+              reply.post_id !== post.id ||
+              reply.root_comment_id !== candidate.root_comment_id
+            )
+              throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+            if (!(await this.access.visible(actor, reply, tx, 'direct_post')))
+              return null;
+            target = reply;
+          }
+          if (
+            target.account_id !== actor ||
+            target.author_mode !== query.identity
+          )
+            return null;
+          return {
+            candidate,
+            post,
+            target,
+            anchor: {
+              targetKind: candidate.kind,
+              at: current.published_at.toISOString(),
+              id: current.record_id,
+            },
+          };
+        };
+        if (guard && guardCandidate) {
+          const current = await visible(guardCandidate);
+          if (
+            !current ||
+            comparePublicationAnchors(current.anchor, guard) !== 0
+          )
+            throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+        }
+        const items: PublicationPage['items'] = [];
+        let consumed = 0;
+        let lastVisible = guard;
+        for (const candidate of finalCandidates.slice(
+          0,
+          DISCOVERY_SCAN_BATCH,
+        )) {
+          consumed++;
+          const entry = await visible(candidate);
+          if (!entry) continue;
+          const { post, target, anchor } = entry;
+          if (
+            comparePublicationAnchors(anchor, candidateAnchor(candidate)) !== 0
+          )
+            throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          items.push({
+            kind: candidate.kind,
+            targetId: target.id,
+            postId: post.id,
+            rootCommentId: candidate.root_comment_id,
+            createdAt: anchor.at,
+            preview: {
+              text: target.text,
+              images: await this.serializer.images(
+                candidate.kind,
+                target.id,
+                tx,
+                actor,
+              ),
+              author: await this.serializer.author(target, post, tx),
+              createdAt: ('published_at' in target
+                ? target.published_at
+                : target.created_at
+              ).toISOString(),
+              isSelf: true,
+            },
+          });
+          lastVisible = anchor;
+          if (items.length === query.limit) break;
+        }
+        const exhausted = consumed === finalCandidates.length;
+        const next = exhausted
+          ? null
+          : candidateAnchor(finalCandidates[consumed - 1]!);
+        if (next && seek && comparePublicationAnchors(next, seek) <= 0)
+          throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
+        await this.identity.session(token, tx);
+        const result: PublicationPage = {
+          items,
+          continuation: exhausted
+            ? 'end'
+            : items.length === query.limit
+              ? 'more'
+              : 'scan_pending',
+          nextCursor: next
+            ? await this.cursors.create(
+                scope,
+                discoveryCursorBucket(actor),
+                {
+                  v: 1,
+                  kind: 'publication',
+                  after: next,
+                  visible: lastVisible,
+                },
+                tx,
+              )
+            : null,
+        };
+        return result;
+      },
+      { isolationLevel: 'read committed' },
+    );
+  }
+}

@@ -1,3 +1,4 @@
+import { countsAfterRootDeletion } from '../../community/discussion-counts';
 import {
   checkDiscussionPrivacy,
   type Reply,
@@ -183,7 +184,7 @@ export class DetailController extends CommunityController<DetailView> {
           pageNumber: pageIndex + 1,
           loaded: true,
           needsReload: false,
-          status: '已加载帖子与评论',
+          status: '已加载帖子与回复',
         });
         this.onPost(result.post, readGeneration);
       },
@@ -341,32 +342,19 @@ export class DetailController extends CommunityController<DetailView> {
             post: this.view.post
               ? {
                   ...this.view.post,
-                  commentCount: Math.max(0, this.view.post.commentCount - 1),
-                  replyCount: Math.max(
-                    0,
-                    this.view.post.replyCount -
-                      ([
-                        ...this.view.comments,
-                        ...(this.view.locatedComment
-                          ? [this.view.locatedComment]
-                          : []),
-                      ].find((item) => item.id === target.id)?.replyCount ?? 0),
-                  ),
-                  discussionCount: Math.max(
-                    0,
-                    this.view.post.discussionCount -
-                      1 -
-                      ([
-                        ...this.view.comments,
-                        ...(this.view.locatedComment
-                          ? [this.view.locatedComment]
-                          : []),
-                      ].find((item) => item.id === target.id)?.replyCount ?? 0),
+                  ...countsAfterRootDeletion(
+                    this.view.post,
+                    [
+                      ...this.view.comments,
+                      ...(this.view.locatedComment
+                        ? [this.view.locatedComment]
+                        : []),
+                    ].find((item) => item.id === target.id)?.replyCount,
                   ),
                 }
               : null,
             deleteTarget: null,
-            status: '评论已删除',
+            status: '回复已删除',
           });
         }
       },

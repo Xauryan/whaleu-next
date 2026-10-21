@@ -1,3 +1,8 @@
+import {
+  pressRecoveryControl,
+  inputRecoveryControl,
+  readRecoveryDependency,
+} from '../test/framework7-rating-recovery-native-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -14,6 +19,17 @@ export async function smokeRatingOwnerEditing({
   extension = 'js',
 }) {
   const module = (name) => require(path.join(dist, `${name}.${extension}`));
+  const eventOptions = (page) => ({
+    page,
+    dist,
+    extension,
+    pageFile: path.join(dist, 'pages/target-owner-edit/target-owner-edit'),
+  });
+  const press = (page, handler, dataset = {}) =>
+    pressRecoveryControl(eventOptions(page), handler, dataset);
+  const nativeInput = (page, handler, value, dataset = {}) =>
+    inputRecoveryControl(eventOptions(page), handler, value, dataset);
+
   const { ApiClient } = module('api/client');
   const { WechatTransport } = module('platform/wechat');
   const { createCommunityRuntime } = module('community/runtime');
@@ -221,9 +237,9 @@ export async function smokeRatingOwnerEditing({
     path.join(dist, 'pages/target-owner-edit/target-owner-edit.wxml'),
     'utf8',
   );
-  const commonSource = readFileSync(
-    path.join(dist, 'ratings/common.wxml'),
-    'utf8',
+  const commonSource = readRecoveryDependency(
+    path.join(dist, 'pages/target-owner-edit/target-owner-edit'),
+    dist,
   );
   const templates = Object.fromEntries(
     parse(commonSource)
@@ -256,7 +272,7 @@ export async function smokeRatingOwnerEditing({
       ,
       handler,
     ] of `${source}${commonSource.split('<template name="rating-like">')[0]}`.matchAll(
-      /bind(?:tap|input)="([^"]+)"/g,
+      /bind(?::press|:input|tap|input)="([^"]+)"/g,
     ))
       assert.equal(
         typeof page[handler],
@@ -269,7 +285,7 @@ export async function smokeRatingOwnerEditing({
     return page;
   };
   const fill = (page) => {
-    page.onName({ detail: { value: `  ${payload.name}  ` } });
+    nativeInput(page, 'onName', `  ${payload.name}  `);
     page.onDescription({ detail: { value: `  ${payload.description}  ` } });
   };
   const seed = () =>
@@ -298,14 +314,14 @@ export async function smokeRatingOwnerEditing({
         path.join(dist, 'pages/rating-detail/rating-detail.wxml'),
         'utf8',
       ),
-      /bindtap="onOwnerEditing"/,
+      /bind:press="onOwnerEditing"/,
     );
     assert.match(
       readFileSync(
         path.join(dist, 'pages/rating-detail/rating-detail.wxml'),
         'utf8',
       ),
-      /bindtap="onOwnerDeletion"/,
+      /bind:press="onOwnerDeletion"/,
     );
     assert.match(
       readFileSync(
@@ -324,13 +340,13 @@ export async function smokeRatingOwnerEditing({
     await flush();
     assert.equal(requests.length, 1);
     fill(page);
-    page.onEdit();
+    press(page, 'onEdit');
     assert.match(visible(page), /已有评分和互动历史会保留/);
-    page.onDismissEdit();
+    press(page, 'onDismissEdit');
     assert.equal(page.data.editConfirmation, false);
     state.losePrepare = true;
-    page.onEdit();
-    page.onConfirmEdit();
+    press(page, 'onEdit');
+    press(page, 'onConfirmEdit');
     page.onConfirmEdit();
     await flush();
     assert.equal(requests.filter((r) => r.path.endsWith('/prepare')).length, 1);
@@ -349,7 +365,7 @@ export async function smokeRatingOwnerEditing({
     state.losePrepare = false;
     state.loseCommit = true;
     state.hideReceipt = true;
-    reopened.onRetry();
+    press(reopened, 'onRetry');
     await flush();
     assert.equal(state.writes, 1);
     assert.deepEqual(journal(), originalJournal);
@@ -358,7 +374,7 @@ export async function smokeRatingOwnerEditing({
     const recovery = mount(null);
     await flush();
     assert.deepEqual(journal(), originalJournal);
-    recovery.onRetry();
+    press(recovery, 'onRetry');
     await flush();
     assert.equal(state.writes, 1);
     const prepares = requests.filter((r) => r.path.endsWith('/prepare'));
@@ -368,7 +384,7 @@ export async function smokeRatingOwnerEditing({
     assert.deepEqual(commits[0].body, commits[1].body);
     state.loseCommit = false;
     state.hideReceipt = false;
-    recovery.onRecover();
+    press(recovery, 'onRecover');
     await flush();
     assert.equal(journal(), null);
     assert.match(recovery.data.receiptStatus, /历史操作/);

@@ -1,12 +1,31 @@
-<view class="page">
-  <view class="title">{{entry ? entry.title : '校园工具'}}</view>
-  <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <view wx:if="{{authRecovery}}" class="card"><navigator url="/pages/login/login">重新登录</navigator><button bindtap="onContinueGuest">明确以访客继续</button></view>
-  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新当前工具</button>
-  <view wx:if="{{externalHost}}" class="hint">外部目标：{{externalHost}}</view>
+<view class="tools-page tools-webview-page f7-ios-theme f7-campus-tool-screen">
+  <wu-f7-block spacing="compact">
+  <view wx:if="{{entry &amp;&amp; entry.title !== '校园外部工具'}}" class="tool-entry-title">{{entry.title}}</view>
+  <view wx:if="{{!webviewSrc}}" class="webview-state">
+    <view class="webview-symbol" aria-hidden="true"><wu-icon name="{{busy || state === 'enabled' ? 'clock' : 'campus'}}" size="36" /></view>
+    <view class="webview-state-title">{{busy || state === 'enabled' ? '正在连接' : state === 'webview_unconfigured' ? '暂未开放访问' : state === 'disabled' ? '此工具已停用' : state === 'withdrawn' ? '此工具已撤回' : '暂时无法打开'}}</view>
+    <view wx:if="{{status &amp;&amp; status !== '当前已确认的工具资料'}}" class="tool-status" aria-role="status">{{state === 'webview_unconfigured' ? '此工具暂不支持在小程序内打开。' : status}}</view>
+  </view>
+  <view wx:if="{{error}}" class="tool-error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{authRecovery}}" class="tool-recovery">
+    <navigator class="tool-primary" url="/pages/login/login">重新登录</navigator>
+    <wu-f7-button class="tool-text-button" bind:press="onContinueGuest">以访客继续</wu-f7-button>
+  </view>
+  </wu-f7-block>
+  <view wx:if="{{externalHost}}" class="webview-host"><wu-icon name="lock" size="15" /><text>{{externalHost}}</text></view>
   <web-view wx:if="{{webviewSrc}}" src="{{webviewSrc}}" data-source="{{webviewSrc}}" data-view-id="{{webviewViewId}}" bindload="onWebviewLoad" binderror="onWebviewError" bindmessage="onWebviewMessage" />
-  <view wx:if="{{provenance}}" class="hint">资料维护：{{provenance.maintainer}} · {{provenance.attribution}}<view>发布时间：{{provenance.publishedAt}}</view><view wx:if="{{provenance.validity.kind === 'finite'}}">有效期至：{{provenance.validity.expiresAt}}</view></view>
-  <button bindtap="onBack">返回</button>
-  <navigator class="link" url="/pages/campus-tools/campus-tools" open-type="reLaunch">返回校园工具首页</navigator>
+  <wu-f7-block spacing="compact">
+  <view class="tool-source-footer">
+  <view wx:if="{{provenance}}" class="tool-source">
+    <view>{{provenance.maintainer}} · {{provenance.attribution}}</view>
+    <view>发布于 {{provenance.publishedAt}}</view>
+    <view wx:if="{{provenance.validity.kind === 'finite'}}">有效期至 {{provenance.validity.expiresAt}}</view>
+  </view>
+    <wu-f7-button class="tool-icon-button" aria-label="刷新当前工具" bind:press="onRefresh" disabled="{{busy}}" loading="{{busy}}"><wu-icon name="refresh" size="20" /></wu-f7-button>
+  </view>
+  <view class="tool-navigation">
+    <wu-f7-button class="tool-text-button" bind:press="onBack">返回上一页</wu-f7-button>
+    <navigator class="tool-home" url="/pages/campus-tools/campus-tools" open-type="reLaunch">全部校园工具<wu-icon name="chevron-right" tone="accent" size="13" /></navigator>
+  </view>
+  </wu-f7-block>
 </view>

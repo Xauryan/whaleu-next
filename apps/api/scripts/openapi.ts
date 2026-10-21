@@ -1,3 +1,9 @@
+import { writeContentReferencesOpenApi } from './content-references-openapi-document.js';
+import { writeSocialUpdatesOpenApi } from './social-updates-openapi-document.js';
+import { writePersonalTimetableOpenApi } from './personal-timetable-openapi-document.js';
+import { writeOwnerPublicationsOpenApi } from './owner-publications-openapi-document.js';
+import { writeProfileCoverOpenApi } from './profile-cover-openapi-document.js';
+import { writeProfileDetailsOpenApi } from './profile-details-openapi-document.js';
 import { writeRatingGroupPromotionOpenApi } from './rating-group-promotion-openapi-document.js';
 import { writeInstitutionalSsoOpenApi } from './institutional-sso-openapi-document.js';
 import { writeOfficialAccountOpenApi } from './official-account-openapi-document.js';
@@ -358,3 +364,15 @@ await writeInstitutionalSsoOpenApi(args[0] === '--check');
 await writeOfficialAccountOpenApi(args[0] === '--check');
 
 await writeRatingGroupPromotionOpenApi(args[0] === '--check');
+
+await writeProfileDetailsOpenApi(args[0] === '--check');
+
+await writeProfileCoverOpenApi(args[0] === '--check');
+
+await writeOwnerPublicationsOpenApi(args[0] === '--check');
+
+await writePersonalTimetableOpenApi(args[0] === '--check');
+
+await writeSocialUpdatesOpenApi(args[0] === '--check');
+
+await writeContentReferencesOpenApi(args[0] === '--check');

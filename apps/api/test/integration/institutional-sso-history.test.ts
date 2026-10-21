@@ -7,6 +7,7 @@ import { schoolUidFixture } from '../support/school-uid-fixture.js';
 import {
   syntheticAssertion,
   insertSyntheticAssertion,
+  setSyntheticSnapshot,
 } from '../support/verification-fixtures.js';
 import { institutionalSyntheticTransition } from '../support/institutional-sso-fixture.js';
 import { inTransaction } from '../../src/database/database.js';
@@ -23,6 +24,15 @@ test(
       maximumMigration: 144,
     });
     t.after(() => f.close());
+    assert.equal(f.historicalPrefix, 144);
+    assert.equal(
+      (
+        await f.pool.query(
+          'SELECT max(substring(name FROM 1 FOR 4)::integer) migration FROM whaleu_meta.schema_migrations',
+        )
+      ).rows[0].migration,
+      144,
+    );
     const cases: {
       actor: Awaited<ReturnType<typeof f.actor>>;
       affiliation: ReturnType<typeof syntheticAssertion>;
@@ -31,6 +41,43 @@ test(
     }[] = [];
     for (const expiredFact of ['affiliation', 'student_number'] as const) {
       const actor = await f.actor();
+      const enrollment = async () =>
+        (
+          await f.pool.query(
+            'SELECT (SELECT count(*)::int FROM whaleu_verification.account_heads WHERE account_id=$1) heads,(SELECT count(*)::int FROM whaleu_verification.native_enrollments WHERE account_id=$1) native_enrollments',
+            [actor.accountId],
+          )
+        ).rows[0];
+      assert.deepEqual(await enrollment(), { heads: 0, native_enrollments: 0 });
+      // This explicitly synthetic pre-0145 history is not native enrollment.
+      // Establish its ordinary immutable ledger before transitioning existing
+      // facts; missing application/phone history must not become verified absence.
+      const baseline = await setSyntheticSnapshot(
+        f.pool,
+        actor.accountId,
+        [],
+        'none',
+        'missing',
+      );
+      assert.equal(baseline.revision, 1);
+      assert.deepEqual(await enrollment(), { heads: 1, native_enrollments: 0 });
+      assert.deepEqual(
+        (
+          await f.pool.query(
+            'SELECT s.affiliation_assertion_id,s.student_number_assertion_id,s.phone_assertion_id,s.application_state,s.application_coverage,e.kind,e.expected_revision FROM whaleu_verification.snapshots s JOIN whaleu_verification.events e ON (e.account_id,e.snapshot_id,e.revision)=(s.account_id,s.id,s.revision) WHERE s.account_id=$1 AND s.id=$2',
+            [actor.accountId, baseline.snapshotId],
+          )
+        ).rows[0],
+        {
+          affiliation_assertion_id: null,
+          student_number_assertion_id: null,
+          phone_assertion_id: null,
+          application_state: 'none',
+          application_coverage: 'missing',
+          kind: 'reconciled_snapshot',
+          expected_revision: 0,
+        },
+      );
       const affiliation = syntheticAssertion(
         actor.accountId,
         f.scope.institutionId,

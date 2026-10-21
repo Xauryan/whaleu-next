@@ -1,7 +1,93 @@
-@import '../../directory/common.wxss';
-.error {
-  color: #a33;
+@import './information-presentation.wxss';
+@import './framework7-information.wxss';
+.create-link {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-height: 88rpx;
+  color: var(--wu-accent);
+  font-size: 28rpx;
 }
-.card {
+.review-scope {
+  padding: 24rpx 0 12rpx;
+}
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 0 20rpx;
+  background: var(--wu-bg);
+  border-radius: 18rpx;
+}
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  font-size: 27rpx;
+}
+.information-screen .campus-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 22rpx 0;
+  text-align: left;
+  border-radius: 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.organization-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 22rpx;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.organization-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 94rpx;
+  height: 94rpx;
+  border-radius: 26rpx;
+  background: var(--wu-bg);
+}
+.organization-main {
+  flex: 1;
+  min-width: 0;
+}
+.organization-link {
+  min-height: 106rpx;
+}
+.organization-heading {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 31rpx;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.organization-heading text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.organization-intro {
+  color: var(--wu-secondary);
+  font-size: 26rpx;
+  line-height: 1.6;
+  margin-top: 9rpx;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.organization-meta {
+  margin-top: 10rpx;
+  font-size: 23rpx;
+  color: var(--wu-secondary);
+}
+.directory-link {
+  margin-top: 30rpx;
+  border-bottom: 0;
 }

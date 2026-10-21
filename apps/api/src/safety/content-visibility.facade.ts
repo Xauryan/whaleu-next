@@ -30,6 +30,7 @@ export class SafetyContentVisibilityFacade {
     viewer: string | null,
     namedAuthorIds: readonly string[],
     tx: PoolClient,
+    purpose: 'direct_post' | 'list_projection' = 'direct_post',
   ): Promise<ContentVisibilityBatch> {
     const authors = [...new Set(namedAuthorIds)].sort();
     if (authors.length > CONTENT_VISIBILITY_BATCH_LIMIT)
@@ -52,9 +53,13 @@ export class SafetyContentVisibilityFacade {
     const blocked = await tx.query<{ author_id: string }>(
       `SELECT blocked_id AS author_id FROM whaleu_safety.blocks
        WHERE blocker_id=$1 AND blocked_id=ANY($2::uuid[]) AND active
-       UNION
+       ${
+         purpose === 'direct_post'
+           ? `UNION
        SELECT blocker_id AS author_id FROM whaleu_safety.blocks
-       WHERE blocked_id=$1 AND blocker_id=ANY($2::uuid[]) AND active`,
+       WHERE blocked_id=$1 AND blocker_id=ANY($2::uuid[]) AND active`
+           : ''
+       }`,
       [viewer, namedAccountIds],
     );
     const now = (

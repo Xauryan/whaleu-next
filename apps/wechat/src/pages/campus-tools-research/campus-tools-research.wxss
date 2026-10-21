@@ -1,1 +1,2 @@
 @import '../campus-tools/campus-tools.wxss';
+@import './framework7-campus-tools.wxss';

@@ -1,0 +1,1059 @@
+{
+  "login": [
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onLogin",
+        "disabled": "{{!configured || busy}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!hasLocalSession && !signingIn}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCheckSession",
+        "disabled": "{{!configured || busy}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasLocalSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/profile/profile"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{verified && !busy}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/campus/campus"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{verified && !busy}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-feed/community-feed",
+        "open-type": "reLaunch"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onLogout"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasLocalSession || signingIn}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/account-status/account-status"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/announcements/announcements"
+      },
+      "scopes": []
+    }
+  ],
+  "phone-binding": [
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPrepare",
+        "disabled": "{{busy || !hasSession || !configured}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{phase === 'idle' || phase === 'not_found'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPrepare",
+        "disabled": "{{busy || !hasSession}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{phase === 'unknown' || phase === 'expired' || phase === 'closed'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPrepare",
+        "disabled": "{{busy || !hasSession}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{phase === 'verified'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "open-type": "getPhoneNumber",
+        "bindgetphonenumber": "onPhone",
+        "disabled": "{{busy || !hasSession}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{phase === 'reserved'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy || !hasSession}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{requestId}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onClose",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{phase === 'reserved' || phase === 'unknown' || phase === 'expired'}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/verification/verification"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login",
+        "open-type": "reLaunch"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!hasSession}}"
+        }
+      ]
+    }
+  ],
+  "campus": [
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{q}}",
+        "maxlength": "100",
+        "confirm-type": "search",
+        "bindinput": "onQuery",
+        "bindconfirm": "onSearch",
+        "disabled": "{{loading || saving}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{district}}",
+        "maxlength": "100",
+        "confirm-type": "search",
+        "bindinput": "onDistrict",
+        "bindconfirm": "onSearch",
+        "disabled": "{{loading || saving}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSearch",
+        "disabled": "{{!hasSession || !configured || loading || saving}}",
+        "loading": "{{loading}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancelOperation"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loading || saving}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReload",
+        "disabled": "{{!hasSession || !configured}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!loading && !saving && (!loaded || error)}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login",
+        "open-type": "reLaunch"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onChoose",
+        "disabled": "{{!item.isActive || loading || saving || needsReload || searchDirty}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded}}"
+        },
+        {
+          "wx:for": "{{items}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPrevious",
+        "disabled": "{{!hasPrevious || loading || saving || searchDirty}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onNext",
+        "disabled": "{{!hasNext || loading || saving || searchDirty}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSave",
+        "loading": "{{saving}}",
+        "disabled": "{{candidateId === selectedId || loading || saving || needsReload || searchDirty}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded}}"
+        },
+        {
+          "wx:if": "{{candidateId}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancelSelection",
+        "disabled": "{{saving}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded}}"
+        },
+        {
+          "wx:if": "{{candidateId}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/community-feed/community-feed"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "open-type": "navigateBack"
+      },
+      "scopes": []
+    }
+  ],
+  "identity-campus": [
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancel"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{busy}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReload",
+        "disabled": "{{!hasSession || !configured}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!busy && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReceipt",
+        "disabled": "{{busy || !hasSession}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRetry",
+        "disabled": "{{busy || !hasSession}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onChoose",
+        "disabled": "{{busy || !state.canSelect}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && state && !frozen}}"
+        },
+        {
+          "wx:if": "{{state.options.status === 'known' && state.options.items.length > 0}}"
+        },
+        {
+          "wx:for": "{{state.options.items}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRequestConfirmation",
+        "disabled": "{{busy || !state.canSelect || !selectedId}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && state && !frozen}}"
+        },
+        {
+          "wx:if": "{{state.options.status === 'known' && state.options.items.length > 0}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirm",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && state && !frozen}}"
+        },
+        {
+          "wx:if": "{{confirmation}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissConfirmation",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loaded && state && !frozen}}"
+        },
+        {
+          "wx:if": "{{confirmation}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/verification/verification"
+      },
+      "scopes": []
+    }
+  ],
+  "verification": [
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancel"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{loading}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReload",
+        "disabled": "{{!hasSession || !configured}}"
+      },
+      "scopes": [
+        {
+          "wx:else": ""
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login",
+        "open-type": "reLaunch"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/institutional-verification/institutional-verification"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/student-verification/student-verification"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/student-verification-review/student-verification-review"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/student-verification-notices/student-verification-notices"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/phone-binding/phone-binding"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/identity-campus/identity-campus"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/profile/profile"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login",
+        "open-type": "reLaunch"
+      },
+      "scopes": []
+    }
+  ],
+  "student-verification": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login",
+        "open-type": "reLaunch"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onChooseEvidence",
+        "disabled": "{{busy||pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{application}}"
+        },
+        {
+          "wx:if": "{{application.state==='draft'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecoverEvidence",
+        "disabled": "{{busy||pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{application}}"
+        },
+        {
+          "wx:if": "{{application.state==='draft'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSubmit",
+        "disabled": "{{busy||pending||!evidenceReady}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{application}}"
+        },
+        {
+          "wx:if": "{{application.state==='draft'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onWithdraw",
+        "disabled": "{{busy||pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{application}}"
+        },
+        {
+          "wx:if": "{{application.state==='draft'||application.state==='pending'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPreview",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{application}}"
+        },
+        {
+          "wx:if": "{{application.evidenceAvailable}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{campusQuery}}",
+        "bindinput": "onSearchInput",
+        "maxlength": "100"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{canApply}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSearch",
+        "disabled": "{{busy||pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{canApply}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onChooseCampus",
+        "disabled": "{{busy||pending}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{canApply}}"
+        },
+        {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPrepare",
+        "disabled": "{{busy||pending||!selectedCampusId}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{canApply}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirm",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{confirmation}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismiss",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{confirmation}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{pending}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCancelRequest",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{pending}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onClosePreview"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{evidenceSrc}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReload",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCleanup",
+        "disabled": "{{busy||pending}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/verification/verification"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/phone-binding/phone-binding"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/identity-campus/identity-campus"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/student-verification-notices/student-verification-notices"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/student-verification-review/student-verification-review"
+      },
+      "scopes": []
+    }
+  ],
+  "student-verification-notices": [
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onNotice",
+        "disabled": "{{busy||!item.available}}"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{notices}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onReadNotice",
+        "disabled": "{{busy||!item.available||item.read}}"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{notices}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPrevious",
+        "disabled": "{{busy||page<=1}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onNext",
+        "disabled": "{{busy||!hasNext}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReload",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/student-verification/student-verification"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/student-verification-review/student-verification-review"
+      },
+      "scopes": []
+    }
+  ],
+  "institutional-verification": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login",
+        "open-type": "reLaunch"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{!hasSession}}"
+        }
+      ]
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{campusQuery}}",
+        "bindinput": "onSearchInput",
+        "disabled": "{{busy}}",
+        "maxlength": "100"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSearch",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onChooseCampus",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession && !frozen}}"
+        },
+        {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "checkbox-group",
+      "attrs": {
+        "bindchange": "onConsent"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession && !frozen}}"
+        },
+        {
+          "wx:if": "{{capability}}"
+        },
+        {
+          "wx:if": "{{capability.state === 'eligible' && nativeAvailable}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPrepare",
+        "disabled": "{{busy || !consentAccepted}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{hasSession && !frozen}}"
+        },
+        {
+          "wx:if": "{{capability}}"
+        },
+        {
+          "wx:if": "{{capability.state === 'eligible' && nativeAvailable}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onAuthorize",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{frozen}}"
+        },
+        {
+          "wx:if": "{{canAuthorize}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onClose"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReload",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onBack"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/verification/verification",
+        "open-type": "reLaunch"
+      },
+      "scopes": []
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+/* Framework7 v9.2.0 iOS native port, MIT. Copyright (c) 2014 Vladimir
+ * Kharlampidi. See docs/vendor/framework7-v9.2.0/LICENSE. */
+@import '../../design/framework7-ios.wxss';
+
+:host {
+  display: block;
+}
+.f7-list-shell {
+  margin: var(--f7-list-margin-vertical) 0;
+}
+/* Explicit project adaptation; default spacing remains upstream's 35px. */
+.f7-list-spacing-compact {
+  --f7-list-margin-vertical: 16px;
+}
+.f7-list {
+  position: relative;
+  box-sizing: border-box;
+  font-size: var(--f7-list-font-size);
+}
+.f7-list-strong {
+  background: var(--f7-list-strong-bg-color);
+}
+.f7-list-inset {
+  margin-left: var(--f7-list-inset-side-margin);
+  margin-right: var(--f7-list-inset-side-margin);
+  border-radius: var(--f7-list-inset-border-radius);
+  overflow: hidden;
+}
+.f7-list-outline::before,
+.f7-list-outline::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--f7-list-outline-border-color);
+  transform: scaleY(calc(1 / var(--f7-device-pixel-ratio)));
+  pointer-events: none;
+}
+.f7-list-outline::before {
+  top: 0;
+  transform-origin: 50% 0%;
+}
+.f7-list-outline::after {
+  bottom: 0;
+  transform-origin: 50% 100%;
+}
+.f7-list-outline.f7-list-inset {
+  border: 1px solid var(--f7-list-outline-inset-border-color);
+}
+.f7-list-outline.f7-list-inset::before,
+.f7-list-outline.f7-list-inset::after {
+  display: none;
+}
+.f7-list-title {
+  overflow: hidden;
+  margin: 0 var(--f7-block-padding-horizontal)
+    var(--f7-block-title-margin-bottom);
+  color: var(--f7-block-title-text-color);
+  font-size: var(--f7-block-title-font-size);
+  font-weight: var(--f7-block-title-font-weight);
+  line-height: var(--f7-block-title-line-height);
+  white-space: var(--f7-block-title-white-space);
+  text-overflow: ellipsis;
+}
+.f7-list-footer {
+  margin-top: var(--f7-block-footer-margin);
+  padding: 0 var(--f7-block-padding-horizontal);
+  color: var(--f7-block-footer-text-color);
+  font-size: var(--f7-block-footer-font-size);
+}

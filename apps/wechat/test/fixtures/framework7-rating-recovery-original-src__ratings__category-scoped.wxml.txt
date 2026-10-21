@@ -1,0 +1,647 @@
+<view class="screen management-page category-workspace">
+  <view class="management-context">
+    <view class="management-context-icon">
+      <wu-icon name="menu" tone="accent" size="22" />
+    </view>
+    <view class="management-context-copy">
+      <view class="context-title">
+        {{effectiveName || scopeLabel || '选择管理范围'}}
+      </view>
+      <view class="meta">
+        {{editorPage ? '本次分类变更' : '管理当前范围的分类'}}
+      </view>
+    </view>
+  </view>
+  <view class="card management-scope-choice">
+    <view class="section-title">
+      {{effectiveName ? scopeLabel : '管理范围'}}
+    </view>
+    <view wx:if="{{viewCampusId}}" class="meta">
+      校园 ID：{{viewCampusId}}
+    </view>
+    <view class="notice">
+      浏览校园与管理资格分别核验。共享基础、校园覆盖和独立全局分别保存。
+    </view>
+    <button bindtap="onOpenCampuses" disabled="{{busy || frozen}}" class="management-action">
+      选择校园
+    </button>
+    <button bindtap="onGlobal" disabled="{{busy || frozen}}" class="management-action">
+      独立全局
+    </button>
+  </view>
+  <view wx:if="{{status}}" class="notice" aria-role="status">
+    {{status}}
+  </view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">
+    {{error}}
+  </view>
+  <view wx:if="{{receiptStatus}}" class="card">
+    {{receiptStatus}}
+  </view>
+  <button wx:if="{{!hasSession}}" bindtap="onLogin" class="management-action">
+    登录后管理分类
+  </button>
+  <button wx:if="{{hasSession &amp;&amp; !frozen}}" bindtap="onRefresh" disabled="{{busy}}" class="management-quiet">
+    重新核验管理范围
+  </button>
+  <button wx:if="{{busy}}" bindtap="onStop" class="management-quiet">
+    停止等待
+  </button>
+  <view wx:if="{{pickerOpen}}" class="card">
+    <view class="section-title">
+      {{pickerPurpose === 'placement' ? '选择本次精确适用校园集合' : '选择管理视图校园'}}
+    </view>
+    <input value="{{campusQuery}}" bindinput="onCampusQuery" placeholder="搜索校园" />
+    <button bindtap="onSearchCampuses" disabled="{{busy}}" class="management-action">
+      搜索
+    </button>
+    <button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onCampus" disabled="{{busy || !item.isActive}}" class="management-action">
+      {{item.fullName}} · {{item.id}}
+    </button>
+    <button wx:if="{{campusPage &gt; 1}}" bindtap="onPreviousCampuses" disabled="{{busy}}" class="management-action">
+      上一页
+    </button>
+    <button wx:if="{{hasMoreCampuses}}" bindtap="onNextCampuses" disabled="{{busy}}" class="management-action">
+      下一页
+    </button>
+    <button bindtap="onCloseCampuses" class="management-quiet">
+      关闭校园列表
+    </button>
+  </view>
+  <view wx:if="{{frozen}}" class="card recovery">
+    <view class="section-title">
+      原请求受保护：{{recoveryOperation}}
+    </view>
+    <view class="meta">
+      {{requestId}}
+    </view>
+    <view class="notice">
+      查询未找到、断网或停止等待都不会释放原请求。更换内容须先确认原请求已关闭。
+    </view>
+    <button bindtap="onRecover" disabled="{{busy}}" class="management-primary">
+      查询原回执
+    </button>
+    <button wx:if="{{isCategoryPending &amp;&amp; !preview}}" bindtap="onPreparePending" disabled="{{busy}}" class="management-action">
+      恢复原意图并重新核对预览
+    </button>
+    <navigator wx:if="{{!isCategoryPending}}" url="/pages/rating-recovery/rating-recovery" class="management-link">
+      前往原评分请求恢复
+      <wu-icon name="chevron-right" tone="muted" size="22" />
+    </navigator>
+    <button wx:if="{{isCategoryPending}}" bindtap="onRequestCancel" disabled="{{busy}}" class="management-action">
+      取消尚未完成的原请求
+    </button>
+    <view wx:if="{{cancelConfirmation}}" class="confirmation management-confirmation">
+      <view class="notice">
+        确认取消这个原请求？已发布结果优先；取消不会撤回已生效的分类变更。
+      </view>
+      <button bindtap="onConfirmCancel" disabled="{{busy}}" class="management-destructive">
+        确认取消原请求
+      </button>
+      <button bindtap="onDismissCancel" disabled="{{busy}}" class="management-action">
+        保留原请求
+      </button>
+    </view>
+  </view>
+  <view wx:if="{{iconFrozen &amp;&amp; iconSlots.length}}" class="card">
+    <view class="section-title">
+      冻结的全部图标槽位 · {{iconSlots.length}} / 32
+    </view>
+    <view class="notice">
+      每次只选择并上传一个节点。释放本地文件后才处理下一张；全部图标与文字在同一次发布中生效。
+    </view>
+    <view wx:for="{{iconSlots}}" wx:key="key">
+      <view>
+        {{item.label}} · {{item.selection}} · {{item.status}}
+      </view>
+      <button wx:if="{{item.selection === 'replace' &amp;&amp; item.status !== 'ready'}}" data-key="{{item.key}}" bindtap="onIconUpload" disabled="{{busy}}" class="management-action">
+        选择原图并上传此节点
+      </button>
+    </view>
+    <view>
+      {{iconUploadStatus}} · {{iconProgress}}%
+    </view>
+  </view>
+  <view wx:if="{{iconRead.state !== 'idle'}}" class="card">
+    <image wx:if="{{iconRead.localSrc}}" src="{{iconRead.localSrc}}" mode="aspectFit" class="category-icon-preview" />
+    <view wx:else>
+      {{iconRead.state === 'loading' ? '正在核验并读取当前图标' : '图标暂不可用（不是无图）'}}
+    </view>
+    <button bindtap="onIconClose" class="management-quiet">
+      关闭图标
+    </button>
+  </view>
+  <block wx:if="{{loaded &amp;&amp; !frozen &amp;&amp; !pickerOpen}}">
+    <block wx:if="{{!editorPage}}">
+      <view class="card">
+        <view class="section-title">
+          管理分类与状态
+        </view>
+        <button data-status="all" bindtap="onFilter" disabled="{{busy}}" class="management-action management-choice {{filter === 'all' ? 'is-selected' : ''}}">
+          全部状态
+        </button>
+        <button data-status="enabled" bindtap="onFilter" disabled="{{busy}}" class="management-action management-choice {{filter === 'enabled' ? 'is-selected' : ''}}">
+          已启用
+        </button>
+        <button data-status="disabled" bindtap="onFilter" disabled="{{busy}}" class="management-action management-choice {{filter === 'disabled' ? 'is-selected' : ''}}">
+          已停用
+        </button>
+        <button data-status="archived" bindtap="onFilter" disabled="{{busy}}" class="management-action management-choice {{filter === 'archived' ? 'is-selected' : ''}}">
+          已归档
+        </button>
+        <button bindtap="onRoot" disabled="{{busy}}" class="management-action">
+          根分类
+        </button>
+        <button bindtap="onOpenEditor" disabled="{{busy}}" class="management-action">
+          管理当前层级 / 创建分类
+        </button>
+      </view>
+      <view wx:for="{{categories}}" wx:key="id" class="card management-category">
+        <view class="section-title">
+          {{item.label}}
+        </view>
+        <view class="meta">
+          {{item.id}} · {{item.stateLabel}}
+        </view>
+        <view wx:if="{{item.unavailable}}" class="notice">
+          正文来源或审核暂不可用，仅显示管理元数据。
+        </view>
+        <button data-id="{{item.id}}" bindtap="onInspect" disabled="{{busy}}" class="management-action">
+          查看基础、覆盖与历史
+        </button>
+        <button data-id="{{item.id}}" bindtap="onChildren" disabled="{{busy}}" class="management-action">
+          查看直接子分类
+        </button>
+        <button data-id="{{item.id}}" bindtap="onOpenEditor" disabled="{{busy}}" class="management-action">
+          编辑此分类
+        </button>
+      </view>
+      <view wx:if="{{!categories.length}}" class="notice">
+        此筛选下没有分类。空列表不授予创建资格。
+      </view>
+      <button wx:if="{{canPreviousCategories}}" bindtap="onPreviousCategories" disabled="{{busy}}" class="management-action">
+        上一页分类
+      </button>
+      <button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}" class="management-action">
+        下一页分类
+      </button>
+    </block>
+    <view wx:if="{{detailId}}" class="card management-detail">
+      <view class="section-title">
+        分类身份与当前状态
+      </view>
+      <view class="meta">
+        {{detailId}} · {{detailState}} · {{detailVisibility}}
+      </view>
+      <view class="meta">
+        {{detailSystemKey ? '系统 key：' + detailSystemKey + '（不可修改或回收）' : '普通分类'}}
+      </view>
+      <view class="section-title">
+        共享基础
+      </view>
+      <view>
+        {{baseName}}
+      </view>
+      <view class="body">
+        {{baseDescription}}
+      </view>
+      <view class="section-title">
+        本校园覆盖
+      </view>
+      <view>
+        {{overrideName}}
+      </view>
+      <view class="body">
+        {{overrideDescription}}
+      </view>
+      <block wx:if="{{iconEnabled}}">
+        <view>
+          共享基础图标：{{iconBaseLabel}}
+        </view>
+        <button data-value="base" bindtap="onIconOpen" disabled="{{busy}}" class="management-action">
+          核验基础图标
+        </button>
+        <view>
+          本校园图标：{{iconOverrideLabel}}
+        </view>
+        <button data-value="override" bindtap="onIconOpen" disabled="{{busy}}" class="management-action">
+          核验本校园设置
+        </button>
+        <view>
+          有效图标：{{iconEffectiveLabel}}
+        </view>
+        <button data-value="effective" bindtap="onIconOpen" disabled="{{busy}}" class="management-action">
+          查看当前有效图标
+        </button>
+      </block>
+      <view class="section-title">
+        当前有效正文
+      </view>
+      <view>
+        {{effectiveName}}
+      </view>
+      <view class="body">
+        {{effectiveDescription}}
+      </view>
+      <view wx:if="{{detailUnavailable}}" class="notice">
+        {{detailUnavailable}}
+      </view>
+      <view class="notice">
+        停用、归档或移出校园会阻止新互动；既有评分对象、回复、订阅与通知历史保留，原作者清理走原入口。
+      </view>
+      <button bindtap="onHistory" disabled="{{busy}}" class="management-action">
+        读取管理变更历史
+      </button>
+      <view wx:for="{{history}}" wx:key="requestId" class="history-row">
+        <view>
+          {{item.label}}
+        </view>
+        <view class="meta">
+          {{item.occurredAt}} · {{item.requestId}}
+        </view>
+        <button wx:if="{{iconEnabled}}" data-id="{{item.requestId}}" bindtap="onIconRetirementRecover" disabled="{{busy}}" class="management-action">
+          核验此原请求的旧图清理状态
+        </button>
+      </view>
+      <button wx:if="{{canMoreHistory}}" bindtap="onMoreHistory" disabled="{{busy}}" class="management-action">
+        继续读取历史
+      </button>
+    </view>
+    <block wx:if="{{editorPage}}">
+      <view class="card">
+        <view class="section-title">
+          选择本次操作
+        </view>
+        <button wx:for="{{operations}}" wx:key="operation" data-operation="{{item.operation}}" bindtap="onOperation" disabled="{{busy || !item.allowed}}" class="management-action management-choice {{operation === item.operation ? 'is-selected' : ''}}">
+          {{operation === item.operation ? '已选：' : ''}}{{item.label}}{{item.reason ? ' · ' + item.reason : ''}}
+          <wu-icon wx:if="{{operation === item.operation}}" name="check" tone="accent" size="18" />
+        </button>
+      </view>
+      <view wx:if="{{operation}}" class="card management-editor">
+        <view class="section-title">
+          {{operationLabel}}
+        </view>
+        <block wx:if="{{operation === 'edit_category_base_scoped' || operation === 'set_category_override_scoped' || operation === 'create_system_category_scoped'}}">
+          <block wx:if="{{operation === 'set_category_override_scoped'}}">
+            <view class="notice">
+              名称与简介分别选择继承或覆盖；简介覆盖为空会明确清空本校园简介。
+            </view>
+            <button data-field="nameMode" data-value="inherit" bindtap="onChoice" class="management-action management-choice {{nameMode === 'inherit' ? 'is-selected' : ''}}">
+              名称：{{nameMode === 'inherit' ? '已选' : ''}}继承基础
+            </button>
+            <button data-field="nameMode" data-value="set" bindtap="onChoice" class="management-action management-choice {{nameMode === 'set' ? 'is-selected' : ''}}">
+              名称：{{nameMode === 'set' ? '已选' : ''}}单独覆盖
+            </button>
+          </block>
+          <input wx:if="{{operation !== 'set_category_override_scoped' || nameMode === 'set'}}" value="{{name}}" data-field="name" bindinput="onText" maxlength="-1" placeholder="名称（1–100 字）" disabled="{{busy}}" />
+          <block wx:if="{{operation === 'set_category_override_scoped'}}">
+            <button data-field="descriptionMode" data-value="inherit" bindtap="onChoice" class="management-action management-choice {{descriptionMode === 'inherit' ? 'is-selected' : ''}}">
+              简介：{{descriptionMode === 'inherit' ? '已选' : ''}}继承基础
+            </button>
+            <button data-field="descriptionMode" data-value="set" bindtap="onChoice" class="management-action management-choice {{descriptionMode === 'set' ? 'is-selected' : ''}}">
+              简介：{{descriptionMode === 'set' ? '已选' : ''}}单独覆盖（可空）
+            </button>
+          </block>
+          <textarea wx:if="{{operation !== 'set_category_override_scoped' || descriptionMode === 'set'}}" value="{{description}}" data-field="description" bindinput="onText" maxlength="-1" placeholder="简介（0–500 字）" disabled="{{busy}}" />
+          <button wx:if="{{operation === 'create_system_category_scoped'}}" bindtap="onGenerateDescription" disabled="{{busy || assistance.busy}}" class="management-action">
+            生成简介建议
+          </button>
+          <button wx:if="{{operation === 'set_category_override_scoped'}}" bindtap="onResetOverride" class="management-action">
+            {{iconEnabled ? '名称、简介和图标都恢复继承' : '两个字段都恢复继承'}}
+          </button>
+        </block>
+        <block wx:if="{{operation === 'set_category_visibility_scoped'}}">
+          <view class="notice">
+            仅改变当前明确视图的展示状态，不改变共享启用状态。
+          </view>
+          <button data-field="visibility" data-value="shown" bindtap="onChoice" class="management-action management-choice {{visibility === 'shown' ? 'is-selected' : ''}}">
+            {{visibility === 'shown' ? '已选：' : ''}}显示
+          </button>
+          <button data-field="visibility" data-value="hidden" bindtap="onChoice" class="management-action management-choice {{visibility === 'hidden' ? 'is-selected' : ''}}">
+            {{visibility === 'hidden' ? '已选：' : ''}}隐藏
+          </button>
+        </block>
+        <block wx:if="{{operation === 'set_category_lifecycle_scoped'}}">
+          <view class="notice">
+            归档后恢复到停用，再单独启用。启用父项不会覆盖子项各自的停用或隐藏。
+          </view>
+          <button wx:for="{{lifecycleActions}}" wx:key="value" data-field="lifecycleAction" data-value="{{item.value}}" bindtap="onChoice" disabled="{{!item.allowed}}" class="management-action management-choice {{lifecycleAction === '{{item.value}}' ? 'is-selected' : ''}}">
+            {{lifecycleAction === item.value ? '已选：' : ''}}{{item.label}}
+          </button>
+        </block>
+        <block wx:if="{{operation === 'create_categories_scoped' || operation === 'create_system_category_scoped' || operation === 'set_category_scope_scoped'}}">
+          <view class="section-title">
+            明确适用范围
+          </view>
+          <button data-field="scopeKind" data-value="global" bindtap="onChoice" class="management-action management-choice {{scopeKind === 'global' ? 'is-selected' : ''}}">
+            {{scopeKind === 'global' ? '已选：' : ''}}独立全局
+          </button>
+          <button data-field="scopeKind" data-value="campuses" bindtap="onChoice" class="management-action management-choice {{scopeKind === 'campuses' ? 'is-selected' : ''}}">
+            {{scopeKind === 'campuses' ? '已选：' : ''}}精确校园集合
+          </button>
+          <block wx:if="{{scopeKind === 'campuses'}}">
+            <button bindtap="onPlacementCampuses" class="management-action">
+              添加适用校园
+            </button>
+            <view wx:for="{{placementCampuses}}" wx:key="id">
+              <view>
+                {{item.label}} · {{item.id}}
+              </view>
+              <button data-id="{{item.id}}" bindtap="onRemovePlacementCampus" class="management-action">
+                从本次集合移除
+              </button>
+            </view>
+            <view class="notice">
+              校园集合必须非空，不会因新增校园自动扩大。
+            </view>
+          </block>
+          <block wx:if="{{operation === 'set_category_scope_scoped'}}">
+            <button data-field="propagation" data-value="self" bindtap="onChoice" class="management-action management-choice {{propagation === 'self' ? 'is-selected' : ''}}">
+              {{propagation === 'self' ? '已选：' : ''}}仅此分类（必须保持后代路径合法）
+            </button>
+            <button data-field="propagation" data-value="subtree" bindtap="onChoice" class="management-action management-choice {{propagation === 'subtree' ? 'is-selected' : ''}}">
+              {{propagation === 'subtree' ? '已选：' : ''}}同步完整子树
+            </button>
+            <view class="notice">
+              变更分类适用范围不会移动、复制或重分类评分对象。
+            </view>
+            <view class="notice">
+              同一稳定身份且共享定义、基础元数据和业务状态一致的多来源，才可按服务端预览原子合并承接。文字或业务状态可先分别统一；身份映射等冲突需要可信来源裁决，不能按当前校园猜测。
+            </view>
+          </block>
+        </block>
+        <block wx:if="{{operation === 'create_system_category_scoped'}}">
+          <view class="section-title">
+            已注册且有消费能力的系统类型
+          </view>
+          <button wx:for="{{systemOptions}}" wx:key="systemKey" data-key="{{item.systemKey}}" bindtap="onSystemKey" disabled="{{!item.available}}" class="management-action management-choice">
+            {{systemKey === item.systemKey ? '已选：' : ''}}{{item.systemKey}} · {{item.kind}} · 最多 {{item.maximumDepth}} 级
+          </button>
+          <view class="section-title">
+            系统最大层数（后续通过批量子分类添加节点）
+          </view>
+          <button data-field="levelCount" data-value="1" bindtap="onChoice" class="management-action management-choice {{levelCount === 1 ? 'is-selected' : ''}}">
+            {{levelCount === 1 ? '已选：' : ''}}一级
+          </button>
+          <button data-field="levelCount" data-value="2" bindtap="onChoice" class="management-action management-choice {{levelCount === 2 ? 'is-selected' : ''}}">
+            {{levelCount === 2 ? '已选：' : ''}}二级
+          </button>
+          <button data-field="levelCount" data-value="3" bindtap="onChoice" class="management-action management-choice {{levelCount === 3 ? 'is-selected' : ''}}">
+            {{levelCount === 3 ? '已选：' : ''}}三级
+          </button>
+          <view wx:if="{{!systemOptions.length}}" class="notice">
+            当前没有可用系统注册选项；不能创建未知专用评分体系。
+          </view>
+        </block>
+        <block wx:if="{{operation === 'create_categories_scoped' || operation === 'batch_update_subcategories_scoped'}}">
+          <view class="section-title">
+            本次新增节点 · {{nodes.length}} / 32
+          </view>
+          <view class="notice">
+            {{detailId ? '新增项连接到当前分类（批量只新增直接子项）' : '新建根分类树'}}。每个新节点可独立选择图标；封面仍未接入；根分类可单独请求简介建议。
+          </view>
+          <view wx:for="{{nodes}}" wx:key="key" class="category-node">
+            <view class="meta">
+              {{item.key}} · 第 {{item.level}} 级{{item.parentKey ? ' · 上级 ' + item.parentKey : ''}}
+            </view>
+            <input value="{{item.name}}" data-key="{{item.key}}" data-field="name" bindinput="onNodeText" maxlength="-1" placeholder="新分类名称" />
+            <textarea value="{{item.description}}" data-key="{{item.key}}" data-field="description" bindinput="onNodeText" maxlength="-1" placeholder="新分类简介（可空）" />
+            <button wx:if="{{operation === 'create_categories_scoped' &amp;&amp; !detailId &amp;&amp; !item.parentKey}}" data-key="{{item.key}}" bindtap="onGenerateDescription" disabled="{{busy || assistance.busy}}" class="management-action">
+              生成简介建议
+            </button>
+            <button wx:if="{{operation !== 'batch_update_subcategories_scoped' &amp;&amp; item.level &lt; 3}}" data-key="{{item.key}}" bindtap="onAddChild" class="management-action">
+              添加子节点
+            </button>
+            <button data-key="{{item.key}}" bindtap="onRemoveNode" class="management-action">
+              移除此草稿节点
+            </button>
+          </view>
+          <button wx:if="{{operation === 'batch_update_subcategories_scoped' || !nodes.length}}" bindtap="onAddNode" class="management-action">
+            添加新分类草稿
+          </button>
+        </block>
+        <block wx:if="{{operation === 'batch_update_subcategories_scoped'}}">
+          <view class="section-title">
+            直接子项的同一笔变更
+          </view>
+          <view class="notice">
+            新增、停用、恢复和顺序一起提交；任一失败都不应部分生效。
+          </view>
+          <view wx:for="{{batchChildren}}" wx:key="id" class="category-node">
+            <view>
+              {{item.label}} · {{item.state}}
+            </view>
+            <button data-id="{{item.id}}" data-action="retain" bindtap="onBatchAction" class="management-action management-choice">
+              {{item.action === 'retain' ? '已选：' : ''}}保留
+            </button>
+            <button data-id="{{item.id}}" data-action="disable" bindtap="onBatchAction" disabled="{{item.state !== 'enabled'}}" class="management-action management-choice">
+              {{item.action === 'disable' ? '已选：' : ''}}停用
+            </button>
+            <button data-id="{{item.id}}" data-action="restore" bindtap="onBatchAction" disabled="{{item.state !== 'archived'}}" class="management-action management-choice">
+              {{item.action === 'restore' ? '已选：' : ''}}恢复为停用
+            </button>
+            <button data-id="{{item.id}}" data-action="enable" bindtap="onBatchAction" disabled="{{item.state !== 'disabled'}}" class="management-action management-choice">
+              {{item.action === 'enable' ? '已选：' : ''}}启用
+            </button>
+          </view>
+          <button wx:if="{{canPreviousBatch}}" data-direction="-1" bindtap="onPageBatch" class="management-action">
+            上一页子项
+          </button>
+          <button wx:if="{{canNextBatch}}" data-direction="1" bindtap="onPageBatch" class="management-action">
+            下一页子项
+          </button>
+        </block>
+        <block wx:if="{{operation === 'reorder_categories_scoped' || operation === 'batch_update_subcategories_scoped'}}">
+          <view class="section-title">
+            完整同级顺序
+          </view>
+          <view class="notice">
+            包含当前隐藏、停用和归档项；不能只提交当前分页或跨父分类 ID。
+          </view>
+          <button wx:if="{{operation === 'reorder_categories_scoped'}}" data-field="orderMode" data-value="set" bindtap="onChoice" class="management-action management-choice {{orderMode === 'set' ? 'is-selected' : ''}}">
+            {{orderMode === 'set' ? '已选：' : ''}}保存当前排列
+          </button>
+          <button wx:if="{{operation === 'reorder_categories_scoped'}}" data-field="orderMode" data-value="inherit" bindtap="onChoice" class="management-action management-choice {{orderMode === 'inherit' ? 'is-selected' : ''}}">
+            {{orderMode === 'inherit' ? '已选：' : ''}}恢复继承顺序
+          </button>
+          <view wx:for="{{order}}" wx:key="key" class="order-row">
+            <view>
+              {{orderOffset + index + 1}}. {{item.label}}
+            </view>
+            <button data-key="{{item.key}}" data-direction="up" bindtap="onMove" disabled="{{orderOffset + index === 0}}" class="management-action">
+              上移
+            </button>
+            <button data-key="{{item.key}}" data-direction="down" bindtap="onMove" disabled="{{orderOffset + index === orderCount - 1}}" class="management-action">
+              下移
+            </button>
+          </view>
+          <view class="meta">
+            完整集合 {{orderCount}} 项，本页显示 {{order.length}} 项
+          </view>
+          <button wx:if="{{canPreviousOrder}}" data-direction="-1" bindtap="onPageOrder" class="management-action">
+            上一页顺序
+          </button>
+          <button wx:if="{{canNextOrder}}" data-direction="1" bindtap="onPageOrder" class="management-action">
+            下一页顺序
+          </button>
+        </block>
+        <view wx:if="{{iconEnabled &amp;&amp; iconSlots.length}}">
+          <view class="section-title">
+            图标选择与来源
+          </view>
+          <view class="notice">
+            先完成文字、范围和所有图标模式，再冻结草稿并依次选择图片。继承会跟随基础；明确无图会遮蔽基础。
+          </view>
+          <view wx:for="{{iconSlots}}" wx:key="key" class="category-node">
+            <view>
+              {{item.label}} · 已选 {{item.selection}}
+            </view>
+            <button wx:if="{{item.canKeep}}" data-key="{{item.key}}" data-value="keep" bindtap="onIconChoice" class="management-action management-choice">
+              保留当前图标
+            </button>
+            <button wx:if="{{item.isOverride}}" data-key="{{item.key}}" data-value="inherit" bindtap="onIconChoice" class="management-action management-choice">
+              继承共享基础
+            </button>
+            <button wx:if="{{item.isOverride}}" data-key="{{item.key}}" data-value="set-empty" bindtap="onIconChoice" class="management-action management-choice">
+              本校园明确无图
+            </button>
+            <button data-key="{{item.key}}" data-value="clear" bindtap="onIconChoice" wx:else class="management-action management-choice">
+              清空图标 / 新节点无图
+            </button>
+            <button data-key="{{item.key}}" data-value="replace" bindtap="onIconChoice" class="management-action management-choice">
+              冻结后选择新图
+            </button>
+          </view>
+        </view>
+        <button bindtap="onPrepare" disabled="{{busy}}" loading="{{busy}}" class="management-primary">
+          {{iconEnabled ? '冻结文字与全部图标槽位，继续上传 / 预览' : '准备并核对完整变更预览'}}
+        </button>
+        <button bindtap="onDiscardDraft" disabled="{{busy}}" class="management-quiet">
+          取消未保存的本地改动
+        </button>
+      </view>
+    </block>
+  </block>
+  <view wx:if="{{assistance.requestId || assistance.status}}" class="card">
+    <view class="section-title">
+      简介建议
+    </view>
+    <view>
+      {{assistance.status}}
+    </view>
+    <view wx:if="{{assistance.preview}}" class="body">
+      {{assistance.preview}}
+    </view>
+    <button wx:if="{{assistance.canAdopt}}" bindtap="onAdoptDescription" disabled="{{busy || frozen || assistance.busy}}" class="management-action">
+      采用此简介
+    </button>
+    <button wx:if="{{assistance.canRecover}}" bindtap="onRecoverAssistance" disabled="{{assistance.busy}}" class="management-action">
+      查询原建议请求
+    </button>
+    <button wx:if="{{assistance.canCancel}}" bindtap="onCancelAssistance" disabled="{{assistance.busy}}" class="management-action">
+      取消原建议请求
+    </button>
+    <button wx:if="{{assistance.canDismiss}}" bindtap="onDismissAssistance" disabled="{{assistance.busy}}" class="management-action">
+      关闭此建议
+    </button>
+  </view>
+  <view wx:if="{{preview}}" class="card confirmation management-preview management-confirmation" aria-role="alert">
+    <view class="section-title">
+      核对服务端完整预览
+    </view>
+    <view>
+      {{preview.operationLabel}}
+    </view>
+    <view class="meta">
+      原请求：{{requestId}}
+    </view>
+    <view class="meta">
+      确认有效期：{{preview.validUntil}}
+    </view>
+    <view class="body" wx:for="{{preview.lines}}" wx:key="*this">
+      {{item}}
+    </view>
+    <view class="meta">
+      变更明细 {{preview.from}}–{{preview.to}} / {{preview.changeCount}} 项，确认绑定完整预览摘要。
+    </view>
+    <button wx:if="{{preview.canPrevious}}" data-direction="-1" bindtap="onPagePreview" class="management-action">
+      上一页变更
+    </button>
+    <button wx:if="{{preview.canNext}}" data-direction="1" bindtap="onPagePreview" class="management-action">
+      下一页变更
+    </button>
+    <view class="notice">
+      确认仅提交以上原意图与精确版本。版本、授权、来源或审核变更会整体拒绝，需要重新核验。
+    </view>
+    <button bindtap="onCommit" disabled="{{busy}}" loading="{{busy}}" class="management-primary">
+      确认发布这笔完整变更
+    </button>
+    <button bindtap="onClosePreview" disabled="{{busy}}" class="management-quiet">
+      关闭预览并保留原请求
+    </button>
+  </view>
+  <view class="notice">
+    {{iconEnabled ? '本范围支持独立图标协议，封面仍未接入。' : '当前文字协议不提供图标上传。'}}未知专用评分类型不能替代为通用评分。
+  </view>
+  <view class="management-history">
+    <view class="section-title">
+      原请求与旧图
+    </view>
+    <view wx:if="{{iconRetirement}}" class="card">
+      <view class="section-title">
+        原请求的旧图标清理
+      </view>
+      <view class="meta">
+        {{iconRetirement.requestId}}
+      </view>
+      <view class="notice">
+        {{iconRetirement.status}}
+      </view>
+      <view class="notice">
+        清理须重新核验原账号与全部原影响范围。仍被引用的图标会保留；清理排队或引用退役都不等于文件已物理删除。
+      </view>
+      <button bindtap="onIconRetirementInspect" disabled="{{busy}}" class="management-action">
+        查询此原请求的旧图状态
+      </button>
+      <view wx:for="{{iconRetirement.items}}" wx:key="appearanceId" class="history-row">
+        <view class="meta">
+          {{item.appearanceId}}
+        </view>
+        <view>
+          {{item.label}}
+        </view>
+        <button wx:if="{{item.canCleanup}}" data-id="{{item.appearanceId}}" bindtap="onIconRetirementCleanup" disabled="{{busy}}" class="management-action">
+          明确请求清理此旧图
+        </button>
+      </view>
+      <view class="meta">
+        旧图记录 {{iconRetirement.from}}–{{iconRetirement.to}} / {{iconRetirement.count}}
+      </view>
+      <button wx:if="{{iconRetirement.canPrevious}}" data-direction="-1" bindtap="onIconRetirementPage" disabled="{{busy}}" class="management-action">
+        上一页旧图
+      </button>
+      <button wx:if="{{iconRetirement.canNext}}" data-direction="1" bindtap="onIconRetirementPage" disabled="{{busy}}" class="management-action">
+        下一页旧图
+      </button>
+    </view>
+    <view wx:if="{{hasSession &amp;&amp; configured}}" class="card">
+      <view class="section-title">
+        恢复原分类图标清理
+      </view>
+      <view class="notice">
+        重启或丢失清理响应后，可填写已知原请求编号。先查询原回执，再读取服务器保留的旧图记录；不会换编号重发分类变更。
+      </view>
+      <input value="{{iconRetirementRecoveryRequestId}}" bindinput="onIconRetirementRequestId" maxlength="36" placeholder="原分类变更请求编号" disabled="{{busy}}" />
+      <button bindtap="onIconRetirementRecover" disabled="{{busy}}" class="management-action">
+        按原请求恢复旧图状态
+      </button>
+    </view>
+  </view>
+  <navigator url="/pages/rating-recovery/rating-recovery" class="management-link">
+    独立查询历史评分回执
+    <wu-icon name="chevron-right" tone="muted" size="22" />
+  </navigator>
+  <button bindtap="onReturnCatalog" class="management-quiet">
+    返回当前范围评分目录
+  </button>
+</view>

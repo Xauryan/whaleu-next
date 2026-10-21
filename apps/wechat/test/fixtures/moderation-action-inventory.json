@@ -1,0 +1,4037 @@
+{
+  "baseline": "Original action attributes from HEAD, checked against the pre-redesign working templates; pre-existing terminology-only edits excluded.",
+  "before": {
+    "admin-discussion-removal": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{ownContent && target}}",
+          "open-type": "navigateBack"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRemoveDiscussion",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentKind"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "none",
+          "checked": "{{punishmentKind === 'none'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "interaction_mute",
+          "checked": "{{punishmentKind === 'interaction_mute'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "access_suspension",
+          "checked": "{{punishmentKind === 'access_suspension'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentUnit"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "minutes",
+          "checked": "{{punishmentUnit === 'minutes'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "hours",
+          "checked": "{{punishmentUnit === 'hours'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "days",
+          "checked": "{{punishmentUnit === 'days'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "permanent",
+          "checked": "{{punishmentUnit === 'permanent'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "wx:if": "{{punishmentUnit !== 'permanent'}}",
+          "type": "number",
+          "value": "{{punishmentValue}}",
+          "bindinput": "onPunishmentValue",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{punishmentReason}}",
+          "bindinput": "onPunishmentReason",
+          "disabled": "{{busy}}",
+          "maxlength": "255"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-mine/community-mine"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-feed/community-feed"
+        },
+        "ancestors": []
+      }
+    ],
+    "admin-post-removal": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{ownPost && target}}",
+          "url": "/pages/community-detail/community-detail?postId={{target.id}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRemovePost",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentKind"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "none",
+          "checked": "{{punishmentKind === 'none'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "interaction_mute",
+          "checked": "{{punishmentKind === 'interaction_mute'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "access_suspension",
+          "checked": "{{punishmentKind === 'access_suspension'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentUnit"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "hours",
+          "checked": "{{punishmentUnit === 'hours'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "days",
+          "checked": "{{punishmentUnit === 'days'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "permanent",
+          "checked": "{{punishmentUnit === 'permanent'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "wx:if": "{{punishmentUnit !== 'permanent'}}",
+          "type": "number",
+          "value": "{{punishmentValue}}",
+          "bindinput": "onPunishmentValue",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{punishmentReason}}",
+          "bindinput": "onPunishmentReason",
+          "disabled": "{{busy}}",
+          "maxlength": "255"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-mine/community-mine"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-feed/community-feed"
+        },
+        "ancestors": []
+      }
+    ],
+    "profile-avatar-moderation": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClearCustomAvatar",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canClearCustomAvatar && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'clear' && management.canClearCustomAvatar && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'clear' && management.canClearCustomAvatar && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-mine/community-mine"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/profile/profile"
+        },
+        "ancestors": []
+      }
+    ],
+    "profile-moderation": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onResetNickname",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canReset && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'reset' && management.canReset && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'reset' && management.canReset && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-mine/community-mine"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/profile/profile"
+        },
+        "ancestors": []
+      }
+    ],
+    "safety-appeal-management": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.canAppeal}}",
+          "url": "/pages/safety-appeal/safety-appeal?punishmentId={{item.punishmentId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.punishmentId}}",
+          "bindtap": "onSelectPunishment",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{punishments}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.appealId}}",
+          "bindtap": "onSelectAppeal",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{appeals}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{nextCursor}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{text}}",
+          "maxlength": "4000",
+          "bindinput": "onText",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestAppeal",
+          "disabled": "{{busy || frozen || !text}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{selectedPunishment.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestRelease",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "upheld",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "released",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "closed_no_longer_effective",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{historyCursor}}",
+          "bindtap": "onMoreHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/account-status/account-status"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/system-notices/system-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/safety-appeal/safety-appeal"
+        },
+        "ancestors": []
+      }
+    ],
+    "safety-punishment-management": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.canAppeal}}",
+          "url": "/pages/safety-appeal/safety-appeal?punishmentId={{item.punishmentId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.punishmentId}}",
+          "bindtap": "onSelectPunishment",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{punishments}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.appealId}}",
+          "bindtap": "onSelectAppeal",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{appeals}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{nextCursor}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{text}}",
+          "maxlength": "4000",
+          "bindinput": "onText",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestAppeal",
+          "disabled": "{{busy || frozen || !text}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{selectedPunishment.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestRelease",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "upheld",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "released",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "closed_no_longer_effective",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{historyCursor}}",
+          "bindtap": "onMoreHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/account-status/account-status"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/system-notices/system-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/safety-appeal/safety-appeal"
+        },
+        "ancestors": []
+      }
+    ],
+    "student-verification-review": [
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onSearchInput",
+          "maxlength": "100"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management==='global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management==='global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChooseCampus",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management==='global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{items}}",
+          "wx:key": "id",
+          "bindtap": "onSelect",
+          "data-id": "{{item.id}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPrevious",
+          "disabled": "{{busy||page<=1}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onNext",
+          "disabled": "{{busy||!hasNext}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{application.state==='pending'&&application.evidenceAvailable}}",
+          "bindtap": "onPreview",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{application}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onApprove",
+          "disabled": "{{busy||pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "bindinput": "onReason",
+          "maxlength": "200"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReject",
+          "disabled": "{{busy||pending||!reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClosePreview"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{evidenceSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirm",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismiss",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/student-verification-notices/student-verification-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/student-verification/student-verification"
+        },
+        "ancestors": []
+      }
+    ],
+    "feedback-notices": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy || item.available === false}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy || item.available === false}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      }
+    ]
+  },
+  "after": {
+    "admin-discussion-removal": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{ownContent && target}}",
+          "open-type": "navigateBack"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRemoveDiscussion",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentKind"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "none",
+          "checked": "{{punishmentKind === 'none'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "interaction_mute",
+          "checked": "{{punishmentKind === 'interaction_mute'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "access_suspension",
+          "checked": "{{punishmentKind === 'access_suspension'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentUnit"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "minutes",
+          "checked": "{{punishmentUnit === 'minutes'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "hours",
+          "checked": "{{punishmentUnit === 'hours'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "days",
+          "checked": "{{punishmentUnit === 'days'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "permanent",
+          "checked": "{{punishmentUnit === 'permanent'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "wx:if": "{{punishmentUnit !== 'permanent'}}",
+          "type": "number",
+          "value": "{{punishmentValue}}",
+          "bindinput": "onPunishmentValue",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{punishmentReason}}",
+          "bindinput": "onPunishmentReason",
+          "disabled": "{{busy}}",
+          "maxlength": "255"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-mine/community-mine"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-feed/community-feed"
+        },
+        "ancestors": []
+      }
+    ],
+    "admin-post-removal": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{ownPost && target}}",
+          "url": "/pages/community-detail/community-detail?postId={{target.id}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRemovePost",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canRemove && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentKind"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "none",
+          "checked": "{{punishmentKind === 'none'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "interaction_mute",
+          "checked": "{{punishmentKind === 'interaction_mute'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "access_suspension",
+          "checked": "{{punishmentKind === 'access_suspension'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onPunishmentUnit"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "hours",
+          "checked": "{{punishmentUnit === 'hours'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "days",
+          "checked": "{{punishmentUnit === 'days'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "permanent",
+          "checked": "{{punishmentUnit === 'permanent'}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "wx:if": "{{punishmentUnit !== 'permanent'}}",
+          "type": "number",
+          "value": "{{punishmentValue}}",
+          "bindinput": "onPunishmentValue",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{punishmentReason}}",
+          "bindinput": "onPunishmentReason",
+          "disabled": "{{busy}}",
+          "maxlength": "255"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.punishmentOptions}}"
+          },
+          {
+            "wx:if": "{{punishmentKind !== 'none'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'remove' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-mine/community-mine"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-feed/community-feed"
+        },
+        "ancestors": []
+      }
+    ],
+    "profile-avatar-moderation": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canClearCustomAvatar && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClearCustomAvatar",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canClearCustomAvatar && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'clear' && management.canClearCustomAvatar && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'clear' && management.canClearCustomAvatar && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-mine/community-mine"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/profile/profile"
+        },
+        "ancestors": []
+      }
+    ],
+    "profile-moderation": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canReset && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onResetNickname",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && management.canReset && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'reset' && management.canReset && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'reset' && management.canReset && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-mine/community-mine"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/profile/profile"
+        },
+        "ancestors": []
+      }
+    ],
+    "safety-appeal-management": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.canAppeal}}",
+          "url": "/pages/safety-appeal/safety-appeal?punishmentId={{item.punishmentId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.punishmentId}}",
+          "bindtap": "onSelectPunishment",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{punishments}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.appealId}}",
+          "bindtap": "onSelectAppeal",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{appeals}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{nextCursor}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{text}}",
+          "maxlength": "4000",
+          "bindinput": "onText",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestAppeal",
+          "disabled": "{{busy || frozen || !text}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{selectedPunishment.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestRelease",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "upheld",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "released",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "closed_no_longer_effective",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{historyCursor}}",
+          "bindtap": "onMoreHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/account-status/account-status"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/system-notices/system-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/safety-appeal/safety-appeal"
+        },
+        "ancestors": []
+      }
+    ],
+    "safety-punishment-management": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.canAppeal}}",
+          "url": "/pages/safety-appeal/safety-appeal?punishmentId={{item.punishmentId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.punishmentId}}",
+          "bindtap": "onSelectPunishment",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{punishments}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.appealId}}",
+          "bindtap": "onSelectAppeal",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{appeals}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{nextCursor}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{text}}",
+          "maxlength": "4000",
+          "bindinput": "onText",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestAppeal",
+          "disabled": "{{busy || frozen || !text}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{selectedPunishment.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestRelease",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "upheld",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "released",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "closed_no_longer_effective",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{historyCursor}}",
+          "bindtap": "onMoreHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/account-status/account-status"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/system-notices/system-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/safety-appeal/safety-appeal"
+        },
+        "ancestors": []
+      }
+    ],
+    "student-verification-review": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onSearchInput",
+          "maxlength": "100"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management==='global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management==='global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChooseCampus",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management==='global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{items}}",
+          "wx:key": "id",
+          "bindtap": "onSelect",
+          "data-id": "{{item.id}}",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPrevious",
+          "disabled": "{{busy||page<=1}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onNext",
+          "disabled": "{{busy||!hasNext}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{application}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{application.state==='pending'&&application.evidenceAvailable}}",
+          "bindtap": "onPreview",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{application}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onApprove",
+          "disabled": "{{busy||pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{reason}}",
+          "bindinput": "onReason",
+          "maxlength": "200"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReject",
+          "disabled": "{{busy||pending||!reason}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='pending'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClosePreview"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{evidenceSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirm",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismiss",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/student-verification-notices/student-verification-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/student-verification/student-verification"
+        },
+        "ancestors": []
+      }
+    ],
+    "feedback-notices": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy || item.available === false}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy || item.available === false}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onToggleDetails"
+        },
+        "ancestors": []
+      }
+    ]
+  }
+}

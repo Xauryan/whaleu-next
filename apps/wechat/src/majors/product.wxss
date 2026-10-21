@@ -1,0 +1,383 @@
+/* Isolated public major journeys; recovery and notices retain their own styles. */
+.major-product {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 16rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+  background: var(--wu-surface);
+  color: var(--wu-text);
+}
+.major-product.has-dock {
+  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+}
+.major-product button {
+  min-height: 88rpx;
+  margin: 0;
+  padding: 12rpx 24rpx;
+  border: 0;
+  border-radius: 18rpx;
+  background: var(--wu-bg);
+  color: var(--wu-text);
+  font-size: 27rpx;
+  line-height: 1.5;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+.major-product button::after {
+  border: 0;
+}
+.major-product .major-primary {
+  background: var(--wu-text);
+  color: var(--wu-surface);
+  width: 100%;
+}
+.major-product .major-title {
+  font-size: 44rpx;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -1rpx;
+  margin: 18rpx 0 10rpx;
+}
+.major-product .major-section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.major-product .major-name {
+  font-size: 31rpx;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.major-product .major-body {
+  font-size: 29rpx;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 16rpx 0;
+  text-align: left;
+}
+.major-product .major-meta {
+  font-size: 24rpx;
+  line-height: 1.55;
+  font-weight: 400;
+  color: var(--wu-secondary);
+  margin: 4rpx 0;
+  overflow-wrap: anywhere;
+}
+.major-product .major-notice,
+.major-product .major-status,
+.major-product .major-error {
+  font-size: 25rpx;
+  line-height: 1.6;
+  padding: 14rpx 0;
+  overflow-wrap: anywhere;
+}
+.major-product .major-error {
+  color: var(--wu-danger);
+}
+.major-product .major-notice,
+.major-product .major-status {
+  color: var(--wu-secondary);
+}
+.major-product .major-search,
+.major-product .major-toolbar,
+.major-product .major-list-heading,
+.major-product .major-comment-heading,
+.major-product .major-author,
+.major-product .major-inline-actions,
+.major-product .major-filter,
+.major-product .major-link {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.major-product .major-search {
+  padding-left: 24rpx;
+  background: var(--wu-bg);
+  border-radius: 22rpx;
+}
+.major-product .major-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 88rpx;
+  font-size: 28rpx;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.major-product .major-toolbar,
+.major-product .major-list-heading,
+.major-product .major-comment-heading {
+  justify-content: space-between;
+}
+.major-product .major-toolbar {
+  min-height: 96rpx;
+}
+.major-product .major-toolbar-end {
+  justify-content: flex-end;
+  min-height: 64rpx;
+}
+.major-product .major-filter {
+  min-height: 88rpx;
+  font-size: 27rpx;
+}
+.major-product .major-quiet,
+.major-product .major-icon-button,
+.major-product .major-tab {
+  background: transparent;
+  padding: 0 12rpx;
+  color: var(--wu-secondary);
+  min-height: 88rpx;
+}
+.major-product .major-icon-button {
+  min-width: 88rpx;
+  width: 88rpx;
+  padding: 0;
+  flex-shrink: 0;
+}
+.major-product .major-list-heading {
+  min-height: 88rpx;
+  margin-top: 10rpx;
+}
+.major-product .major-list-row {
+  border-radius: 0;
+  background: transparent;
+  width: 100%;
+  padding: 28rpx 0;
+  justify-content: space-between;
+  text-align: left;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.major-product .major-row-content {
+  flex: 1;
+  min-width: 0;
+  padding-right: 20rpx;
+}
+.major-product .major-list-row:last-child {
+  border-bottom: 0;
+}
+.major-product .major-highlight {
+  margin-top: 18rpx;
+}
+.major-product .major-list-row .major-highlight .major-body {
+  font-size: 27rpx;
+  margin: 8rpx 0 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.major-product .major-identity {
+  padding: 4rpx 0 24rpx;
+}
+.major-product .major-identity-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 24rpx;
+  background: var(--wu-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.major-product .major-detail-summary {
+  padding: 8rpx 0 30rpx;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.major-product .major-detail-summary .major-highlight .major-body {
+  font-size: 30rpx;
+}
+.major-product .major-options {
+  background: var(--wu-bg);
+  padding: 12rpx 24rpx;
+  border-radius: 22rpx;
+  margin-bottom: 16rpx;
+}
+.major-product .major-link {
+  min-height: 88rpx;
+  justify-content: space-between;
+  font-size: 27rpx;
+  color: var(--wu-text);
+}
+.major-product .major-tabs {
+  display: flex;
+  gap: 32rpx;
+}
+.major-product .major-tab {
+  position: relative;
+  padding: 0 4rpx;
+  font-size: 29rpx;
+}
+.major-product .major-tab-active {
+  color: var(--wu-text);
+  font-weight: 600;
+}
+.major-product .major-tab-active::before {
+  content: '';
+  position: absolute;
+  height: 4rpx;
+  width: 32rpx;
+  border-radius: 4rpx;
+  background: var(--wu-accent);
+  bottom: 8rpx;
+  left: calc(50% - 16rpx);
+}
+.major-product .major-comment {
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.major-product .major-comment:last-child {
+  border-bottom: 0;
+}
+.major-product .major-focused {
+  border-left: 4rpx solid var(--wu-accent);
+  padding-left: 20rpx;
+}
+.major-product .major-avatar {
+  width: 68rpx;
+  height: 68rpx;
+  background: var(--wu-bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.major-product .major-author-name {
+  font-size: 27rpx;
+  font-weight: 600;
+}
+.major-product .major-author {
+  min-width: 0;
+}
+.major-product .major-author .major-meta {
+  font-size: 22rpx;
+}
+.major-product .major-inline-actions {
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+.major-product .major-inline-actions .major-quiet:first-child {
+  padding-left: 0;
+}
+.major-product .major-liked {
+  color: var(--wu-accent);
+}
+.major-product .major-delete {
+  color: var(--wu-danger);
+  background: var(--wu-danger-bg);
+}
+.major-product .major-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin: 18rpx 0;
+}
+.major-product .major-images button {
+  min-width: 180rpx;
+  min-height: 112rpx;
+  font-size: 24rpx;
+}
+.major-product .major-empty {
+  padding: 80rpx 24rpx;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18rpx;
+  color: var(--wu-secondary);
+}
+.major-product .major-load-more {
+  width: 100%;
+  background: transparent;
+  color: var(--wu-accent);
+  margin-top: 20rpx;
+}
+.major-product .major-dock {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  background: var(--wu-surface);
+  border-top: 1rpx solid var(--wu-separator);
+  padding: 16rpx 32rpx calc(16rpx + env(safe-area-inset-bottom));
+}
+.major-product .major-compose-entry {
+  flex: 1;
+  justify-content: flex-start;
+  color: var(--wu-secondary);
+  border-radius: 44rpx;
+}
+.major-product .major-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.36);
+  display: flex;
+  align-items: flex-end;
+}
+.major-product .major-sheet {
+  width: 100%;
+  box-sizing: border-box;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 16rpx 32rpx calc(28rpx + env(safe-area-inset-bottom));
+  border-radius: 28rpx 28rpx 0 0;
+  background: var(--wu-elevated);
+}
+.major-product .major-sheet textarea {
+  width: 100%;
+  min-height: 240rpx;
+  height: 28vh;
+  font-size: 30rpx;
+  line-height: 1.6;
+  padding: 24rpx 0;
+  box-sizing: border-box;
+}
+.major-product .major-sheet > button {
+  margin-top: 16rpx;
+}
+.major-product .major-reply-target {
+  font-size: 25rpx;
+  color: var(--wu-secondary);
+}
+.major-product .major-confirmation {
+  padding-top: 28rpx;
+}
+.major-product .major-recovery {
+  background: var(--wu-bg);
+  border-radius: 22rpx;
+  padding: 24rpx;
+  margin: 20rpx 0;
+}
+.major-product .major-recovery button {
+  margin-top: 16rpx;
+  background: var(--wu-elevated);
+}
+.major-product .major-image-state {
+  position: relative;
+}
+.major-product .major-gallery {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--wu-bg);
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+}
+.major-product .major-gallery-sheet {
+  width: 100%;
+}
+.major-product .major-gallery-image {
+  width: 100%;
+  height: 65vh;
+}
+.major-product .major-gallery .major-inline-actions button {
+  flex: 1;
+}

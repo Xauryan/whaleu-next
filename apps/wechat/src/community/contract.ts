@@ -162,9 +162,9 @@ export interface Post extends RelatedCampusDisplay {
   readonly publishedAt: string;
   readonly likeCount: number;
   readonly saveCount: number;
-  readonly commentCount: number;
-  readonly replyCount: number;
-  readonly discussionCount: number;
+  readonly commentCount: number | null;
+  readonly replyCount: number | null;
+  readonly discussionCount: number | null;
   readonly viewer: {
     readonly isSelf: boolean;
     readonly isLiked: boolean;
@@ -184,7 +184,7 @@ export interface Comment {
   readonly author: Author;
   readonly createdAt: string;
   readonly likeCount: number;
-  readonly replyCount: number;
+  readonly replyCount: number | null;
   readonly isPinned: boolean;
   readonly replyPreview: Replies;
   readonly viewer: {
@@ -311,6 +311,9 @@ export function boundedText(
     })
   );
 }
+const optionalDiscussionCount = (value: unknown): value is number | null =>
+  value === null ||
+  (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0);
 const integer = (value: unknown, min = 0, max = 2147483647): value is number =>
   typeof value === 'number' &&
   Number.isInteger(value) &&
@@ -497,10 +500,19 @@ export function decodePost(value: unknown): Post {
     !integer(value.likeCount) ||
     !integer(value.saveCount) ||
     (value.viewer.isSaved && value.saveCount < 1) ||
-    !integer(value.commentCount) ||
-    !integer(value.replyCount) ||
-    !integer(value.discussionCount) ||
-    value.discussionCount !== value.commentCount + value.replyCount ||
+    !optionalDiscussionCount(value.commentCount) ||
+    !optionalDiscussionCount(value.replyCount) ||
+    !optionalDiscussionCount(value.discussionCount) ||
+    (value.commentCount === null ||
+    value.replyCount === null ||
+    value.discussionCount === null
+      ? !(
+          value.commentCount === null &&
+          value.replyCount === null &&
+          value.discussionCount === null
+        )
+      : !Number.isSafeInteger(value.commentCount + value.replyCount) ||
+        value.discussionCount !== value.commentCount + value.replyCount) ||
     !policy(value.commentsPolicy) ||
     Object.values(value.viewer).some((item) => typeof item !== 'boolean') ||
     (value.viewer.canDelete && !value.viewer.isSelf)
@@ -588,7 +600,7 @@ export function decodeComment(value: unknown): Comment {
     !displayDiscussionText(value.text) ||
     !timestamp(value.createdAt) ||
     !integer(value.likeCount) ||
-    !integer(value.replyCount) ||
+    !optionalDiscussionCount(value.replyCount) ||
     typeof value.isPinned !== 'boolean' ||
     Object.values(value.viewer).some((item) => typeof item !== 'boolean') ||
     (value.viewer.canDelete && !value.viewer.isSelf)
@@ -600,7 +612,7 @@ export function decodeComment(value: unknown): Comment {
     replyPreview.items.some(
       (item) => item.rootCommentId !== value.id || item.postId !== value.postId,
     ) ||
-    replyPreview.items.length > value.replyCount
+    (value.replyCount !== null && replyPreview.items.length > value.replyCount)
   )
     invalid();
   const images = mediaList(value.images, 3);

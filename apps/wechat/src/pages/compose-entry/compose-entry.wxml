@@ -1,0 +1,12 @@
+<view class="screen f7-ios-theme f7-composer-screen">
+  <view class="entry-heading">发布主题</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{busy}}" class="status" aria-role="status">正在读取可用社区…</view>
+  <wu-f7-block wx:if="{{!hasSession &amp;&amp; !busy}}" class="card" spacing="compact"><view class="section-title">登录后发布</view><navigator class="link" url="/pages/login/login">前往登录 <wu-icon name="chevron-right" size="16" /></navigator></wu-f7-block>
+  <wu-f7-block class="card" wx:if="{{campuses.length}}" spacing="compact"><view class="section-title">校园</view><wu-f7-list spacing="compact"><wu-f7-list-item wx:for="{{campuses}}" wx:key="id" class="choice {{campusId === item.id ? 'active' : ''}}" disabled="{{busy || !item.isActive}}" data-id="{{item.id}}" bind:press="onCampus" link="{{true}}" last="{{true}}" aria-label="{{item.fullName}}"><view class="f7-composer-disclosure">{{item.fullName}}<wu-icon wx:if="{{campusId === item.id}}" name="check" tone="accent" size="18" /></view></wu-f7-list-item></wu-f7-list></wu-f7-block>
+  <wu-f7-block class="card" wx:if="{{campusId || globalSpaces.length}}" spacing="compact"><view class="section-title">发布到</view><wu-f7-list spacing="compact"><wu-f7-list-item wx:if="{{campusId}}" class="choice" bind:press="onRegional" disabled="{{busy}}" link="{{true}}" last="{{true}}" aria-label="{{campusName || '本校'}}社区"><view class="f7-composer-disclosure">{{campusName || '本校'}}社区</view></wu-f7-list-item></wu-f7-list><wu-f7-list spacing="compact"><wu-f7-list-item wx:for="{{globalSpaces}}" wx:key="id" class="choice {{space &amp;&amp; space.id === item.id ? 'active' : ''}}" data-id="{{item.id}}" bind:press="onGlobal" disabled="{{busy}}" link="{{true}}" last="{{true}}" aria-label="{{item.name}}"><view class="f7-composer-disclosure">{{item.name}}</view></wu-f7-list-item></wu-f7-list></wu-f7-block>
+  <view wx:if="{{space}}" class="destination">{{space.name}}</view>
+  <wu-f7-button class="primary" bind:press="onContinue" disabled="{{!space || busy || opening || !hasSession}}" loading="{{opening}}" variant="fill" size="large" round="{{true}}">写主题</wu-f7-button>
+  <wu-f7-button wx:if="{{!space &amp;&amp; !busy}}" class="secondary" bind:press="onRetry" variant="tonal">重新加载社区</wu-f7-button>
+
+</view>

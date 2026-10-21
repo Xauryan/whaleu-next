@@ -22,13 +22,13 @@ Successful historical recovery clears only the matching account/origin/version k
 
 ## Notice navigation and lifecycle
 
-Opening a list row first resolves its own current server locator. Native navigation itself does not mark it read. The receiving thread re-resolves the same notice and exact typed locator, successfully reads/applies the current root, target and inclusive reply-position page, and only then requests the exact current notice's idempotent read endpoint. An unavailable target, failed position, failed navigation, newer route or dismissed page does not trigger an automatic read. Explicit “mark this one read” remains available for an owner-visible unavailable notice.
+Opening a list row first resolves its own current server locator. The receiving thread re-resolves the same notice and exact typed locator, then reads/applies the current root, target and inclusive reply-position page. Neither successful navigation, content loading, rendering, refresh nor expansion acknowledges a notice. Exact explicit “mark this one read” remains on the source updates list, including owner-visible unavailable notices. The compatibility marker `noticeRead=explicit` retains the same owner/locator checks; all entries now use this nonmutating default. This is not viewport/dwell receipt implementation.
 
 Account replacement, same-account login epoch changes, logout, page/app hide, unload, cancel, Safety or identity/browsing-scope changes clear transient content, quotes, drafts, selection and cursors and fence delayed callbacks. Cancelling during UUID generation prevents persistence. Cancelling after dispatch preserves the original uncertain journal. Late responses never clear another account's journal or navigate/read an old notice in the replacement view.
 
 ## Validation and unfinished gates
 
-`test/ratings-r2a-{contract,gateway,controller}.test.ts` tests strict DTOs, real ApiClient routes, v1/v2 storage, receipt matching, read state, source errors and lifecycle races. It includes changes at the precise position-applied/before-read boundary, not only interruption before network completion. R1 regression tests remain active.
+`test/ratings-r2a-{contract,gateway,controller}.test.ts` tests strict DTOs, real ApiClient routes, v1/v2 storage, receipt matching, read state, source errors and lifecycle races. It includes no-read assertions after successful position application and refresh/expand, plus lifecycle interruption and exact explicit-source receipt checks. R1 regression tests remain active.
 
 `scripts/smoke-ratings-r2a.mjs` uses emitted JavaScript page handlers, real ApiClient/gateways and the repository's bounded WXML condition/loop/template model with synthetic transport data. This is not a WeChat device renderer, real provider delivery or PostgreSQL proof. Backend AppModule/HTTP/PostgreSQL integration is separately owned and must be verified against the final shared source snapshot.
 

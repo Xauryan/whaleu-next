@@ -40,7 +40,7 @@ test('explicit preview then confirmation publishes exact text, and distinct comm
   assert.deepEqual(s.commands[0], publish());
   assert.equal(s.view().frozen, false);
   s.ids.next = async () => otherId;
-  choosePublish(s, '第二条不同评论');
+  choosePublish(s, '第二条不同回复');
   await s.controller.submit();
   assert.equal(s.commands.length, 2);
   assert.equal(s.commands[1]!.payload.clientRequestId, otherId);

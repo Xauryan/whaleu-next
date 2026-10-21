@@ -27,12 +27,12 @@ export const experienceActionLabels: Readonly<
   Record<ExperienceAction, string>
 > = {
   publish: '发布内容',
-  comment: '发表评论或回复',
+  comment: '发表回复',
   like_save: '点赞或收藏',
   received_like_save: '收到点赞或收藏',
-  received_comment: '收到评论或回复',
+  received_comment: '收到回复',
   delete_post: '删除自己的帖子',
-  delete_comment: '删除自己的评论',
+  delete_comment: '删除自己的回复',
   delete_reply: '删除自己的回复',
   sign_in: '每日签到',
 };

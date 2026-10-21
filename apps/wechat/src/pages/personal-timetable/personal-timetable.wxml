@@ -1,0 +1,52 @@
+<import src="../../personal-timetable/recovery.wxml" />
+<view class="tt-page f7-ios-theme">
+  <view class="tt-subtitle">仅当前账户可见 · 需联网</view>
+  <template is="timetable-status" data="{{error,message,busy,pending,cancelPending,requestId,blocked,mode,authenticated}}" />
+  <view wx:if="{{ready &amp;&amp; !pending}}">
+    <wu-f7-block wx:if="{{!terms.length}}" strong="{{true}}" inset="{{true}}" spacing="compact" title="从一个学期开始">
+      <view class="tt-muted">创建学期后，添加课程、上课时间与周次。</view>
+      <wu-f7-button data-target="newTerm" bind:press="onNavigate" variant="fill" disabled="{{busy || blocked}}">创建学期</wu-f7-button>
+    </wu-f7-block>
+    <view wx:if="{{term}}">
+      <picker mode="selector" range="{{terms}}" range-key="name" value="{{termIndex}}" bindchange="onTermChoice" disabled="{{busy || blocked}}">
+        <view class="tt-picker" aria-label="选择学期">{{term.name}} <text class="tt-muted">切换学期 <wu-icon name="chevron-down" size="16" tone="muted" /></text></view>
+      </picker>
+      <view class="tt-current">{{currentLabel}} · 北京时间</view>
+      <view class="tt-week-nav">
+        <wu-f7-button bind:press="onPrevious" disabled="{{busy || week <= 1}}" aria-label="上一周">上一周</wu-f7-button>
+        <picker mode="selector" range="{{weekOptions}}" value="{{week - 1}}" bindchange="onWeekChoice" disabled="{{busy || blocked}}"><view class="tt-week">第 {{week}} 周 <wu-icon name="chevron-down" size="16" tone="muted" /></view></picker>
+        <wu-f7-button bind:press="onNext" disabled="{{busy || week >= term.weekCount}}" aria-label="下一周">下一周</wu-f7-button>
+      </view>
+      <view class="tt-actions">
+        <wu-f7-button bind:press="onCurrent" disabled="{{busy || !currentWeek}}" variant="plain">回到本周</wu-f7-button>
+        <wu-f7-button data-target="newEntry" bind:press="onNavigate" disabled="{{busy || blocked}}" variant="fill">添加课程</wu-f7-button>
+      </view>
+      <wu-f7-block wx:for="{{days}}" wx:key="date" wx:for-item="day" strong="{{true}}" inset="{{true}}" spacing="compact">
+        <view class="tt-day-heading {{day.today ? 'tt-today' : ''}}">{{day.label}} <text>{{day.date}}{{day.today ? ' · 今天' : ''}}</text></view>
+        <view wx:if="{{!day.entries.length}}" class="tt-empty">当天没有课程</view>
+        <view wx:for="{{day.entries}}" wx:for-item="entry" wx:key="entryId" class="tt-entry tt-color-{{entry.color}}">
+          <wu-f7-list-item data-id="{{entry.entryId}}" bind:press="onDetails" title="{{entry.name}}" subtitle="{{entry.timeLabel}}" text="{{entry.location}}" link="{{true}}" disabled="{{busy || blocked}}" last="{{true}}" footer-slot="{{entry.conflicting}}" aria-label="查看{{entry.name}}，{{entry.timeLabel}}{{entry.conflicting ? '，时间重叠' : ''}}">
+            <view slot="footer" wx:if="{{entry.conflicting}}" class="tt-warning">时间重叠</view>
+          </wu-f7-list-item>
+        </view>
+      </wu-f7-block>
+      <wu-f7-block wx:if="{{selected}}" strong="{{true}}" inset="{{true}}" spacing="compact" title="课程详情">
+        <view class="tt-course-title">{{selected.name}}</view>
+        <view>周 {{selected.dayOfWeek}} · {{selected.timeLabel}}</view>
+        <view>第 {{selected.weeks}} 周</view>
+        <view wx:if="{{selected.teacher}}">教师：{{selected.teacher}}</view>
+        <view wx:if="{{selected.location}}">地点：{{selected.location}}</view>
+        <view wx:if="{{selected.note}}" class="tt-note">{{selected.note}}</view>
+        <view class="tt-actions">
+          <wu-f7-button data-target="editEntry" bind:press="onNavigate" variant="tonal">编辑课程</wu-f7-button>
+          <wu-f7-button data-target="duplicate" bind:press="onNavigate" variant="tonal">复制为新课程</wu-f7-button>
+          <wu-f7-button bind:press="onCloseDetails">收起</wu-f7-button>
+        </view>
+      </wu-f7-block>
+      <view class="tt-actions">
+        <wu-f7-button data-target="editTerm" bind:press="onNavigate" disabled="{{busy || blocked}}">编辑学期</wu-f7-button>
+        <wu-f7-button data-target="newTerm" bind:press="onNavigate" disabled="{{busy || blocked}}">新建学期</wu-f7-button>
+      </view>
+    </view>
+  </view>
+</view>

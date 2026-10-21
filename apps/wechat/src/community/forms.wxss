@@ -1,32 +1,33 @@
 page {
-  background: #f2f6f8;
-  color: #173a46;
+  background: var(--wu-bg);
+  color: var(--wu-text);
   font-family: -apple-system, sans-serif;
 }
 .screen {
   padding: 36rpx 30rpx 72rpx;
 }
 .eyebrow {
-  color: #39838b;
+  color: var(--wu-secondary);
   font-size: 22rpx;
   letter-spacing: 4rpx;
   font-weight: 600;
 }
 .title {
-  font-size: 46rpx;
+  font-size: 56rpx;
+  letter-spacing: -1.5rpx;
   font-weight: 700;
   margin: 12rpx 0 16rpx;
 }
 .subtitle {
   font-size: 27rpx;
   line-height: 1.7;
-  color: #617680;
+  color: var(--wu-secondary);
 }
 .card {
   margin-top: 24rpx;
   padding: 28rpx;
-  background: white;
-  border: 1rpx solid #e0eaee;
+  background: var(--wu-surface);
+  border: 1rpx solid var(--wu-separator);
   border-radius: 22rpx;
 }
 .section-title {
@@ -40,7 +41,7 @@ page {
   font-weight: 600;
 }
 .meta {
-  color: #71838b;
+  color: var(--wu-secondary);
   font-size: 23rpx;
   margin: 12rpx 0;
   line-height: 1.6;
@@ -58,20 +59,20 @@ page {
   font-size: 26rpx;
   line-height: 1.8;
   padding: 18rpx 0;
-  color: #587380;
+  color: var(--wu-secondary);
 }
 .error {
   font-size: 26rpx;
   line-height: 1.7;
-  background: #fff3ee;
+  background: var(--wu-danger-bg);
   border-radius: 12rpx;
-  color: #995342;
+  color: var(--wu-danger);
   padding: 20rpx;
   margin: 16rpx 0;
 }
 .scope {
   padding: 24rpx;
-  background: #e3f2f0;
+  background: var(--wu-tint);
   border-radius: 16rpx;
   margin: 22rpx 0;
   font-size: 28rpx;
@@ -85,32 +86,32 @@ page {
   align-items: center;
 }
 .chip {
-  border: 1rpx solid #d6e3e5;
+  border: 1rpx solid var(--wu-separator);
   padding: 12rpx 22rpx;
   border-radius: 32rpx;
   font-size: 24rpx;
-  color: #496570;
+  color: var(--wu-secondary);
 }
 .chip.active {
-  background: #d8efea;
-  border-color: #80b8a9;
-  color: #196c61;
+  background: var(--wu-tint);
+  border-color: var(--wu-accent);
+  color: var(--wu-accent);
 }
 button {
   margin: 16rpx 0 0;
   font-size: 27rpx;
-  border-radius: 14rpx;
+  border-radius: 20rpx;
 }
 button.primary {
-  background: #206e66;
+  background: var(--wu-accent);
   color: white;
 }
 button.secondary {
-  background: #edf3f5;
-  color: #2e5661;
+  background: var(--wu-bg);
+  color: var(--wu-text);
 }
 button.danger {
-  background: #a44f40;
+  background: var(--wu-danger);
   color: white;
 }
 button[disabled] {
@@ -120,8 +121,8 @@ input,
 textarea {
   width: 100%;
   box-sizing: border-box;
-  background: #f3f7f8;
-  border: 1rpx solid #dce7eb;
+  background: var(--wu-bg);
+  border: 1rpx solid var(--wu-separator);
   border-radius: 12rpx;
   font-size: 29rpx;
   padding: 20rpx;
@@ -134,7 +135,7 @@ textarea {
   margin: 20rpx 0;
 }
 .link {
-  color: #246e69;
+  color: var(--wu-accent);
   font-size: 26rpx;
   padding: 18rpx 0;
 }
@@ -150,12 +151,12 @@ textarea {
 }
 .divider {
   height: 1rpx;
-  background: #e8eef0;
+  background: var(--wu-separator);
   margin: 24rpx 0;
 }
 .confirm {
-  background: #fff5ef;
-  border: 1rpx solid #eed3c4;
+  background: var(--wu-danger-bg);
+  border: 1rpx solid var(--wu-separator);
   border-radius: 16rpx;
   padding: 24rpx;
   margin: 22rpx 0;
@@ -170,20 +171,20 @@ textarea {
 .badge {
   font-size: 22rpx;
   border-radius: 8rpx;
-  background: #edf3f5;
+  background: var(--wu-bg);
   padding: 5rpx 10rpx;
-  color: #537682;
+  color: var(--wu-secondary);
   margin-left: 12rpx;
 }
 .identity-private {
   margin-top: 20rpx;
   padding: 20rpx;
-  border: 1rpx solid #d8c9b8;
+  border: 1rpx solid var(--wu-separator);
   border-radius: 12rpx;
-  background: #fdf7ed;
-  color: #76552f;
+  background: var(--wu-tint);
+  color: var(--wu-text);
 }
 .identity-private .meta {
-  color: #80674a;
+  color: var(--wu-secondary);
   word-break: break-all;
 }

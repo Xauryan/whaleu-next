@@ -1,8 +1,39 @@
-@import '../../profile/forms.wxss';
-.evidence {
-  width: 100%;
-  max-height: 720rpx;
+@import '../profile/framework7-profile-verification.wxss';
+.notice-item {
+  padding-bottom: 10px;
 }
-.selected {
-  border: 2rpx solid #247668;
+.notice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--f7-button-tonal-bg-color);
+}
+.notice-heading {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.notice-meta {
+  margin-top: 4px;
+  color: var(--f7-list-item-footer-text-color);
+  font-size: var(--f7-list-item-footer-font-size);
+  line-height: 1.5;
+}
+.notice-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 var(--f7-list-item-padding-horizontal);
+}
+.notice-button {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+.unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--f7-theme-color);
 }

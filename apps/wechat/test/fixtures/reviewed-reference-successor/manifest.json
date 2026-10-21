@@ -1,0 +1,131 @@
+{
+  "predecessorManifestSha256": "7c42b101696a505131bd1e2de6b1ee629d0b30b1c4b160f347a6a011dd4940c7",
+  "sources": [
+    {
+      "path": "apps/wechat/src/pages/community-detail/community-detail.ts",
+      "before": "4496433d8ff570b537e2cd20c129a0a122fc85c15a12476a2654abbe949136cc",
+      "after": "f66054fb0ca16b2e6a27671d2415d4c9e74e0fe53b03bf1575211ffc7402ac42",
+      "evidence": "before/community-detail.ts.txt"
+    },
+    {
+      "path": "apps/wechat/src/pages/community-detail/community-detail.wxml",
+      "before": "3241cbf5abf226b6ae56be4e46d086434f9223167963721cb880e30d59b7d2cc",
+      "after": "c9ba8258ab59f4fbf03f9465ae1febad888dc8e5fc89ff9cb61c4a509f47392e",
+      "evidence": "before/community-detail.wxml.txt"
+    },
+    {
+      "path": "apps/wechat/src/pages/community-detail/community-detail.json",
+      "before": "faf3aa37441b5d371ade7b06b339a952ab84022cc0a4515b8bc476bfec236db3",
+      "after": "ee3c3180273ea0e70852cf10b27770f759e6ce6d824539de1e3c54093cabd32e",
+      "evidence": "before/community-detail.json.txt"
+    }
+  ],
+  "actions": {
+    "beforeCount": 145,
+    "afterCount": 147,
+    "removed": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/community-thread/community-thread?postId={{post.id}}&rootCommentId={{item.id}}&replyId={{reply.id}}{{viewSpaceQuery}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{item.replyPreview.items}}",
+            "wx:for-item": "reply",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/community-thread/community-thread?postId={{post.id}}&rootCommentId={{locatedComment.id}}{{viewSpaceQuery}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{locatedComment}}"
+          }
+        ]
+      }
+    ],
+    "added": [
+      {
+        "tag": "wu-reference-text",
+        "attrs": {
+          "source": "{{item.text}}",
+          "row-key": "{{'comment:' + item.id}}",
+          "available": "{{references.available}}",
+          "generation": "{{references.generation}}",
+          "disabled": "{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}",
+          "bind:referencepress": "onReferencePress"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "wu-reference-text",
+        "attrs": {
+          "source": "{{reply.text}}",
+          "row-key": "{{'reply:' + reply.id}}",
+          "available": "{{references.available}}",
+          "generation": "{{references.generation}}",
+          "disabled": "{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}",
+          "bind:referencepress": "onReferencePress",
+          "fallback": "{{true}}",
+          "placeholder": "查看图片回复",
+          "bind:plaintextpress": "onReferenceThread"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{item.replyPreview.items}}",
+            "wx:for-item": "reply",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "wu-reference-text",
+        "attrs": {
+          "source": "{{post.text}}",
+          "row-key": "{{'post:' + post.id}}",
+          "available": "{{references.available}}",
+          "generation": "{{references.generation}}",
+          "disabled": "{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}",
+          "bind:referencepress": "onReferencePress"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{post}}"
+          }
+        ]
+      },
+      {
+        "tag": "wu-reference-text",
+        "attrs": {
+          "source": "{{locatedComment.text}}",
+          "row-key": "{{'comment:' + locatedComment.id}}",
+          "available": "{{references.available}}",
+          "generation": "{{references.generation}}",
+          "disabled": "{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}",
+          "bind:referencepress": "onReferencePress",
+          "fallback": "{{true}}",
+          "placeholder": "查看图片回复",
+          "bind:plaintextpress": "onReferenceThread"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{locatedComment}}"
+          }
+        ]
+      }
+    ],
+    "unchangedCount": 143
+  },
+  "notes": [
+    "Only community-detail Page lifecycle adapter, JSON component registration and text presentation change. Controller/cursors, analytics, read observer, image layout and other pages remain untouched.",
+    "The two original navigators have explicit plaintextpress successors. Fresh reference resolution only navigates; no read ack or notifications are added.",
+    "Unknown capability leaves exact plain selectable source; one optional post lookup is bounded to one target per fresh visible generation."
+  ]
+}

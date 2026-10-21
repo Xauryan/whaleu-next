@@ -1,0 +1,49 @@
+<view class="hub-page f7-ios-theme">
+  <view class="campus-toolbar"><view class="compact-title">校园</view><navigator class="campus-selector" url="/pages/campus-tools/campus-tools"><text>{{campusLabel}}</text><wu-icon name="chevron-down" size="14" /></navigator></view>
+
+  <wu-f7-list class="tool-grid" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <wu-f7-list-item wx:for="{{tools}}" wx:key="kind" class="tool-item" data-kind="{{item.kind}}" bind:press="onTool" disabled="{{campus.busy}}" hover-class="hub-pressed" link="{{true}}" media="{{true}}" title="{{item.title}}" last="{{index === tools.length - 1}}">
+      <wu-icon slot="media" name="{{item.icon === 'map' ? 'map' : item.icon === 'bus' ? 'bus' : 'book'}}" size="23" />
+    </wu-f7-list-item>
+  </wu-f7-list>
+  <view wx:if="{{campus.busy}}" class="hub-footnote" aria-role="status">正在读取校园工具…</view>
+  <view wx:elif="{{authRecovery}}" class="hub-notice">
+    <text>登录状态需要重新确认。</text><navigator url="/pages/campus-tools/campus-tools" class="notice-link">前往确认<view class="inline-chevron" aria-hidden="true"><wu-icon name="chevron-right" tone="accent" size="12" /></view></navigator>
+  </view>
+  <view wx:elif="{{campus.error || navigationError}}" class="hub-notice" aria-role="alert">
+    <text>{{navigationError || campus.error}}</text><wu-f7-button class="notice-link" bind:press="onRetry" variant="plain">重试</wu-f7-button>
+  </view>
+  <view wx:elif="{{campus.state &amp;&amp; campus.state !== 'ready'}}" class="hub-footnote">{{campus.status}}</view>
+
+  <view class="section-heading"><view class="section-title">学习</view></view>
+  <wu-f7-list class="hub-group" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <navigator wx:for="{{learning}}" wx:key="url" class="hub-row" url="{{item.url}}" hover-class="hub-pressed">
+      <wu-f7-list-item title="{{item.title}}" media="{{true}}" after-slot="{{true}}" last="{{index === learning.length - 1}}">
+        <wu-icon slot="media" name="{{item.icon === 'cap' ? 'graduation' : item.icon === 'meal' ? 'dining' : item.icon === 'grid' ? 'people' : item.icon === 'notice' ? 'bell' : item.icon === 'map' ? 'map' : item.icon === 'bus' ? 'bus' : item.icon === 'star' ? 'star' : item.icon === 'calendar' ? 'calendar' : item.icon === 'bag' ? 'bag' : 'book'}}" size="23" />
+        <wu-icon slot="after" name="chevron-right" tone="muted" size="15" />
+      </wu-f7-list-item>
+    </navigator>
+  </wu-f7-list>
+
+
+  <view class="section-heading"><view class="section-title">校园生活</view></view>
+  <wu-f7-list class="service-grid" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <navigator wx:for="{{life}}" wx:key="url" class="hub-row" url="{{item.url}}" hover-class="hub-pressed">
+      <wu-f7-list-item title="{{item.title}}" media="{{true}}" after-slot="{{true}}" last="{{index === life.length - 1}}">
+        <wu-icon slot="media" name="{{item.icon === 'cap' ? 'graduation' : item.icon === 'meal' ? 'dining' : item.icon === 'grid' ? 'people' : item.icon === 'notice' ? 'bell' : item.icon === 'map' ? 'map' : item.icon === 'bus' ? 'bus' : item.icon === 'star' ? 'star' : item.icon === 'calendar' ? 'calendar' : item.icon === 'bag' ? 'bag' : 'book'}}" size="23" />
+        <wu-icon slot="after" name="chevron-right" tone="muted" size="15" />
+      </wu-f7-list-item>
+    </navigator>
+  </wu-f7-list>
+    <view class="academic-pair">
+    <navigator class="academic-card" url="/pages/personal-timetable/personal-timetable" aria-label="手动课表，仅当前账户可见" hover-class="hub-pressed">
+      <view class="academic-top"><view class="hub-icon" aria-hidden="true"><wu-icon name="calendar" size="23" /></view></view>
+      <view class="academic-title">我的课表</view><view class="academic-note">手动安排</view>
+    </navigator>
+    <view class="academic-card" aria-label="成绩查询，暂未接入教务服务">
+      <view class="academic-top"><view class="hub-icon is-unavailable" aria-hidden="true"><wu-icon name="chart" size="23" /></view></view>
+      <view class="academic-title">成绩查询</view><view class="academic-note">暂未接入</view>
+    </view>
+  </view>
+</view>
+<wu-tab-bar selected="campus" />

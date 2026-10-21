@@ -153,16 +153,32 @@ export async function smokeErrandAdmin({ app, dist, flush }) {
     'utf8',
   );
   const tree = parse(source);
-  const common = parse(
-    readFileSync(path.join(dist, 'errands/admin-command.wxml'), 'utf8'),
-  );
-  const templates = Object.fromEntries(
-    common.children
-      .filter((node) => typeof node !== 'string' && node.attrs?.name)
-      .map((node) => [node.attrs.name, node]),
-  );
+  const templatesFor = (pageFile) => {
+    const templates = {},
+      visited = new Set();
+    const load = (file) => {
+      if (visited.has(file)) return;
+      visited.add(file);
+      const tree = parse(readFileSync(file, 'utf8'));
+      for (const node of tree.children) {
+        if (typeof node === 'string') continue;
+        if (node.tag === 'import')
+          load(path.resolve(path.dirname(file), node.attrs.src));
+        if (node.tag === 'template' && node.attrs.name)
+          templates[node.attrs.name] = node;
+      }
+    };
+    load(pageFile);
+    return templates;
+  };
   const text = (page) =>
-    JSON.stringify(render(tree.children, page.data, templates));
+    JSON.stringify(
+      render(
+        tree.children,
+        page.data,
+        templatesFor(path.join(dist, 'pages/errand-admin/errand-admin.wxml')),
+      ),
+    );
   const mount = (route = {}) => {
     let page;
     const old = globalThis.Page;
@@ -229,6 +245,9 @@ export async function smokeErrandAdmin({ app, dist, flush }) {
   await flush();
   assert.equal(page.data.access, 'fixed');
   assert.equal(page.data.regionId, regionId);
+  page.onToggleUiPanel({
+    currentTarget: { dataset: { panel: `order:${orderId}` } },
+  });
   let shown = text(page);
   assert.ok(shown.includes('固定管理地区'));
   assert.ok(shown.includes('删除前生命周期：已完成'));

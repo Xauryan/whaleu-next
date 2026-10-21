@@ -1,0 +1,74 @@
+{
+  "scope": [
+    "campus-hub",
+    "account-menu"
+  ],
+  "files": {
+    "apps/wechat/scripts/fixtures/framework7-campus-menu-preview.mjs": {
+      "sha256": "d28013d6b5468020a4e0833e0d8a630adfa0a44f08b3d927862d6ee0ae9b4496",
+      "bytes": 1379
+    },
+    "apps/wechat/src/pages/account-menu/account-menu.json": {
+      "sha256": "47e4120db16a76bef6ae4dc50ab7e0a9e3a4c3be7f12c5be584b73520abdceaf",
+      "bytes": 242
+    },
+    "apps/wechat/src/pages/account-menu/account-menu.wxml": {
+      "sha256": "4ccae28f33a20cd50bf3dfd4649c3c4b83176ac2648b7151c1d5a05c43379922",
+      "bytes": 409
+    },
+    "apps/wechat/src/pages/account-menu/account-menu.wxss": {
+      "sha256": "2825a82130dd6946dc684468a81abb7074c3240b5c8d2f4fe0ec8b911f67ee3e",
+      "bytes": 329
+    },
+    "apps/wechat/src/pages/campus-hub/campus-hub.json": {
+      "sha256": "472ad2859249ac949cea54ffdc16e701aec44d311d4853d2800130eea047775b",
+      "bytes": 383
+    },
+    "apps/wechat/src/pages/campus-hub/campus-hub.wxml": {
+      "sha256": "b85b8589fba9c90777c19a12cc7c74f8fc8e9d0e084dc6dfeb6e0fa61ea4591f",
+      "bytes": 4150
+    },
+    "apps/wechat/src/pages/campus-hub/campus-hub.wxss": {
+      "sha256": "66e766cd7eec23878e634aa6f5f840ab5847333ca6b100cf2efe799c0a6224cd",
+      "bytes": 1832
+    },
+    "apps/wechat/test/apple-hubs.test.ts": {
+      "sha256": "bc04d7ed1361bff70736b574a9f9a7faca4efc32ba12f7c52daca7cb65825fdb",
+      "bytes": 11538
+    },
+    "apps/wechat/test/core-product-presentation.test.ts": {
+      "sha256": "d8f2ce766128557967ee4fe703f2d1ab792445debc6c7953fd61d29b12dcbb0a",
+      "bytes": 8549
+    },
+    "apps/wechat/test/fixtures/framework7-campus-menu-apple-hubs-before.txt": {
+      "sha256": "8a88222a4b7bb8588b3ac269e13bb039325bb07ecbffa429ca684a224b2a5364",
+      "bytes": 10152
+    },
+    "apps/wechat/test/fixtures/framework7-campus-menu-before-actions.json": {
+      "sha256": "5eacde5e69a5865e50cf4b574eb3949205f55e86ddea1c5a7f70c03aa96a4dbe",
+      "bytes": 2464
+    },
+    "apps/wechat/test/fixtures/framework7-campus-menu-before-protected.json": {
+      "sha256": "ccab53b973a469659f15a4a6d32a5ca4db740fa9e337b7c1a487946216267781",
+      "bytes": 700
+    },
+    "apps/wechat/test/fixtures/framework7-campus-menu-core-product-before.txt": {
+      "sha256": "6956d016ef7762dc51551d5aba1d6f93c7a742d2a619f8a979b74f60b4ad598a",
+      "bytes": 8527
+    },
+    "apps/wechat/test/framework7-campus-menu-migration.test.ts": {
+      "sha256": "6264c34e6d3ee5d52560ac12fe6e26d3f0714981824faa3951d5716a6971935a",
+      "bytes": 4113
+    },
+    "docs/FRAMEWORK7_CAMPUS_MENU_MIGRATION.md": {
+      "sha256": "a3b7d5eb1d3e233cf88a7b3800d7f9d6afe91d3408d5f20819310a232da978e0",
+      "bytes": 2941
+    }
+  },
+  "focusedTests": 23,
+  "sourceThemeFrames": 12,
+  "independentReview": "No confirmed issue; 29 distinct focused/foundation tests plus final 4 hub tests passed; read-only, no native-device claim",
+  "immutableSources": 6,
+  "originalActions": 7,
+  "newRuntimeDependencies": 0
+}

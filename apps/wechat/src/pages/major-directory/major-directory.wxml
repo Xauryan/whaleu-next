@@ -1,19 +1,58 @@
-<import src="../../majors/common.wxml" />
-<view class="screen">
-  <view class="eyebrow">WHALEU · 院系专业</view><view class="title">专业目录</view>
-  <navigator class="link" url="/pages/major-discussion-recovery/major-discussion-recovery">原讨论请求与自己的点赞恢复 →</navigator>
-  <navigator class="link" url="/pages/major-discussion-notices/major-discussion-notices">专业讨论通知 →</navigator>
-  <template is="major-status" data="{{status,error,hasSession,busy}}" />
-  <view class="card"><view class="section-title">按院系与名称查找</view>
-    <picker range="{{departmentNames}}" value="{{departmentIndex}}" bindchange="onDepartment" disabled="{{busy || !departments}}"><view class="filter-picker">{{departmentNames[departmentIndex]}}</view></picker>
-    <input value="{{searchDraft}}" maxlength="100" bindinput="onSearchInput" disabled="{{busy}}" placeholder="专业名或学院名" />
-    <button bindtap="onSearch" disabled="{{busy}}">应用筛选与搜索</button>
-    <view class="meta">院系和名称可同时筛选；浏览选择不会授予认证或管理权限。</view>
+<!-- Native Framework7 v9.2.0 presentation; existing Page and controller ownership is unchanged. -->
+<import src="../../majors/framework7-product.wxml" />
+<view class="screen major-product f7-ios-theme f7-discussions">
+  <view class="major-search">
+    <wu-icon name="search" size="20" tone="muted" />
+    <wu-f7-input value="{{searchDraft}}" maxlength="100" disabled="{{busy}}" placeholder="搜索专业或学院" bind:input="onSearchInput" />
+    <wu-f7-button class="major-quiet" disabled="{{busy}}" bind:press="onSearch" variant="plain">
+      搜索
+    </wu-f7-button>
   </view>
-  <block wx:if="{{loaded}}"><view class="section-title">{{appliedFilter}}</view><view class="meta">共 {{totalCount}} 个专业 · 第 {{pageNumber}} 页</view>
-    <template wx:for="{{items}}" wx:key="id" is="major-item" data="{{item,busy}}" />
-    <view wx:if="{{!items.length}}" class="empty">当前条件没有专业</view>
-    <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button>
+  <view class="major-toolbar">
+    <picker range="{{departmentNames}}" value="{{departmentIndex}}" bindchange="onDepartment" disabled="{{busy || !departments}}">
+      <view class="major-filter">
+        {{departmentNames[departmentIndex]}}
+        <wu-icon name="chevron-down" size="16" />
+      </view>
+    </picker>
+    <wu-f7-button class="major-icon-button" data-panel="options" aria-label="更多专业目录选项" bind:press="onTogglePanel" variant="plain">
+      <wu-icon name="more" size="22" />
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiPanel === 'options'}}" class="major-options">
+    <navigator class="major-link" url="/pages/major-discussion-recovery/major-discussion-recovery">
+      请求与点赞记录
+      <wu-icon name="chevron-right" size="16" />
+    </navigator>
+    <navigator class="major-link" url="/pages/major-discussion-notices/major-discussion-notices">
+      讨论通知
+      <wu-icon name="chevron-right" size="16" />
+    </navigator>
+  </view>
+  <template is="major-status" data="{{status,error,hasSession,busy,loaded,uiPanel}}" />
+  <block wx:if="{{loaded}}">
+    <view class="major-list-heading">
+      <view wx:if="{{appliedFilter !== departmentNames[departmentIndex]}}" class="major-section-title">
+        {{appliedFilter}}
+      </view>
+      <view class="major-meta">
+        {{totalCount}} 个专业
+      </view>
+    </view>
+    <wu-f7-list spacing="compact" strong="{{true}}">
+      <template wx:for="{{items}}" wx:key="id" is="major-item" data="{{item,busy}}" />
+    </wu-f7-list>
+    <wu-f7-block wx:if="{{!items.length}}" class="major-empty" spacing="compact">
+      <wu-icon name="search" size="32" tone="muted" />
+      <view>
+        没有找到相关专业
+      </view>
+      <view class="major-meta">
+        换个名称或院系再试试
+      </view>
+    </wu-f7-block>
+    <wu-f7-button wx:if="{{canNext}}" class="major-load-more" disabled="{{busy}}" bind:press="onNext" variant="plain">
+      更多专业
+    </wu-f7-button>
   </block>
-  <view class="notice">目录仅来自当前已确认的来源。专业讨论没有数值评分；图片、删除和历史迁移仍未完成。</view>
 </view>

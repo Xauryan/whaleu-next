@@ -18,7 +18,7 @@ const errorIs = (error: unknown) =>
   error instanceof ApplicationError && error.code === 'DM_UNAVAILABLE';
 function fixture() {
   const state = {
-    account: null as { status: string; state_version: string } | null,
+    account: null as { status: string; lifecycle: string; state_version: string } | null,
     profile: null as {
       account_id: string;
       public_id: string;
@@ -40,7 +40,7 @@ function fixture() {
         };
       if (sql === 'SELECT clock_timestamp() AS now')
         return { rows: [{ now: new Date() }] };
-      if (sql.startsWith('SELECT status,xmin::text'))
+      if (sql.startsWith('SELECT status,lifecycle,xmin::text'))
         return { rows: state.account ? [state.account] : [] };
       if (sql.startsWith('SELECT account_id,public_id,revision,xmin::text'))
         return { rows: state.profile ? [state.profile] : [] };
@@ -59,19 +59,20 @@ test('DM Identity absence is retained after savepoint rollback and detects later
   const f = fixture();
   assert.equal(await f.identity.dmActiveAccount(id(1), f.tx), false);
   await f.tx.query('ROLLBACK TO SAVEPOINT dm_command');
-  f.state.account = { status: 'active', state_version: '2' };
+  f.state.account = { status: 'active', lifecycle: 'active', state_version: '2' };
   await assert.rejects(() => checkTransactionDeadlines(f.tx), errorIs);
 });
 test('DM Identity active and blocked observations both receive final version proof', async () => {
   for (const status of ['active', 'blocked']) {
     const f = fixture();
-    f.state.account = { status, state_version: '1' };
+    f.state.account = { status, lifecycle: 'active', state_version: '1' };
     assert.equal(
       await f.identity.dmActiveAccount(id(1), f.tx),
       status === 'active',
     );
     f.state.account = {
       status: status === 'active' ? 'blocked' : 'active',
+      lifecycle: 'active',
       state_version: '2',
     };
     await assert.rejects(() => checkTransactionDeadlines(f.tx), errorIs);
@@ -94,4 +95,16 @@ test('Unchanged absent DM owner facts are valid negative evidence', async () => 
   assert.equal(await f.identity.dmActiveAccount(id(1), f.tx), false);
   assert.equal(await f.profiles.dmFind(id(2), f.tx), null);
   await checkTransactionDeadlines(f.tx);
+});
+
+
+test('DM Identity cooling alone invalidates active authority without changing moderation status', async () => {
+  const f = fixture();
+  f.state.account = { status: 'active', lifecycle: 'active', state_version: '1' };
+  assert.equal(await f.identity.dmActiveAccount(id(1), f.tx), true);
+  f.state.account = { status: 'active', lifecycle: 'cooling', state_version: '2' };
+  await assert.rejects(() => checkTransactionDeadlines(f.tx), errorIs);
+  const closed = fixture();
+  closed.state.account = { status: 'active', lifecycle: 'cooling', state_version: '2' };
+  assert.equal(await closed.identity.dmActiveAccount(id(1), closed.tx), false);
 });

@@ -1,0 +1,444 @@
+/* Local management presentation. Authority and command state belong to existing controllers. */
+.ops-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
+  background: var(--wu-surface);
+  color: var(--wu-text);
+}
+.ops-context {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin: 4rpx 0 24rpx;
+}
+.ops-context-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68rpx;
+  height: 68rpx;
+  flex: 0 0 68rpx;
+  border-radius: 20rpx;
+  background: var(--wu-tint);
+}
+.ops-context-title {
+  font-size: 33rpx;
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: -0.5rpx;
+}
+.ops-page .card,
+.ops-page .ops-section {
+  padding: 28rpx 0;
+  margin: 0;
+  border: 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+  border-radius: 0;
+  background: transparent;
+}
+.ops-page .card-title,
+.ops-page .section-title,
+.ops-page .ops-person-title {
+  font-size: 29rpx;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: 0 0 14rpx;
+}
+.ops-page .notice,
+.ops-page .hint,
+.ops-page .status,
+.ops-page .footnote {
+  font-size: 25rpx;
+  line-height: 1.6;
+  color: var(--wu-secondary);
+  padding: 6rpx 0;
+  overflow-wrap: anywhere;
+}
+.ops-page .status:empty,
+.ops-page .error:empty {
+  display: none;
+}
+.ops-page .meta,
+.ops-page .identifier {
+  margin: 8rpx 0;
+  font-size: 23rpx;
+  line-height: 1.55;
+  color: var(--wu-secondary);
+  overflow-wrap: anywhere;
+}
+.ops-page .body {
+  margin: 12rpx 0;
+  font-size: 28rpx;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ops-page .error {
+  margin: 16rpx 0;
+  padding: 18rpx 22rpx;
+  border-radius: 18rpx;
+  color: var(--wu-danger);
+  background: var(--wu-danger-bg);
+  font-size: 26rpx;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.ops-page button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  box-sizing: border-box;
+  margin: 12rpx 0 0;
+  padding: 20rpx 24rpx;
+  border: 0;
+  border-radius: 18rpx;
+  background: var(--wu-bg);
+  color: var(--wu-accent);
+  font-size: 27rpx;
+  line-height: 1.45;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ops-page button::after {
+  border: 0;
+}
+.ops-page button[disabled] {
+  color: var(--wu-secondary);
+  opacity: 0.5;
+}
+.ops-page button.ops-primary,
+.ops-page button.primary {
+  background: var(--wu-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.ops-page button.ops-destructive {
+  background: var(--wu-danger-bg);
+  color: var(--wu-danger);
+}
+.ops-page button.ops-quiet {
+  background: transparent;
+  color: var(--wu-secondary);
+  font-size: 25rpx;
+}
+.ops-page button.ops-disclosure {
+  display: flex;
+  justify-content: space-between;
+  gap: 16rpx;
+  width: 100%;
+  margin: 6rpx 0 0;
+  padding: 18rpx 0;
+  background: transparent;
+  color: var(--wu-accent);
+  font-size: 26rpx;
+  text-align: left;
+}
+.ops-page .ops-disclosure wu-icon,
+.ops-page .ops-link wu-icon {
+  flex-shrink: 0;
+}
+.ops-page .ops-details {
+  padding: 6rpx 0 22rpx;
+}
+.ops-page .ops-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  min-height: 88rpx;
+  padding: 22rpx 0;
+  box-sizing: border-box;
+  border-bottom: 1rpx solid var(--wu-separator);
+  font-size: 27rpx;
+  color: var(--wu-text);
+}
+.ops-page input,
+.ops-page textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 14rpx 0;
+  padding: 22rpx 24rpx;
+  background: var(--wu-bg);
+  color: var(--wu-text);
+  border: 0;
+  border-radius: 18rpx;
+  font-size: 29rpx;
+  line-height: 1.55;
+}
+.ops-page input {
+  height: 96rpx;
+  min-height: 88rpx;
+}
+.ops-page textarea {
+  min-height: 210rpx;
+}
+.ops-page .field-label,
+.ops-page .field-title,
+.ops-page .ops-field-label {
+  display: block;
+  margin: 24rpx 0 10rpx;
+  font-size: 27rpx;
+  font-weight: 600;
+}
+.ops-page label {
+  font-size: 27rpx;
+  line-height: 1.5;
+}
+.ops-page .switch-row,
+.ops-page .ops-switch-row,
+.ops-page .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  min-height: 100rpx;
+  padding: 16rpx 0;
+  box-sizing: border-box;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.ops-page switch {
+  flex-shrink: 0;
+}
+.ops-page .category,
+.ops-page .expiry-option {
+  display: flex;
+  align-items: center;
+  min-height: 88rpx;
+  gap: 14rpx;
+}
+.ops-page .category {
+  width: 50%;
+  box-sizing: border-box;
+  display: inline-flex;
+}
+.ops-page .ops-choice {
+  background: transparent;
+  text-align: left;
+  justify-content: flex-start;
+  margin: 0;
+  padding: 22rpx 0;
+  border-radius: 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+  color: var(--wu-text);
+}
+.ops-page .ops-entry {
+  min-height: 104rpx;
+}
+.ops-page .ops-select-row {
+  margin: 6rpx 0 18rpx;
+}
+.ops-page .ops-select-row button {
+  justify-content: flex-start;
+}
+.ops-page .ops-recovery,
+.ops-page .card.ops-recovery {
+  margin: 20rpx 0;
+  padding: 24rpx;
+  border: 0;
+  border-radius: 22rpx;
+  background: var(--wu-tint);
+  overflow-wrap: anywhere;
+}
+.ops-page .ops-confirmation,
+.ops-page .card.ops-confirmation {
+  margin: 22rpx 0;
+  padding: 26rpx;
+  border: 0;
+  border-radius: 22rpx;
+  background: var(--wu-tint);
+  line-height: 1.65;
+}
+.ops-page .ops-confirmation .notice {
+  color: var(--wu-text);
+  margin-top: 16rpx;
+}
+.ops-page .ops-provider-notice {
+  padding: 20rpx 24rpx;
+  border-radius: 20rpx;
+  background: var(--wu-tint);
+  color: var(--wu-text);
+}
+.ops-page .ops-requirements {
+  font-size: 25rpx;
+  line-height: 1.65;
+  color: var(--wu-secondary);
+  border-bottom: 0;
+}
+.ops-page .ops-requirements .card-title {
+  color: var(--wu-text);
+}
+.ops-page .ops-related {
+  margin-top: 24rpx;
+}
+.ops-page .qr-image {
+  display: block;
+  width: 320rpx;
+  margin: 24rpx auto;
+}
+.ops-page .ops-editor {
+  padding-top: 12rpx;
+}
+.ops-page .ops-editor .ops-announcement-body {
+  min-height: 360rpx;
+  background: transparent;
+  padding: 18rpx 0;
+  font-size: 31rpx;
+  line-height: 1.8;
+  border-radius: 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.ops-page .ops-editor picker {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  padding: 10rpx 0;
+  font-size: 29rpx;
+  color: var(--wu-accent);
+}
+.ops-page .ops-audience {
+  margin: 28rpx 0;
+  padding: 20rpx 0;
+  border-top: 1rpx solid var(--wu-separator);
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.ops-page .ops-image-slot {
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+  font-size: 26rpx;
+}
+.ops-page .ops-image-slot button {
+  display: inline-flex;
+  margin-right: 12rpx;
+  min-height: 88rpx;
+  padding: 18rpx 22rpx;
+  font-size: 25rpx;
+}
+.ops-page .ops-editor image {
+  display: block;
+  width: 100%;
+  border-radius: 16rpx;
+  margin: 20rpx 0;
+}
+.ops-page .announcement-title {
+  display: block;
+  font-size: 31rpx;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.ops-page .ops-announcement-row > .meta {
+  display: block;
+}
+.ops-page .ops-announcement-row > button {
+  justify-content: flex-start;
+  padding-left: 0;
+  background: transparent;
+}
+.ops-page .ops-empty {
+  padding: 72rpx 24rpx;
+  text-align: center;
+}
+.ops-page .ops-empty .section-title {
+  margin-top: 24rpx;
+}
+.ops-page .ops-found {
+  margin-top: 24rpx;
+}
+.ops-page .ops-found > view {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.ops-page .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin: 20rpx 0 12rpx;
+}
+.ops-page .chips .chip {
+  flex: 0 1 auto;
+  min-width: 108rpx;
+  margin: 0;
+  padding: 17rpx 20rpx;
+  min-height: 88rpx;
+  color: var(--wu-secondary);
+  background: var(--wu-bg);
+  border: 0;
+  border-radius: 18rpx;
+  font-size: 25rpx;
+}
+.ops-page .chips .active {
+  color: var(--wu-accent);
+  background: var(--wu-tint);
+  font-weight: 600;
+}
+.ops-page .empty {
+  padding: 36rpx 0;
+  color: var(--wu-secondary);
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+.ops-page .modal-mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 22rpx;
+  box-sizing: border-box;
+}
+.ops-page .modal {
+  width: 100%;
+  box-sizing: border-box;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 30rpx 28rpx calc(24rpx + env(safe-area-inset-bottom));
+  border-radius: 28rpx;
+  background: var(--wu-elevated);
+  color: var(--wu-text);
+}
+.ops-page .modal .section-title {
+  font-size: 33rpx;
+}
+.ops-page .modal > button:first-of-type {
+  background: var(--wu-danger);
+  color: #fff;
+}
+.ops-page .recovery {
+  margin: 20rpx 0;
+  padding: 24rpx;
+  border: 0;
+  border-radius: 22rpx;
+  background: var(--wu-tint);
+}
+@media (prefers-color-scheme: dark) {
+  .ops-page input,
+  .ops-page textarea,
+  .ops-page button,
+  .ops-page .chips .chip {
+    background: var(--wu-elevated);
+  }
+  .ops-page button.ops-primary,
+  .ops-page button.primary {
+    background: var(--wu-accent);
+  }
+  .ops-page button.ops-destructive {
+    background: var(--wu-danger-bg);
+  }
+  .ops-page button.ops-quiet,
+  .ops-page button.ops-disclosure,
+  .ops-page .ops-choice,
+  .ops-page .ops-announcement-row > button,
+  .ops-page .ops-editor .ops-announcement-body {
+    background: transparent;
+  }
+  .ops-page .chips .active {
+    background: var(--wu-tint);
+  }
+}

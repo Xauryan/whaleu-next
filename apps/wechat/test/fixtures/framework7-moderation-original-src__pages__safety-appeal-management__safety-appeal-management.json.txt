@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "申诉审核",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon"
+  }
+}

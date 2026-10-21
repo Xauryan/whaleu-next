@@ -37,6 +37,10 @@ import {
   createProfileAvatarRuntime,
   type ProfileAvatarRuntime,
 } from './profile/avatar-runtime';
+import {
+  createNativeProfileCoverRuntime,
+  type NativeProfileCoverRuntime,
+} from './profile/cover-native-runtime';
 import { createMediaReadRuntime, type MediaReadRuntime } from './media/runtime';
 import {
   createExperienceRuntime,
@@ -72,6 +76,7 @@ export interface WhaleuApp {
   mediaLocalFiles?: MediaLocalFiles;
   mediaRead?: MediaReadRuntime;
   profileAvatar?: ProfileAvatarRuntime;
+  profileCover?: NativeProfileCoverRuntime;
   identity: IdentityRuntime | undefined;
   community: CommunityRuntime | undefined;
   verification: VerificationRuntime | undefined;
@@ -105,6 +110,7 @@ App<WhaleuApp>({
     this.announcementMedia?.hide();
     this.experience?.hide();
     this.profileAvatar?.hide();
+    this.profileCover?.hide();
     this.community?.views?.hide();
     this.community?.privateViews?.clear();
     this.verification?.privateViews.clear();
@@ -318,6 +324,22 @@ App<WhaleuApp>({
         origin: clientConfiguration.apiOrigin,
         clock: systemClock,
         newRequestId: this.community.newRequestId,
+        ...(this.community.privateViews
+          ? { privateViews: this.community.privateViews }
+          : {}),
+      });
+    if (this.identity.api && this.identity.auth)
+      this.profileCover = createNativeProfileCoverRuntime({
+        api: this.identity.api,
+        auth: this.identity.auth,
+        sessions: this.identity.sessions,
+        storage: new WechatStorage(wx),
+        origin: clientConfiguration.apiOrigin,
+        clock: systemClock,
+        newRequestId: this.community.newRequestId,
+        wx,
+        files: nativeFiles,
+        registry,
         ...(this.community.privateViews
           ? { privateViews: this.community.privateViews }
           : {}),

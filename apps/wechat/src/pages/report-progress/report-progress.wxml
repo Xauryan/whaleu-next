@@ -1,6 +1,188 @@
-<import src="../../community/report-recovery.wxml" /><import src="../../community/report-progress.wxml" />
-<view class="screen"><view class="eyebrow">WHALEU · 内容安全</view><view class="title">举报与陪审</view><view wx:if="{{addressError}}" class="error">{{addressError}}</view>
-<template is="report-recovery" data="{{report}}" /><template is="jury-vote-recovery" data="{{juryVote}}" />
-<view class="card"><view class="section-title">本账号原请求</view><view class="notice">举报：{{report.status}}</view><view class="notice">陪审：{{juryVote.status}}</view><button bindtap="onReloadRecovery" disabled="{{report.busy || juryVote.busy}}">重新读取本地恢复记录</button><view class="notice">此入口不需要打开原内容，也不要求重新认证手机号或所属机构；只查询当前账号自己的原回执。</view></view>
-<block wx:if="{{hasTarget}}"><template is="report-progress" data="{{reportProgress,juryVote}}" /><button wx:if="{{reportProgress.loaded &amp;&amp; !reportProgress.progress.isSelf}}" bindtap="onReport" disabled="{{!reportProgress.canReport || report.busy || report.frozen}}">举报此内容</button></block>
-<navigator wx:if="{{!report.hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator><navigator class="link" url="/pages/system-notices/system-notices">我的系统通知 →</navigator><navigator class="link" url="/pages/community-feed/community-feed">回到校园社区 →</navigator></view>
+<import src="./recovery.wxml" />
+<view class="support-page report-page support-native f7-ios-theme">
+  <view wx:if="{{addressError}}" class="error" aria-role="alert"
+    >{{addressError}}</view
+  >
+  <template is="support-report-recovery" data="{{report}}" /><template
+    is="support-jury-recovery"
+    data="{{juryVote}}"
+  />
+  <block wx:if="{{hasTarget}}">
+    <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}"
+      wx:if="{{reportProgress.loaded &amp;&amp; reportProgress.progress}}"
+      class="progress-section"
+    >
+      <view class="section-heading"
+        ><view class="section-title"
+          >{{reportProgress.progress.kind === 'post' ? '帖子主题' :
+          '回复'}}举报进度</view
+        ><wu-f7-button variant="plain"
+          class="icon-button"
+          bind:press="onReloadReportProgress"
+          disabled="{{reportProgress.busy}}"
+          aria-label="刷新进度"
+        >
+          <wu-icon name="refresh" size="21" tone="accent" /></wu-f7-button
+      ></view>
+      <view class="report-count"
+        ><text class="count-number"
+          >{{reportProgress.progress.reportCount}}</text
+        ><text>人举报已受理</text></view
+      >
+      <view
+        wx:if="{{reportProgress.progress.hasReported || reportProgress.progress.isSelf}}"
+        class="hint"
+        >{{reportProgress.progress.hasReported ? '你已举报' :
+        ''}}{{reportProgress.progress.isSelf ? '这是你发布的内容' : ''}}</view
+      >
+      <view wx:if="{{reportProgress.progress.kind === 'post'}}">
+        <view class="meta"
+          >有效举报权重 {{reportProgress.progress.effectiveWeight}} / 5</view
+        >
+        <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" wx:if="{{!reportProgress.progress.jury}}" class="case-row"
+          ><view class="field-label">尚未开启陪审</view
+          ><view class="hint">举报人数与有效权重分别统计</view></wu-f7-block
+        >
+        <view wx:else class="jury-section"
+          ><view class="section-heading"
+            ><view class="section-title">帖子主题陪审</view
+            ><text class="state-label"
+              >{{reportProgress.progress.jury.state === 'kept' ? '已结束 · 保留'
+              : reportProgress.progress.jury.state === 'settlement_pending' ?
+              '等待结算' : '进行中'}}</text
+            ></view
+          ><view class="meta"
+            >截止：{{reportProgress.progress.jury.deadline}}</view
+          >
+          <view wx:if="{{reportProgress.canVote}}"
+            ><view class="disclosure">请先独立判断，提交后可查看票数。</view
+            ><view class="choice-actions"
+              ><wu-f7-button variant="fill"
+                class="primary"
+                data-vote="keep"
+                bind:press="onJuryChoice"
+                disabled="{{juryVote.busy || juryVote.frozen}}"
+              >
+                保留主题</wu-f7-button
+              ><wu-f7-button variant="tonal"
+                class="secondary"
+                data-vote="remove"
+                bind:press="onJuryChoice"
+                disabled="{{juryVote.busy || juryVote.frozen}}"
+              >
+                删除主题
+              </wu-f7-button></view
+            ></view
+          >
+          <view wx:if="{{reportProgress.showTallies}}" class="tally"
+            ><view
+              ><view class="tally-number"
+                >{{reportProgress.progress.jury.keepVotes}}</view
+              ><view class="meta">保留</view></view
+            ><view
+              ><view class="tally-number"
+                >{{reportProgress.progress.jury.removeVotes}}</view
+              ><view class="meta">删除</view></view
+            ></view
+          >
+          <view
+            wx:if="{{reportProgress.progress.jury.ownVote}}"
+            class="disclosure"
+            >你的意见：{{reportProgress.progress.jury.ownVote === 'keep' ?
+            '保留' : '删除'}}，不可修改或撤回</view
+          ><view wx:if="{{reportProgress.voteReason}}" class="disclosure"
+            >{{reportProgress.voteReason}}</view
+          >
+        </view>
+        <view class="rules"
+          ><view class="field-label">陪审规则</view
+          ><view
+            >最多 11 人，任一方达到 6 票提前结束。24
+            小时截止时，仅删除票多于保留票才删除，平票或零票保留。</view
+          ><view
+            >作者和所有举报人不能投票；结束后不重开。页面计时只刷新，结算由服务端完成。</view
+          ></view
+        >
+      </view>
+      <view wx:else class="disclosure"
+        >{{reportProgress.progress.review === 'provider_disabled' ?
+        '外部审核服务未启用：已保留待审核记录，尚未审核' :
+        '当前没有举报触发的审核记录'}}。回复不进入陪审，第 10
+        位不同账号举报时由服务端删除。</view
+      >
+      <view wx:if="{{reportProgress.reportReason}}" class="disclosure"
+        >{{reportProgress.reportReason}}</view
+      >
+    </wu-f7-block>
+    <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" wx:else class="empty compact"
+      ><wu-icon name="shield" size="32" tone="muted" /><view
+        class="section-title"
+        >进度暂不能确认</view
+      ><view class="hint">未获得有效进度，不代表没有举报或陪审。</view
+      ><wu-f7-button variant="fill"
+        class="primary"
+        bind:press="onReloadReportProgress"
+        disabled="{{reportProgress.busy}}"
+      >
+        重新查询进度
+      </wu-f7-button></wu-f7-block
+    >
+    <view wx:if="{{reportProgress.busy}}" class="status" aria-role="status"
+      >{{reportProgress.status}}</view
+    ><view wx:if="{{reportProgress.error}}" class="error" aria-role="alert"
+      >{{reportProgress.error}}</view
+    >
+    <wu-f7-button variant="plain"
+      wx:if="{{reportProgress.busy}}"
+      class="quiet"
+      bind:press="onCancelReportProgress"
+    >
+      停止查询进度
+    </wu-f7-button>
+    <wu-f7-button variant="tonal"
+      wx:if="{{reportProgress.loaded &amp;&amp; !reportProgress.progress.isSelf}}"
+      class="secondary"
+      bind:press="onReport"
+      disabled="{{!reportProgress.canReport || report.busy || report.frozen}}"
+    >
+      举报此内容
+    </wu-f7-button>
+    <view class="disclosure"
+      >查看进度需当前会话和内容查看权限。举报与陪审还需有效手机号、所属机构认证及安全权限，不要求学号认证；提交时会重新核验资格。</view
+    >
+  </block>
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" class="original-requests"
+    ><view class="section-heading"
+      ><wu-icon name="clock" size="22" tone="muted" /><view
+        class="section-title"
+        >我的原请求</view
+      ></view
+    ><view class="request-state"
+      ><text>举报</text><text>{{report.status}}</text></view
+    ><view class="request-state"
+      ><text>陪审</text><text>{{juryVote.status}}</text></view
+    ><wu-f7-button variant="plain"
+      class="quiet"
+      bind:press="onReloadRecovery"
+      disabled="{{report.busy || juryVote.busy}}"
+    >
+      重新读取恢复记录</wu-f7-button
+    ><view class="disclosure"
+      >仅查询当前账号自己的原回执。不需打开原内容，也不要求重新认证手机号或所属机构。</view
+    ></wu-f7-block
+  >
+  <navigator
+    wx:if="{{!report.hasSession}}"
+    class="primary"
+    url="/pages/login/login"
+    >登录后继续</navigator
+  >
+  <wu-f7-list spacing="compact" strong="{{true}}" inset="{{true}}" class="service-links"
+    ><navigator class="link-row" url="/pages/system-notices/system-notices"
+      ><text>我的系统通知</text
+      ><wu-icon name="chevron-right" size="16" tone="muted" /></navigator
+    ><navigator class="link-row" url="/pages/community-feed/community-feed"
+      ><text>回到校园社区</text
+      ><wu-icon name="chevron-right" size="16" tone="muted" /></navigator
+  ></wu-f7-list>
+</view>

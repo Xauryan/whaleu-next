@@ -1,1 +1,259 @@
-@import '../../messaging/messaging.wxss';
+/* Framework7 v9.2.0 native controls; existing native chat, media and overlay lifecycle retained. */
+@import '../../design/framework7-ios.wxss';
+
+.private-list {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 8rpx 0 calc(40rpx + env(safe-area-inset-bottom));
+  color: var(--wu-text);
+  background: var(--wu-surface);
+}
+.private-list button {
+  margin: 0;
+  font-weight: 400;
+}
+.list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12rpx 24rpx 18rpx 36rpx;
+}
+.list-title {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+  font-size: 40rpx;
+  font-weight: 650;
+  letter-spacing: -1rpx;
+}
+.unread-total {
+  font-size: 25rpx;
+  color: var(--wu-secondary);
+  font-weight: 400;
+}
+.icon-button,
+.row-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  color: var(--wu-secondary);
+}
+.icon-button {
+  width: 88rpx;
+  min-height: 88rpx;
+}
+.list-menu {
+  margin: 0 28rpx 12rpx;
+  padding: 0 24rpx;
+  background: var(--wu-bg);
+  border-radius: 20rpx;
+}
+.list-menu button,
+.menu-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  min-height: 88rpx;
+  line-height: 1.4;
+  text-align: left;
+  font-size: 28rpx;
+  background: transparent;
+  color: var(--wu-text);
+}
+.menu-link {
+  border-top: 1rpx solid var(--wu-separator);
+}
+.menu-footnote {
+  padding: 12rpx 0 24rpx;
+  font-size: 23rpx;
+  color: var(--wu-secondary);
+}
+.pending-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin: 0 28rpx 16rpx;
+  padding: 22rpx;
+  background: var(--wu-bg);
+  border-radius: 18rpx;
+  font-size: 25rpx;
+}
+.pending-row > text:first-of-type {
+  flex: 1;
+}
+.text-action {
+  color: var(--wu-accent);
+}
+.state-error {
+  margin: 10rpx 36rpx 24rpx;
+  color: var(--wu-danger);
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+.load-status {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+  justify-content: center;
+  padding: 8rpx 32rpx 20rpx;
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+}
+.load-status button {
+  color: var(--wu-accent);
+  background: transparent;
+  padding: 0 8rpx;
+  min-height: 64rpx;
+  font-size: 24rpx;
+  line-height: 64rpx;
+}
+.conversation-item {
+  position: relative;
+  padding: 0 28rpx;
+}
+.conversation-link {
+  display: flex;
+  gap: 22rpx;
+  align-items: center;
+  min-height: 156rpx;
+  padding: 10rpx 0;
+}
+.conversation-avatar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100rpx;
+  height: 100rpx;
+  flex: 0 0 100rpx;
+  border-radius: 50%;
+  background: var(--wu-bg);
+  color: var(--wu-secondary);
+  font-size: 38rpx;
+  font-weight: 500;
+}
+.unread-dot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  background: var(--wu-accent);
+  border: 4rpx solid var(--wu-surface);
+}
+.conversation-copy {
+  min-width: 0;
+  flex: 1;
+  padding: 22rpx 58rpx 22rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.conversation-top {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+.conversation-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 31rpx;
+  font-weight: 600;
+}
+.conversation-time {
+  flex: 0 0 auto;
+  font-size: 22rpx;
+  color: var(--wu-secondary);
+}
+.conversation-preview {
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: var(--wu-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.conversation-identity {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 21rpx;
+  color: var(--wu-tertiary);
+}
+.row-more {
+  position: absolute;
+  right: 10rpx;
+  top: 44rpx;
+  width: 76rpx;
+  min-height: 88rpx;
+}
+.row-menu {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 20rpx;
+}
+.empty-state,
+.login-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 160rpx 40rpx;
+  text-align: center;
+}
+.empty-title {
+  font-size: 31rpx;
+  font-weight: 600;
+}
+.empty-note {
+  font-size: 25rpx;
+  color: var(--wu-secondary);
+}
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20rpx 20rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.26);
+  box-sizing: border-box;
+}
+.action-sheet {
+  padding: 28rpx 28rpx 0;
+  border-radius: 28rpx;
+  background: var(--wu-elevated);
+}
+.sheet-title {
+  padding: 8rpx 0 12rpx;
+  font-size: 31rpx;
+  font-weight: 600;
+  text-align: center;
+}
+.sheet-note {
+  padding: 8rpx 12rpx 28rpx;
+  color: var(--wu-secondary);
+  font-size: 25rpx;
+  text-align: center;
+  line-height: 1.6;
+}
+.danger {
+  color: var(--wu-danger);
+}
+
+/* Component hosts own geometry only; isolated controls own their visual state. */
+.row-menu wu-f7-button {
+  min-width: 112px;
+}
+.more-link {
+  margin: 12px 16px;
+}
+.sheet-action {
+  display: block;
+  border-top: 1rpx solid var(--wu-separator);
+}

@@ -1,61 +1,37 @@
-.page {
-  padding: 32rpx;
-  color: #18354b;
+@import '../community-search/framework7-forms.wxss';
+.school-services-screen .campus-link {
+  color: var(--f7-text-color);
 }
-.title {
-  font-size: 42rpx;
-  font-weight: 700;
-  margin-bottom: 12rpx;
-}
-.subtitle {
-  font-size: 30rpx;
-  margin-bottom: 16rpx;
-}
-.card {
-  background: #fff;
-  border-radius: 22rpx;
-  padding: 28rpx;
-  margin: 24rpx 0;
-}
-.card-title {
-  font-size: 32rpx;
+.school-services-screen .service-name {
+  margin-top: 12px;
+  font-size: var(--f7-list-font-size);
   font-weight: 600;
-  margin-bottom: 18rpx;
+  overflow-wrap: anywhere;
 }
-.name {
-  font-size: 30rpx;
-  margin-bottom: 12rpx;
-}
-.description {
+.school-services-screen .service-description {
+  margin: 8px 0 12px;
+  color: var(--f7-list-item-text-text-color);
+  font-size: var(--f7-list-item-text-font-size);
+  line-height: 1.6;
   white-space: pre-wrap;
-  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
-.hint,
-.footnote {
-  font-size: 25rpx;
-  color: #61758a;
-  line-height: 1.6;
-  margin: 12rpx 0;
+.school-services-screen .service-unavailable {
+  margin-top: 8px;
 }
-.error {
-  color: #a42135;
-  padding: 20rpx;
-  background: #fff0f0;
-  border-radius: 12rpx;
+.school-services-screen .contact-row {
+  min-height: 56px;
+  padding: 8px 0;
 }
-.link {
-  display: block;
-  color: #195a93;
-  padding: 20rpx 0;
+.school-services-screen .contact-row > view {
+  min-width: 0;
 }
-button {
-  margin-top: 16rpx;
-  font-size: 28rpx;
+.school-services-screen .contact-label {
+  color: var(--f7-list-item-subtitle-text-color);
+  font-size: var(--f7-list-item-subtitle-font-size);
 }
-
-.qr-image {
-  display: block;
-  width: 100%;
-  max-width: 560rpx;
-  margin: 20rpx auto;
+.school-services-screen .service-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
 }

@@ -1,17 +1,44 @@
-<view class="page">
-  <view class="title">{{entry ? entry.title : '校园工具'}}</view>
-  <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <view wx:if="{{authRecovery}}" class="card"><navigator url="/pages/login/login">重新登录</navigator><button bindtap="onContinueGuest">明确以访客继续</button></view>
-  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新当前工具</button>
-  <view wx:if="{{entry &amp;&amp; entry.state === 'enabled' &amp;&amp; center}}">
-    <map id="campus-tools-map" class="campus-map" latitude="{{center.latitude}}" longitude="{{center.longitude}}" scale="{{zoom}}" markers="{{markers}}" show-location="{{located}}" bindmarkertap="onMarker" />
-    <view class="row"><button bindtap="onLocate" disabled="{{!locateEnabled || locating}}" loading="{{locating}}">定位到我</button><button bindtap="onReset">回到校区默认位置</button></view>
-    <view wx:if="{{!locateEnabled}}" class="hint">此环境尚未启用真实定位。地图与地点列表可正常浏览。</view>
-    <view wx:for="{{entry.markers}}" wx:key="id" class="card"><button data-id="{{item.id}}" bindtap="onMarker">{{item.title}} · {{item.category}}</button></view>
-    <view wx:if="{{marker}}" class="card"><view class="subtitle">{{marker.title}}</view><view>{{marker.category}}</view><view class="description">{{marker.details}}</view><button bindtap="onCloseMarker">关闭地点详情</button></view>
+<view class="tools-page tools-map-page f7-ios-theme f7-campus-tool-screen">
+  <wu-f7-block spacing="compact">
+  <view wx:if="{{entry &amp;&amp; entry.title !== '校园地图'}}" class="tool-entry-title">{{entry.title}}</view>
+  <view wx:if="{{status &amp;&amp; status !== '当前已确认的工具资料'}}" class="tool-status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="tool-error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{authRecovery}}" class="tool-recovery">
+    <navigator class="tool-primary" url="/pages/login/login">重新登录</navigator>
+    <wu-f7-button class="tool-text-button" bind:press="onContinueGuest">以访客继续</wu-f7-button>
   </view>
-  <view wx:if="{{provenance}}" class="hint">资料维护：{{provenance.maintainer}} · {{provenance.attribution}}<view>发布时间：{{provenance.publishedAt}}</view><view wx:if="{{provenance.validity.kind === 'finite'}}">有效期至：{{provenance.validity.expiresAt}}</view></view>
-  <button bindtap="onBack">返回</button>
-  <navigator class="link" url="/pages/campus-tools/campus-tools" open-type="reLaunch">返回校园工具首页</navigator>
+  </wu-f7-block>
+  <view wx:if="{{entry &amp;&amp; entry.state === 'enabled' &amp;&amp; center}}" class="map-content">
+    <map id="campus-tools-map" class="campus-map" latitude="{{center.latitude}}" longitude="{{center.longitude}}" scale="{{zoom}}" markers="{{markers}}" show-location="{{located}}" bindmarkertap="onMarker" />
+    <view class="map-actions">
+      <wu-f7-button class="map-locate" bind:press="onLocate" disabled="{{!locateEnabled || locating}}" loading="{{locating}}"><view class="f7-tool-action-label"><wu-icon name="location" tone="accent" size="18" /><text>定位到我</text></view></wu-f7-button>
+      <wu-f7-button class="tool-text-button" bind:press="onReset">回到校区</wu-f7-button>
+    </view>
+    <view wx:if="{{!locateEnabled}}" class="tool-footnote">暂不支持定位，可浏览地图与地点。</view>
+    <view wx:if="{{marker}}" class="place-detail">
+      <view class="place-detail-heading"><view class="tool-row-copy"><view class="tool-section-title">{{marker.title}}</view><view class="tool-row-detail">{{marker.category}}</view></view><wu-f7-button class="tool-icon-button" aria-label="关闭地点详情" bind:press="onCloseMarker"><wu-icon name="close" size="18" /></wu-f7-button></view>
+      <view class="tool-description">{{marker.details}}</view>
+    </view>
+    <view class="tool-section-heading"><view class="tool-section-title">校园地点</view><text class="tool-count">{{entry.markers.length}} 个</text></view>
+    <view wx:if="{{!entry.markers.length}}" class="tool-empty">暂无地点信息</view>
+    <wu-f7-list spacing="compact" strong="{{true}}" inset="{{true}}">
+    <view wx:for="{{entry.markers}}" wx:key="id" class="place-item">
+      <wu-f7-list-item class="place-row {{marker &amp;&amp; marker.id === item.id ? 'is-selected' : ''}}" data-id="{{item.id}}" bind:press="onMarker" link="{{true}}" title-slot="{{true}}" media="{{true}}" footer-slot="{{true}}" aria-label="{{item.title + '，' + item.category}}" last="{{index + 1 === entry.markers.length}}"><view slot="media" class="place-pin"><wu-icon name="location" size="20" /></view><view slot="title" class="tool-row-title {{marker &amp;&amp; marker.id === item.id ? 'is-selected' : ''}}">{{item.title}}</view><view slot="footer" class="tool-row-detail">{{item.category}}</view></wu-f7-list-item>
+    </view>
+    </wu-f7-list>
+  </view>
+  <wu-f7-block spacing="compact">
+  <view class="tool-source-footer">
+  <view wx:if="{{provenance}}" class="tool-source">
+    <view>{{provenance.maintainer}} · {{provenance.attribution}}</view>
+    <view>发布于 {{provenance.publishedAt}}</view>
+    <view wx:if="{{provenance.validity.kind === 'finite'}}">有效期至 {{provenance.validity.expiresAt}}</view>
+  </view>
+    <wu-f7-button class="tool-icon-button" aria-label="刷新当前工具" bind:press="onRefresh" disabled="{{busy}}" loading="{{busy}}"><wu-icon name="refresh" size="20" /></wu-f7-button>
+  </view>
+  <view class="tool-navigation">
+    <wu-f7-button class="tool-text-button" bind:press="onBack">返回上一页</wu-f7-button>
+    <navigator class="tool-home" url="/pages/campus-tools/campus-tools" open-type="reLaunch">全部校园工具<wu-icon name="chevron-right" tone="accent" size="13" /></navigator>
+  </view>
+  </wu-f7-block>
 </view>

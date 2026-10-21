@@ -6,6 +6,10 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse, render } from '../scripts/smoke-ratings.mjs';
+import {
+  createNativePressBridge,
+  createNativeInputBridge,
+} from './native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.resolve(
@@ -29,14 +33,16 @@ const flatten = (nodes) =>
   nodes.flatMap((node) =>
     typeof node === 'string' ? [node] : [node, ...flatten(node.children)],
   );
-export function mountEmittedPage(name, app, wx) {
-  let page;
+export function mountEmittedPage(name, app, wx, options = {}) {
+  const selectedDist = path.resolve(options.dist ?? dist);
+  let page, nativePress, nativeInput;
   globalThis.Page = (value) => {
     page = value;
   };
   globalThis.getApp = () => app;
   globalThis.wx = wx;
-  const entry = path.join(dist, `pages/${name}/${name}.js`);
+  const pageFile = path.join(selectedDist, `pages/${name}/${name}`);
+  const entry = `${pageFile}.js`;
   delete require.cache[require.resolve(entry)];
   require(entry);
   assert.ok(page, 'Actual emitted entrypoint calls Page');
@@ -44,12 +50,14 @@ export function mountEmittedPage(name, app, wx) {
   page.setData = (patch, callback) => {
     page.patches.push(structuredClone(patch));
     page.data = { ...page.data, ...patch };
+    nativePress?.sync();
+    nativeInput?.sync();
     callback?.();
   };
   const templates = {};
   const visited = new Set();
   function readTree(file) {
-    assert.ok(file.startsWith(`${dist}${path.sep}`));
+    assert.ok(file.startsWith(`${selectedDist}${path.sep}`));
     if (visited.has(file)) return;
     visited.add(file);
     const tree = parse(readFileSync(file, 'utf8'));
@@ -62,7 +70,33 @@ export function mountEmittedPage(name, app, wx) {
     }
     return tree;
   }
-  const tree = readTree(path.join(dist, `pages/${name}/${name}.wxml`));
+  const tree = readTree(`${pageFile}.wxml`);
+  nativePress = createNativePressBridge({ page, pageFile, dist: selectedDist });
+  nativeInput = createNativeInputBridge({ page, pageFile, dist: selectedDist });
+  let synchronousShowDepth = 0;
+  for (const [method, lifecycle] of [
+    ['onShow', 'show'],
+    ['onHide', 'hide'],
+    ['onUnload', 'detach'],
+  ]) {
+    const original = page[method];
+    page[method] = function (...args) {
+      // A Page may call its own onHide synchronously from onShow to clean up
+      // its controller. That method call is not a platform component hide.
+      // Only the synchronous stack is exempt: never wait for an async onShow
+      // or send another show on completion, which could revive a hidden page.
+      if (lifecycle !== 'hide' || synchronousShowDepth === 0) {
+        nativePress.lifecycle(lifecycle);
+        nativeInput.lifecycle(lifecycle);
+      }
+      if (lifecycle === 'show') synchronousShowDepth++;
+      try {
+        return original?.apply(this, args);
+      } finally {
+        if (lifecycle === 'show') synchronousShowDepth--;
+      }
+    };
+  }
   const nodes = () =>
     flatten(
       render(
@@ -91,16 +125,70 @@ export function mountEmittedPage(name, app, wx) {
         typeof node !== 'string' &&
         node.tag === 'button' &&
         node.attrs[binding] === handler,
-    );
+    ) ??
+    (['bindtap', 'bind:press', 'bindpress'].includes(binding)
+      ? nativePress.find(handler)
+      : undefined);
   const event = (binding, handler, detail = {}, dataset = {}) => {
     const node = find(binding, handler, dataset);
+    // bindinput compatibility is limited to registered emitted F7 Input/Searchbar.
+    // Native input/textarea events retain their existing raw platform path.
+    if (
+      ['bindinput', 'bind:input', 'catchinput', 'catch:input'].includes(
+        binding,
+      ) &&
+      (!node || node.tag === nativeInput.find(handler, dataset)?.tag) &&
+      nativeInput.find(handler, dataset)
+    ) {
+      const control = nativeInput.capture(handler, dataset);
+      try {
+        assert.ok(
+          control.input({ detail }),
+          `${handler} must be a live enabled native F7 input with valid detail`,
+        );
+      } finally {
+        control.detach();
+      }
+      return;
+    }
+    if (
+      ['bind:press', 'bindpress', 'catch:press', 'catchpress'].includes(
+        binding,
+      ) ||
+      (binding === 'bindtap' && !node && nativePress.find(handler, dataset))
+    ) {
+      const control = nativePress.capture(handler, dataset);
+      try {
+        assert.ok(
+          control.press(),
+          `${handler} must be a live enabled native F7 control`,
+        );
+      } finally {
+        control.detach();
+      }
+      return;
+    }
     assert.ok(node, `Actual WXML renders ${binding}=${handler}`);
+    assert.ok(
+      !nativePress.isComponent(node.tag),
+      'Unsupported custom event: use a native permission control or supported F7 press',
+    );
     assert.notEqual(node.attrs.disabled, 'true', `${handler} must be enabled`);
     assert.equal(typeof page[handler], 'function');
     page[handler]({ detail, currentTarget: { dataset } });
   };
   const tap = (handler, dataset = {}) => event('bindtap', handler, {}, dataset);
-  return { page, button, tap, nodes, event };
+  return {
+    page,
+    button,
+    tap,
+    nodes,
+    event,
+    capturePress: nativePress.capture,
+    captureInput: nativeInput.capture,
+    inputComponentEvents: nativeInput.emissions,
+    componentEvents: nativePress.emissions,
+  };
 }
 export async function runTextReviewEmittedSmoke(t) {
   const previous = {

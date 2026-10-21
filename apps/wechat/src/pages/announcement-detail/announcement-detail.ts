@@ -11,6 +11,7 @@ import { AnnouncementNavigator } from '../../announcements/navigation';
 Page({
   data: {
     ...initialAnnouncementReadView(),
+    showInfo: false,
     image: { status: 'idle', src: '', message: '' },
   },
   reader: undefined as AnnouncementMediaReader | undefined,
@@ -71,7 +72,11 @@ Page({
         }),
       );
   },
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
+  },
   onShow() {
+    this.setData({ showInfo: false });
     this.reader?.dispose();
     this.reader = getApp<WhaleuApp>().announcementMedia?.createReader((image) =>
       this.setData({ image }),
@@ -139,6 +144,7 @@ Page({
     }
   },
   onHide() {
+    this.setData({ showInfo: false });
     this.reader?.dispose();
     this.reader = undefined;
     this.controller?.dispose();

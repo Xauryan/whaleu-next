@@ -1,22 +1,90 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 公告</view>
-  <view class="title">公告详情</view>
-  <view class="scope">{{scopeLabel}}</view>
-  <view wx:if="{{campusId}}" class="meta">浏览校区编号：{{campusId}}</view>
-  <view class="meta">浏览范围不代表身份认证。查看公告不会记录弹窗确认。</view>
-  <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <button class="secondary" bindtap="onRefresh" disabled="{{busy}}">{{restartRequired ? '重新开始浏览' : '重新加载'}}</button>
-  <button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
-  <view wx:if="{{loaded &amp;&amp; detail}}" class="card {{detail.highlight ? 'announcement-highlight' : ''}}">
-    <view wx:if="{{detail.isLatest}}" class="badge">最新</view>
-    <text class="announcement-title" selectable="true">{{detail.title}}</text>
-    <text wx:if="{{detail.versionLabel}}" class="meta" selectable="true">版本：{{detail.versionLabel}}</text>
-    <view class="meta">公告日期：{{detail.announcementDate === null ? '时间未知' : detail.announcementDate}}</view>
-    <text class="announcement-body" selectable="true" space="nbsp">{{detail.bodyText}}</text>
-    <view wx:if="{{detail.media.status === 'available'}}"><button wx:for="{{detail.media.items}}" wx:key="bindingId" data-slot="{{item.slot}}" bindtap="onImage">查看图片 {{index + 1}}</button><view>{{image.message}}</view><image wx:if="{{image.src}}" src="{{image.src}}" mode="widthFix"/></view>
-    <view wx:if="{{detail.media.status === 'unavailable'}}" class="notice">公告图片暂不可用</view>
-    <view class="meta">创建时间：{{detail.createdAt === null ? '时间未知' : detail.createdAt}}</view>
-    <view class="meta">更新时间：{{detail.updatedAt === null ? '时间未知' : detail.updatedAt}}</view>
-  </view>
+<view class="information-screen f7-ios-theme f7-information-screen">
+  <wu-f7-block spacing="compact" class="f7-information-header">
+    <view class="toolbar">
+      <view class="scope-caption">
+        <wu-icon name="location" size="16" />
+        <text>
+          {{scopeLabel}}
+        </text>
+      </view>
+      <wu-f7-button class="icon-button" aria-label="{{restartRequired ? '重新开始浏览' : '刷新公告'}}" disabled="{{busy}}" loading="{{busy}}" bind:press="onRefresh">
+        <wu-icon name="refresh" size="19" />
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{busy || !loaded}}" class="status" aria-role="status">
+      {{status}}
+    </view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">
+      {{error}}
+    </view>
+    <wu-f7-button wx:if="{{busy}}" class="quiet-button" bind:press="onCancel">
+      停止读取
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{loaded &amp;&amp; detail}}" class="announcement-article {{detail.highlight ? 'announcement-highlight' : ''}}" spacing="compact">
+    <view class="article-meta">
+      <text>
+        {{detail.announcementDate === null ? '日期未知' : detail.announcementDate}}
+      </text>
+      <text wx:if="{{detail.isLatest}}">
+        最新
+      </text>
+    </view>
+    <text class="article-title" selectable="true">
+      {{detail.title}}
+    </text>
+    <text wx:if="{{detail.versionLabel}}" class="article-version" selectable="true">
+      {{detail.versionLabel}}
+    </text>
+    <text class="announcement-body" selectable="true" space="nbsp">
+      {{detail.bodyText}}
+    </text>
+    <view wx:if="{{detail.media.status === 'available'}}" class="article-media">
+      <view class="section-heading">
+        公告图片
+      </view>
+      <wu-f7-list-item wx:for="{{detail.media.items}}" wx:key="bindingId" class="image-link" data-slot="{{item.slot}}" bind:press="onImage" link="{{true}}" title-slot="{{true}}" aria-label="查看公告图片 {{index + 1}}">
+        <view slot="title" class="f7-information-row-label">
+          <wu-icon name="image" size="24" />
+          <text>
+            查看图片 {{index + 1}}
+          </text>
+          <wu-icon name="chevron-right" size="14" />
+        </view>
+      </wu-f7-list-item>
+      <view wx:if="{{image.message}}" class="notice">
+        {{image.message}}
+      </view>
+      <view class="image-reader">
+        <image wx:if="{{image.src}}" src="{{image.src}}" mode="widthFix" />
+      </view>
+    </view>
+    <view wx:if="{{detail.media.status === 'unavailable'}}" class="notice">
+      公告图片暂不可用
+    </view>
+    <wu-f7-list class="reading-notes" spacing="compact" strong="{{true}}">
+      <wu-f7-list-item class="disclosure" bind:press="onToggleInfo" link="{{true}}" title-slot="{{true}}" aria-label="公告信息">
+        <view slot="title" class="f7-information-row-label">
+          <text>
+            公告信息
+          </text>
+          <wu-icon name="{{showInfo ? 'chevron-up' : 'chevron-down'}}" size="14" />
+        </view>
+      </wu-f7-list-item>
+      <view wx:if="{{showInfo}}">
+        <view>
+          创建时间：{{detail.createdAt === null ? '时间未知' : detail.createdAt}}
+        </view>
+        <view>
+          更新时间：{{detail.updatedAt === null ? '时间未知' : detail.updatedAt}}
+        </view>
+        <view wx:if="{{campusId}}">
+          浏览校区编号：{{campusId}}
+        </view>
+        <view class="notice">
+          浏览范围不代表身份认证。查看公告不会记录弹窗确认。
+        </view>
+      </view>
+    </wu-f7-list>
+  </wu-f7-block>
 </view>

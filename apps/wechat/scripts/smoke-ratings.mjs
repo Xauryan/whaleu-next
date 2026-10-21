@@ -1,3 +1,4 @@
+import { createRatingEmittedBridge } from '../test/rating-native-emitted-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -26,16 +27,31 @@ export function parse(source) {
         [...token.matchAll(/([\w:-]+)="([^"]*)"/g)].map((item) => [
           item[1],
           item[2]
-            .replaceAll('&amp;', '&')
+            .replaceAll('&quot;', '"')
+            .replaceAll('&apos;', "'")
             .replaceAll('&lt;', '<')
-            .replaceAll('&gt;', '>'),
+            .replaceAll('&gt;', '>')
+            .replaceAll('&amp;', '&'),
         ]),
       );
       if (/\bwx:else(?:\s|>|\/)/.test(token)) attrs['wx:else'] = '';
       const node = { tag, attrs, children: [] };
       stack.at(-1).children.push(node);
       if (!token.endsWith('/>')) stack.push(node);
-    } else if (token.trim()) stack.at(-1).children.push(token);
+    } else if (token.trim()) {
+      // Decode text only after tokenization, before evaluating interpolations.
+      // Ampersands go last so escaped entity spellings are not decoded twice.
+      stack
+        .at(-1)
+        .children.push(
+          token
+            .replaceAll('&quot;', '"')
+            .replaceAll('&apos;', "'")
+            .replaceAll('&lt;', '<')
+            .replaceAll('&gt;', '>')
+            .replaceAll('&amp;', '&'),
+        );
+    }
   }
   assert.equal(stack.length, 1);
   return root;
@@ -410,7 +426,14 @@ export async function smokeRatings({ app, dist, flush }) {
   };
   globalThis.wx.navigateTo = (options) => navigation.push(options);
   const templates = Object.fromEntries(
-    parse(readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8'))
+    parse(
+      readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8') +
+        readFileSync(path.join(dist, 'ratings/product.wxml'), 'utf8') +
+        readFileSync(
+          path.join(dist, 'ratings/framework7-product.wxml'),
+          'utf8',
+        ),
+    )
       .children.filter((n) => typeof n !== 'string')
       .map((n) => [n.attrs.name, n]),
   );
@@ -427,7 +450,9 @@ export async function smokeRatings({ app, dist, flush }) {
       typeof n === 'string' ? [] : [n, ...nodes(n.children)],
     );
   const buttons = (mode, page, handler) =>
-    nodes(presented(mode, page)).filter((n) => n.attrs.bindtap === handler);
+    nodes(presented(mode, page)).filter(
+      (n) => n.attrs.bindtap === handler || n.attrs['bind:press'] === handler,
+    );
   const mount = (mode, route = {}) => {
     let page;
     const oldPage = globalThis.Page;
@@ -447,21 +472,31 @@ export async function smokeRatings({ app, dist, flush }) {
     for (const handler of [
       ...(
         source(mode) +
-        readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8')
-      ).matchAll(/bind(?:tap|input)="([^"]+)"/g),
+        (readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8') +
+          readFileSync(path.join(dist, 'ratings/product.wxml'), 'utf8') +
+          readFileSync(
+            path.join(dist, 'ratings/framework7-product.wxml'),
+            'utf8',
+          ))
+      ).matchAll(/bind(?::(?:press|input)|tap|input)="([^"]+)"/g),
     ])
       assert.equal(
         typeof page[handler[1]],
         'function',
         `emitted ${handler[1]} handler`,
       );
+    page.__ratingEmittedBridge = createRatingEmittedBridge({
+      page,
+      pageFile: path.join(dist, `pages/rating-${mode}/rating-${mode}`),
+      dist,
+    });
     pages.push(page);
     page.onLoad(route);
     page.onShow();
     return page;
   };
   const tap = (page, handler, dataset = {}) =>
-    page[handler]({ currentTarget: { dataset } });
+    page.__ratingEmittedBridge.tap(handler, dataset);
   const clear = (page) => {
     assert.equal(page.data.detail, null);
     assert.deepEqual(page.data.comments, []);
@@ -487,10 +522,7 @@ export async function smokeRatings({ app, dist, flush }) {
       );
     }
     assert.match(
-      readFileSync(
-        path.join(dist, 'pages/community-feed/community-feed.wxml'),
-        'utf8',
-      ),
+      readFileSync(path.join(dist, 'pages/campus-hub/campus-hub.js'), 'utf8'),
       /\/pages\/rating-catalog\/rating-catalog/,
     );
     let page = mount('catalog');
@@ -520,6 +552,7 @@ export async function smokeRatings({ app, dist, flush }) {
     page.onUnload();
     page = mount('catalog');
     await flush();
+    tap(page, 'onTogglePanel', { panel: 'scope' });
     page.onRegions();
     await flush();
     assert.ok(visible('catalog', page).includes('合成身份地区'));
@@ -537,17 +570,18 @@ export async function smokeRatings({ app, dist, flush }) {
 
     page = mount('detail', { targetId });
     await flush();
+    tap(page, 'onTogglePanel', { panel: 'score' });
     let text = visible('detail', page);
-    assert.ok(text.includes('你尚未评分'));
+    assert.ok(text.includes('选择 1–5 分'));
     assert.ok(text.includes('暂无评分'));
-    assert.ok(!text.includes('统计暂时未知'));
+    assert.ok(!text.includes('评分数据暂不可用'));
     assert.equal(buttons('detail', page, 'onScore').length, 5);
     tap(page, 'onScore', { score: '0' });
     assert.equal(page.data.selectedScore, null);
     tap(page, 'onScore', { score: '1e0' });
     assert.equal(page.data.selectedScore, null);
     tap(page, 'onScore', { score: '5' });
-    assert.ok(visible('detail', page).includes('确认提交 5 分'));
+    assert.ok(visible('detail', page).includes('提交 5 分'));
     assert.equal(
       buttons('detail', page, 'onConfirmScore')[0].attrs.disabled,
       'false',
@@ -599,9 +633,12 @@ export async function smokeRatings({ app, dist, flush }) {
     assert.equal(page.data.myScore.score, 5);
     assert.equal(page.data.summary.count, 1);
     assert.equal(stored.size, 0);
+    if (page.data.uiPanel !== 'score')
+      tap(page, 'onTogglePanel', { panel: 'score' });
     text = visible('detail', page);
+    assert.equal(page.data.summary.average, 5);
     assert.ok(text.includes('当前 5 分'));
-    assert.ok(text.includes('5 分 · 1 人评分'));
+    assert.ok(text.includes('1 人评分'));
     const unchanged = JSON.stringify(summary());
     tap(page, 'onScore', { score: 5 });
     page.onConfirmScore();
@@ -635,7 +672,7 @@ export async function smokeRatings({ app, dist, flush }) {
     assert.ok(visible('detail', page).includes(rootBody));
     assert.ok(visible('detail', page).includes('本目标合成分身'));
     tap(page, 'onDelete', { id: commentId });
-    assert.ok(visible('detail', page).includes('独立评分仍保留'));
+    assert.ok(visible('detail', page).includes('评分仍保留'));
     page.onDismissDelete();
     assert.equal(page.data.deleteId, null);
     tap(page, 'onDelete', { id: commentId });
@@ -670,9 +707,11 @@ export async function smokeRatings({ app, dist, flush }) {
     state.unavailable = true;
     page.onRefresh();
     await flush();
+    if (page.data.uiPanel !== 'score')
+      tap(page, 'onTogglePanel', { panel: 'score' });
     text = visible('detail', page);
-    assert.ok(text.includes('自己的评分暂时未知'));
-    assert.ok(text.includes('统计暂时未知'));
+    assert.ok(text.includes('暂未确认你的评分'));
+    assert.ok(text.includes('评分数据暂不可用'));
     assert.ok(!text.includes('暂无评分'));
     assert.equal(buttons('detail', page, 'onScore').length, 0);
     state.unavailable = false;

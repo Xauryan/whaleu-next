@@ -47,7 +47,6 @@ import {
   type RatingCommandReceipt,
 } from './pending';
 import {
-  decodeRatingNoticeRead,
   decodeRatingNoticeTarget,
   type RatingNoticeLocator,
 } from './updates-contract';
@@ -59,6 +58,8 @@ export interface RatingThreadRoute {
   readonly noticeId?: string;
   readonly likeNoticeId?: string;
   readonly subscriptionNoticeId?: string;
+  /** Compatibility marker; every entry is explicit-read and retains owner/target proof. */
+  readonly noticeRead?: 'explicit';
 }
 export function decodeRatingThreadRoute(value: unknown): RatingThreadRoute {
   if (
@@ -73,9 +74,17 @@ export function decodeRatingThreadRoute(value: unknown): RatingThreadRoute {
           'noticeId',
           'likeNoticeId',
           'subscriptionNoticeId',
+          'noticeRead',
         ].includes(key),
     ) ||
-    Object.values(value).some((id) => !ratingId(id)) ||
+    Object.entries(value).some(
+      ([key, id]) => key !== 'noticeRead' && !ratingId(id),
+    ) ||
+    (Object.prototype.hasOwnProperty.call(value, 'noticeRead') &&
+      (value.noticeRead !== 'explicit' ||
+        ![value.noticeId, value.likeNoticeId, value.subscriptionNoticeId].some(
+          (id) => id !== undefined,
+        ))) ||
     !ratingId(value.targetId) ||
     !ratingId(value.rootId) ||
     (value.noticeId !== undefined && !ratingId(value.replyId)) ||
@@ -95,6 +104,9 @@ export function decodeRatingThreadRoute(value: unknown): RatingThreadRoute {
       : {}),
     ...(value.likeNoticeId
       ? { likeNoticeId: value.likeNoticeId as string }
+      : {}),
+    ...(value.noticeRead === 'explicit'
+      ? { noticeRead: 'explicit' as const }
       : {}),
   });
 }
@@ -331,7 +343,6 @@ export class RatingThreadController extends CommunityController<RatingThreadView
     this.stop();
     this.clearContent();
     this.update({ collapsed: false });
-    let loaded = false;
     await this.run(
       async (cancel) => {
         if (route.subscriptionNoticeId) {
@@ -475,7 +486,6 @@ export class RatingThreadController extends CommunityController<RatingThreadView
             ? '已定位当前可见回复；继续读取可查看后续回复'
             : '已读取当前可见评价与回复，最早在前',
         });
-        loaded = true;
       },
       (error) => {
         this.clearContent();
@@ -485,55 +495,8 @@ export class RatingThreadController extends CommunityController<RatingThreadView
         });
       },
     );
-    // Mark only after the receiving page's actual position read was applied. Navigation success alone never marks read.
-    if (
-      loaded &&
-      !this.inactive &&
-      this.route === route &&
-      this.view.loaded &&
-      (route.noticeId || route.likeNoticeId || route.subscriptionNoticeId) &&
-      this.accountId()
-    ) {
-      await this.run(
-        (cancel) =>
-          route.subscriptionNoticeId
-            ? this.runtime.ratingSubscriptionUpdates!.markRead(
-                route.subscriptionNoticeId,
-                cancel,
-              )
-            : route.likeNoticeId
-              ? this.runtime.ratingLikeUpdates!.markRead(
-                  route.likeNoticeId,
-                  cancel,
-                )
-              : this.runtime.ratingUpdates!.markRead(route.noticeId!, cancel),
-        (raw) => {
-          const receipt = decodeRatingNoticeRead(raw);
-          if (
-            receipt.noticeId !==
-            (route.subscriptionNoticeId ?? route.likeNoticeId ?? route.noticeId)
-          )
-            invalidRating();
-          this.update({
-            status: route.subscriptionNoticeId
-              ? '已定位当前订阅内容，并确认这条订阅更新已读'
-              : route.likeNoticeId
-                ? '已定位当前被赞内容，并确认这条赞已读'
-                : '已定位当前回复，并确认这条评分更新已读',
-          });
-        },
-        (error) => {
-          this.update({
-            error: ratingError(error),
-            status: route.subscriptionNoticeId
-              ? '订阅内容已读取，但这条订阅更新的已读状态尚未确认'
-              : route.likeNoticeId
-                ? '被赞内容已读取，但这条赞的已读状态尚未确认'
-                : '回复已读取，但这条更新的已读状态尚未确认',
-          });
-        },
-      );
-    }
+    // Resolving and loading content is not evidence that a notice was read.
+    // Exact acknowledgment remains on the source updates list for every owner.
   }
   collapse(): void {
     this.stop();

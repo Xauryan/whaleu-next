@@ -1,3 +1,7 @@
+import {
+  FeedThumbnails,
+  type FeedThumbnail,
+} from '../../media/feed-thumbnails';
 import { RatingLinkNavigator } from '../../community/rating-link-navigation';
 import {
   PinFeedController,
@@ -46,9 +50,17 @@ import {
 import { systemClock } from '../../platform/clock';
 import type { WhaleuApp } from '../../app';
 import { FeedController, initialFeedView } from './controller';
+import { splitFeedColumns } from './waterfall';
 Page({
   ratingLinkNavigator: undefined as RatingLinkNavigator | undefined,
   data: {
+    feedImages: {} as Readonly<Record<string, FeedThumbnail>>,
+    homeTab: 'campus' as 'campus' | 'following' | 'global',
+    showCampusPicker: false,
+    showHomeMenu: false,
+    showReadingNotes: false,
+    expandedPostId: '',
+    postColumns: [[], []] as readonly (readonly Post[])[],
     postPin: initialPinFeedView(),
     postPinManagement: initialPinDetailView(),
     announcementImageView: { status: 'idle', src: '', message: '' },
@@ -64,7 +76,7 @@ Page({
     tradingLabels,
     identityOverlay: initialOverlayView(),
     categories: [
-      { key: 'all', label: '全部普通帖子' },
+      { key: 'all', label: '最新' },
       { key: 'trading', label: '校园交易' },
       { key: 'discussion', label: '校园日常' },
       { key: 'confession', label: '表白心事' },
@@ -77,6 +89,7 @@ Page({
       { key: 'deep_sea', label: '深海树洞' },
     ],
   },
+  feedThumbnails: undefined as FeedThumbnails | undefined,
   namedAvatarController: undefined as NamedAvatarController | undefined,
   announcementImage: undefined as AnnouncementMediaReader | undefined,
   announcementPopup: undefined as AnnouncementPopupController | undefined,
@@ -97,17 +110,41 @@ Page({
   pinRenderedId: '',
   ordinaryPosts: [] as readonly Post[],
   renderOrdinaryPins() {
-    const visibleId = this.pinRenderedId;
+    const visibleId = this.data.following ? '' : this.pinRenderedId;
     const posts = this.ordinaryPosts.filter((post) => post.id !== visibleId);
     // Preserve ordinary viewport exposure semantics after de-duplication.
     // The separate pin card itself never manufactures an exposure event.
     const presented = this.viewObserver?.render(
-      this.data.loaded && this.data.hasSession
+      this.data.loaded &&
+        this.data.hasSession &&
+        this.data.homeTab ===
+          (this.data.following
+            ? 'following'
+            : this.data.space?.kind === 'global'
+              ? 'global'
+              : 'campus')
         ? posts.map((post) => post.id)
         : [],
-      `${this.data.space?.id ?? ''}:${this.data.campusId}:${this.data.category}:${this.data.tradingSubtype}`,
+      `${this.data.following ? 'following' : 'community'}:${this.data.space?.id ?? ''}:${this.data.campusId}:${this.data.category}:${this.data.tradingSubtype}`,
     );
-    this.setData({ posts }, presented);
+    const mediaPresented = this.feedThumbnails?.render(
+      this.data.loaded &&
+        !this.data.busy &&
+        this.data.hasSession &&
+        this.data.homeTab ===
+          (this.data.following
+            ? 'following'
+            : this.data.space?.kind === 'global'
+              ? 'global'
+              : 'campus')
+        ? posts
+        : [],
+      `${this.data.following}:${this.data.space?.id}:${this.data.campusId}:${this.data.category}:${this.data.tradingSubtype}`,
+    );
+    this.setData({ posts, postColumns: splitFeedColumns(posts) }, () => {
+      presented?.();
+      mediaPresented?.();
+    });
   },
   onSlotUnpin() {
     this.pinManager?.confirm('unpin');
@@ -156,8 +193,23 @@ Page({
     this.pinController?.closeDismiss();
   },
   onShow() {
+    this.setData({
+      homeTab: 'campus',
+      expandedPostId: '',
+      showHomeMenu: false,
+    });
     this.ratingLinkNavigator?.dispose();
     const linkRuntime = getApp<WhaleuApp>().community;
+    this.feedThumbnails?.dispose();
+    this.feedThumbnails = linkRuntime
+      ? new FeedThumbnails(
+          linkRuntime.sessions,
+          getApp<WhaleuApp>().mediaRead,
+          wx,
+          this,
+          (feedImages) => this.setData({ feedImages }),
+        )
+      : undefined;
     this.ratingLinkNavigator = linkRuntime
       ? new RatingLinkNavigator(wx, linkRuntime.sessions, () =>
           this.setData({ error: '暂不能打开评分对象，请重试' }),
@@ -284,17 +336,51 @@ Page({
     this.controller = new FeedController(
       runtime,
       (view) => {
+        const posts = view.posts.filter(
+          (post) => view.following || post.id !== this.pinRenderedId,
+        );
         const presented = this.viewObserver?.render(
-          view.loaded && view.hasSession
-            ? view.posts.map((post) => post.id)
+          view.loaded &&
+            view.hasSession &&
+            this.data.homeTab ===
+              (view.following
+                ? 'following'
+                : view.space?.kind === 'global'
+                  ? 'global'
+                  : 'campus')
+            ? posts.map((post) => post.id)
             : [],
-          `${view.space?.id ?? ''}:${view.campusId}:${view.category}:${view.tradingSubtype}`,
+          `${view.following ? 'following' : 'community'}:${view.space?.id ?? ''}:${view.campusId}:${view.category}:${view.tradingSubtype}`,
         );
         if (view.busy || !view.loaded) this.namedAvatarController?.clear();
         this.ordinaryPosts = view.posts;
-        this.setData({ ...view }, presented);
-        this.renderOrdinaryPins();
-        if (!view.loaded) {
+        const mediaPresented = this.feedThumbnails?.render(
+          view.loaded &&
+            !view.busy &&
+            view.hasSession &&
+            this.data.homeTab ===
+              (view.following
+                ? 'following'
+                : view.space?.kind === 'global'
+                  ? 'global'
+                  : 'campus')
+            ? posts
+            : [],
+          `${view.following}:${view.space?.id}:${view.campusId}:${view.category}:${view.tradingSubtype}`,
+        );
+        this.setData(
+          {
+            ...view,
+            posts,
+            postColumns: splitFeedColumns(posts),
+            ...(view.busy || !view.loaded ? { expandedPostId: '' } : {}),
+          },
+          () => {
+            presented?.();
+            mediaPresented?.();
+          },
+        );
+        if (!view.loaded || view.following) {
           this.pinScope = '';
           this.pinController?.clear();
           this.pinManager?.clear();
@@ -337,6 +423,12 @@ Page({
         if (
           view.busy ||
           !view.loaded ||
+          this.data.homeTab !==
+            (view.following
+              ? 'following'
+              : view.space?.kind === 'global'
+                ? 'global'
+                : 'campus') ||
           this.data.report.busy ||
           this.data.report.frozen ||
           this.data.block.busy ||
@@ -381,6 +473,65 @@ Page({
   onCloseAnnouncement() {
     void this.announcementPopup?.close();
   },
+  onFollowing() {
+    this.namedAvatarController?.clear();
+    this.setData({
+      homeTab: 'following',
+      expandedPostId: '',
+      showHomeMenu: false,
+    });
+    this.pinScope = '';
+    this.pinRenderedId = '';
+    this.pinController?.clear();
+    this.pinManager?.clear();
+    this.identityOverlay?.clear();
+    this.overlayTargets = '';
+    this.renderOrdinaryPins();
+    void this.controller?.setFollowing(true);
+  },
+  async onHomeCampus() {
+    this.namedAvatarController?.clear();
+    this.setData({
+      homeTab: 'campus',
+      expandedPostId: '',
+      showHomeMenu: false,
+    });
+    this.renderOrdinaryPins();
+    await this.controller?.showCommunity('regional');
+  },
+  async onHomeGlobal() {
+    this.namedAvatarController?.clear();
+    this.setData({
+      homeTab: 'global',
+      expandedPostId: '',
+      showHomeMenu: false,
+    });
+    this.renderOrdinaryPins();
+    // A tab change never invents or silently combines global communities.
+    // When exactly one is available, the user's tab selection opens that scope.
+    await this.controller?.showCommunity('global');
+  },
+  onHotUnavailable() {
+    this.setData({
+      homeTab: 'campus',
+      showCampusPicker: true,
+      error: '请先选择可用的校园社区，再查看热榜。',
+    });
+  },
+  onToggleCampusPicker() {
+    this.setData({ showCampusPicker: !this.data.showCampusPicker });
+  },
+  onToggleHomeMenu() {
+    this.setData({ showHomeMenu: !this.data.showHomeMenu });
+  },
+  onToggleReadingNotes() {
+    this.setData({ showReadingNotes: !this.data.showReadingNotes });
+  },
+  onPostMenu(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id;
+    if (!this.data.posts.some((post) => post.id === id)) return;
+    this.setData({ expandedPostId: this.data.expandedPostId === id ? '' : id });
+  },
   onQuery(event: { detail: { value: string } }) {
     this.controller?.setQuery(event.detail.value);
   },
@@ -392,10 +543,20 @@ Page({
       (item) => item.id === event.currentTarget.dataset.id,
     );
     if (!campus?.isActive) return;
+    this.setData({
+      homeTab: this.data.following ? 'following' : 'campus',
+      showCampusPicker: false,
+      showHomeMenu: false,
+      expandedPostId: '',
+    });
     void this.controller?.chooseCampus(campus.id);
     void this.announcementPopup?.load(campus.id);
   },
   onGlobal(event: { currentTarget: { dataset: { id: string } } }) {
+    this.setData({
+      homeTab: this.data.following ? 'following' : 'global',
+      expandedPostId: '',
+    });
     void this.controller?.chooseGlobal(event.currentTarget.dataset.id);
   },
   onRegional() {
@@ -499,6 +660,12 @@ Page({
     this.updatesBadge?.cancel();
     this.controller?.cancel();
   },
+  onFeedImageError(event: {
+    currentTarget: { dataset: { id?: string; src?: string; viewId?: string } };
+  }) {
+    const { id, src, viewId } = event.currentTarget.dataset;
+    if (id && src && viewId) this.feedThumbnails?.imageFailed(id, src, viewId);
+  },
   onPageScroll() {
     this.namedAvatarController?.clear();
   },
@@ -515,6 +682,8 @@ Page({
     );
   },
   onHide() {
+    this.feedThumbnails?.dispose();
+    this.feedThumbnails = undefined;
     this.ratingLinkNavigator?.dispose();
     this.ratingLinkNavigator = undefined;
     this.pinRenderRevision++;
@@ -551,6 +720,8 @@ Page({
     this.identityOverlay = undefined;
   },
   onUnload() {
+    this.feedThumbnails?.dispose();
+    this.feedThumbnails = undefined;
     this.ratingLinkNavigator?.dispose();
     this.ratingLinkNavigator = undefined;
     this.pinRenderRevision++;

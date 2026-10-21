@@ -1,3 +1,4 @@
+import { ratingTimeLabels } from './presentation';
 import type { WhaleuApp } from '../app';
 import { DirectoryNavigator } from '../directory/navigation';
 import {
@@ -21,7 +22,12 @@ type Tap = {
 /** Route IDs survive page hide. No body, score, cursor, author input or pending payload enters page persistence. */
 export function registerRatingPage(mode: RatingMode): void {
   Page({
-    data: { ...initialRatingView(), scores: [1, 2, 3, 4, 5] },
+    data: {
+      timeLabels: {} as Record<string, string>,
+      ...initialRatingView(),
+      scores: [1, 2, 3, 4, 5],
+      uiPanel: '',
+    },
     route: null as RatingRoute | null,
     controller: undefined as RatingController | undefined,
     navigator: undefined as DirectoryNavigator | undefined,
@@ -43,6 +49,7 @@ export function registerRatingPage(mode: RatingMode): void {
           current.credentials?.accountId !== owner.credentials?.accountId
         ) {
           owner = current;
+          this.setData({ uiPanel: '' });
           this.navigator?.dispose();
         }
       });
@@ -51,6 +58,7 @@ export function registerRatingPage(mode: RatingMode): void {
       });
     },
     onShow() {
+      this.setData({ uiPanel: '' });
       this.controller?.dispose();
       this.controller = undefined;
       this.navigator?.dispose();
@@ -67,9 +75,22 @@ export function registerRatingPage(mode: RatingMode): void {
         this.setData({ error: '暂不能打开评分页面，请重试' }),
       );
       this.controller = new RatingController(runtime, mode, (view) =>
-        this.setData({ ...view }),
+        this.setData({
+          ...view,
+          timeLabels: ratingTimeLabels(view.comments),
+          ...(!view.hasSession || !view.loaded ? { uiPanel: '' } : {}),
+        }),
       );
       void this.controller.load(this.route);
+    },
+    onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+      const panel = event.currentTarget.dataset.panel;
+      if (typeof panel !== 'string' || !/^[a-zA-Z0-9:_-]{1,100}$/.test(panel))
+        return;
+      this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+    },
+    onClosePanel() {
+      this.setData({ uiPanel: '' });
     },
     onRefresh() {
       void this.controller?.reload();
@@ -206,6 +227,7 @@ export function registerRatingPage(mode: RatingMode): void {
       void this.controller?.deleteComment();
     },
     onHide() {
+      this.setData({ uiPanel: '' });
       this.controller?.dispose();
       this.controller = undefined;
       this.navigator?.dispose();

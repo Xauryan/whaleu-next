@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "系统设置",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon",
+    "wu-f7-block": "../../components/f7-block/f7-block",
+    "wu-f7-list": "../../components/f7-list/f7-list",
+    "wu-f7-toggle": "../../components/f7-toggle/f7-toggle",
+    "wu-f7-button": "../../components/f7-button/f7-button"
+  }
+}

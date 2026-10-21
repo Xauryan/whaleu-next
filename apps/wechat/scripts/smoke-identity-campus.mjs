@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 
 /** Emitted Mini Program page + actual API client/gateway/decoders, using synthetic transport only. */
@@ -107,22 +108,35 @@ export async function smokeIdentityCampus({ app, dist, mountPage, flush }) {
   const page = mountPage(
     path.join(dist, 'pages/identity-campus/identity-campus.js'),
   );
+  const controls = createNativePressBridge({
+    page,
+    pageFile: path.join(dist, 'pages/identity-campus/identity-campus'),
+    dist: path.resolve(dist),
+  });
+  const press = (handler, dataset = {}) => {
+    const hit = controls.capture(handler, dataset);
+    try {
+      assert.equal(hit.press(), true);
+    } finally {
+      hit.detach();
+    }
+  };
   await flush();
   assert.equal(page.data.loaded, true);
   assert.equal(page.data.state.reason, 'history_unknown');
   assert.equal(page.data.selectedId, '');
   assert.equal(requests.length, 1);
   assert.equal(records.size, 0);
-  page.onChoose({ currentTarget: { dataset: { id: campusId } } });
-  page.onRequestConfirmation();
+  press('onChoose', { id: campusId });
+  press('onRequestConfirmation');
   assert.equal(page.data.confirmation.operatingRegion.name, '合成地区');
   page.onDismissConfirmation();
   page.onConfirm();
   await flush();
   assert.equal(requests.length, 1);
-  page.onRequestConfirmation();
-  page.onConfirm();
-  page.onConfirm();
+  press('onRequestConfirmation');
+  press('onConfirm');
+  page.onConfirm(); // Negative duplicate-call guard remains a direct controller stress case.
   await flush();
   assert.equal(requests.filter((r) => r.method === 'PUT').length, 1);
   assert.equal(page.data.frozen, true);
@@ -167,9 +181,12 @@ export async function smokeIdentityCampus({ app, dist, mountPage, flush }) {
     path.join(dist, 'pages/identity-campus/identity-campus.wxml'),
     'utf8',
   );
-  assert.match(template, /确认保存此身份校区/);
+  assert.match(
+    template,
+    /wx:if="\{\{confirmation\}\}"[\s\S]*确认保存为身份校区[\s\S]*disabled="\{\{busy\}\}"[\s\S]*bind:press="onConfirm"/,
+  );
   assert.match(template, /不撤销/);
-  assert.match(template, /再次点击发送/);
+  assert.match(template, /bind:press="onRetry"[\s\S]*重试相同的原请求/);
   assert.doesNotMatch(
     template,
     /rich-text|web-view|accessToken|studentNumber|phoneNumber/,

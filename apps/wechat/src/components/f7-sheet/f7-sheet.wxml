@@ -1,0 +1,13 @@
+<view wx:for="{{renderKeys}}" wx:key="generation" wx:if="{{rendered}}" class="f7-ios-theme f7-overlay-layer f7-overlay-{{phase}}" catchtap="onConsumeTap">
+  <view class="f7-overlay-mask {{visible ? 'f7-overlay-mask-visible' : ''}} {{!backdrop ? 'f7-overlay-mask-clear' : ''}}" data-session-id="{{activeSessionId}}" data-generation="{{generation}}" data-attempt-key="{{attemptKey}}" catchtap="onBackdrop" catchtouchmove="onConsumeMove" aria-hidden="true" />
+  <view class="f7-overlay-position" style="bottom:{{keyboardInset}}px;">
+    <view class="f7-sheet-surface {{visible ? 'f7-sheet-visible' : ''}} {{useSafeArea ? 'f7-overlay-safe' : ''}}" aria-role="dialog" aria-label="{{title || '面板'}}">
+      <view class="f7-sheet-header" catchtouchmove="onConsumeMove">
+        <view class="f7-sheet-heading"><view wx:if="{{title}}" class="f7-sheet-title">{{title}}</view><slot name="header" /></view>
+        <view wx:if="{{showClose}}" class="f7-sheet-close"><f7-button interaction-key="{{buttonInteractionKey}}" aria-label="{{closeLabel}}" disabled="{{interactionDisabled}}" data-session-id="{{activeSessionId}}" data-generation="{{generation}}" data-attempt-key="{{attemptKey}}" bind:press="onClose">{{closeLabel}}</f7-button></view>
+      </view>
+      <scroll-view class="f7-sheet-scroll" scroll-y="{{true}}" enhanced="{{true}}" bounces="{{false}}" show-scrollbar="{{true}}" aria-label="{{title || '面板内容'}}"><view class="f7-sheet-content"><slot /></view></scroll-view>
+      <view class="f7-sheet-footer" catchtouchmove="onConsumeMove"><slot name="footer" /></view>
+    </view>
+  </view>
+</view>

@@ -1,3 +1,8 @@
+import {
+  prepareProfileCoverMediaSchema,
+  profileCoverMediaRequestHash,
+} from './contracts-profile-cover.js';
+import type { PrepareProfileCoverMediaInput } from './contracts-profile-cover.js';
 import { MajorDiscussionMediaRequiredProof } from './major-discussion-required-proof.js';
 import {
   prepareMajorDiscussionMediaSchema,
@@ -130,6 +135,9 @@ interface Intent {
   declared_mime: 'image/jpeg' | 'image/png';
   declared_sha256: string;
   resource_id: string;
+  owner_kind: string;
+  resource_kind: string;
+  slot: string;
   scope_revision: string;
   ordinal: number;
   request_hash: string;
@@ -175,7 +183,23 @@ export class MediaIngressRepository {
   constructor(
     readonly planning: MediaIngressPlanningPort,
     private readonly protocolVersion:
-      2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 = 2,
+      | 2
+      | 3
+      | 4
+      | 5
+      | 6
+      | 7
+      | 8
+      | 9
+      | 10
+      | 11
+      | 12
+      | 13
+      | 14
+      | 15
+      | 16
+      | 17
+      | 18 = 2,
   ) {
     this.proof =
       protocolVersion === 17
@@ -393,7 +417,8 @@ export class MediaIngressRepository {
       this.protocolVersion === 14 ||
       this.protocolVersion === 15 ||
       this.protocolVersion === 16 ||
-      this.protocolVersion === 17
+      this.protocolVersion === 17 ||
+      this.protocolVersion === 18
     )
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const row = (
@@ -551,6 +576,35 @@ export class MediaIngressRepository {
       clientRequestId: row.client_request_id,
       expectedRevision: row.expected_revision,
       slot: 'avatar',
+      declaration: {
+        bytes: Number(row.declared_bytes),
+        mime: row.declared_mime,
+        sha256: row.declared_sha256,
+      },
+    });
+  }
+  async originalProfileCoverInput(
+    actor: string,
+    id: string,
+    tx: PoolClient,
+  ): Promise<PrepareProfileCoverMediaInput> {
+    this.managed(tx);
+    if (this.protocolVersion !== 18)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const row = (
+      await tx.query<Intent & { expected_revision: number }>(
+        `SELECT i.*,e.expected_revision FROM whaleu_media.upload_intents i
+       JOIN whaleu_profile.cover_edits e ON e.id=i.resource_id AND e.actor_id=i.actor_id AND e.scope_revision=i.scope_revision
+       WHERE i.id=$1 AND i.actor_id=$2 AND i.protocol_version=18 AND i.owner_kind='profile' AND i.resource_kind='cover' AND i.slot='cover' AND i.purpose='profile-cover-image'`,
+        [mediaIdSchema.parse(id), actor],
+      )
+    ).rows[0];
+    if (!row) throw new ApplicationError('MEDIA_UNAVAILABLE');
+    return prepareProfileCoverMediaSchema.parse({
+      protocol: 'profile-cover-v1',
+      clientRequestId: row.client_request_id,
+      expectedRevision: row.expected_revision,
+      slot: 'cover',
       declaration: {
         bytes: Number(row.declared_bytes),
         mime: row.declared_mime,
@@ -1026,39 +1080,45 @@ export class MediaIngressRepository {
       )
     ).rows[0];
     const input =
-      this.protocolVersion === 17
-        ? prepareMajorDiscussionMediaSchema.parse(issued.input)
-        : this.protocolVersion === 16
-          ? prepareWindowDiscussionMediaSchema.parse(issued.input)
-          : this.protocolVersion === 15
-            ? preparePrivateMessageMediaSchema.parse(issued.input)
-            : this.protocolVersion === 14
-              ? prepareErrandMediaSchema.parse(issued.input)
-              : this.protocolVersion === 13
-                ? prepareVerificationEvidenceMediaSchema.parse(issued.input)
-                : this.protocolVersion === 12
-                  ? prepareAnnouncementMediaSchema.parse(issued.input)
-                  : this.protocolVersion === 11
-                    ? prepareActivityMediaSchema.parse(issued.input)
-                    : this.protocolVersion === 10
-                      ? prepareOrganizationMediaSchema.parse(issued.input)
-                      : this.protocolVersion === 9
-                        ? prepareSchoolQrMediaSchema.parse(issued.input)
-                        : this.protocolVersion === 8
-                          ? prepareCategoryIconMediaSchema.parse(issued.input)
-                          : this.protocolVersion === 7
-                            ? ratingsDiscussionMemberPrepareSchema.parse(
-                                issued.input,
-                              )
-                            : this.protocolVersion === 6
-                              ? prepareRatingsMediaSchema.parse(issued.input)
-                              : this.protocolVersion === 5
-                                ? prepareProfileMediaSchema.parse(issued.input)
-                                : this.protocolVersion === 4
-                                  ? prepareMediaV4Schema.parse(issued.input)
-                                  : this.protocolVersion === 3
-                                    ? prepareMediaV3Schema.parse(issued.input)
-                                    : prepareMediaV2Schema.parse(issued.input);
+      this.protocolVersion === 18
+        ? prepareProfileCoverMediaSchema.parse(issued.input)
+        : this.protocolVersion === 17
+          ? prepareMajorDiscussionMediaSchema.parse(issued.input)
+          : this.protocolVersion === 16
+            ? prepareWindowDiscussionMediaSchema.parse(issued.input)
+            : this.protocolVersion === 15
+              ? preparePrivateMessageMediaSchema.parse(issued.input)
+              : this.protocolVersion === 14
+                ? prepareErrandMediaSchema.parse(issued.input)
+                : this.protocolVersion === 13
+                  ? prepareVerificationEvidenceMediaSchema.parse(issued.input)
+                  : this.protocolVersion === 12
+                    ? prepareAnnouncementMediaSchema.parse(issued.input)
+                    : this.protocolVersion === 11
+                      ? prepareActivityMediaSchema.parse(issued.input)
+                      : this.protocolVersion === 10
+                        ? prepareOrganizationMediaSchema.parse(issued.input)
+                        : this.protocolVersion === 9
+                          ? prepareSchoolQrMediaSchema.parse(issued.input)
+                          : this.protocolVersion === 8
+                            ? prepareCategoryIconMediaSchema.parse(issued.input)
+                            : this.protocolVersion === 7
+                              ? ratingsDiscussionMemberPrepareSchema.parse(
+                                  issued.input,
+                                )
+                              : this.protocolVersion === 6
+                                ? prepareRatingsMediaSchema.parse(issued.input)
+                                : this.protocolVersion === 5
+                                  ? prepareProfileMediaSchema.parse(
+                                      issued.input,
+                                    )
+                                  : this.protocolVersion === 4
+                                    ? prepareMediaV4Schema.parse(issued.input)
+                                    : this.protocolVersion === 3
+                                      ? prepareMediaV3Schema.parse(issued.input)
+                                      : prepareMediaV2Schema.parse(
+                                          issued.input,
+                                        );
     if (
       !row ||
       row.state !== 'prepared' ||
@@ -1166,6 +1226,18 @@ export class MediaIngressRepository {
         (issued.scope.ownerKind !== 'profile' ||
           row.request_hash !==
             profileMediaRequestHash(session.accountId, input))) ||
+      ('protocol' in input &&
+        input.protocol === 'profile-cover-v1' &&
+        (issued.scope.ownerKind !== 'profile' ||
+          issued.scope.resourceKind !== 'cover' ||
+          issued.scope.slot !== 'cover' ||
+          issued.scope.purpose !== 'profile-cover-image' ||
+          row.owner_kind !== 'profile' ||
+          row.resource_kind !== 'cover' ||
+          row.slot !== 'cover' ||
+          row.purpose !== 'profile-cover-image' ||
+          row.request_hash !==
+            profileCoverMediaRequestHash(session.accountId, input))) ||
       row.client_request_id !== input.clientRequestId ||
       row.declared_sha256 !== input.declaration.sha256 ||
       Number(row.declared_bytes) !== input.declaration.bytes ||

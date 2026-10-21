@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "title": "Five native Framework7 ratings pages source freeze",
+  "framework7": {
+    "version": "9.2.0",
+    "commit": "7668f883c29f69dd2ad7bd8ac3b35b9124082b0b"
+  },
+  "runtimeScope": "exact five Page WXML/WXSS/JSON plus two isolated ratings presentation assets; no Page/controller TS edits",
+  "files": {
+    "apps/wechat/scripts/fixtures/framework7-ratings-preview.mjs": {
+      "sha256": "bc3cd14e046331d7ca5841f1dd8cc09c2e26d96f2ffff0084e05e963283000c1",
+      "bytes": 8968
+    },
+    "apps/wechat/scripts/smoke-rating-category-management.mjs": {
+      "sha256": "7d1326e39955db57fbb8c03c7deece9e1a2e6a0c599f6ca8efaa8f281106476e",
+      "bytes": 21475
+    },
+    "apps/wechat/scripts/smoke-rating-owner-editing.mjs": {
+      "sha256": "419b6c651b7434fbc53ffb412ac0d756ed7d1ad26254586cf2ac19f7a4e0a3ba",
+      "bytes": 16939
+    },
+    "apps/wechat/scripts/smoke-rating-owner-management.mjs": {
+      "sha256": "0b7c87ffd44fe11f924d800b92e6e7941b4d88200b00813cde2f2d66e7e8e764",
+      "bytes": 10829
+    },
+    "apps/wechat/scripts/smoke-ratings-r2a.mjs": {
+      "sha256": "1c89d0a08d1ea5b0b158ba7406daa7b9a56bad0b043714de39d5739b4118218a",
+      "bytes": 50256
+    },
+    "apps/wechat/scripts/smoke-ratings-r2b.mjs": {
+      "sha256": "0cd6944d7f8c565ca0fe1d623c49a15da91ae7ae9f30170070d148661bb7a57e",
+      "bytes": 24766
+    },
+    "apps/wechat/scripts/smoke-ratings-r2c.mjs": {
+      "sha256": "b016c58d54cbaa383909bc9e34af2a1b05b7e6d9ffb6106989a02a8c1937ce5a",
+      "bytes": 28004
+    },
+    "apps/wechat/scripts/smoke-ratings-r3r.mjs": {
+      "sha256": "7b712d627f43edd27ee62344e51ebc847ece1950a82cae2891a7a83cc4d7f831",
+      "bytes": 11466
+    },
+    "apps/wechat/scripts/smoke-ratings-scoped.mjs": {
+      "sha256": "3a4bc3f2050bd766399e975702fb882de9f24ac5c091d26042fc35265f316700",
+      "bytes": 26548
+    },
+    "apps/wechat/scripts/smoke-ratings.mjs": {
+      "sha256": "2d272a4000beff89f36a2db0f225a6f274f857db1b728d7d6b25494d03c14ca1",
+      "bytes": 30737
+    },
+    "apps/wechat/src/pages/rating-catalog/rating-catalog.json": {
+      "sha256": "06b723b0a88056388c0fe663b36e6510d56e9d25772244e65fb5164b7e527db0",
+      "bytes": 359
+    },
+    "apps/wechat/src/pages/rating-catalog/rating-catalog.wxml": {
+      "sha256": "ee611edaa060168694096896ab41e124f5d83dfa24592169b13fde24e271a8bb",
+      "bytes": 5867
+    },
+    "apps/wechat/src/pages/rating-catalog/rating-catalog.wxss": {
+      "sha256": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341",
+      "bytes": 125
+    },
+    "apps/wechat/src/pages/rating-create/rating-create.json": {
+      "sha256": "50d008c3b62054466b8a58c7c1e35e604901462fadb795e00eee282c9e80ff92",
+      "bytes": 254
+    },
+    "apps/wechat/src/pages/rating-create/rating-create.wxml": {
+      "sha256": "3571d50ec6818240ab78fed53bf8783d1d91a4a740277fabae04b7a5ec97a586",
+      "bytes": 1880
+    },
+    "apps/wechat/src/pages/rating-create/rating-create.wxss": {
+      "sha256": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341",
+      "bytes": 125
+    },
+    "apps/wechat/src/pages/rating-detail/rating-detail.json": {
+      "sha256": "8872ef8653c0d270c2b1e25e851d9440f7b6bc5c1418c89f13930aafe0c39d50",
+      "bytes": 245
+    },
+    "apps/wechat/src/pages/rating-detail/rating-detail.wxml": {
+      "sha256": "c843c3253a89fc2516a8a3592dfd7d8a3e50d7eaf28e67914abbc7da19d5b50e",
+      "bytes": 10795
+    },
+    "apps/wechat/src/pages/rating-detail/rating-detail.wxss": {
+      "sha256": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341",
+      "bytes": 125
+    },
+    "apps/wechat/src/pages/rating-scoped/rating-scoped.json": {
+      "sha256": "8fefd27412927613629dcb55afcf08db4e6707ec57cefba4f50c6b0ce16e64cc",
+      "bytes": 422
+    },
+    "apps/wechat/src/pages/rating-scoped/rating-scoped.wxml": {
+      "sha256": "28545d264f6ec08e7aa979497cdc50758da0e9c8a1ca588541ff80873c82913f",
+      "bytes": 21614
+    },
+    "apps/wechat/src/pages/rating-scoped/rating-scoped.wxss": {
+      "sha256": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341",
+      "bytes": 125
+    },
+    "apps/wechat/src/pages/rating-thread/rating-thread.json": {
+      "sha256": "cd6125587c1ab75932e7e9154fe7aea9b88e0bd889baba187d89240366120224",
+      "bytes": 239
+    },
+    "apps/wechat/src/pages/rating-thread/rating-thread.wxml": {
+      "sha256": "67c23337d6a00c730323fca8754e7b2e647237b3539928e9a7cb6046f828b446",
+      "bytes": 7345
+    },
+    "apps/wechat/src/pages/rating-thread/rating-thread.wxss": {
+      "sha256": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341",
+      "bytes": 125
+    },
+    "apps/wechat/src/ratings/framework7-product.wxml": {
+      "sha256": "8e7f91f69cdd6d73c6a6709e86e2c70438136a2d84efbce0bb0f1420494841f2",
+      "bytes": 2172
+    },
+    "apps/wechat/src/ratings/framework7-product.wxss": {
+      "sha256": "f8a45aac313ee7f78170688ec39e86e803f160586e0619975f5e26fe420d5a66",
+      "bytes": 1460
+    },
+    "apps/wechat/test/fixtures/framework7-ratings-before-actions.json": {
+      "sha256": "48eee3934c2962ee1e065551a15e25cd8e88a375e998cfca72065b9f8fc908ad",
+      "bytes": 65126
+    },
+    "apps/wechat/test/fixtures/framework7-ratings-before-protected.json": {
+      "sha256": "4bf6ace63c71d3bb2623edc5e957037383075a1d48439b31f6de24cb0b613455",
+      "bytes": 15841
+    },
+    "apps/wechat/test/framework7-ratings-migration.test.ts": {
+      "sha256": "477e774e0844120068054d4cd46f45ca3fe6689aaf799fe45d61b4c653faff34",
+      "bytes": 34741
+    },
+    "apps/wechat/test/rating-native-emitted-harness.mjs": {
+      "sha256": "270f15a8ae0dba79eddecac464fe046c5b6a650789bb2376e6f1a3676ee6716a",
+      "bytes": 7487
+    },
+    "apps/wechat/test/rating-scoped-native.test.ts": {
+      "sha256": "4e1050f8ba0dc1cc81ddc9fa864098d7362c7d52336daa3431bd005aa930eec9",
+      "bytes": 3990
+    },
+    "apps/wechat/test/rating-target-cover-page-smoke.mjs": {
+      "sha256": "17b1cbf26dafa44adaa902dee91996a8b4c722639f67d137e5f9e4e6ba6e4499",
+      "bytes": 14266
+    },
+    "apps/wechat/test/ratings-assistance-emitted-harness.mjs": {
+      "sha256": "1bfb2d92b16cac00dec5f8016988bfeb0b89450b7b7c8376f87bd6890395692b",
+      "bytes": 14738
+    },
+    "apps/wechat/test/ratings-product-presentation.test.ts": {
+      "sha256": "8a783c5a18d811e789050402a0f89d9c1c6c128c4bf7099539aef8cfb5fb05a8",
+      "bytes": 8192
+    },
+    "docs/FRAMEWORK7_RATINGS_MIGRATION.md": {
+      "sha256": "a11d05bb9687778b1be381755384af6636c29d657746d099931d7b7d65eaffed",
+      "bytes": 8576
+    }
+  },
+  "diagnostic": {
+    "kind": "synthetic emitted-model diagnostic only; unchanged frozen V29C JS plus presentation overlay; not a canonical build",
+    "original": "/tmp/whaleu-v29c-checkpoint/apps/wechat/dist",
+    "overlayFiles": {
+      "pages/rating-catalog/rating-catalog.wxml": {
+        "original": "794715df0694f16695b60940e7a146268553a29a5da7a32113026025d8b8c7e7",
+        "overlay": "ee611edaa060168694096896ab41e124f5d83dfa24592169b13fde24e271a8bb"
+      },
+      "pages/rating-catalog/rating-catalog.wxss": {
+        "original": "0bf97c6dbeb838a248dad4e6409c9fd7560931669e68f6de320607068eebe755",
+        "overlay": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341"
+      },
+      "pages/rating-catalog/rating-catalog.json": {
+        "original": "05542ae016294441fdfb50cf1791a50d4008c3a394efaa377bce96ba578ac2cb",
+        "overlay": "06b723b0a88056388c0fe663b36e6510d56e9d25772244e65fb5164b7e527db0"
+      },
+      "pages/rating-detail/rating-detail.wxml": {
+        "original": "1ea2fadb9e6b6b7d467a1a64d89b20a5003a7470ea9549a613008df92d49cd78",
+        "overlay": "c843c3253a89fc2516a8a3592dfd7d8a3e50d7eaf28e67914abbc7da19d5b50e"
+      },
+      "pages/rating-detail/rating-detail.wxss": {
+        "original": "0bf97c6dbeb838a248dad4e6409c9fd7560931669e68f6de320607068eebe755",
+        "overlay": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341"
+      },
+      "pages/rating-detail/rating-detail.json": {
+        "original": "90d4e5bbfcba228b6616fa69a8c87d6ba6e732b58b209df8488e3f7e9d0bcaf9",
+        "overlay": "8872ef8653c0d270c2b1e25e851d9440f7b6bc5c1418c89f13930aafe0c39d50"
+      },
+      "pages/rating-thread/rating-thread.wxml": {
+        "original": "e45181148eaba4b7c1a2b2df622c9493ec675d233590c1cbc0718e7b77e15527",
+        "overlay": "67c23337d6a00c730323fca8754e7b2e647237b3539928e9a7cb6046f828b446"
+      },
+      "pages/rating-thread/rating-thread.wxss": {
+        "original": "568f87725dae162a6273004ad1bcd5e6b3f5dcb97d2a07f80b7eea79d593d4ac",
+        "overlay": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341"
+      },
+      "pages/rating-thread/rating-thread.json": {
+        "original": "0f3225599eebdc27386265000634ce0c1dd130d001277083b67a29b114925a2c",
+        "overlay": "cd6125587c1ab75932e7e9154fe7aea9b88e0bd889baba187d89240366120224"
+      },
+      "pages/rating-create/rating-create.wxml": {
+        "original": "2243ffd9ee79acb26763eaba618a1ce8945cf15c3e77c76f3c162164498e6d17",
+        "overlay": "3571d50ec6818240ab78fed53bf8783d1d91a4a740277fabae04b7a5ec97a586"
+      },
+      "pages/rating-create/rating-create.wxss": {
+        "original": "0bf97c6dbeb838a248dad4e6409c9fd7560931669e68f6de320607068eebe755",
+        "overlay": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341"
+      },
+      "pages/rating-create/rating-create.json": {
+        "original": "fe24d48dd5374e3b6e04fe288f3b5da8475976f0302259caf1b5943b8cd6380a",
+        "overlay": "50d008c3b62054466b8a58c7c1e35e604901462fadb795e00eee282c9e80ff92"
+      },
+      "pages/rating-scoped/rating-scoped.wxml": {
+        "original": "dac07ad2c3efbd010f511bc67fc9e56a1aaca0e4a87df8bb7b027a3833bf7516",
+        "overlay": "28545d264f6ec08e7aa979497cdc50758da0e9c8a1ca588541ff80873c82913f"
+      },
+      "pages/rating-scoped/rating-scoped.wxss": {
+        "original": "0bf97c6dbeb838a248dad4e6409c9fd7560931669e68f6de320607068eebe755",
+        "overlay": "9fc44d7106b3ac2321e6b025203d883941cf264304180cbcfb1b1fd087437341"
+      },
+      "pages/rating-scoped/rating-scoped.json": {
+        "original": "124fece5879972be54e8b043727edae94548735376643a2e4f1353b0c725037d",
+        "overlay": "8fefd27412927613629dcb55afcf08db4e6707ec57cefba4f50c6b0ce16e64cc"
+      },
+      "ratings/framework7-product.wxml": {
+        "original": null,
+        "overlay": "8e7f91f69cdd6d73c6a6709e86e2c70438136a2d84efbce0bb0f1420494841f2"
+      },
+      "ratings/framework7-product.wxss": {
+        "original": null,
+        "overlay": "f8a45aac313ee7f78170688ec39e86e803f160586e0619975f5e26fe420d5a66"
+      }
+    }
+  },
+  "verification": {
+    "focusedAndLegacySource": {
+      "passed": 42,
+      "failed": 0
+    },
+    "broadRatingsSource": {
+      "passed": 805,
+      "failed": 0
+    },
+    "syntheticFixtures": 53,
+    "protectedFiles": 146,
+    "originalActions": 171,
+    "diagnosticEmittedFamilies": [
+      "R1",
+      "R2A",
+      "R2B",
+      "R2C",
+      "R3R",
+      "scoped",
+      "target-cover",
+      "ratings-assistance"
+    ],
+    "canonicalTypeBuildPackage": "owned by integration; run after this freeze"
+  }
+}

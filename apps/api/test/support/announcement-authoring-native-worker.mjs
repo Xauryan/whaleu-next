@@ -134,8 +134,16 @@ process.once('message', async (input) => {
         'browse campus choices',
         h.page,
       );
+      if (h.page.data.campusId && !h.page.data.showCampusPicker) {
+        if (!h.page.data.showHomeMenu) h.tap('onToggleHomeMenu');
+        h.tap('onToggleCampusPicker');
+      }
       h.tap('onCampus', { id: input.campusId });
       return h;
+    };
+    const ensureImagesOpen = (h) => {
+      if (h.page.data.uiPanel !== 'images')
+        h.tap('onToggleUiPanel', { panel: 'images' });
     };
     const tap = async (h, action, revision, enabled) => {
       h.tap('onCommand', {
@@ -187,6 +195,7 @@ process.once('message', async (input) => {
       height: 40,
       type: 'png',
     });
+    ensureImagesOpen(edit);
     edit.tap('onUpload', { slot: 'gallery0' });
     await until(
       () =>
@@ -315,12 +324,24 @@ process.once('message', async (input) => {
     );
     assert.equal(listing.page.data.source, 'native');
     assert.equal(listing.page.data.items[0].id, id);
-    assert.match(
-      listing
-        .nodes()
-        .filter((n) => typeof n === 'string')
-        .join(' '),
-      /新发布公告/,
+    const nativeSourceTab = listing
+      .nodes()
+      .find(
+        (node) =>
+          typeof node !== 'string' &&
+          node.tag === 'wu-f7-button' &&
+          node.attrs['bind:press'] === 'onSource' &&
+          node.attrs['data-source'] === 'native',
+      );
+    assert.ok(nativeSourceTab, 'Actual native-source tab is rendered');
+    assert.equal(nativeSourceTab.attrs.variant, 'tonal');
+    assert.ok(nativeSourceTab.attrs.class.split(/\s+/).includes('active'));
+    assert.equal(
+      nativeSourceTab.children
+        .filter((node) => typeof node === 'string')
+        .join('')
+        .trim(),
+      '新发布',
     );
     listing.tap('onAnnouncement', { id });
     close(listing);
@@ -463,6 +484,7 @@ process.once('message', async (input) => {
         height: 40,
         type: 'png',
       });
+      ensureImagesOpen(edit);
       edit.tap('onUpload', { slot });
       await until(
         () =>
@@ -509,6 +531,7 @@ process.once('message', async (input) => {
       height: 40,
       type: 'png',
     });
+    ensureImagesOpen(edit);
     edit.tap('onUpload', { slot: 'gallery0' });
     await until(
       () =>
@@ -582,6 +605,7 @@ process.once('message', async (input) => {
       height: 40,
       type: 'png',
     });
+    ensureImagesOpen(edit);
     edit.tap('onUpload', { slot: 'gallery0' });
     await until(
       () =>
@@ -649,8 +673,8 @@ process.once('message', async (input) => {
       h.page.onUnload?.();
     }
     app?.onHide?.();
-    await upload?.close();
-    await read?.close();
+    await upload?.dispose();
+    await read?.dispose();
     process.disconnect();
   }
 });

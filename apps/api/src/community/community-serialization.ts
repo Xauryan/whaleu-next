@@ -1,10 +1,10 @@
+import { CommunityDiscussionCounts } from './discussion/counts.js';
+import { DiscussionPages } from './discussion/pages.js';
 import { CurrentRatingLinkDependency } from './rating-target-link/dependency.js';
 import { readRatingTargetLinks } from './rating-target-link/binding.js';
 import type { RelatedCampusDisplay } from './related-sync/contracts.js';
-import { batchCategoryChildContextAllowed } from './category-reclassification/child-context.js';
 import { resolvePostCategory } from './category-reclassification/read-proof.js';
 import { ownerPostVisibilityAllowed } from './owner-visibility/read-proof.js';
-import type { VisibilityPurpose } from './community-policy.js';
 import type { MediaReadPurpose } from '../media/owner-proof.js';
 import { FeedbackProjectionService } from './feedback/projection.js';
 import { TextReviewRuntime } from './text-review/runtime.js';
@@ -12,7 +12,6 @@ import { mediaAttachmentDescriptorSchema } from '../media/contracts.js';
 import { SavedRepository } from './saved/repository.js';
 import { FormationService } from './formation/service.js';
 import { TradingRepository } from './trading/repository.js';
-import { encodeDiscussionCursor, replyCursor } from './discussion/cursor.js';
 import { PollReadService } from './polls/poll-read.service.js';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
@@ -70,6 +69,12 @@ export class CommunitySerializer {
     @Optional()
     @Inject(CurrentRatingLinkDependency)
     private readonly targetLinks: CurrentRatingLinkDependency = new CurrentRatingLinkDependency(),
+    @Optional()
+    @Inject(CommunityDiscussionCounts)
+    private readonly counts?: CommunityDiscussionCounts,
+    @Optional()
+    @Inject(DiscussionPages)
+    private readonly pages?: DiscussionPages,
   ) {}
   async author(
     content: StoredPost | StoredComment,
@@ -150,17 +155,24 @@ export class CommunitySerializer {
     saveCount: number;
   }> {
     const { post } = await this.access.projectionPost(postId, null, tx);
-    const { likes, commentCount, replyCount } = await this.readPublicCounts(
+    const { likes, count } = await this.readPublicCounts(
       post.id,
       null,
       tx,
       'list-projection',
     );
+    if (count.status !== 'known')
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     const saved = await this.saved.projection(post.id, null, tx);
+    // Exports require an exact statistic. A late proof failure must rollback the
+    // export transaction, not leave a copied number in an external manifest.
+    this.counts!.bind(tx, count, () => {
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    });
     return {
       text: post.text,
       likeCount: likes.rows[0]!.count,
-      discussionCount: commentCount + replyCount,
+      discussionCount: count.value.comments + count.value.replies,
       saveCount: saved.saveCount,
     };
   }
@@ -174,48 +186,17 @@ export class CommunitySerializer {
       'SELECT count(*)::integer AS count,coalesce(bool_or(account_id=$2::uuid),false) AS liked FROM whaleu_community.post_likes WHERE post_id=$1',
       [postId, viewer],
     );
-    const comments = await tx.query<StoredComment>(
-      "SELECT * FROM whaleu_community.root_comments WHERE post_id=$1 AND visibility='approved' AND deleted_at IS NULL LIMIT 1025 FOR SHARE",
-      [postId],
-    );
-    if (comments.rows.length > 1024)
-      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-    await batchCategoryChildContextAllowed(
-      comments.rows.map((row) => ({
-        kind: 'comment' as const,
-        id: row.id,
-        postId: row.post_id,
-      })),
-      tx,
-    );
-    let commentCount = 0,
-      replyCount = 0;
-    for (const comment of comments.rows)
-      if (
-        await this.access.visible(
+    const count = this.counts
+      ? await this.counts.read(
+          postId,
           viewer,
-          comment,
-          tx,
           purpose === 'list-projection'
             ? 'list_projection'
             : 'detail_projection',
+          tx,
         )
-      ) {
-        commentCount++;
-        replyCount += (
-          await this.visibleReplies(
-            comment.id,
-            viewer,
-            tx,
-            purpose === 'list-projection'
-              ? 'list_projection'
-              : 'detail_projection',
-          )
-        ).length;
-        if (replyCount > 1024)
-          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-      }
-    return { likes, commentCount, replyCount };
+      : { status: 'unavailable' as const, value: null, optionalUntil: null };
+    return { likes, count };
   }
 
   async post(
@@ -236,7 +217,7 @@ export class CommunitySerializer {
       'list_projection',
       tx,
     );
-    const { likes, commentCount, replyCount } = await this.readPublicCounts(
+    const { likes, count } = await this.readPublicCounts(
       post.id,
       viewer,
       tx,
@@ -325,7 +306,7 @@ export class CommunitySerializer {
         : undefined;
     if (post.category === 'feedback' && !feedback)
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-    return {
+    const view: PostView = {
       isRelatedCampusSync: distribution?.isRelatedCampusSync ?? false,
       ...(distribution?.isRelatedCampusSync && distribution.sourceRegion
         ? {
@@ -353,9 +334,12 @@ export class CommunitySerializer {
       author: await this.author(post, post, tx),
       publishedAt: post.published_at.toISOString(),
       likeCount: likes.rows[0]!.count,
-      commentCount,
-      replyCount,
-      discussionCount: commentCount + replyCount,
+      commentCount: count.status === 'known' ? count.value.comments : null,
+      replyCount: count.status === 'known' ? count.value.replies : null,
+      discussionCount:
+        count.status === 'known'
+          ? count.value.comments + count.value.replies
+          : null,
       viewer: {
         isSelf: viewer === post.account_id,
         isLiked: likes.rows[0]!.liked,
@@ -375,6 +359,13 @@ export class CommunitySerializer {
           post.publication_envelope_version === 4) &&
         post.allow_anonymous_dm === true,
     };
+    this.counts?.bind(tx, count, () => {
+      view.commentCount = view.replyCount = view.discussionCount = null;
+    });
+    return view;
+  }
+  async flushDiscussionCursors(tx: PoolClient): Promise<void> {
+    await this.pages?.flush(tx);
   }
   async comment(
     comment: StoredComment,
@@ -384,11 +375,35 @@ export class CommunitySerializer {
     tx: PoolClient,
     previewLimit = 2,
     metadata?: CommentMetadata,
+    sessionId?: string,
   ): Promise<CommentView> {
     const likes = metadata
       ? { count: metadata.likeCount, liked: metadata.isLiked }
       : await this.likes('comment', comment.id, viewer, tx);
-    const replies = await this.visibleReplies(comment.id, viewer, tx);
+    const count = this.counts
+      ? await this.counts.read(
+          post.id,
+          viewer,
+          'detail_projection',
+          tx,
+          comment.id,
+        )
+      : { status: 'unavailable' as const, value: null, optionalUntil: null };
+    if (!this.pages || !sessionId)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const selected = await this.pages.replies(
+      post,
+      comment,
+      viewer,
+      sessionId,
+      tx,
+      previewLimit,
+      undefined,
+      20,
+    );
+    const preview = [];
+    for (const row of selected.rows)
+      preview.push(await this.reply(row, post, comment, viewer, authority, tx));
     const isPinned =
       metadata?.isPinned ??
       !!(
@@ -397,7 +412,7 @@ export class CommunitySerializer {
           [comment.id],
         )
       ).rowCount;
-    return {
+    const view: CommentView = {
       id: comment.id,
       postId: post.id,
       text: comment.text,
@@ -409,19 +424,9 @@ export class CommunitySerializer {
         'direct-content',
       ),
       likeCount: likes.count,
-      replyCount: replies.length,
+      replyCount: count.status === 'known' ? count.value.replies : null,
       isPinned,
-      replyPreview: await this.replyPage(
-        replies,
-        post,
-        comment,
-        viewer,
-        authority,
-        tx,
-        previewLimit,
-        undefined,
-        20,
-      ),
+      replyPreview: { items: preview, nextCursor: selected.nextCursor },
       author: await this.author(comment, post, tx),
       createdAt: comment.created_at.toISOString(),
       viewer: {
@@ -441,6 +446,11 @@ export class CommunitySerializer {
           viewer === comment.account_id && actionAllowed(authority, 'delete'),
       },
     };
+    this.pages.copyCursor(selected, view.replyPreview);
+    this.counts?.bind(tx, count, () => {
+      view.replyCount = null;
+    });
+    return view;
   }
   async likes(
     kind: 'comment' | 'reply',
@@ -454,32 +464,6 @@ export class CommunitySerializer {
         [id, viewer],
       )
     ).rows[0]!;
-  }
-  async visibleReplies(
-    rootId: string,
-    viewer: string | null,
-    tx: PoolClient,
-    purpose: VisibilityPurpose = 'detail_projection',
-  ): Promise<StoredReply[]> {
-    const rows = await tx.query<StoredReply>(
-      "SELECT * FROM whaleu_community.replies WHERE root_comment_id=$1 AND visibility='approved' AND deleted_at IS NULL ORDER BY sequence LIMIT 1025 FOR SHARE",
-      [rootId],
-    );
-    if (rows.rows.length > 1024)
-      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-    await batchCategoryChildContextAllowed(
-      rows.rows.map((row) => ({
-        kind: 'reply' as const,
-        id: row.id,
-        postId: row.post_id,
-      })),
-      tx,
-    );
-    const visible: StoredReply[] = [];
-    for (const reply of rows.rows)
-      if (await this.access.visible(viewer, reply, tx, purpose))
-        visible.push(reply);
-    return visible;
   }
   async reply(
     reply: StoredReply,
@@ -537,40 +521,6 @@ export class CommunitySerializer {
           viewer === reply.account_id && actionAllowed(authority, 'delete'),
         isLiked: likes.liked,
       },
-    };
-  }
-  async replyPage(
-    rows: StoredReply[],
-    post: StoredPost,
-    root: StoredComment,
-    viewer: string,
-    authority: Authority | null,
-    tx: PoolClient,
-    limit: number,
-    cursor?: string,
-    continuationLimit = limit,
-  ) {
-    const scope = `replies:${post.id}:${root.id}`;
-    const after = replyCursor(cursor, scope, limit);
-    const candidates = after
-      ? rows.filter((row) => BigInt(row.sequence) > BigInt(after))
-      : rows;
-    const page = candidates.slice(0, limit),
-      last = page.at(-1);
-    const items: ReplyView[] = [];
-    for (const row of page)
-      items.push(await this.reply(row, post, root, viewer, authority, tx));
-    return {
-      items,
-      nextCursor:
-        candidates.length > limit && last
-          ? encodeDiscussionCursor({
-              v: 1,
-              scope,
-              limit: continuationLimit,
-              sequence: last.sequence,
-            })
-          : null,
     };
   }
 }

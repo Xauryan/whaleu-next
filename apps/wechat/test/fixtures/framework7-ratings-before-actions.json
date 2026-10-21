@@ -1,0 +1,2776 @@
+{
+  "src/pages/rating-catalog/rating-catalog.wxml": {
+    "sourceSha256": "794715df0694f16695b60940e7a146268553a29a5da7a32113026025d8b8c7e7",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "more",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多评分功能"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "product-entry",
+          "url": "/pages/course-ratings/course-ratings"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "product-entry",
+          "url": "/pages/window-ratings/window-ratings"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "product-entry",
+          "url": "/pages/major-directory/major-directory"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/canteen-floor-scores/canteen-floor-scores"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/rating-scoped/rating-scoped?mode=catalog&scope=global"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/rating-recovery/rating-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "bindtap": "onCreateCategories",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          },
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "scope",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRegions",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'scope'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "",
+          "bindtap": "onRegion"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'scope'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{regions}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onRegion"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'scope'}}"
+          },
+          {
+            "wx:for": "{{regions}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "product-row-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCategory",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "category:{{item.id}}",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onRandom",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'category:' + item.id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.kind === 'general'}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCreateTarget",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'category:' + item.id}}"
+          },
+          {
+            "wx:if": "{{item.kind === 'general'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMoreCategories}}",
+          "bindtap": "onMoreCategories",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canMoreCategories}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-id": "{{parentId}}",
+          "bindtap": "onRandom",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{parentId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "product-row-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onTarget",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{parentId}}"
+          },
+          {
+            "wx:for": "{{targets}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-id": "{{item.id}}",
+          "bindtap": "onSubscription",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{parentId}}"
+          },
+          {
+            "wx:for": "{{targets}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{subscriptions[item.id] && subscriptions[item.id].status === 'known'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMoreTargets}}",
+          "bindtap": "onMoreTargets",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{parentId}}"
+          },
+          {
+            "wx:if": "{{canMoreTargets}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/rating-detail/rating-detail.wxml": {
+    "sourceSha256": "1ea2fadb9e6b6b7d467a1a64d89b20a5003a7470ea9549a613008df92d49cd78",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "more",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多评分操作"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/rating-recovery/rating-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "bindtap": "onOwnerEditing"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          },
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "bindtap": "onOwnerDeletion"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          },
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "sort",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!loaded && hasSession && configured}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-sort": "time",
+          "data-order": "desc",
+          "bindtap": "onSort",
+          "disabled": "{{frozen || !hasSession || !configured}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'sort'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-sort": "time",
+          "data-order": "asc",
+          "bindtap": "onSort",
+          "disabled": "{{frozen || !hasSession || !configured}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'sort'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-sort": "likes",
+          "data-order": "desc",
+          "bindtap": "onSort",
+          "disabled": "{{frozen || !hasSession || !configured}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'sort'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-sort": "likes",
+          "data-order": "asc",
+          "bindtap": "onSort",
+          "disabled": "{{frozen || !hasSession || !configured}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'sort'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "distribution",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:else": ""
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-panel": "score",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-id": "{{detail.id}}",
+          "bindtap": "onSubscription",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{subscriptions[detail.id] && subscriptions[detail.id].status === 'known'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{scores}}",
+          "wx:key": "*this",
+          "class": "{{myScore && myScore.score === item ? 'score-selected' : 'secondary'}}",
+          "data-score": "{{item}}",
+          "bindtap": "onScore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score'}}"
+          },
+          {
+            "wx:if": "{{myScoreKnown && detail.allowedActions.setScore}}"
+          },
+          {
+            "wx:for": "{{scores}}",
+            "wx:key": "*this"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "sort",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-id": "{{item.id}}",
+          "bindtap": "onDiscussion",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:for": "{{comments}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "comment:{{item.id}}",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多评价操作"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:for": "{{comments}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onDeletionOptions",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:for": "{{comments}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'comment:' + item.id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.isMine && item.allowedActions.delete}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onDelete",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:for": "{{comments}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'comment:' + item.id}}"
+          },
+          {
+            "wx:if": "{{item.isMine && item.allowedActions.delete}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMoreComments}}",
+          "bindtap": "onMoreComments",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canMoreComments}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "wx:if": "{{detail.allowedActions.createComment}}",
+          "bindtap": "onCompose",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{detail.allowedActions.createComment}}"
+          },
+          {
+            "wx:if": "{{detail.allowedActions.createComment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirmScore",
+          "disabled": "{{busy || frozen}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedScore !== null}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissScore"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedScore !== null}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{detail.allowedActions.authorModes}}",
+          "wx:key": "*this",
+          "data-mode": "{{item}}",
+          "bindtap": "onAuthorMode",
+          "class": "{{authorMode === item ? 'selected' : ''}}",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen && detail}}"
+          },
+          {
+            "wx:for": "{{detail.allowedActions.authorModes}}",
+            "wx:key": "*this"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{text}}",
+          "bindinput": "onText",
+          "maxlength": "-1",
+          "disabled": "{{busy || frozen}}",
+          "placeholder": "分享你的真实体验"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onPublish",
+          "disabled": "{{busy || frozen || !authorMode || textLength < 1 || textLength > 500}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseComposer"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmDelete",
+          "disabled": "{{busy || frozen}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{deleteId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissDelete"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{deleteId}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/rating-thread/rating-thread.wxml": {
+    "sourceSha256": "e45181148eaba4b7c1a2b2df622c9493ec675d233590c1cbc0718e7b77e15527",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "more",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多回复操作"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDeletionOptions",
+          "disabled": "{{busy || frozen || !hasSession}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/rating-recovery/rating-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/rating-updates/rating-updates"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{collapsed}}",
+          "bindtap": "onExpand",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{collapsed}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "root",
+          "bindtap": "onTogglePanel",
+          "aria-label": "评价操作"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{discussion.root.id}}",
+          "bindtap": "onDeletionOptions",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'root'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "bindtap": "onCollapse"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "wx:if": "{{anchorReplyId}}",
+          "bindtap": "onFirst",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          },
+          {
+            "wx:if": "{{anchorReplyId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "wx:if": "{{item.allowedActions.reply}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onReply",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          },
+          {
+            "wx:for": "{{replies}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{item.allowedActions.reply}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "reply:{{item.id}}",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多回复操作"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          },
+          {
+            "wx:for": "{{replies}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onDeletionOptions",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          },
+          {
+            "wx:for": "{{replies}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'reply:' + item.id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.isMine && item.allowedActions.delete}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onDelete",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          },
+          {
+            "wx:for": "{{replies}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'reply:' + item.id}}"
+          },
+          {
+            "wx:if": "{{item.isMine && item.allowedActions.delete}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          },
+          {
+            "wx:if": "{{canMore}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "wx:if": "{{discussion.allowedActions.createReply}}",
+          "bindtap": "onRootReply",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && discussion && detail}}"
+          },
+          {
+            "wx:if": "{{discussion.allowedActions.createReply}}"
+          },
+          {
+            "wx:if": "{{discussion.allowedActions.createReply}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{discussion.allowedActions.authorModes}}",
+          "wx:key": "*this",
+          "data-mode": "{{item}}",
+          "bindtap": "onAuthorMode",
+          "class": "{{authorMode === item ? 'selected' : ''}}",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen && discussion}}"
+          },
+          {
+            "wx:for": "{{discussion.allowedActions.authorModes}}",
+            "wx:key": "*this"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{text}}",
+          "bindinput": "onText",
+          "maxlength": "-1",
+          "disabled": "{{busy || frozen}}",
+          "placeholder": "说说你的想法"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen && discussion}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onPublish",
+          "disabled": "{{busy || frozen || !authorMode || textLength < 1 || textLength > 500}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen && discussion}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismiss"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen && discussion}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmDelete",
+          "disabled": "{{busy || frozen}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{deleteId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismiss"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{deleteId}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/rating-create/rating-create.wxml": {
+    "sourceSha256": "2243ffd9ee79acb26763eaba618a1ce8945cf15c3e77c76f3c162164498e6d17",
+    "actions": [
+      {
+        "tag": "input",
+        "attrs": {
+          "class": "product-title-input",
+          "value": "{{name}}",
+          "bindinput": "onName",
+          "maxlength": "200",
+          "disabled": "{{busy || frozen}}",
+          "placeholder": "对象名称"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{ready}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "class": "product-body-input",
+          "value": "{{description}}",
+          "bindinput": "onDescription",
+          "maxlength": "1000",
+          "disabled": "{{busy || frozen}}",
+          "placeholder": "介绍一下它，让大家更容易找到（选填）"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{ready}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onCreate",
+          "disabled": "{{busy || frozen || !name}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{ready}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelCreation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canCancelCreation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancelCreation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canCancelCreation}}"
+          },
+          {
+            "wx:if": "{{cancelCreationConfirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissCancelCreation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canCancelCreation}}"
+          },
+          {
+            "wx:if": "{{cancelCreationConfirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/rating-catalog/rating-catalog",
+          "class": "link"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/rating-scoped/rating-scoped.wxml": {
+    "sourceSha256": "dac07ad2c3efbd010f511bc67fc9e56a1aaca0e4a87df8bb7b027a3833bf7516",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "more",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多评分功能"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/window-ratings/window-ratings"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/course-ratings/course-ratings"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "link",
+          "data-mode": "catalog",
+          "bindtap": "onSection",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "link",
+          "data-mode": "updates",
+          "bindtap": "onSection",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "link",
+          "data-mode": "subscriptions",
+          "bindtap": "onSection",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/rating-recovery/rating-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestCancelPending",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen && canCancelPending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelPending",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen && canCancelPending}}"
+          },
+          {
+            "wx:if": "{{cancelPendingConfirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissCancelPending"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen && canCancelPending}}"
+          },
+          {
+            "wx:if": "{{cancelPendingConfirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "wx:if": "{{mode !== 'recovery'}}",
+          "data-panel": "scope",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode !== 'recovery'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onOpenCampuses",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'scope'}}"
+          },
+          {
+            "wx:if": "{{mode !== 'recovery'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCampus",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'scope'}}"
+          },
+          {
+            "wx:if": "{{mode !== 'recovery'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onCampusQuery",
+          "placeholder": "搜索校园"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pickerOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearchCampuses",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pickerOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCampus",
+          "disabled": "{{busy || !item.isActive}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pickerOpen}}"
+          },
+          {
+            "wx:for": "{{campuses}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{campusPage > 1}}",
+          "bindtap": "onPreviousCampuses",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pickerOpen}}"
+          },
+          {
+            "wx:if": "{{campusPage > 1}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{hasMoreCampuses}}",
+          "bindtap": "onNextCampuses",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pickerOpen}}"
+          },
+          {
+            "wx:if": "{{hasMoreCampuses}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseCampuses"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pickerOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{frozen}}",
+          "url": "/pages/rating-category-manage/rating-category-manage?scope=global"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{hasSession && mode === 'catalog'}}",
+          "bindtap": "onCategoryManagement",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          },
+          {
+            "wx:if": "{{hasSession && mode === 'catalog'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{mode === 'detail' || mode === 'thread'}}",
+          "bindtap": "onDiscussionImages",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          },
+          {
+            "wx:if": "{{mode === 'detail' || mode === 'thread'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{categoryIcon.state !== 'idle'}}",
+          "bindtap": "onCloseCategoryIcon"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{categoryIcon.state !== 'idle'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{detail}}",
+          "bindtap": "onCoverOpen"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{coverEnabled}}",
+          "class": "plain-button",
+          "data-panel": "cover",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{coverEnabled}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.hasIcon}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCategoryIcon",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog'}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{item.hasIcon}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "product-row-open",
+          "data-mode": "catalog",
+          "data-id": "{{item.id}}",
+          "bindtap": "onNavigate",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog'}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "category:{{item.id}}",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog'}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-mode": "random",
+          "data-id": "{{item.id}}",
+          "bindtap": "onNavigate",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog'}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'category:' + item.id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.kind === 'general'}}",
+          "data-mode": "create",
+          "data-id": "{{item.id}}",
+          "bindtap": "onNavigate",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog'}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'category:' + item.id}}"
+          },
+          {
+            "wx:if": "{{item.kind === 'general'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMoreCategories}}",
+          "bindtap": "onMoreCategories",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog'}}"
+          },
+          {
+            "wx:if": "{{canMoreCategories}}"
+          }
+        ]
+      },
+      {
+        "tag": "image",
+        "attrs": {
+          "class": "rating-cover-thumb",
+          "wx:if": "{{coverThumbnails[item.id] && coverThumbnails[item.id].localSrc}}",
+          "src": "{{coverThumbnails[item.id].localSrc}}",
+          "mode": "aspectFit",
+          "binderror": "onCoverThumbError",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCoverOpen"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog' || mode === 'subscriptions'}}"
+          },
+          {
+            "wx:for": "{{targets}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{item.hasCover}}"
+          },
+          {
+            "wx:if": "{{coverThumbnails[item.id] && coverThumbnails[item.id].localSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "product-row-open",
+          "data-mode": "detail",
+          "data-id": "{{item.id}}",
+          "bindtap": "onNavigate",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog' || mode === 'subscriptions'}}"
+          },
+          {
+            "wx:for": "{{targets}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "wx:if": "{{item.hasCover}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCoverOpen"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog' || mode === 'subscriptions'}}"
+          },
+          {
+            "wx:for": "{{targets}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{item.hasCover}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-id": "{{item.id}}",
+          "bindtap": "onDiscussionImages",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog' || mode === 'subscriptions'}}"
+          },
+          {
+            "wx:for": "{{targets}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{subscriptions[item.id] && subscriptions[item.id].status === 'known'}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onSubscription",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog' || mode === 'subscriptions'}}"
+          },
+          {
+            "wx:for": "{{targets}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{subscriptions[item.id] && subscriptions[item.id].status === 'known'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMoreTargets}}",
+          "bindtap": "onMoreTargets",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'catalog' || mode === 'subscriptions'}}"
+          },
+          {
+            "wx:if": "{{canMoreTargets}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{detail.ratingTargetLink}}",
+          "bindtap": "onRatingLinkCompose",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:if": "{{detail.ratingTargetLink}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-panel": "score",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{scores}}",
+          "wx:key": "*this",
+          "data-score": "{{item}}",
+          "bindtap": "onScore",
+          "disabled": "{{busy || frozen || !detail.allowedActions.setScore}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score'}}"
+          },
+          {
+            "wx:for": "{{scores}}",
+            "wx:key": "*this"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{subscriptions[detail.id] && subscriptions[detail.id].status === 'known'}}",
+          "data-id": "{{detail.id}}",
+          "bindtap": "onSubscription",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:if": "{{subscriptions[detail.id] && subscriptions[detail.id].status === 'known'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-mode": "edit",
+          "bindtap": "onNavigate",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCleanup",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "wx:if": "{{detail.allowedActions.createComment}}",
+          "bindtap": "onCompose",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'detail'}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:if": "{{detail.allowedActions.createComment}}"
+          },
+          {
+            "wx:if": "{{detail.allowedActions.createComment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-sort": "time",
+          "data-order": "desc",
+          "bindtap": "onSort",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'detail'}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-sort": "likes",
+          "data-order": "desc",
+          "bindtap": "onSort",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'detail'}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-mode": "thread",
+          "data-id": "{{item.id}}",
+          "bindtap": "onNavigate",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'detail'}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:for": "{{comments}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "item:{{item.id}}",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多帖子操作"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'detail'}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:for": "{{comments}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onCleanup",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'detail'}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:for": "{{comments}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'item:' + item.id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMoreComments}}",
+          "bindtap": "onMoreComments",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'detail'}}"
+          },
+          {
+            "wx:if": "{{detail}}"
+          },
+          {
+            "wx:if": "{{canMoreComments}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "wx:if": "{{discussion.allowedActions.createReply}}",
+          "bindtap": "onCompose",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'thread' && discussion}}"
+          },
+          {
+            "wx:if": "{{discussion.allowedActions.createReply}}"
+          },
+          {
+            "wx:if": "{{discussion.allowedActions.createReply}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "root",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多帖子操作"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'thread' && discussion}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{discussion.root.id}}",
+          "bindtap": "onCleanup",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'thread' && discussion}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'root'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "wx:if": "{{item.allowedActions.reply}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCompose",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'thread' && discussion}}"
+          },
+          {
+            "wx:for": "{{replies}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{item.allowedActions.reply}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "item:{{item.id}}",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多帖子操作"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'thread' && discussion}}"
+          },
+          {
+            "wx:for": "{{replies}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onCleanup",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'thread' && discussion}}"
+          },
+          {
+            "wx:for": "{{replies}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiPanel === 'item:' + item.id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMoreReplies}}",
+          "bindtap": "onMoreReplies",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'thread' && discussion}}"
+          },
+          {
+            "wx:if": "{{canMoreReplies}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{name}}",
+          "bindinput": "onName",
+          "disabled": "{{busy || frozen}}",
+          "maxlength": "-1",
+          "placeholder": "名称，最多 100 个字符"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'create' || mode === 'edit'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{description}}",
+          "bindinput": "onDescription",
+          "disabled": "{{busy || frozen}}",
+          "maxlength": "-1",
+          "placeholder": "描述，最多 500 个字符"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'create' || mode === 'edit'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDefinitionConfirm",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'create' || mode === 'edit'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDefinitionCommit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'create' || mode === 'edit'}}"
+          },
+          {
+            "wx:if": "{{definitionConfirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDefinitionDismiss"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'create' || mode === 'edit'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{minimumAverageInput}}",
+          "bindinput": "onMinimumAverage",
+          "type": "digit",
+          "placeholder": "可选最低均分：1–5",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'random'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDraw",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'random'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRandomTarget",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'random'}}"
+          },
+          {
+            "wx:if": "{{randomResult}}"
+          },
+          {
+            "wx:if": "{{randomResult.item}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-kind": "updates",
+          "bindtap": "onNoticeKind",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'updates'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-kind": "like-updates",
+          "bindtap": "onNoticeKind",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'updates'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-kind": "subscription-updates",
+          "bindtap": "onNoticeKind",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'updates'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onNotice",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'updates'}}"
+          },
+          {
+            "wx:for": "{{notices}}",
+            "wx:key": "noticeId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onDiscussionImageNotice",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'updates'}}"
+          },
+          {
+            "wx:for": "{{notices}}",
+            "wx:key": "noticeId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMoreNotices}}",
+          "bindtap": "onMoreNotices",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && !pickerOpen}}"
+          },
+          {
+            "wx:if": "{{mode === 'updates'}}"
+          },
+          {
+            "wx:if": "{{canMoreNotices}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmScore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedScore !== null}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissScore"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedScore !== null}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{authorModes}}",
+          "wx:key": "*this",
+          "data-mode": "{{item}}",
+          "bindtap": "onAuthorMode",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen}}"
+          },
+          {
+            "wx:for": "{{authorModes}}",
+            "wx:key": "*this"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{text}}",
+          "bindinput": "onText",
+          "disabled": "{{busy || frozen}}",
+          "maxlength": "-1",
+          "placeholder": "1–500 个字符"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPublish",
+          "disabled": "{{busy || frozen || !authorMode || !text}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseComposer"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{composerOpen}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/ratings/product.wxml": {
+    "sourceSha256": "4b3303445b5d17196a6e7b054dc1ccfd141c6038aa53fd29c8b056376dc9351e",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/rating-category-manage/rating-category-manage?scope=global"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/rating-category-create/rating-category-create"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/rating-scoped/rating-scoped?mode=recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "product-like",
+          "data-id": "{{id}}",
+          "bindtap": "onLike",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{state && state.status === 'known'}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/ratings/target-cover.wxml": {
+    "sourceSha256": "84ed955aeeed320fc4e0dbdc8371d40a0142f2bbe2edbdc316f0fb5a68378724",
+    "actions": [
+      {
+        "tag": "image",
+        "attrs": {
+          "wx:if": "{{cover.localSrc}}",
+          "src": "{{cover.localSrc}}",
+          "mode": "aspectFit",
+          "bindtap": "onCoverOpen",
+          "binderror": "onCoverError"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{cover.localSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "image",
+        "attrs": {
+          "src": "{{cover.localSrc}}",
+          "mode": "aspectFit",
+          "binderror": "onCoverError"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{cover.expanded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCoverClose"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{cover.expanded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCoverChoose",
+          "disabled": "{{busy || frozen || needsRefresh || coverUpload.pickerWaiting || coverUpload.status === 'selecting' || coverUpload.status === 'uploading' || coverUpload.status === 'pending' || coverUpload.status === 'ready'}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{mode === 'edit'}}",
+          "bindtap": "onCoverKeep",
+          "disabled": "{{busy || frozen || needsRefresh || coverUpload.status === 'selecting' || coverUpload.status === 'uploading' || coverUpload.status === 'pending' || coverUpload.status === 'ready'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'edit'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCoverClear",
+          "disabled": "{{busy || frozen || needsRefresh || coverUpload.status === 'selecting' || coverUpload.status === 'uploading' || coverUpload.status === 'pending' || coverUpload.status === 'ready'}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{coverUpload.status === 'pending'}}",
+          "bindtap": "onCoverRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{coverUpload.status === 'pending'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{coverUpload.status === 'pending' || coverUpload.status === 'ready'}}",
+          "bindtap": "onCoverCancel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{coverUpload.status === 'pending' || coverUpload.status === 'ready'}}"
+          }
+        ]
+      }
+    ]
+  }
+}

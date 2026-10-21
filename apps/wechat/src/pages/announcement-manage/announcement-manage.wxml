@@ -1,1 +1,51 @@
-<view class="screen"><view class="title">公告管理</view><view class="meta">{{management === 'fixed' ? regionName : management === 'global' ? '全局超级管理员' : '正在核验管理权限'}}</view><view class="status">{{status}}</view><view class="error">{{error}}</view><button bindtap="onRefresh" disabled="{{busy}}">重新读取</button><button wx:if="{{management !== 'none'}}" bindtap="onNew" disabled="{{busy || pending}}">新建公告</button><button wx:if="{{pending}}" bindtap="onRecovery">恢复原公告操作</button><view wx:for="{{items}}" wx:key="id" class="card"><text class="announcement-title">{{item.content.title}}</text><text class="meta">版本 {{item.content.versionLabel}} · {{item.state === 'draft' ? '私有上传准备' : item.state === 'active' ? '已启用' : '已停用'}}</text><button data-id="{{item.id}}" bindtap="onEdit" disabled="{{busy}}">编辑 / 停用启用</button></view><button wx:if="{{more}}" bindtap="onMore" disabled="{{busy}}">加载更多</button></view>
+<view class="screen ops-page ops-announcement-manage f7-ios-theme ops-native">
+  <view class="ops-context">
+    <view class="ops-context-icon">
+      <wu-icon name="bell" size="23" tone="accent" />
+    </view>
+    <view class="ops-context-title">
+      已保存的公告
+    </view>
+  </view>
+  <view class="meta">
+    {{management === 'fixed' ? regionName : management === 'global' ? '全局超级管理员' : '正在核验管理权限'}}
+  </view>
+  <view class="status" wx:if="{{status}}">
+    {{status}}
+  </view>
+  <view class="error" wx:if="{{error}}">
+    {{error}}
+  </view>
+  <wu-f7-button bind:press="onRefresh" disabled="{{busy}}" class="ops-quiet" variant="plain">
+    重新读取
+  </wu-f7-button>
+  <wu-f7-button wx:if="{{management !== 'none'}}" bind:press="onNew" disabled="{{busy || pending}}" class="ops-primary" variant="fill" size="large">
+    新建公告
+  </wu-f7-button>
+  <wu-f7-button wx:if="{{pending}}" bind:press="onRecovery" class="ops-recovery" variant="tonal">
+    恢复原公告操作
+  </wu-f7-button>
+  <wu-f7-block wx:for="{{items}}" wx:key="id" class="card ops-section ops-announcement-row" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <text class="announcement-title">
+      {{item.content.title}}
+    </text>
+    <text class="meta">
+      版本 {{item.content.versionLabel}} · {{item.state === 'draft' ? '私有上传准备' : item.state === 'active' ? '已启用' : '已停用'}}
+    </text>
+    <wu-f7-button data-id="{{item.id}}" bind:press="onEdit" disabled="{{busy}}" variant="tonal">
+      编辑 / 停用启用
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-button wx:if="{{more}}" bind:press="onMore" disabled="{{busy}}" variant="tonal">
+    加载更多
+  </wu-f7-button>
+  <wu-f7-block wx:if="{{loaded &amp;&amp; management !== 'none' &amp;&amp; !items.length &amp;&amp; !busy}}" class="ops-empty" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <wu-icon name="bell" size="30" tone="muted" />
+    <view class="section-title">
+      还没有公告
+    </view>
+    <view class="meta">
+      新建公告，准备好内容后再发布。
+    </view>
+  </wu-f7-block>
+</view>

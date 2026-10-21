@@ -7,7 +7,7 @@ import {
 } from '../../announcements/controller';
 import { AnnouncementNavigator } from '../../announcements/navigation';
 Page({
-  data: { ...initialAnnouncementReadView() },
+  data: { ...initialAnnouncementReadView(), showInfo: false },
   route: null as AnnouncementRoute | null,
   controller: undefined as AnnouncementReadController | undefined,
   navigator: undefined as AnnouncementNavigator | undefined,
@@ -65,7 +65,11 @@ Page({
         }),
       );
   },
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
+  },
   onShow() {
+    this.setData({ showInfo: false });
     this.controller?.dispose();
     this.controller = undefined;
     this.navigator?.dispose();
@@ -120,6 +124,7 @@ Page({
     }
   },
   onHide() {
+    this.setData({ showInfo: false });
     this.controller?.dispose();
     this.controller = undefined;
     this.navigator?.dispose();

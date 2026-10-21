@@ -1,21 +1,20 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 反馈通知</view>
-  <view class="title">公开反馈提醒</view>
-  <view class="notice">只有当前获授权的超级管理员可查看本账号收到的反馈提醒。每次打开反馈都会重新核验当前帖子权限。</view>
+<view class="management-page moderation-native f7-ios-theme">
+  <view class="page-heading"><view class="section-label">本账号的管理提醒</view><wu-f7-button class="icon-button" bind:press="onReload" disabled="{{busy}}" loading="{{busy}}" aria-label="刷新反馈通知" variant="plain"><wu-icon name="refresh" tone="accent" size="22" /></wu-f7-button></view>
+  <view class="scope"><wu-icon name="shield" tone="muted" size="18" /><text>仅当前获授权的超级管理员可查看本账号提醒。打开反馈时会重新核验当前帖子权限。</text></view>
   <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{error}}" class="error">{{error}}</view>
-  <view wx:if="{{loaded}}" class="section-title">反馈通知未读 {{unreadCount}} 条</view>
-  <button bindtap="onReload" disabled="{{busy}}" loading="{{busy}}">刷新反馈通知</button>
-  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看本账号的反馈通知 →</navigator>
-  <view wx:for="{{items}}" wx:key="noticeId" class="card">
-    <view class="meta">{{item.createdAt}} · {{item.readAt ? '已读' : '未读'}}</view>
-    <view class="section-title">收到一条公开反馈</view>
-    <view wx:if="{{item.available === false}}" class="meta">反馈当前不可查看；请刷新后重试</view>
-    <button data-id="{{item.noticeId}}" bindtap="onOpen" disabled="{{busy || item.available === false}}">查看反馈</button>
-    <button wx:if="{{!item.readAt}}" data-id="{{item.noticeId}}" bindtap="onRead" disabled="{{busy || item.available === false}}">标记此条已读</button>
-  </view>
-  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">暂无反馈通知</view>
-  <button wx:if="{{canLoadMore}}" bindtap="onMore" disabled="{{busy}}">加载更多反馈通知</button>
-  <view class="notice">这里只是站内通知模拟，尚未接入微信订阅消息。通知不包含作者身份或原文快照；浏览列表和打开反馈不会自动标记已读。</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{loaded}}" class="section-label">未读 {{unreadCount}} 条</view>
+  <wu-f7-button wx:if="{{busy}}" class="quiet" bind:press="onCancel" variant="plain">停止等待</wu-f7-button>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看本账号的提醒<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <wu-f7-block wx:for="{{items}}" wx:key="noticeId" class="case-row" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="row-heading"><view class="section-title">收到一条公开反馈</view><view class="read-state"><text wx:if="{{!item.readAt}}" class="unread-dot"></text>{{item.readAt ? '已读' : '未读'}}</view></view>
+    <view class="meta">{{item.createdAt}}</view>
+    <view wx:if="{{item.available === false}}" class="notice">反馈当前不可查看；请刷新后重试</view>
+    <wu-f7-button class="secondary" data-id="{{item.noticeId}}" bind:press="onOpen" disabled="{{busy || item.available === false}}" variant="tonal">查看反馈</wu-f7-button>
+    <wu-f7-button wx:if="{{!item.readAt}}" class="quiet" data-id="{{item.noticeId}}" bind:press="onRead" disabled="{{busy || item.available === false}}" variant="plain">标记此条已读</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{loaded &amp;&amp; !items.length}}" class="empty" strong="{{true}}" inset="{{true}}" spacing="compact"><wu-icon name="bell" tone="muted" size="34" /><view class="section-title">暂无反馈通知</view><view class="notice">新的公开反馈提醒会显示在这里。</view></wu-f7-block>
+  <wu-f7-button wx:if="{{canLoadMore}}" class="quiet" bind:press="onMore" disabled="{{busy}}" variant="plain">加载更多反馈通知</wu-f7-button>
+  <wu-f7-button class="disclosure" bind:press="onToggleDetails" aria-expanded="{{detailsExpanded}}" variant="plain">关于反馈提醒<wu-icon name="{{detailsExpanded ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="18" /></wu-f7-button>
+  <view wx:if="{{detailsExpanded}}" class="notice">这里只是站内通知模拟，尚未接入微信订阅消息。通知不包含作者身份或原文快照；浏览列表和打开反馈不会自动标记已读。</view>
 </view>

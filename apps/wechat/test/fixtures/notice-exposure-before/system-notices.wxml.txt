@@ -1,0 +1,174 @@
+<view class="notice-page system-page f7-ios-theme f7-notifications-page">
+  <view class="notice-toolbar">
+    <text wx:if="{{hasUnread}}" class="notice-count">
+      有未读消息
+    </text>
+    <wu-f7-button class="notice-icon-button" disabled="{{busy}}" aria-label="刷新系统消息" bind:press="onReload">
+      <wu-icon name="refresh" size="21" />
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{busy}}" class="notice-state" aria-role="status">
+    正在读取…
+  </view>
+  <view wx:if="{{error}}" class="notice-state notice-error" aria-role="alert">
+    {{error}}
+  </view>
+  <wu-f7-button wx:if="{{busy}}" class="notice-secondary" bind:press="onCancel">
+    停止等待
+  </wu-f7-button>
+  <navigator wx:if="{{!hasSession}}" class="notice-action" url="/pages/login/login">
+    登录后查看系统消息
+  </navigator>
+  <wu-f7-list spacing="compact" class="notice-list">
+    <view wx:for="{{items}}" wx:key="key" class="notice-event">
+      <view class="notice-symbol">
+        <wu-icon name="bell" tone="accent" size="23" />
+        <view wx:if="{{!item.readAt}}" class="notice-unread" aria-label="未读" />
+      </view>
+      <view class="notice-content">
+        <view wx:if="{{item.source !== 'system'}}">
+          <view class="notice-event-title">
+            {{item.summary}}
+          </view>
+          <view wx:if="{{item.reason}}" class="notice-body">
+            {{item.reason}}
+          </view>
+          <view wx:if="{{item.deletionReason &amp;&amp; item.deletionReason.status === 'provided'}}" class="notice-body">
+            {{item.deletionReason.value}}
+          </view>
+          <view wx:if="{{item.startsAt}}" class="notice-context">
+            开始：{{item.startTimeLabel || '时间暂不可用'}}
+          </view>
+          <view wx:if="{{item.startsAt}}" class="notice-context">
+            结束：{{item.endTimeLabel || (item.endsAt === null ? '永久' : '时间暂不可用')}}
+          </view>
+          <view wx:if="{{item.releasedAt}}" class="notice-context">
+            解除时间：{{item.releaseTimeLabel || '时间暂不可用'}}
+          </view>
+          <wu-f7-button wx:if="{{item.source === 'verification' || item.source === 'feedback' || item.kind === 'accepted' || item.kind === 'completed'}}" class="notice-action" data-id="{{item.key}}" disabled="{{busy}}" bind:press="onOpen">
+            查看详情
+            <wu-icon name="chevron-right" tone="accent" size="14" />
+          </wu-f7-button>
+        </view>
+        <view wx:elif="{{item.kind === 'post_jury_removed'}}">
+          <view class="notice-event-title">
+            帖子已被陪审团移除
+          </view>
+          <view class="notice-body">
+            你的一条帖子经陪审团判定后已移除
+          </view>
+          <view class="notice-context">
+            保留 {{item.keepVotes}} 票 · 移除 {{item.removeVotes}} 票
+          </view>
+        </view>
+        <view wx:elif="{{item.kind === 'profile_nickname_reset'}}">
+          <view class="notice-event-title">
+            昵称已被管理员重置
+          </view>
+          <view class="notice-body">
+            重置后的公开昵称：{{item.nickname}}
+          </view>
+          <view class="notice-hint">
+            分身保持不变。这是当时的处理记录。
+          </view>
+          <navigator class="notice-action" url="/pages/profile/profile">
+            查看当前资料
+            <wu-icon name="chevron-right" tone="accent" size="14" />
+          </navigator>
+        </view>
+        <view wx:elif="{{item.kind === 'profile_custom_avatar_cleared'}}">
+          <view class="notice-event-title">
+            自定义头像已被管理员清除
+          </view>
+          <view class="notice-body">
+            可重新选择头像
+          </view>
+        </view>
+        <view wx:elif="{{item.kind === 'admin_post_removed'}}">
+          <view class="notice-event-title">
+            你的帖子已被管理员删除
+          </view>
+        </view>
+        <view wx:elif="{{item.kind === 'admin_discussion_removed'}}">
+          <view class="notice-event-title">
+            你的回复已被管理员删除
+          </view>
+        </view>
+        <view wx:elif="{{item.kind === 'account_punishment_issued' || item.kind === 'account_punishment_released'}}">
+          <view class="notice-event-title">
+            {{item.punishment.kind === 'interaction_mute' ? '禁言' : '封号'}}{{item.kind === 'account_punishment_released' ? '已解除' : '处理通知'}}
+          </view>
+          <view class="notice-body">
+            {{item.punishment.reason}}
+          </view>
+          <view class="notice-context">
+            开始：{{item.punishmentStartTimeLabel || '时间暂不可用'}}
+          </view>
+          <view class="notice-context">
+            结束：{{item.punishmentEndTimeLabel || (item.punishment.endsAt === null ? '永久' : '时间暂不可用')}}
+          </view>
+          <view class="notice-hint">
+            这是历史通知，以当前账号状态为准。
+          </view>
+          <navigator class="notice-action" url="/pages/account-status/account-status">
+            查看当前状态与私人申诉
+            <wu-icon name="chevron-right" tone="accent" size="14" />
+          </navigator>
+        </view>
+        <view wx:elif="{{item.kind === 'account_appeal_decided'}}">
+          <view class="notice-event-title">
+            私人申诉处理结果
+          </view>
+          <view class="notice-body">
+            {{item.outcome === 'released' ? '已解除申诉绑定的处罚' : item.outcome === 'upheld' ? '维持原处罚' : '原处罚已失效，结案'}}
+          </view>
+          <view class="notice-context">
+            {{item.reason}}
+          </view>
+          <navigator class="notice-action" url="/pages/safety-appeal/safety-appeal?appealId={{item.appealId}}">
+            查看私人申诉结果
+            <wu-icon name="chevron-right" tone="accent" size="14" />
+          </navigator>
+        </view>
+        <view class="notice-time">
+          {{item.timeLabel}} · {{item.readAt ? '已读' : '未读'}}
+        </view>
+        <view class="notice-actions">
+          <wu-f7-button wx:if="{{!item.readAt}}" class="notice-read" data-id="{{item.key}}" disabled="{{busy}}" bind:press="onRead">
+            标为已读
+          </wu-f7-button>
+        </view>
+      </view>
+    </view>
+  </wu-f7-list>
+  <wu-f7-block wx:if="{{loaded &amp;&amp; !items.length}}" class="notice-empty" spacing="compact">
+    <view class="notice-empty-content">
+      <wu-icon name="bell" tone="muted" size="34" />
+      <text class="notice-empty-title">
+        暂无系统消息
+      </text>
+      <text class="notice-empty-detail">
+        账号与服务通知会显示在这里
+      </text>
+    </view>
+  </wu-f7-block>
+  <wu-f7-button wx:if="{{canLoadMore}}" class="notice-action" disabled="{{busy}}" bind:press="onMore">
+    加载更多
+  </wu-f7-button>
+  <wu-f7-block class="notice-footer" spacing="compact">
+    <view class="notice-footer-content">
+      <wu-f7-button class="notice-secondary" bind:press="onSources">
+        {{showSources ? '收起消息状态' : '消息状态'}}
+        <wu-icon name="{{showSources ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="14" />
+      </wu-f7-button>
+      <view wx:if="{{showSources}}">
+        <view wx:for="{{sources}}" wx:key="source" wx:if="{{item.error}}" class="notice-state notice-error" aria-role="alert">
+          {{item.error}}
+        </view>
+      </view>
+      <view wx:if="{{showSources}}" class="notice-hint">
+        浏览列表不会自动标为已读。
+      </view>
+    </view>
+  </wu-f7-block>
+</view>

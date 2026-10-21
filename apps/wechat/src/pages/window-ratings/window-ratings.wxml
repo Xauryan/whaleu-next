@@ -1,28 +1,69 @@
-<import src="../../window-ratings/common.wxml" />
-<view class="screen">
-  <navigator class="link" url="/pages/window-discussion-recovery/window-discussion-recovery">窗口讨论独立恢复与取消点赞 →</navigator>
-  <navigator class="link" url="/pages/window-dishes/window-dishes">菜品推荐原请求：独立查询回执与取消 →</navigator>
-  <view class="eyebrow">WHALEU · 窗口评分</view>
-  <view class="title">找食堂窗口</view>
-  <view class="notice">仅展示已核验来源中的食堂、楼层与窗口。评分范围为 -10 至 +10 的整数，可修改；0 是有效评分。</view>
-  <template is="window-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryWindowId,recoveryScore,recoveryPhase,busy,restartRequired,confirming,receiptMissing}}" />
-  <view wx:if="{{catalog}}" class="card">
-    <view class="section-title">食堂与楼层筛选</view>
-    <view class="notice">食堂可多选；未选择时查询全部已确认食堂。</view>
-    <button wx:for="{{canteenOptions}}" wx:key="id" data-id="{{item.id}}" class="{{item.selected ? 'score-selected' : ''}}" bindtap="onCanteen" disabled="{{busy}}">{{item.selected ? '已选 · ' : ''}}{{item.label}}</button>
-    <picker range="{{floorLabels}}" value="{{floorIndex}}" bindchange="onFloor" disabled="{{busy}}"><view class="filter-picker">{{floorLabels[floorIndex]}} ▾</view></picker>
-    <input class="window-field" value="{{minRatingDraft}}" maxlength="8" placeholder="最低均分（-10 至 10，可留空）" bindinput="onMinimum" bindconfirm="onSearch" disabled="{{busy}}" />
-    <view class="notice">最低均分只有大于 0 时启用；留空、0 或负数均不过滤低分窗口。</view>
-    <button bindtap="onSearch" disabled="{{busy}}">按条件查询窗口</button>
+<import src="../../window-ratings/framework7-product.wxml" />
+<view class="screen dining-product f7-ios-theme f7-dining-product">
+  <view class="dp-heading">
+    <view class="meta">
+      按口碑发现食堂窗口
+    </view>
+    <wu-f7-button class="dp-plain" data-panel="menu" aria-label="更多" bind:press="onTogglePanel" variant="plain">
+      <wu-icon name="more" size="22" />
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiPanel === 'menu'}}" class="dp-disclosure">
+    <navigator class="link" url="/pages/window-discussion-recovery/window-discussion-recovery">
+      讨论与点赞恢复
+    </navigator>
+    <navigator class="link" url="/pages/window-dishes/window-dishes">
+      菜品推荐原请求
+    </navigator>
+  </view>
+  <wu-f7-block spacing="compact">
+    <template is="window-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryWindowId,recoveryScore,recoveryPhase,busy,restartRequired,confirming,receiptMissing,loaded}}" />
+  </wu-f7-block>
+  <view wx:if="{{catalog}}">
+    <wu-f7-button class="dp-filter" data-panel="filter" bind:press="onTogglePanel" variant="plain">
+      食堂与楼层
+      <wu-icon name="chevron-down" size="16" />
+    </wu-f7-button>
+    <view wx:if="{{uiPanel === 'filter'}}" class="dp-disclosure">
+      <view class="meta">
+        食堂可多选，不选则查看全部
+      </view>
+      <view class="dp-options">
+        <wu-f7-button wx:for="{{canteenOptions}}" wx:key="id" data-id="{{item.id}}" class="{{item.selected ? 'score-selected' : ''}}" disabled="{{busy}}" bind:press="onCanteen" variant="{{item.selected ? 'fill' : 'tonal'}}">
+          {{item.label}}
+        </wu-f7-button>
+      </view>
+      <picker range="{{floorLabels}}" value="{{floorIndex}}" bindchange="onFloor" disabled="{{busy}}">
+        <view class="dp-picker">
+          {{floorLabels[floorIndex]}}
+          <wu-icon name="chevron-down" size="16" />
+        </view>
+      </picker>
+      <wu-f7-input class="window-field" value="{{minRatingDraft}}" maxlength="8" placeholder="最低均分（选填）" disabled="{{busy}}" bind:input="onMinimum" bind:confirm="onSearch" />
+      <view class="meta">
+        -10 至 10；大于 0 才按最低分筛选
+      </view>
+      <wu-f7-button class="primary" disabled="{{busy}}" bind:press="onSearch" variant="fill" size="large">
+        查看结果
+      </wu-f7-button>
+    </view>
   </view>
   <block wx:if="{{loaded}}">
-    <view class="meta">{{appliedFilter}} · 按均分排序 · 第 {{pageNumber}} 页</view>
-    <view wx:for="{{items}}" wx:key="id" class="card">
-      <template is="window-facts" data="{{window:item}}" />
-      <template is="window-summary" data="{{summary:item.summary}}" />
-      <button data-id="{{item.id}}" bindtap="onWindow" disabled="{{busy}}">查看窗口与我的评分 →</button>
+    <view class="meta dp-result-label">
+      {{appliedFilter}} · 按均分排序
     </view>
-    <view wx:if="{{!items.length}}" class="empty">当前查询已确认没有窗口。</view>
-    <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页窗口</button>
+    <wu-f7-list spacing="compact">
+      <view wx:for="{{items}}" wx:key="id" class="dp-row">
+        <wu-f7-list-item class="dp-open" data-id="{{item.id}}" disabled="{{busy}}" bind:press="onWindow" link="{{true}}" title="{{item.name}}" subtitle="{{item.canteenName + ' · ' + item.floor.label}}" aria-label="{{item.name + '，' + item.canteenName + '，' + item.floor.label + '，' + (item.summary.kind === 'unavailable' ? '历史评分暂不能确认' : item.summary.ratingCount === 0 ? '暂无评分' : item.summary.mean + ' 分，' + item.summary.ratingCount + ' 条评分')}}" last="{{index === items.length - 1}}">
+          <template is="window-summary" data="{{summary:item.summary}}" />
+        </wu-f7-list-item>
+      </view>
+    </wu-f7-list>
+    <view wx:if="{{!items.length}}" class="empty">
+      没有符合条件的窗口
+    </view>
+    <wu-f7-button wx:if="{{canNext}}" class="dp-plain dp-next" disabled="{{busy}}" bind:press="onNext" variant="plain">
+      下一页
+    </wu-f7-button>
   </block>
 </view>

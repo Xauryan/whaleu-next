@@ -1,3 +1,4 @@
+import { errandPresentation } from '../pages/errand-list/presentation';
 import { initialErrandPublicationView } from './publication-runtime';
 import type { ErrandImageComposer } from './publication-runtime';
 import type { ErrandMediaReader, ErrandMediaReadView } from './media-runtime';
@@ -33,10 +34,26 @@ type Input = {
   currentTarget: { dataset: { field: string } };
   detail: { value: string };
 };
+export const initialErrandPanels = () => ({
+  campus: false,
+  sort: false,
+  private: false,
+  images: false,
+  details: false,
+});
+export function toggledErrandPanels(
+  panels: ReturnType<typeof initialErrandPanels>,
+  field: string,
+): ReturnType<typeof initialErrandPanels> {
+  if (!Object.prototype.hasOwnProperty.call(panels, field)) return panels;
+  const key = field as keyof typeof panels;
+  return { ...panels, [key]: !panels[key] };
+}
 /** Native controls only; route intent may survive hide, never private content or form values. */
 export function registerErrandPage(mode: ErrandMode): void {
   Page({
     data: {
+      uiPanels: initialErrandPanels(),
       imagePublication: initialErrandPublicationView(),
       orderImage: {
         status: 'idle',
@@ -44,6 +61,7 @@ export function registerErrandPage(mode: ErrandMode): void {
         message: '',
       } as ErrandMediaReadView,
       ...initialErrandView(),
+      ...errandPresentation(initialErrandView()),
       errandStateLabels,
       adminAvailable: false,
       targetServices: initialErrandTargetServicesView(),
@@ -61,6 +79,7 @@ export function registerErrandPage(mode: ErrandMode): void {
     navigator: undefined as DirectoryNavigator | undefined,
     unsubscribeSession: undefined as (() => void) | undefined,
     unsubscribeHide: undefined as (() => void) | undefined,
+    unsubscribeSafetyUi: undefined as (() => void) | undefined,
     onLoad(query: unknown = {}) {
       try {
         this.route = decodeErrandRoute(query, mode);
@@ -69,6 +88,12 @@ export function registerErrandPage(mode: ErrandMode): void {
       }
       const runtime = getApp<WhaleuApp>().community;
       if (!runtime) return;
+      this.unsubscribeSafetyUi = runtime.safetyChanges?.subscribe(
+        (accountId) => {
+          if (accountId === runtime.sessions.snapshot().credentials?.accountId)
+            this.setData({ uiPanels: initialErrandPanels() });
+        },
+      );
       let owner = runtime.sessions.snapshot();
       this.unsubscribeSession = runtime.sessions.subscribe(() => {
         const current = runtime.sessions.snapshot();
@@ -81,6 +106,7 @@ export function registerErrandPage(mode: ErrandMode): void {
           this.imageComposer?.clear();
           this.imageReader?.clear();
           this.currentView = null;
+          this.setData({ uiPanels: initialErrandPanels() });
         }
       });
       this.unsubscribeHide = runtime.privateViews?.subscribe((accountId) => {
@@ -89,6 +115,7 @@ export function registerErrandPage(mode: ErrandMode): void {
           this.imageComposer?.clear();
           this.imageReader?.clear();
           this.currentView = null;
+          this.setData({ uiPanels: initialErrandPanels() });
           this.targetServices?.dispose();
           this.targetServices = undefined;
           this.targetReader?.dispose();
@@ -97,6 +124,7 @@ export function registerErrandPage(mode: ErrandMode): void {
       });
     },
     onShow() {
+      this.setData({ uiPanels: initialErrandPanels() });
       this.imageComposer?.dispose();
       this.imageComposer = undefined;
       this.imageReader?.dispose();
@@ -146,6 +174,8 @@ export function registerErrandPage(mode: ErrandMode): void {
         );
       }
       this.controller = new ErrandController(runtime, mode, (view) => {
+        if (this.currentView?.loaded && !view.loaded)
+          this.setData({ uiPanels: initialErrandPanels() });
         this.currentView = view;
         const imageIdentity =
           view.loaded && view.detail
@@ -160,7 +190,7 @@ export function registerErrandPage(mode: ErrandMode): void {
           this.imageReader?.clear();
           this.imageIdentity = imageIdentity;
         }
-        this.setData({ ...view });
+        this.setData({ ...view, ...errandPresentation(view) });
         this.targetServices?.sync(view.loaded ? view.detail : null);
       });
       void this.controller.load(this.route);
@@ -170,6 +200,15 @@ export function registerErrandPage(mode: ErrandMode): void {
         );
         void this.adminEntry.load();
       }
+    },
+    onTogglePanel(event: Tap) {
+      if (this.data.busy || this.data.frozen) return;
+      this.setData({
+        uiPanels: toggledErrandPanels(
+          this.data.uiPanels,
+          event.currentTarget.dataset.field ?? '',
+        ),
+      });
     },
     onRefresh() {
       void this.controller?.reload();
@@ -209,6 +248,7 @@ export function registerErrandPage(mode: ErrandMode): void {
       void this.controller?.searchCampuses();
     },
     onCampus(event: Tap) {
+      this.setData({ uiPanels: initialErrandPanels() });
       void this.controller?.selectCampus(event.currentTarget.dataset.id ?? '');
     },
     onOrder(event: Tap) {
@@ -316,6 +356,7 @@ export function registerErrandPage(mode: ErrandMode): void {
       void this.controller?.confirmCommand();
     },
     onHide() {
+      this.setData({ uiPanels: initialErrandPanels() });
       this.imageComposer?.dispose();
       this.imageComposer = undefined;
       this.imageReader?.dispose();
@@ -339,6 +380,8 @@ export function registerErrandPage(mode: ErrandMode): void {
       this.unsubscribeSession = undefined;
       this.unsubscribeHide?.();
       this.unsubscribeHide = undefined;
+      this.unsubscribeSafetyUi?.();
+      this.unsubscribeSafetyUi = undefined;
       this.route = null;
     },
   });

@@ -177,9 +177,9 @@ export interface PostView {
   author: AuthorView;
   publishedAt: string;
   likeCount: number;
-  commentCount: number;
-  replyCount: number;
-  discussionCount: number;
+  commentCount: number | null;
+  replyCount: number | null;
+  discussionCount: number | null;
   viewer: {
     isSelf: boolean;
     isLiked: boolean;
@@ -201,7 +201,7 @@ export interface CommentView {
   author: AuthorView;
   createdAt: string;
   likeCount: number;
-  replyCount: number;
+  replyCount: number | null;
   isPinned: boolean;
   replyPreview: { items: ReplyView[]; nextCursor: string | null };
   viewer: {

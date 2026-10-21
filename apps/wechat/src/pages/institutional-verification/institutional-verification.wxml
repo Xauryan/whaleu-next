@@ -1,53 +1,227 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 学校授权认证</view>
-  <view class="title">分别确认学校归属与学号</view>
-  <view class="notice">仅通过受支持的学校授权确认学生归属，以及学校明确支持的学号验证。手机号、校内 UID 与操作权限分别确认。不会改变浏览校园或身份校区。</view>
-  <view wx:if="{{!nativeAvailable}}" class="notice">真实学校的安全原生授权入口尚未启用。当前不能进行真实学校登录。</view>
-  <view class="notice" aria-role="status">{{message}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <navigator wx:if="{{!hasSession}}" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
-  <view wx:if="{{hasSession &amp;&amp; !frozen}}" class="card">
-    <view class="card-title">学校上下文</view>
-    <input value="{{campusQuery}}" placeholder="搜索学校或校园" bindinput="onSearchInput" disabled="{{busy}}" maxlength="100" />
-    <button bindtap="onSearch" disabled="{{busy}}">查询校园</button>
-    <button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onChooseCampus" disabled="{{busy}}">{{item.name}}</button>
-    <view wx:if="{{capability}}">
-      <view wx:if="{{capability.schoolName}}">本次核验学校：{{capability.schoolName}}</view>
-      <view>仅核验所选学校的授权资格；校园选择本身不构成学生身份。</view>
-      <view wx:if="{{capability.state === 'eligible' &amp;&amp; nativeAvailable}}">
-        <checkbox-group bindchange="onConsent">
-          <label><checkbox value="consent" checked="{{consentAccepted}}" disabled="{{busy}}" />我同意将本次学校授权结果用于本账号的学生归属及受支持的学号验证，并建立学校身份关联。不会在本页收集学校密码。</label>
-        </checkbox-group>
-        <button bindtap="onPrepare" disabled="{{busy || !consentAccepted}}">同意并准备本次授权</button>
-      </view>
-      <view wx:else>当前无法发起学校授权。原请求仍可查询或关闭。</view>
+<view class="account-page f7-ios-theme f7-identity-screen">
+  <wu-f7-block
+    wx:if="{{!nativeAvailable}}"
+    class="surface"
+    strong="{{true}}"
+    inset="{{true}}"
+    spacing="compact"
+  >
+    <view class="section-title"> 学校授权暂未开放 </view>
+    <view class="body-copy">
+      真实学校的安全原生授权入口尚未启用，当前不能进行真实学校登录。已有请求仍可查询或关闭。
     </view>
+  </wu-f7-block>
+  <wu-f7-block spacing="compact">
+    <view class="status-line" aria-role="status"> {{message}} </view>
+    <view wx:if="{{error}}" class="error" aria-role="alert"> {{error}} </view>
+    <navigator
+      wx:if="{{!hasSession}}"
+      class="text-link"
+      url="/pages/login/login"
+      open-type="reLaunch"
+    >
+      前往登录
+    </navigator>
+  </wu-f7-block>
+  <view wx:if="{{hasSession &amp;&amp; !frozen}}">
+    <view class="section-label"> 选择学校 </view>
+    <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+      <view class="identity-input-row">
+        <wu-f7-input
+          value="{{campusQuery}}"
+          placeholder="搜索学校或校园"
+          disabled="{{busy}}"
+          maxlength="100"
+          bind:input="onSearchInput"
+          label="搜索学校或校园"
+          clearable="{{false}}"
+        />
+      </view>
+    </wu-f7-list>
+    <wu-f7-block spacing="compact">
+      <wu-f7-button
+        class="secondary"
+        disabled="{{busy}}"
+        bind:press="onSearch"
+        variant="tonal"
+        size="normal"
+      >
+        查询校园
+      </wu-f7-button>
+    </wu-f7-block>
+    <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+      <wu-f7-list-item
+        wx:for="{{campuses}}"
+        wx:key="id"
+        class="choice {{campusId === item.id ? 'selected' : ''}}"
+        data-id="{{item.id}}"
+        disabled="{{busy}}"
+        bind:press="onChooseCampus"
+        link="{{true}}"
+        title="{{item.fullName}}"
+        after="{{campusId === item.id ? '已选' : ''}}"
+        aria-label="{{item.fullName + (campusId === item.id ? '，已选' : '')}}"
+      />
+    </wu-f7-list>
+    <wu-f7-block
+      wx:if="{{capability}}"
+      class="capability-section"
+      spacing="compact"
+    >
+      <view wx:if="{{capability.schoolName}}" class="section-title">
+        {{capability.schoolName}}
+      </view>
+      <view class="body-copy">
+        仅核验所选学校的授权资格，选择校园不构成学生身份，也不改变浏览校园或身份校区。
+      </view>
+      <view
+        wx:if="{{capability.state === 'eligible' &amp;&amp; nativeAvailable}}"
+      >
+        <checkbox-group bindchange="onConsent">
+          <label class="consent">
+            <checkbox
+              value="consent"
+              checked="{{consentAccepted}}"
+              disabled="{{busy}}"
+            />
+            <text>
+              我同意将本次学校授权结果用于本账号的学生归属及受支持的学号验证，并建立学校身份关联。不会在本页收集学校密码。
+            </text>
+          </label>
+        </checkbox-group>
+        <wu-f7-button
+          class="primary"
+          disabled="{{busy || !consentAccepted}}"
+          bind:press="onPrepare"
+          variant="fill"
+          size="large"
+        >
+          同意并准备本次授权
+        </wu-f7-button>
+      </view>
+      <view wx:elif="{{nativeAvailable}}" class="status-line">
+        当前无法发起学校授权。原请求仍可查询或关闭。
+      </view>
+    </wu-f7-block>
   </view>
-  <view wx:if="{{frozen}}" class="card">
-    <view class="card-title">原请求恢复</view>
-    <view wx:if="{{requestId}}" selectable="true">原请求编号：{{requestId}}</view>
-    <view>未确认的请求会保留原编号。关闭只有收到服务端最终结果后才完成，不代表撤销已经完成的认证。</view>
-    <button wx:if="{{canAuthorize}}" bindtap="onAuthorize" disabled="{{busy}}">开始本次学校授权</button>
-    <button bindtap="onRecover" disabled="{{busy}}">查询原请求</button>
-    <button bindtap="onClose">关闭原请求</button>
-  </view>
-  <view class="card">
-    <view class="card-title">独立查询：当前认证状态</view>
-    <view wx:if="{{verificationView.error}}" class="error">{{verificationView.error}}</view>
-    <view wx:if="{{!verificationView.loaded}}">当前状态尚未确认</view>
-    <view wx:for="{{verificationView.rows}}" wx:key="key">{{item.label}}：{{item.value}}</view>
-  </view>
-  <view class="card">
-    <view class="card-title">独立查询：当前校内 UID</view>
-    <view wx:if="{{schoolUidView.error}}" class="error">{{schoolUidView.error}}</view>
-    <view wx:if="{{!schoolUidView.loaded}}">当前校内 UID 尚未确认</view>
+  <wu-f7-block
+    wx:if="{{frozen}}"
+    class="surface"
+    strong="{{true}}"
+    inset="{{true}}"
+    spacing="compact"
+  >
+    <view class="inline-icon">
+      <wu-icon name="clock" tone="accent" size="24" />
+      <view class="section-title"> 继续上次授权 </view>
+    </view>
+    <view wx:if="{{requestId}}" class="request-id" selectable="true">
+      原请求编号：{{requestId}}
+    </view>
+    <view class="body-copy">
+      未确认的请求保留原编号。关闭需等待最终结果，不会撤销已完成的认证。
+    </view>
+    <wu-f7-button
+      wx:if="{{canAuthorize}}"
+      class="primary"
+      disabled="{{busy}}"
+      bind:press="onAuthorize"
+      variant="fill"
+      size="large"
+    >
+      开始本次学校授权
+    </wu-f7-button>
+    <wu-f7-button
+      class="secondary"
+      disabled="{{busy}}"
+      bind:press="onRecover"
+      variant="tonal"
+      size="normal"
+    >
+      查询原请求
+    </wu-f7-button>
+    <wu-f7-button
+      class="quiet"
+      bind:press="onClose"
+      variant="plain"
+      size="normal"
+    >
+      关闭原请求
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block spacing="compact">
+    <view class="section-label"> 当前认证状态 · 独立查询 </view>
+    <view wx:if="{{verificationView.error}}" class="error">
+      {{verificationView.error}}
+    </view>
+    <view wx:if="{{!verificationView.loaded}}" class="body-copy">
+      当前状态尚未确认
+    </view>
+  </wu-f7-block>
+  <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+    <wu-f7-list-item
+      wx:for="{{verificationView.rows}}"
+      wx:key="key"
+      class="summary-row"
+      title="{{item.label}}"
+      footer-slot="{{true}}"
+    >
+      <view class="summary-value"> {{item.value}} </view>
+      <view slot="footer" class="summary-detail"> {{item.detail}} </view>
+    </wu-f7-list-item>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact">
+    <view class="section-label"> 校内 UID · 独立查询 </view>
+    <view wx:if="{{schoolUidView.error}}" class="error">
+      {{schoolUidView.error}}
+    </view>
+    <view wx:if="{{!schoolUidView.loaded}}" class="body-copy">
+      当前校内 UID 尚未确认
+    </view>
     <block wx:elif="{{schoolUidView.schoolUid}}">
-      <view wx:if="{{schoolUidView.schoolUid.status === 'assigned'}}">{{schoolUidView.schoolUid.school.name}} · {{schoolUidView.schoolUid.formattedUid}}</view>
-      <view wx:elif="{{schoolUidView.schoolUid.status === 'unassigned'}}">当前没有校内 UID</view>
-      <view wx:else>校内 UID 暂不可用</view>
+      <view
+        wx:if="{{schoolUidView.schoolUid.status === 'assigned'}}"
+        class="body-copy"
+      >
+        {{schoolUidView.schoolUid.school.name}} ·
+        {{schoolUidView.schoolUid.formattedUid}}
+      </view>
+      <view
+        wx:elif="{{schoolUidView.schoolUid.status === 'unassigned'}}"
+        class="body-copy"
+      >
+        当前没有校内 UID
+      </view>
+      <view class="body-copy" wx:else> 校内 UID 暂不可用 </view>
     </block>
-  </view>
-  <button bindtap="onReload" disabled="{{busy}}">重新查询当前状态</button>
-  <button bindtap="onBack">返回</button>
-  <navigator url="/pages/verification/verification" open-type="reLaunch">返回我的认证</navigator>
+  </wu-f7-block>
+  <wu-f7-block spacing="compact">
+    <view class="privacy-note">
+      手机号、校内 UID 与操作资格独立确认。历史授权成功不代表当前仍有效。
+    </view>
+    <wu-f7-button
+      class="quiet"
+      disabled="{{busy}}"
+      bind:press="onReload"
+      variant="plain"
+      size="normal"
+    >
+      刷新当前状态
+    </wu-f7-button>
+    <wu-f7-button
+      class="quiet"
+      bind:press="onBack"
+      variant="plain"
+      size="normal"
+    >
+      返回
+    </wu-f7-button>
+    <navigator
+      class="text-link"
+      url="/pages/verification/verification"
+      open-type="reLaunch"
+    >
+      返回我的认证
+    </navigator>
+  </wu-f7-block>
 </view>

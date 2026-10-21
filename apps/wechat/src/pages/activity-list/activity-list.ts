@@ -12,11 +12,13 @@ import {
   initialActivityPreferenceView,
 } from '../../activities/preference';
 import { DirectoryNavigator } from '../../directory/navigation';
+import { initialActivityPanels, toggledActivityPanels } from './presentation';
 Page({
   data: {
     ...initialActivityView(),
     visit: initialActivityVisitView(),
     preference: initialActivityPreferenceView(),
+    uiPanels: initialActivityPanels(),
   },
   controller: undefined as ActivityController | undefined,
   visits: undefined as ActivityVisitController | undefined,
@@ -94,6 +96,14 @@ Page({
       url: '/pages/activity-native/activity-native?mode=mine',
     });
   },
+  onTogglePanel(e: { currentTarget: { dataset: { field: string } } }) {
+    this.setData({
+      uiPanels: toggledActivityPanels(
+        this.data.uiPanels,
+        e.currentTarget.dataset.field,
+      ),
+    });
+  },
   onRefresh() {
     void this.controller?.refresh();
   },
@@ -127,6 +137,7 @@ Page({
     );
   },
   clearPage() {
+    this.setData({ uiPanels: initialActivityPanels() });
     this.controller?.dispose();
     this.controller = undefined;
     this.visits?.dispose();

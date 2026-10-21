@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "消息",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "wu-tab-bar": "../../components/tab-bar/tab-bar",
+    "wu-icon": "../../components/icon/icon",
+    "wu-safe-top": "../../components/safe-top/safe-top"
+  },
+  "navigationStyle": "custom"
+}

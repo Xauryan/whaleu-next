@@ -1,0 +1,94 @@
+<template name="management-review">
+<view class="management-page moderation-native f7-ios-theme">
+ <view class="page-heading"><view class="section-label">仅限当前超级管理员</view><wu-f7-button class="icon-button" bind:press="onReload" disabled="{{busy}}" aria-label="重新核验当前状态" variant="plain"><wu-icon name="refresh" tone="accent" size="22" /></wu-f7-button></view>
+ <view class="status" aria-role="status">{{status}}</view>
+ <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+ <view wx:if="{{receiptStatus}}" class="notice" aria-role="status">{{receiptStatus}}</view>
+ <navigator wx:if="{{!hasSession}}" url="/pages/login/login">登录后继续<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+ <wu-f7-button wx:if="{{busy}}" class="quiet" bind:press="onStopWaiting" variant="plain">停止等待</wu-f7-button>
+ <wu-f7-block wx:if="{{mode === 'status' &amp;&amp; accountStatus}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+  <view class="section-title">{{accountStatus.effective === 'access_suspension' ? '封号中：大部分浏览与互动不可用' : accountStatus.effective === 'interaction_mute' ? '禁言中：可浏览，互动受限' : accountStatus.effective === 'clear' ? '当前无生效的禁言或封号' : '当前安全状态暂不能确认'}}</view>
+  <view wx:if="{{accountStatus.coverage === 'unavailable'}}" class="notice">部分安全信息暂不可用；以下仅展示已知记录，不代表已恢复权限。</view>
+  <view class="meta">核验时间（UTC）：{{accountStatus.checkedAt}}</view>
+  <view class="notice">封号不会退出登录。仍可查看自己的处罚原因、系统通知和私人申诉。禁言与封号分别计时；解除或到期其中一项，不会解除另一项。</view>
+  <wu-f7-block wx:for="{{accountStatus.current}}" wx:key="punishmentId" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+   <view class="section-title">{{item.kind === 'interaction_mute' ? '禁言' : '封号'}} · {{item.state === 'active' ? '生效中' : item.state === 'expired' ? '已到期' : item.state === 'superseded' ? '已被替代' : '已解除'}}</view>
+   <view selectable="true">原因：{{item.reason}}</view>
+   <view>开始（UTC）：{{item.startsAt}}</view><view>结束（UTC）：{{item.endsAt || '永久，需有权管理员明确解除'}}</view>
+   <navigator wx:if="{{item.canAppeal}}" url="/pages/safety-appeal/safety-appeal?punishmentId={{item.punishmentId}}">对此项处罚提出私人申诉<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+   <navigator wx:if="{{item.openAppealId}}" url="/pages/safety-appeal/safety-appeal?appealId={{item.openAppealId}}">查看已有申诉<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  </wu-f7-block>
+  <wu-f7-button class="quiet" bind:press="onHistory" disabled="{{busy || frozen}}" variant="plain">查看我的处罚历史</wu-f7-button>
+ </wu-f7-block>
+ <view wx:if="{{mode === 'appeal'}}" class="notice">申诉仅本人和当前有权的超级管理员可见，不会发布到公开反馈。申诉绑定具体处罚；提交不会自动解除处罚。</view>
+ <view wx:if="{{mode === 'punishment-management' || mode === 'appeal-management'}}" class="scope"><wu-icon name="shield" tone="muted" size="18" /><text>仅当前超级管理员可读取和处理。不显示分身与作者账号的映射，也不能新建任意账号处罚。</text></view>
+ <wu-f7-block wx:if="{{loaded &amp;&amp; !error &amp;&amp; !frozen &amp;&amp; !punishments.length &amp;&amp; !appeals.length &amp;&amp; !selectedPunishment &amp;&amp; !selectedAppeal}}" class="empty" strong="{{true}}" inset="{{true}}" spacing="compact"><wu-icon name="shield" tone="muted" size="32" /><view class="section-title">当前列表暂无记录</view><view class="notice">可重新核验最新记录，不代表其他账号没有处罚或申诉。</view></wu-f7-block>
+ <wu-f7-block wx:for="{{punishments}}" wx:key="punishmentId" class="case-row" strong="{{true}}" inset="{{true}}" spacing="compact">
+  <view class="row-heading"><view class="section-title">{{item.kind === 'interaction_mute' ? '禁言' : '封号'}}</view><text class="read-state">{{item.state === 'active' ? '生效中' : item.state === 'expired' ? '已到期' : item.state === 'superseded' ? '已被替代' : '已解除'}}</text></view><view class="body">{{item.reason}}</view><view class="meta">结束（UTC）：{{item.endsAt || '永久'}}</view>
+  <wu-f7-button data-id="{{item.punishmentId}}" class="secondary" bind:press="onSelectPunishment" disabled="{{busy || frozen}}" variant="tonal">查看并核验</wu-f7-button>
+ </wu-f7-block>
+ <wu-f7-block wx:for="{{appeals}}" wx:key="appealId" class="case-row" strong="{{true}}" inset="{{true}}" spacing="compact">
+  <view class="row-heading"><view class="section-title">{{item.punishment.kind === 'interaction_mute' ? '禁言申诉' : '封号申诉'}}</view><text class="read-state">{{item.state === 'pending' ? '待处理' : '已处理'}}</text></view><view class="meta">提交（UTC）：{{item.submittedAt}}</view>
+  <wu-f7-button data-id="{{item.appealId}}" class="secondary" bind:press="onSelectAppeal" disabled="{{busy || frozen}}" variant="tonal">查看申诉</wu-f7-button>
+ </wu-f7-block>
+ <wu-f7-button wx:if="{{nextCursor}}" class="quiet" bind:press="onMore" disabled="{{busy || frozen}}" variant="plain">下一页</wu-f7-button>
+ <wu-f7-block wx:if="{{selectedPunishment}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+  <view class="section-title">{{selectedPunishment.kind === 'interaction_mute' ? '禁言' : '封号'}} · {{selectedPunishment.state === 'active' ? '生效中' : selectedPunishment.state === 'expired' ? '已到期' : selectedPunishment.state === 'superseded' ? '已被替代' : '已解除'}}</view>
+  <view class="body">{{selectedPunishment.reason}}</view><view class="field-row"><text>开始（UTC）</text><text>{{selectedPunishment.startsAt}}</text></view><view class="field-row"><text>结束（UTC）</text><text>{{selectedPunishment.endsAt || '永久'}}</text></view>
+  <wu-f7-button class="disclosure" bind:press="onToggleDetails" aria-expanded="{{detailsExpanded}}" variant="plain">处罚核验信息<wu-icon name="{{detailsExpanded ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="18" /></wu-f7-button><view wx:if="{{detailsExpanded}}" class="reference">处罚编号：{{selectedPunishment.punishmentId}}<view>版本：{{selectedPunishment.revision}}</view></view>
+  <view wx:if="{{mode === 'appeal' &amp;&amp; selectedPunishment.canAppeal}}">
+   <textarea value="{{text}}" maxlength="4000" bindinput="onText" disabled="{{busy || frozen}}" placeholder="请填写私人申诉内容（最多 4000 字）" />
+   <wu-f7-button bind:press="onRequestAppeal" disabled="{{busy || frozen || !text}}" variant="plain">核对并提交私人申诉</wu-f7-button>
+  </view>
+  <navigator wx:if="{{selectedPunishment.openAppealId}}" url="/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}">查看已有申诉<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <view wx:if="{{mode === 'punishment-management'}}">
+   <wu-f7-button class="quiet" bind:press="onHistory" disabled="{{busy || frozen}}" variant="plain">查看该处罚所属账号的处罚历史</wu-f7-button>
+   <view wx:if="{{!canRelease}}" class="notice">当前记录只读，不能解除。操作能力以本次核验为准。</view><view wx:if="{{canRelease}}"><view class="field-label">解除理由</view><textarea value="{{reason}}" maxlength="255" bindinput="onReason" disabled="{{busy || frozen}}" placeholder="解除此项处罚的理由" /><wu-f7-button class="primary" bind:press="onRequestRelease" disabled="{{busy || frozen || !reason}}" variant="fill">核对并解除此项处罚</wu-f7-button></view>
+  </view>
+ </wu-f7-block>
+ <wu-f7-block wx:if="{{selectedAppeal}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+  <view class="section-title">{{selectedAppeal.state === 'pending' ? '申诉待处理' : '申诉已处理'}}</view>
+  <view>处罚：{{selectedAppeal.punishment.kind === 'interaction_mute' ? '禁言' : '封号'}} · {{selectedAppeal.punishment.state === 'active' ? '生效中' : selectedAppeal.punishment.state === 'expired' ? '已到期' : selectedAppeal.punishment.state === 'superseded' ? '已被替代' : '已解除'}}</view><view class="body">处罚原因：{{selectedAppeal.punishment.reason}}</view>
+  <view class="field-row"><text>开始（UTC）</text><text>{{selectedAppeal.punishment.startsAt}}</text></view><view class="field-row"><text>结束（UTC）</text><text>{{selectedAppeal.punishment.endsAt || '永久'}}</text></view>
+  <view class="field-label">申诉说明</view><view class="body" selectable="true">{{selectedAppeal.text}}</view><wu-f7-button class="disclosure" bind:press="onToggleDetails" aria-expanded="{{detailsExpanded}}" variant="plain">申诉核验信息<wu-icon name="{{detailsExpanded ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="18" /></wu-f7-button><view wx:if="{{detailsExpanded}}" class="reference">申诉编号：{{selectedAppeal.appealId}}<view>绑定处罚：{{selectedAppeal.punishment.punishmentId}}</view><view>处罚版本：{{selectedAppeal.punishment.revision}}</view></view>
+  <view wx:if="{{selectedAppeal.decision}}">处理结果：{{selectedAppeal.decision.outcome === 'released' ? '已解除申诉绑定的处罚' : selectedAppeal.decision.outcome === 'upheld' ? '维持原处罚' : '原处罚已不再生效，结案'}}<view>理由：{{selectedAppeal.decision.reason}}</view><view>处理时间：{{selectedAppeal.decision.recordedAt}}</view></view>
+  <view wx:if="{{!canDecide}}" class="notice">当前申诉只读，不能提交审核决定。请以本次核验结果为准。</view><view wx:if="{{canDecide}}"><view class="field-label">处理理由</view>
+   <textarea value="{{reason}}" maxlength="255" bindinput="onReason" disabled="{{busy || frozen}}" placeholder="填写处理理由，结果将私下通知申诉人" />
+   <wu-f7-button data-decision="upheld" class="secondary" bind:press="onRequestDecision" disabled="{{busy || frozen || !reason}}" variant="tonal">维持原处罚</wu-f7-button>
+   <wu-f7-button data-decision="released" class="secondary" bind:press="onRequestDecision" disabled="{{busy || frozen || !reason}}" variant="tonal">解除申诉绑定的处罚</wu-f7-button>
+   <wu-f7-button data-decision="closed_no_longer_effective" class="secondary" bind:press="onRequestDecision" disabled="{{busy || frozen || !reason}}" variant="tonal">原处罚已失效，结案</wu-f7-button>
+  </view>
+ </wu-f7-block>
+ <view wx:for="{{history}}" wx:key="punishmentId" class="timeline-item"><view>{{item.kind === 'interaction_mute' ? '禁言' : '封号'}} · {{item.state === 'active' ? '生效中' : item.state === 'expired' ? '已到期' : item.state === 'superseded' ? '已被替代' : '已解除'}}</view><view>{{item.reason}}</view><view>{{item.startsAt}} 至 {{item.endsAt || '永久'}}</view><view wx:if="{{item.terminal}}">终止：{{item.terminal.cause === 'expired' ? '自然到期' : item.terminal.cause === 'superseded' ? '新处罚替代' : item.terminal.cause === 'appeal_released' ? '申诉后解除' : '管理员解除'}} · {{item.terminal.effectiveAt}} · {{item.terminal.reason || ''}}</view></view>
+ <wu-f7-button wx:if="{{historyCursor}}" class="quiet" bind:press="onMoreHistory" disabled="{{busy || frozen}}" variant="plain">更多历史</wu-f7-button>
+ <wu-f7-block wx:if="{{confirming &amp;&amp; confirming !== 'cancel'}}" class="confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact">
+  <view class="section-title">确认{{confirming === 'submit_appeal' ? '提交私人申诉' : confirming === 'release' ? '解除这项处罚' : '处理这条申诉'}}？</view>
+  <view wx:if="{{selectedPunishment}}">{{selectedPunishment.kind === 'interaction_mute' ? '禁言' : '封号'}} · {{selectedPunishment.punishmentId}} · 版本 {{selectedPunishment.revision}}</view>
+  <view wx:if="{{selectedAppeal}}">申诉编号：{{selectedAppeal.appealId}}<view>决定：{{decision === 'released' ? '解除绑定的处罚' : decision === 'upheld' ? '维持原处罚' : '原处罚失效，结案'}}</view></view>
+  <view class="body">{{confirming === 'submit_appeal' ? text : reason}}</view>
+  <view class="notice">只处理明确显示的处罚或申诉。解除封号后，如禁言仍有效，互动仍受限。原请求结果未确认前不会生成新请求。</view>
+  <wu-f7-button class="primary" bind:press="onSubmit" disabled="{{busy || frozen}}" variant="fill">确认并提交</wu-f7-button><wu-f7-button class="quiet" bind:press="onClose" disabled="{{busy}}" variant="plain">返回修改</wu-f7-button>
+ </wu-f7-block>
+ <wu-f7-block wx:if="{{recordedReceipt}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+  <view class="section-title">原请求的历史回执</view><view>{{recordedReceipt.requestId}} · {{recordedReceipt.action === 'release' ? '解除处罚' : recordedReceipt.action === 'decide_appeal' ? '处理申诉' : '提交申诉'}} · {{recordedReceipt.outcome === 'applied' ? '已执行' : '未执行'}}</view>
+  <view wx:if="{{recordedReceipt.punishment}}">{{recordedReceipt.punishment.kind === 'interaction_mute' ? '禁言' : '封号'}} · {{recordedReceipt.punishment.punishmentId}} · 版本 {{recordedReceipt.punishment.revision}}</view>
+  <view wx:if="{{recordedReceipt.appealId}}">申诉：{{recordedReceipt.appealId}}</view><view wx:if="{{recordedReceipt.decision === 'released' ? '解除绑定的处罚' : recordedReceipt.decision === 'upheld' ? '维持原处罚' : '原处罚失效，结案'}}">历史决定：{{recordedReceipt.decision === 'released' ? '解除绑定的处罚' : recordedReceipt.decision === 'upheld' ? '维持原处罚' : '原处罚失效，结案'}}</view>
+  <view wx:if="{{recordedReceipt.recordedAt}}">记录时间：{{recordedReceipt.recordedAt}}</view>
+  <view class="notice">这是原请求的既有结果，不代表当前权限或最新处罚。当前状态以上方重新核验结果为准。</view>
+ </wu-f7-block>
+ <wu-f7-block wx:if="{{frozen}}" class="recovery" strong="{{true}}" inset="{{true}}" spacing="compact">
+  <view class="section-title">原请求待确认</view><view class="meta">{{pendingAction === 'release' ? '解除处罚' : pendingAction === 'decide_appeal' ? '处理申诉' : '提交申诉'}} · {{pendingPhase === 'cancel' ? '取消待确认' : '提交待确认'}}</view><view class="meta">{{pendingRequestId}}</view>
+  <view wx:if="{{pendingCommand}}">
+   <view wx:if="{{pendingCommand.punishment}}">冻结处罚：{{pendingCommand.punishment.kind === 'interaction_mute' ? '禁言' : '封号'}} · {{pendingCommand.punishment.punishmentId}} · 版本 {{pendingCommand.punishment.revision}}</view>
+   <view wx:if="{{pendingCommand.appealId}}">冻结申诉：{{pendingCommand.appealId}}</view>
+   <view wx:if="{{pendingCommand.text}}" selectable="true">原申诉内容：{{pendingCommand.text}}</view><view wx:if="{{pendingCommand.reason}}" selectable="true">原处理理由：{{pendingCommand.reason}}</view>
+   <view wx:if="{{pendingCommand.decision}}">原决定：{{pendingCommand.decision === 'released' ? '解除绑定的处罚' : pendingCommand.decision === 'upheld' ? '维持原处罚' : '原处罚失效，结案'}}</view>
+   <view class="meta" wx:if="{{pendingCommand.expectedStateVersion}}">冻结管理状态版本：{{pendingCommand.expectedStateVersion}}</view>
+  </view>
+  <view class="notice">查询不到回执不代表失败。离开页面或停止等待不会取消服务端处理；请保留本机数据，使用原账号查询。失去管理权限仍可恢复本账号原请求。</view>
+  <wu-f7-button class="primary" bind:press="onRecover" disabled="{{busy || !pendingRequestId}}" variant="fill">查询原请求回执</wu-f7-button><wu-f7-button class="secondary" bind:press="onRetry" disabled="{{busy || !pendingRequestId}}" variant="tonal">查询并重试原请求</wu-f7-button><wu-f7-button class="quiet" bind:press="onCancelRequest" disabled="{{busy || !pendingRequestId}}" variant="plain">取消原请求</wu-f7-button>
+ </wu-f7-block>
+ <wu-f7-block wx:if="{{confirming === 'cancel'}}" class="confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact"><view>确认取消未完成的原请求？若已经完成，将返回既有结果，不会回滚。</view><wu-f7-button class="primary" bind:press="onConfirmCancel" disabled="{{busy}}" variant="fill">确认取消原请求</wu-f7-button><wu-f7-button class="quiet" bind:press="onClose" disabled="{{busy}}" variant="plain">返回</wu-f7-button></wu-f7-block>
+ <view class="links"><navigator class="link" url="/pages/account-status/account-status">账号状态<wu-icon name="chevron-right" tone="muted" size="18" /></navigator><navigator class="link" url="/pages/system-notices/system-notices">我的系统通知<wu-icon name="chevron-right" tone="muted" size="18" /></navigator><navigator class="link" url="/pages/safety-appeal/safety-appeal">我的私人申诉与结果<wu-icon name="chevron-right" tone="muted" size="18" /></navigator></view>
+</view>
+</template>

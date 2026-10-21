@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse, render } from '../scripts/smoke-ratings.mjs';
+import { createRecoveryPressBridge } from './framework7-rating-recovery-native-harness.mjs';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -99,8 +100,8 @@ const buttons = (page, handler, dataset = {}) =>
   nodes(page).filter(
     (node) =>
       typeof node !== 'string' &&
-      node.tag === 'button' &&
-      node.attrs.bindtap === handler &&
+      node.tag === 'wu-f7-button' &&
+      node.attrs['bind:press'] === handler &&
       Object.entries(dataset).every(
         ([key, value]) => node.attrs[`data-${key}`] === value,
       ),
@@ -125,8 +126,30 @@ function tap(page, handler, dataset = {}) {
       .filter(([key]) => key.startsWith('data-'))
       .map(([key, value]) => [key.slice(5), value]),
   );
-  invoke(page, handler, renderedDataset);
+  const bridge = createRecoveryPressBridge({
+    page,
+    dist,
+    pageFile: path.join(
+      dist,
+      'pages/rating-category-editor/rating-category-editor',
+    ),
+  });
+  try {
+    const control = bridge.capture(handler, renderedDataset);
+    try {
+      assert.equal(
+        control.press(),
+        true,
+        `${handler} crosses actual native Component boundary`,
+      );
+    } finally {
+      control.detach();
+    }
+  } finally {
+    bridge.disposeProjection();
+  }
 }
+
 function assertPrivateProjection(page) {
   for (const value of page.patches) {
     const json = JSON.stringify(value);

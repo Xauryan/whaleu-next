@@ -1,0 +1,94 @@
+/* Framework7 v9.2.0 Dialog native port (MIT).
+ * Copyright (c) 2014 Vladimir Kharlampidi.
+ * See docs/vendor/framework7-v9.2.0/LICENSE. */
+@import '../../design/framework7-ios.wxss';
+@import '../f7-sheet/overlay.wxss';
+:host {
+  display: block;
+}
+.f7-dialog-layer {
+  z-index: 14500;
+}
+.f7-dialog-layer .f7-overlay-mask {
+  transition-duration: 400ms;
+}
+.f7-dialog-position {
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.f7-dialog-surface {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  width: var(--f7-dialog-width, 270px);
+  max-width: 100%;
+  max-height: calc(100% - 32px);
+  border-radius: var(--f7-dialog-border-radius, 32px);
+  background: var(--wu-f7-overlay-native-surface);
+  color: var(--f7-text-color);
+  font-size: var(--f7-dialog-font-size, 14px);
+  text-align: left;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(1.185);
+  transition:
+    transform 400ms,
+    opacity 400ms;
+}
+.f7-dialog-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.f7-dialog-closing {
+  transform: scale(1);
+}
+.f7-dialog-scroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 60vh;
+  width: 100%;
+}
+.f7-dialog-inner {
+  padding: var(--f7-dialog-inner-padding, 24px);
+  overflow-wrap: anywhere;
+}
+.f7-dialog-title {
+  font-size: var(--f7-dialog-title-font-size, 17px);
+  font-weight: var(--f7-dialog-title-font-weight, 600);
+}
+.f7-dialog-message {
+  line-height: var(--f7-dialog-text-line-height, 1.5);
+  white-space: pre-wrap;
+}
+.f7-dialog-title + .f7-dialog-message {
+  margin-top: 12px;
+}
+/* Existing f7-input keeps tested native IME ownership and 44px target. Its
+ * isolated 16px editor is an explicit adaptation from F7 dialog 14px/40px. */
+.f7-dialog-input {
+  margin-top: 15px;
+}
+.f7-dialog-error {
+  margin-top: 12px;
+  color: var(--f7-input-error-text-color, #ff3b30);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.f7-dialog-buttons {
+  display: flex;
+  flex-shrink: 0;
+  padding: 0 14px 14px;
+  gap: 8px;
+}
+.f7-dialog-button {
+  flex: 1;
+  min-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .f7-dialog-surface {
+    transition: none;
+  }
+}

@@ -499,6 +499,7 @@ test(
         assert.equal(direct.preview.author.mode, 'anonymous');
         assert.equal(direct.target.replyId, nested.id);
         noIdentityLeak(p.updatesView().items);
+        const start = p.transport.exchanges.length;
         await p.updates.open(direct.noticeId);
         assert.equal(
           (await p.runtime.ratingUpdates.unread(p.cancel)).unreadCount,
@@ -511,6 +512,32 @@ test(
         await p.thread.load(parsed);
         assert.equal(p.threadView().loaded, true, p.threadView().error);
         assert.equal(p.threadView().replies[0]?.id, nested.id);
+        assert.equal(
+          (await p.runtime.ratingUpdates.unread(p.cancel)).unreadCount,
+          1,
+          'Receiving content must not acknowledge the notice',
+        );
+        assert.equal(
+          p.transport.exchanges
+            .slice(start)
+            .some((exchange) => exchange.method === 'PUT'),
+          false,
+          'Source navigation and receiving content perform no acknowledgment PUT',
+        );
+        await p.updates.acknowledge(direct.noticeId);
+        assert.deepEqual(
+          p.transport.exchanges
+            .slice(start)
+            .filter((exchange) => exchange.method === 'PUT'),
+          [
+            {
+              path: `/v1/me/ratings/updates/${direct.noticeId}/read`,
+              method: 'PUT',
+              authorized: true,
+              status: 200,
+            },
+          ],
+        );
         assert.equal(
           (await p.runtime.ratingUpdates.unread(p.cancel)).unreadCount,
           0,

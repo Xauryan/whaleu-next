@@ -1,0 +1,161 @@
+import type { ApiClient } from '../api/client';
+import { ClientError } from '../api/errors';
+import {
+  CommunityController,
+  initialCommunityView,
+  type CommunityView,
+} from '../community/controller';
+import type { CommunityRuntime } from '../community/runtime';
+import {
+  decodeStudentNotices,
+  decodeStudentNoticeTarget,
+  studentUuid,
+  type StudentNotice,
+} from '../verification/student-contract';
+interface StudentNoticesView extends CommunityView {
+  readonly items: readonly StudentNotice[];
+  readonly loaded: boolean;
+  readonly canMore: boolean;
+}
+const initial = (): StudentNoticesView => ({
+  ...initialCommunityView(),
+  items: [],
+  loaded: false,
+  canMore: false,
+});
+/** Read-only listing plus explicit per-notice read. No verification mutation capability. */
+export class StudentNoticesReader extends CommunityController<StudentNoticesView> {
+  private page = 0;
+  constructor(
+    runtime: CommunityRuntime,
+    private readonly api: ApiClient | undefined,
+    render: (view: StudentNoticesView) => void,
+  ) {
+    super(runtime, initial, render);
+  }
+  protected override resetPrivate(): void {
+    this.page = 0;
+  }
+  protected override onSafetyInvalidated(): void {
+    void this.load();
+  }
+  async load(): Promise<void> {
+    this.stop();
+    this.page = 0;
+    this.update({ items: [], loaded: false, canMore: false, busy: false });
+    await this.fetch(false);
+  }
+  async more(): Promise<void> {
+    if (!this.view.busy && this.view.canMore) await this.fetch(true);
+  }
+  private async fetch(append: boolean): Promise<void> {
+    if (!this.available()) return;
+    if (!this.api) {
+      this.update({ error: '认证消息暂不可用', configured: false });
+      return;
+    }
+    const page = append ? this.page + 1 : 1;
+    await this.run(
+      (cancel) =>
+        this.api!.request(
+          {
+            path: '/v1/me/student-verification/notices',
+            method: 'GET',
+            authentication: 'required',
+            authReplay: 'once',
+            successStatus: 200,
+            decode: decodeStudentNotices,
+          },
+          { query: { page }, cancellation: cancel },
+        ),
+      (result) => {
+        if (result.page !== page)
+          throw new ClientError('protocol', 'Notice page mismatch');
+        const items = new Map(
+          (append ? this.view.items : []).map((item) => [item.id, item]),
+        );
+        for (const item of result.items) items.set(item.id, item);
+        this.page = page;
+        this.update({
+          items: [...items.values()],
+          loaded: true,
+          canMore: result.hasNext,
+        });
+      },
+      () => {
+        this.page = 0;
+        this.update({ items: [], loaded: false, canMore: false });
+      },
+    );
+  }
+  async open(
+    id: string,
+    navigate: (url: string) => Promise<void>,
+  ): Promise<void> {
+    if (
+      !this.api ||
+      !this.available() ||
+      this.view.busy ||
+      !this.view.items.some((item) => item.id === id && item.available)
+    )
+      return;
+    await this.run(
+      async (cancel) => {
+        const result = await this.api!.request(
+          {
+            path: `/v1/me/student-verification/notices/${studentUuid(id)}/target`,
+            method: 'GET',
+            authentication: 'required',
+            authReplay: 'once',
+            successStatus: 200,
+            decode: decodeStudentNoticeTarget,
+          },
+          { cancellation: cancel },
+        );
+        this.runtime.sessions.assertCurrent(this.owner);
+        if (cancel.isCancelled || result.status !== 'available') return;
+        const page = result.target.regionId
+          ? 'student-verification-review'
+          : 'student-verification';
+        await navigate(
+          `/pages/${page}/${page}?applicationId=${result.target.applicationId}${result.target.regionId ? `&regionId=${result.target.regionId}` : ''}`,
+        );
+      },
+      () => undefined,
+    );
+  }
+  async acknowledge(id: string): Promise<void> {
+    if (
+      !this.api ||
+      !this.available() ||
+      this.view.busy ||
+      !this.view.items.some((item) => item.id === id && !item.read)
+    )
+      return;
+    let settled = false;
+    await this.run(
+      (cancel) =>
+        this.api!.request(
+          {
+            path: `/v1/me/student-verification/notices/${studentUuid(id)}/read`,
+            method: 'POST',
+            authentication: 'required',
+            authReplay: 'never',
+            successStatus: 200,
+            decode: decodeStudentNoticeTarget,
+          },
+          { body: {}, cancellation: cancel },
+        ),
+      () => {
+        settled = true;
+      },
+      () => this.update({ items: [], loaded: false, canMore: false }),
+    );
+    if (settled) await this.load();
+  }
+  override cancel(): void {
+    super.cancel();
+    this.page = 0;
+    this.update({ items: [], loaded: false, canMore: false });
+  }
+}

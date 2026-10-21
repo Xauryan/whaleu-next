@@ -13,7 +13,7 @@
 }
 .identity-banner {
   padding: 20rpx;
-  background: #ecf6f5;
+  background: var(--wu-tint);
   border-radius: 12rpx;
   white-space: pre-wrap;
   line-height: 1.7;
@@ -27,12 +27,12 @@
   padding: 20rpx;
   margin: 18rpx 0;
   border-radius: 16rpx;
-  background: #fff;
-  border: 1rpx solid #e1e8e7;
+  background: var(--wu-surface);
+  border: 1rpx solid var(--wu-separator);
 }
 .message.self {
   margin-left: auto;
-  background: #e9f5f2;
+  background: var(--wu-tint);
 }
 .message .body {
   white-space: pre-wrap;
@@ -50,21 +50,21 @@
 }
 .confirm {
   padding: 24rpx;
-  border: 2rpx solid #cf7b5d;
+  border: 1rpx solid var(--wu-danger);
   border-radius: 16rpx;
-  background: #fff7ef;
+  background: var(--wu-danger-bg);
   margin: 20rpx 0;
 }
 .badge {
   padding: 4rpx 12rpx;
-  background: #d8eee8;
+  background: var(--wu-tint);
   border-radius: 18rpx;
 }
 .card textarea {
   box-sizing: border-box;
   width: 100%;
   padding: 20rpx;
-  border: 1rpx solid #d9e4df;
+  border: 1rpx solid var(--wu-separator);
   border-radius: 12rpx;
   min-height: 150rpx;
 }

@@ -1,13 +1,102 @@
-<import src="../../canteen-floor-scores/common.wxml" />
-<view class="screen">
- <view class="eyebrow">WHALEU · 食堂楼层评分</view><view class="title">楼层详情与评分</view>
- <template is="floor-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryFloorId,recoveryScore,recoveryPhase,busy,confirming,receiptMissing}}" />
- <block wx:if="{{loaded &amp;&amp; detail}}">
-  <view class="card"><view class="section-title">{{detail.floor.canteenName}} · {{detail.floor.label}}</view><view class="meta">原始楼层：{{detail.floor.sourceFloorKey}}</view></view>
-  <view class="card"><view class="section-title">这个楼层的评分记录</view><template is="floor-summary" data="{{summary:detail.floor.summary}}" /></view>
-  <view class="card"><view class="section-title">我的有效评分</view><view wx:if="{{detail.myScore.kind === 'recorded'}}">{{detail.myScore.score}} 分；已有有效评分不能重复提交。</view><view wx:elif="{{detail.myScore.kind === 'unavailable'}}">历史评分尚未确认，不能当作尚未评分。</view><view wx:else>已确认尚未评分。</view><view class="notice">{{blocker}}</view></view>
-  <view wx:if="{{canScore}}" class="card"><view class="section-title">输入 1 至 5 分，支持小数</view><input type="digit" bindinput="onScore" disabled="{{busy || frozen || confirming}}" placeholder="例如 4.75" /><view>本次分数：{{selectedScore === null ? '尚未填写有效分数' : selectedScore}}</view><button bindtap="onConfirm" disabled="{{busy || frozen || selectedScore === null}}">核对评分</button></view>
- </block>
- <view wx:if="{{confirming === 'score' &amp;&amp; detail}}" class="card confirmation"><view class="section-title">确认提交楼层评分</view><view>{{detail.floor.canteenName}} · {{detail.floor.label}}：{{selectedScore}} 分</view><view class="notice">已有有效评分后不能重复提交；当前没有编辑或删除入口。评分只计入这个楼层。</view><button bindtap="onSubmit" disabled="{{busy}}">确认提交</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回修改</button></view>
- <view class="notice">附言、图片与整座食堂汇总尚未开放。</view>
+<import src="../../canteen-floor-scores/framework7-product.wxml" />
+<view class="screen dining-product has-dock f7-ios-theme f7-dining-product">
+  <wu-f7-block spacing="compact">
+    <template is="floor-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryFloorId,recoveryScore,recoveryPhase,busy,confirming,receiptMissing,loaded}}" />
+  </wu-f7-block>
+  <block wx:if="{{loaded && detail}}">
+    <view class="dp-hero">
+      <view class="meta">
+        {{detail.floor.canteenName}}
+      </view>
+      <view class="title">
+        {{detail.floor.label}}
+      </view>
+      <template is="floor-summary" data="{{summary:detail.floor.summary}}" />
+    </view>
+    <view class="dp-own">
+      <view wx:if="{{detail.myScore.kind === 'recorded'}}">
+        我的评分
+        <text class="dp-own-value">
+          {{detail.myScore.score}}
+        </text>
+      </view>
+      <view wx:elif="{{detail.myScore.kind === 'unavailable'}}" class="notice">
+        我的历史评分暂不能确认
+      </view>
+      <view class="meta" wx:else="">
+        还未评分
+      </view>
+      <view wx:if="{{blocker && !canScore}}" class="notice">
+        {{blocker}}
+      </view>
+    </view>
+    <view class="dp-heading">
+      <view class="meta">
+        楼层评分独立于窗口评分
+      </view>
+      <wu-f7-button class="dp-plain" data-panel="info" aria-label="楼层信息" bind:press="onTogglePanel" variant="plain">
+        <wu-icon name="more" size="22" />
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{uiPanel === 'info'}}" class="dp-disclosure">
+      <view class="meta">
+        来源楼层：{{detail.floor.sourceFloorKey}}
+      </view>
+      <view class="notice">
+        评分只计入这个楼层，不混入窗口评分。
+      </view>
+    </view>
+    <view wx:if="{{canScore}}">
+      <view class="dp-dock">
+        <wu-f7-button class="primary" data-panel="score" disabled="{{busy || frozen || confirming}}" bind:press="onTogglePanel" variant="fill" size="large">
+          为楼层评分
+        </wu-f7-button>
+      </view>
+      <view wx:if="{{uiPanel === 'score' && !confirming}}" class="dp-mask">
+        <view class="dp-sheet">
+          <view class="dp-heading">
+            <view class="section-title">
+              为 {{detail.floor.label}}评分
+            </view>
+            <wu-f7-button class="dp-plain" bind:press="onClosePanel" variant="plain">
+              关闭
+            </wu-f7-button>
+          </view>
+          <view class="meta">
+            1 至 5 分，可填小数
+          </view>
+          <wu-f7-input type="digit" disabled="{{busy || frozen || confirming}}" placeholder="填写分数，如 4.75" bind:input="onScore" />
+          <view class="meta">
+            {{selectedScore === null ? '填写你的真实感受' : '本次 ' +
+            selectedScore + ' 分'}}
+          </view>
+          <wu-f7-button class="primary" disabled="{{busy || frozen || selectedScore === null}}" bind:press="onConfirm" variant="fill" size="large">
+            继续
+          </wu-f7-button>
+        </view>
+      </view>
+    </view>
+  </block>
+  <view wx:if="{{confirming === 'score' && detail}}" class="dp-mask">
+    <view class="dp-sheet">
+      <view class="section-title">
+        确认楼层评分
+      </view>
+      <view class="title">
+        {{selectedScore}} 分
+      </view>
+      <view class="body">
+        {{detail.floor.canteenName}} · {{detail.floor.label}}
+      </view>
+      <view class="notice">
+        已有有效评分后不能重复提交；当前没有编辑或删除入口。评分只计入这个楼层。
+      </view>
+      <wu-f7-button class="primary" disabled="{{busy}}" bind:press="onSubmit" variant="fill" size="large">
+        确认提交
+      </wu-f7-button>
+      <wu-f7-button disabled="{{busy}}" bind:press="onCloseConfirmation" variant="tonal">
+        返回修改
+      </wu-f7-button>
+    </view>
+  </view>
 </view>

@@ -1,3 +1,4 @@
+import { createRatingEmittedBridge } from '../test/rating-native-emitted-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -366,7 +367,10 @@ export async function smokeRatingsR2B({ app, dist, flush }) {
       path.join(dist, `pages/rating-${mode}/rating-${mode}.wxml`),
       'utf8',
     );
-  const common = readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8');
+  const common =
+    readFileSync(path.join(dist, 'ratings/common.wxml'), 'utf8') +
+    readFileSync(path.join(dist, 'ratings/product.wxml'), 'utf8') +
+    readFileSync(path.join(dist, 'ratings/framework7-product.wxml'), 'utf8');
   const templates = Object.fromEntries(
     parse(common)
       .children.filter((n) => typeof n !== 'string')
@@ -380,9 +384,11 @@ export async function smokeRatingsR2B({ app, dist, flush }) {
       typeof n === 'string' ? [] : [n, ...nodes(n.children)],
     );
   const buttons = (mode, page, handler) =>
-    nodes(shown(mode, page)).filter((n) => n.attrs.bindtap === handler);
+    nodes(shown(mode, page)).filter(
+      (n) => n.attrs.bindtap === handler || n.attrs['bind:press'] === handler,
+    );
   const tap = (page, handler, dataset = {}) =>
-    page[handler]({ currentTarget: { dataset } });
+    page.__ratingEmittedBridge.tap(handler, dataset);
   const mount = (mode, route = {}) => {
     let page;
     const oldPage = globalThis.Page;
@@ -401,12 +407,17 @@ export async function smokeRatingsR2B({ app, dist, flush }) {
     };
     for (const [, handler] of (
       source(mode) + (source(mode).includes('<template') ? common : '')
-    ).matchAll(/bind(?:tap|input)="([^"]+)"/g))
+    ).matchAll(/bind(?::(?:press|input)|tap|input)="([^"]+)"/g))
       assert.equal(
         typeof page[handler],
         'function',
         `emitted ${mode}.${handler}`,
       );
+    page.__ratingEmittedBridge = createRatingEmittedBridge({
+      page,
+      pageFile: path.join(dist, `pages/rating-${mode}/rating-${mode}`),
+      dist,
+    });
     pages.push(page);
     page.onLoad(route);
     page.onShow();
@@ -439,7 +450,7 @@ export async function smokeRatingsR2B({ app, dist, flush }) {
     await flush();
     assert.equal(page.data.loaded, true);
     assert.equal(buttons('thread', page, 'onLike').length, 2);
-    assert.ok(visible('thread', page).includes('0 赞'));
+    assert.ok(visible('thread', page).includes('赞 0'));
     tap(page, 'onLike', { id: rootId });
     tap(page, 'onLike', { id: rootId });
     await flush();
@@ -448,8 +459,8 @@ export async function smokeRatingsR2B({ app, dist, flush }) {
     assert.equal(transitions, 1);
     assert.equal(commands[0].body.liked, true);
     assert.equal(commands[0].body.expectedLikeRevision, revision);
-    assert.ok(visible('thread', page).includes('取消赞'));
-    assert.ok(visible('thread', page).includes('1 赞'));
+    assert.ok(visible('thread', page).includes('已赞'));
+    assert.ok(visible('thread', page).includes('已赞 1'));
     tap(page, 'onLike', { id: rootId });
     await flush();
     assert.equal(commands[1].body.liked, false);
@@ -469,8 +480,8 @@ export async function smokeRatingsR2B({ app, dist, flush }) {
     page = thread();
     await flush();
     assert.equal(buttons('thread', page, 'onLike').length, 0);
-    assert.ok(visible('thread', page).includes('暂时未知'));
-    assert.equal(visible('thread', page).includes('0 赞'), false);
+    assert.ok(visible('thread', page).includes('点赞暂不可用'));
+    assert.equal(visible('thread', page).includes('赞 0'), false);
     page.onUnload();
     state.unknown = false;
     let detail = mount('detail', { targetId });
@@ -504,6 +515,7 @@ export async function smokeRatingsR2B({ app, dist, flush }) {
     tap(detail, 'onSort', { sort: 'likes', order: 'desc' });
     await flush();
     clear('detail', detail);
+    tap(detail, 'onTogglePanel', { panel: 'sort' });
     assert.equal(
       buttons('detail', detail, 'onSort').length,
       4,
@@ -523,8 +535,8 @@ export async function smokeRatingsR2B({ app, dist, flush }) {
     await flush();
     assert.equal(updates.data.category, 'like');
     assert.ok(visible('updates', updates).includes(actorName));
-    assert.ok(visible('updates', updates).includes('有人赞了你的评价'));
-    assert.ok(visible('updates', updates).includes('有人赞了你的回复'));
+    assert.ok(visible('updates', updates).includes('赞了你的评价'));
+    assert.ok(visible('updates', updates).includes('赞了你的回复'));
     for (const currentNotice of [noticeId, replyNoticeId]) {
       const before = reads.length;
       tap(updates, 'onOpen', { id: currentNotice });
@@ -540,6 +552,24 @@ export async function smokeRatingsR2B({ app, dist, flush }) {
       page = mount('thread', route);
       await flush();
       assert.equal(page.data.loaded, true);
+      assert.equal(
+        reads.length,
+        before,
+        'receiving content does not acknowledge its notice',
+      );
+      page.onRefresh();
+      await flush();
+      page.onCollapse();
+      page.onExpand();
+      await flush();
+      assert.equal(page.data.loaded, true);
+      assert.equal(
+        reads.length,
+        before,
+        'refresh and expand remain nonmutating',
+      );
+      tap(updates, 'onRead', { id: currentNotice });
+      await flush();
       assert.equal(reads.length, before + 1);
       assert.ok(
         reads.at(-1).url.endsWith(`/like-updates/${currentNotice}/read`),

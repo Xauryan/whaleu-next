@@ -1,30 +1,173 @@
-<view class="screen">
-  <view class="title">评分图片讨论</view>
-  <view class="notice">评价最多 9 图，回复最多 3 图，可只发图片。每次选择一张，上传准备好后再选下一张。</view>
-  <view wx:if="{{error}}" class="notice">{{error}}</view><view class="notice">{{editor.message}}</view>
-  <view wx:if="{{noticePreview}}" class="card"><view>{{noticePreview.author}}</view><view>{{noticePreview.body}}</view><view>当前图片数量：{{noticePreview.imageCount}}</view></view>
-  <button wx:if="{{subscription.status === 'known'}}" bindtap="onSubscription" disabled="{{busy || editor.frozen || editor.selected.length}}">{{subscription.subscribed ? '取消订阅' : '订阅目标更新'}}</button>
-  <button bindtap="onRefresh" disabled="{{busy}}">重新核验当前范围</button>
-  <button wx:if="{{canCompose || recovery || editor.selected.length}}" bindtap="onCompose" disabled="{{busy || editor.frozen}}">{{editor.selected.length ? '继续原图片草稿' : '撰写当前评价 / 回复'}}</button>
-  <view class="chips"><button data-sort="time" bindtap="onSort" disabled="{{busy}}">最新评价</button><button data-sort="likes" bindtap="onSort" disabled="{{busy}}">按赞排序</button></view>
-  <view wx:for="{{rows}}" wx:key="id" class="card"><view class="author">{{item.author}}</view><view class="body">{{item.body}}</view>
-    <button wx:if="{{item.imageCount}}" data-id="{{item.id}}" bindtap="onImage" disabled="{{busy}}">查看完整图片组（{{item.imageCount}} 张）</button>
-    <button wx:if="{{likes[item.id].status === 'known'}}" data-id="{{item.id}}" bindtap="onLike" disabled="{{busy || editor.frozen || editor.selected.length}}">{{likes[item.id].liked ? '取消赞' : '赞'}} {{likes[item.id].count}}</button>
-    <button data-id="{{item.id}}" bindtap="onDelete" disabled="{{busy || editor.frozen}}">作者 / 管理员删除选项</button>
-    <button wx:if="{{!item.reply}}" data-id="{{item.id}}" bindtap="onThread" disabled="{{busy}}">打开讨论</button>
-    <button wx:if="{{item.reply &amp;&amp; item.canReply}}" data-id="{{item.id}}" bindtap="onCompose" disabled="{{busy || editor.frozen}}">回复这一条</button>
-  </view><button wx:if="{{hasMore}}" bindtap="onMore" disabled="{{busy}}">继续读取</button>
-  <view class="card"><button bindtap="onRecover" disabled="{{busy}}">查询原业务回执并恢复图片</button><button bindtap="onRetry" disabled="{{busy}}">以原编号重试已冻结发布</button><button bindtap="onRequestCancel" disabled="{{busy}}">明确取消原请求</button>
-    <view wx:if="{{cancelConfirmation}}"><view class="notice">只在服务端明确关闭原请求、图片批次且原生上传完成后释放记录。已经发布的内容不会被伪装为取消。</view><button bindtap="onCancelOriginal" disabled="{{busy}}">确认取消原请求</button><button bindtap="onDismissCancel">返回</button></view>
+<view class="screen management-page rating-discussion-media f7-ios-theme f7-rating-recovery">
+  <wu-f7-block class="f7-recovery-content" spacing="compact">
+  <view class="management-context">
+    <view class="management-context-icon">
+      <wu-icon name="image" tone="accent" size="22" />
+    </view>
+    <view class="management-context-copy">
+      <view class="context-title">
+        {{composerOpen ? '当前图片草稿' : '评价与回复'}}
+      </view>
+      <view class="meta">
+        评分图片讨论
+      </view>
+    </view>
   </view>
-  <view wx:if="{{composerOpen}}" class="card"><view class="section-title">当前草稿（最多 {{maximum}} 图）</view>
-    <button wx:for="{{authorModes}}" wx:key="*this" data-mode="{{item}}" bindtap="onAuthorMode" disabled="{{busy || editor.frozen}}">{{item === 'named' ? '实名' : '本目标分身'}}</button>
+  <view class="notice">
+    评价最多 9 图，回复最多 3 图，可只发图片。每次选择一张，上传准备好后再选下一张。
+  </view>
+  <view wx:if="{{error}}" class="notice">
+    {{error}}
+  </view>
+  <view class="notice">
+    {{editor.message}}
+  </view>
+  <view wx:if="{{noticePreview}}" class="card">
+    <view>
+      {{noticePreview.author}}
+    </view>
+    <view>
+      {{noticePreview.body}}
+    </view>
+    <view>
+      当前图片数量：{{noticePreview.imageCount}}
+    </view>
+  </view>
+  <view wx:if="{{noticeRead}}" class="notice">
+    <view wx:if="{{noticeRead.status === 'read'}}">本条通知已确认已读。</view>
+    <view wx:elif="{{noticeRead.status === 'unknown'}}">结果尚未确认，可重试确认原通知。</view>
+    <view wx:elif="{{noticeRead.status === 'unavailable'}}">通知确认暂不可用，请返回更新列表或重新核验范围。</view>
+    <view wx:else>打开或加载内容不会自动标记通知已读。</view>
+    <wu-f7-button bind:press="onReadNotice" interaction-key="{{noticeRead.interactionKey}}" disabled="{{!noticeRead.canAcknowledge}}" loading="{{noticeRead.status === 'pending'}}" class="management-action" variant="tonal">
+      {{noticeRead.status === 'unknown' ? '重试确认原通知' : '标记本条通知为已读'}}
+    </wu-f7-button>
+  </view>
+  <wu-f7-button wx:if="{{subscription.status === 'known'}}" bind:press="onSubscription" disabled="{{busy || editor.frozen || editor.selected.length}}" class="management-action" variant="tonal">
+    {{subscription.subscribed ? '取消订阅' : '订阅目标更新'}}
+  </wu-f7-button>
+  <wu-f7-button bind:press="onRefresh" disabled="{{busy}}" class="management-quiet" variant="plain">
+    重新核验当前范围
+  </wu-f7-button>
+  <wu-f7-button wx:if="{{canCompose || recovery || editor.selected.length}}" bind:press="onCompose" disabled="{{busy || editor.frozen}}" class="management-primary" variant="fill" size="large">
+    {{editor.selected.length ? '继续原图片草稿' : '撰写当前评价 / 回复'}}
+  </wu-f7-button>
+  <view class="chips">
+    <wu-f7-button data-sort="time" bind:press="onSort" disabled="{{busy}}" class="management-action management-choice" variant="tonal">
+      最新评价
+    </wu-f7-button>
+    <wu-f7-button data-sort="likes" bind:press="onSort" disabled="{{busy}}" class="management-action management-choice" variant="tonal">
+      按赞排序
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{composerOpen}}" class="card management-editor">
+    <view class="section-title">
+      当前草稿（最多 {{maximum}} 图）
+    </view>
+    <wu-f7-button wx:for="{{authorModes}}" wx:key="*this" data-mode="{{item}}" bind:press="onAuthorMode" disabled="{{busy || editor.frozen}}" class="management-action management-choice {{authorMode === item ? 'is-selected' : ''}}" variant="{{authorMode === item ? 'fill' : 'tonal'}}">
+      {{item === 'named' ? '公开昵称' : '本目标分身'}}
+    </wu-f7-button>
     <textarea value="{{text}}" bindinput="onText" maxlength="-1" placeholder="正文最多 500 字，也可以只发图片" disabled="{{busy || editor.frozen}}" />
-    <view wx:for="{{editor.selected}}" wx:key="memberId"><view>第 {{index + 1}} 张：{{item.ready ? '已准备好' : '需要恢复'}}</view><button data-id="{{item.memberId}}" bindtap="onRemove" disabled="{{busy || editor.frozen}}">移除</button><button data-id="{{item.memberId}}" data-direction="-1" bindtap="onMove" disabled="{{busy || editor.frozen}}">上移</button><button data-id="{{item.memberId}}" data-direction="1" bindtap="onMove" disabled="{{busy || editor.frozen}}">下移</button></view>
-    <view wx:if="{{editor.upload.active}}">{{editor.upload.status}} {{editor.upload.progress}}%</view>
-    <button bindtap="onChoose" disabled="{{busy || editor.frozen || editor.selected.length &gt;= maximum}}">选择并上传下一张</button>
-    <button bindtap="onPublish" disabled="{{busy || editor.frozen || !authorMode || (!text &amp;&amp; !editor.selected.length)}}">确认发布完整内容</button><button bindtap="onCloseComposer">关闭并清空本地正文</button>
+    <view wx:for="{{editor.selected}}" wx:key="memberId" class="management-image-row">
+      <view>
+        第 {{index + 1}} 张：{{item.ready ? '已准备好' : '需要恢复'}}
+      </view>
+      <wu-f7-button data-id="{{item.memberId}}" bind:press="onRemove" disabled="{{busy || editor.frozen}}" class="management-action" variant="tonal">
+        移除
+      </wu-f7-button>
+      <wu-f7-button data-id="{{item.memberId}}" data-direction="-1" bind:press="onMove" disabled="{{busy || editor.frozen}}" class="management-action" variant="tonal">
+        上移
+      </wu-f7-button>
+      <wu-f7-button data-id="{{item.memberId}}" data-direction="1" bind:press="onMove" disabled="{{busy || editor.frozen}}" class="management-action" variant="tonal">
+        下移
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{editor.upload.active}}">
+      {{editor.upload.status}} {{editor.upload.progress}}%
+    </view>
+    <wu-f7-button bind:press="onChoose" disabled="{{busy || editor.frozen || editor.selected.length &gt;= maximum}}" class="management-action" variant="tonal">
+      选择并上传下一张
+    </wu-f7-button>
+    <wu-f7-button bind:press="onPublish" disabled="{{busy || editor.frozen || !authorMode || (!text &amp;&amp; !editor.selected.length)}}" class="management-primary" variant="fill" size="large">
+      确认发布完整内容
+    </wu-f7-button>
+    <wu-f7-button bind:press="onCloseComposer" class="management-quiet" variant="plain">
+      关闭并清空本地正文
+    </wu-f7-button>
   </view>
-  <view wx:if="{{gallery.open}}" class="modal-mask"><view class="modal"><image wx:if="{{gallery.localSrc}}" class="discussion-image" mode="aspectFit" src="{{gallery.localSrc}}" /><view wx:else>图片正在核验或暂不可用</view><view>{{gallery.index + 1}} / {{gallery.count}}</view><button bindtap="onPreviousImage" disabled="{{gallery.index === 0}}">上一张</button><button bindtap="onNextImage" disabled="{{gallery.index + 1 &gt;= gallery.count}}">下一张</button><button bindtap="onCloseImage">关闭并释放图片</button></view></view>
-  <navigator url="/pages/rating-recovery/rating-recovery">旧版本原请求恢复</navigator>
+  <view wx:for="{{rows}}" wx:key="id" class="card management-post">
+    <view class="author">
+      {{item.author}}
+    </view>
+    <view class="body">
+      {{item.body}}
+    </view>
+    <wu-f7-button wx:if="{{item.imageCount}}" data-id="{{item.id}}" bind:press="onImage" disabled="{{busy}}" class="management-action" variant="tonal">
+      查看完整图片组（{{item.imageCount}} 张）
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{likes[item.id].status === 'known'}}" data-id="{{item.id}}" bind:press="onLike" disabled="{{busy || editor.frozen || editor.selected.length}}" class="management-action" variant="tonal">
+      {{likes[item.id].liked ? '取消赞' : '赞'}} {{likes[item.id].count}}
+    </wu-f7-button>
+    <wu-f7-button data-id="{{item.id}}" bind:press="onDelete" disabled="{{busy || editor.frozen}}" class="management-action" variant="tonal">
+      作者 / 管理员删除选项
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{!item.reply}}" data-id="{{item.id}}" bind:press="onThread" disabled="{{busy}}" class="management-action" variant="tonal">
+      打开讨论
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{item.reply &amp;&amp; item.canReply}}" data-id="{{item.id}}" bind:press="onCompose" disabled="{{busy || editor.frozen}}" class="management-primary" variant="fill" size="large">
+      回复这一条
+    </wu-f7-button>
+  </view>
+  <wu-f7-button wx:if="{{hasMore}}" bind:press="onMore" disabled="{{busy}}" class="management-action" variant="tonal">
+    继续读取
+  </wu-f7-button>
+  <view wx:if="{{gallery.open}}" class="modal-mask">
+    <view class="modal">
+      <image wx:if="{{gallery.localSrc}}" class="discussion-image" mode="aspectFit" src="{{gallery.localSrc}}" />
+      <view wx:else>
+        图片正在核验或暂不可用
+      </view>
+      <view>
+        {{gallery.index + 1}} / {{gallery.count}}
+      </view>
+      <wu-f7-button bind:press="onPreviousImage" disabled="{{gallery.index === 0}}" class="management-action" variant="tonal">
+        上一张
+      </wu-f7-button>
+      <wu-f7-button bind:press="onNextImage" disabled="{{gallery.index + 1 &gt;= gallery.count}}" class="management-action" variant="tonal">
+        下一张
+      </wu-f7-button>
+      <wu-f7-button bind:press="onCloseImage" class="management-quiet" variant="plain">
+        关闭并释放图片
+      </wu-f7-button>
+    </view>
+  </view>
+  <navigator url="/pages/rating-recovery/rating-recovery" class="management-link">
+    旧版本原请求恢复
+    <wu-icon name="chevron-right" tone="muted" size="22" />
+  </navigator>
+  <view class="card management-recovery">
+    <view class="section-title">
+      原图片请求
+    </view>
+    <wu-f7-button bind:press="onRecover" disabled="{{busy}}" class="management-primary" variant="fill" size="large">
+      查询原业务回执并恢复图片
+    </wu-f7-button>
+    <wu-f7-button bind:press="onRetry" disabled="{{busy}}" class="management-action" variant="tonal">
+      以原编号重试已冻结发布
+    </wu-f7-button>
+    <wu-f7-button bind:press="onRequestCancel" disabled="{{busy}}" class="management-action" variant="tonal">
+      明确取消原请求
+    </wu-f7-button>
+    <view wx:if="{{cancelConfirmation}}" class="management-confirmation" aria-role="alert">
+      <view class="notice">
+        只在服务端明确关闭原请求、图片批次且原生上传完成后释放记录。已经发布的内容不会被伪装为取消。
+      </view>
+      <wu-f7-button bind:press="onCancelOriginal" disabled="{{busy}}" class="management-destructive" variant="tonal" tone="danger">
+        确认取消原请求
+      </wu-f7-button>
+      <wu-f7-button bind:press="onDismissCancel" class="management-action" variant="plain">
+        返回
+      </wu-f7-button>
+    </view>
+  </view>
+  </wu-f7-block>
 </view>

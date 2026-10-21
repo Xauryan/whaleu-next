@@ -1,0 +1,187 @@
+/* Framework7 v9.2.0 native information-family composition, MIT.
+ * Copyright (c) 2014 Vladimir Kharlampidi.
+ * Real isolated Button/Input/List/ListItem/Block own control geometry.
+ * Native navigators, multiline editors and media remain platform-owned.
+ * No new overlay, reader lease or business state is introduced. */
+@import '../../design/framework7-ios.wxss';
+
+.f7-information-screen {
+  padding: 1px 0 calc(24px + env(safe-area-inset-bottom));
+  background: var(--f7-list-strong-bg-color);
+  color: var(--f7-text-color);
+}
+.f7-information-screen .toolbar {
+  min-height: 52px;
+  gap: 12px;
+}
+.f7-information-screen .scope-caption,
+.f7-information-screen .meta,
+.f7-information-screen .status,
+.f7-information-screen .notice,
+.f7-information-screen .reading-notes,
+.f7-information-screen .organization-meta,
+.f7-information-screen .article-meta,
+.f7-information-screen .article-version,
+.f7-information-screen .version-label,
+.f7-information-screen .announcement-meta {
+  color: var(--f7-block-footer-text-color);
+  font-size: var(--f7-block-footer-font-size);
+  line-height: 1.5;
+}
+.f7-information-screen .error {
+  color: var(--f7-input-error-text-color);
+  font-size: var(--f7-block-footer-font-size);
+}
+.f7-information-screen .icon-button,
+.f7-information-screen .text-button,
+.f7-information-screen .quiet-button,
+.f7-information-screen .primary-button,
+.f7-information-screen .secondary-button,
+.f7-information-screen .danger-button,
+.f7-information-screen .disclosure,
+.f7-information-screen .segment,
+.f7-information-screen .category-option,
+.f7-information-screen .tab,
+.f7-information-screen .announcement-open,
+.f7-information-screen .image-link,
+.f7-information-screen .campus-result {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: inherit;
+}
+.f7-information-screen .icon-button {
+  flex: 0 0 44px;
+  width: 44px;
+}
+.f7-information-screen .tabs,
+.f7-information-screen .segmented {
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.f7-information-screen .tab.active::before {
+  display: none;
+}
+.f7-information-screen .segmented > wu-f7-button,
+.f7-information-screen .actions > wu-f7-button {
+  flex: 1;
+  min-width: 0;
+}
+.f7-information-screen .category-options {
+  gap: 8px;
+}
+.f7-information-screen .search-field {
+  padding: 0;
+  background: transparent;
+}
+.f7-information-screen .search-field > wu-f7-input {
+  flex: 1;
+  min-width: 0;
+}
+.f7-information-screen .organization-row,
+.f7-information-screen .announcement-row,
+.f7-information-screen .announcement-article,
+.f7-information-screen .public-organization,
+.f7-information-screen .organization-form,
+.f7-information-screen .review-section,
+.f7-information-screen .member-lookup,
+.f7-information-screen .recovery,
+.f7-information-screen .reading-notes,
+.f7-information-screen .member-disclosure,
+.f7-information-screen .media-section-heading {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.f7-information-screen .organization-symbol {
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+  border-radius: 8px;
+  background: var(--f7-page-bg-color);
+}
+.f7-information-screen .organization-heading,
+.f7-information-screen .announcement-title,
+.f7-information-screen .slot-label,
+.f7-information-screen .person-name {
+  color: var(--f7-list-item-title-text-color);
+  font-size: var(--f7-list-item-title-font-size);
+  line-height: var(--f7-list-item-title-line-height);
+}
+.f7-information-screen .organization-intro {
+  color: var(--f7-list-item-text-text-color);
+  font-size: var(--f7-list-item-text-font-size);
+}
+.f7-information-row-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+.f7-information-row-label > text {
+  flex: 1;
+  min-width: 0;
+}
+.announcement-open .f7-information-row-label {
+  display: block;
+}
+.f7-information-screen .reading-notes > view {
+  padding: 0 16px 16px;
+  margin: 0;
+}
+.f7-information-screen .utility-row,
+.f7-information-screen .create-link {
+  min-height: 44px;
+  color: var(--f7-theme-color);
+  font-size: 15px;
+}
+.f7-information-screen > .utility-row,
+.f7-information-screen > .quiet-button,
+.f7-information-screen > .notice,
+.f7-information-screen > .image-reader,
+.f7-information-screen > .save-actions,
+.f7-information-screen > view > .media-slot,
+.f7-information-screen > view > .members {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.f7-information-screen .field {
+  padding: 12px 0;
+  border-color: var(--f7-list-item-border-color);
+}
+.f7-information-screen textarea {
+  color: var(--f7-input-text-color);
+  font-size: var(--f7-input-font-size);
+  background: var(--f7-page-bg-color);
+  border-radius: 8px;
+  padding: 12px;
+}
+.f7-information-screen .article-title,
+.f7-information-screen .organization-name {
+  color: var(--f7-text-color);
+  font-size: 24px;
+  letter-spacing: 0;
+}
+.f7-information-screen .announcement-body,
+.f7-information-screen .organization-description {
+  color: var(--f7-text-color);
+  font-size: var(--f7-block-font-size);
+  line-height: 1.8;
+}
+.f7-information-screen .empty-title {
+  color: var(--f7-text-color);
+  font-size: 17px;
+}

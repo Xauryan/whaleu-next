@@ -292,7 +292,7 @@ test('comment own-anonymous forcing wins over named defaults, uses independent c
   assert.equal(s.view().identityForced, true);
   s.controller.setAuthorMode('named');
   assert.equal(s.view().authorMode, 'anonymous');
-  s.controller.setText('根评论');
+  s.controller.setText('根回复');
   assert.equal(s.view().canSubmit, true);
   await s.controller.submit();
   assert.equal(

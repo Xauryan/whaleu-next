@@ -1,0 +1,4 @@
+<view class="f7-ios-theme f7-segmented" aria-role="tablist" aria-label="{{label}}">
+  <view wx:if="{{activeIndex >= 0}}" class="f7-segment-highlight" style="{{highlightStyle}}" aria-hidden="true" />
+  <button wx:for="{{items}}" wx:key="value" class="f7-segment {{value === item.value ? 'f7-segment-active' : ''}}" data-value="{{item.value}}" catchtap="onSelect" disabled="{{disabled || item.disabled}}" aria-role="tab" aria-selected="{{value === item.value}}" aria-label="{{item.label}}" hover-class="f7-segment-pressed">{{item.label}}</button>
+</view>

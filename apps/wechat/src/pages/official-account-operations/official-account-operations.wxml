@@ -1,15 +1,121 @@
-<view class="page">
- <view class="title">公众号草稿配置</view>
- <view class="hint">开发合成模式 · 无真实公众号连接 · 不会自动发布</view>
- <view class="hint">关闭或返回不会取消服务端原请求。</view>
- <view class="error" wx:if="{{error}}">{{error}}</view><view>{{message}}</view>
- <label>已获授权的学校项目引用</label><input value="{{programInput}}" bindinput="onProgram" placeholder="学校项目 UUID" maxlength="36" />
- <button bindtap="onLoadProgram" disabled="{{busy}}">读取当前权限与配置</button>
- <view wx:if="{{pending}}" class="card"><view>原请求 {{requestId}}</view><button bindtap="onRecover" disabled="{{busy}}">恢复原请求结果</button><button bindtap="onRetry" disabled="{{busy}}">查询并重试同一原请求</button><button bindtap="onCancel" disabled="{{busy}}">取消尚未执行的步骤</button><button wx:if="{{status && status.nextAction === 'resume_same_key'}}" bindtap="onResume" disabled="{{busy}}">以当前登录恢复原请求</button></view>
- <view wx:if="{{config}}" class="card"><view>{{config.accountLabel}}</view><view>就绪状态：{{config.readiness}}</view><view>合成时段：Etc/UTC 00:00，自动执行关闭</view><label>作者</label><input value="{{author}}" bindinput="onAuthor" maxlength="64" disabled="{{busy || pending}}" />
- <view>封面：{{config.coverAppearanceId || '未设置'}}</view><button data-purpose="cover" data-action="keep" bindtap="onArtwork" disabled="{{busy || pending}}">保留封面</button><button data-purpose="cover" data-action="clear" bindtap="onArtwork" disabled="{{busy || pending}}">清除封面</button><input data-purpose="cover" value="{{coverAppearanceId}}" bindinput="onAppearance" placeholder="替换为已授权封面 Media 引用" maxlength="36" disabled="{{busy || pending}}" />
- <view>标题图：{{config.titleAppearanceId || '未设置'}}</view><button data-purpose="title" data-action="keep" bindtap="onArtwork" disabled="{{busy || pending}}">保留标题图</button><button data-purpose="title" data-action="clear" bindtap="onArtwork" disabled="{{busy || pending}}">清除标题图</button><input data-purpose="title" value="{{titleAppearanceId}}" bindinput="onAppearance" placeholder="替换为已授权标题图 Media 引用" maxlength="36" disabled="{{busy || pending}}" />
- <button bindtap="onSave" disabled="{{busy || pending || !capabilities.canManage}}">单独保存配置</button><button bindtap="onPreview" disabled="{{busy || pending || !capabilities.canPreview}}">预览每日热门草稿</button><button bindtap="onTestPreview" disabled="{{busy || pending || !capabilities.canTest}}">预览单条合成测试</button></view>
- <view wx:if="{{preview}}" class="card"><view>合成预览 · {{preview.accountLabel}}</view><view>{{preview.selectionAt}} · {{preview.eligibleCount}} 条</view><view>{{preview.article.title}}</view><view wx:for="{{preview.article.items}}" wx:key="locator">{{item.excerpt}}</view><view>预览有效期至 {{preview.expiresAt}}</view><button wx:if="{{preview.kind === 'test'}}" bindtap="onCreateTest" disabled="{{busy || pending || !preview.actions.createDraft}}">确认创建合成测试草稿（未发布）</button></view>
- <view wx:if="{{status}}">已接受素材 {{status.acceptedMaterialCount}} · {{status.withdrawal}}</view>
+<view class="screen ops-page ops-official-account-operations f7-ios-theme ops-native">
+  <view class="ops-context">
+    <view class="ops-context-icon">
+      <wu-icon name="edit" size="23" tone="accent" />
+    </view>
+    <view class="ops-context-title">
+      准备公众号草稿
+    </view>
+  </view>
+  <view class="hint ops-provider-notice">
+    开发合成模式 · 无真实公众号连接 · 不会自动发布
+  </view>
+  <view class="hint">
+    关闭或返回不会取消服务端原请求。
+  </view>
+  <view class="error" wx:if="{{error}}">
+    {{error}}
+  </view>
+  <view>
+    {{message}}
+  </view>
+  <label>
+    已获授权的学校项目引用
+  </label>
+  <input value="{{programInput}}" bindinput="onProgram" placeholder="学校项目 UUID" maxlength="36" />
+  <wu-f7-button bind:press="onLoadProgram" disabled="{{busy}}" variant="tonal">
+    读取当前权限与配置
+  </wu-f7-button>
+  <wu-f7-block wx:if="{{pending}}" class="card ops-section ops-recovery" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view>
+      原请求 {{requestId}}
+    </view>
+    <wu-f7-button bind:press="onRecover" disabled="{{busy}}" variant="tonal">
+      恢复原请求结果
+    </wu-f7-button>
+    <wu-f7-button bind:press="onRetry" disabled="{{busy}}" variant="tonal">
+      查询并重试同一原请求
+    </wu-f7-button>
+    <wu-f7-button bind:press="onCancel" disabled="{{busy}}" class="ops-quiet" variant="plain">
+      取消尚未执行的步骤
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{status &amp;&amp; status.nextAction === 'resume_same_key'}}" bind:press="onResume" disabled="{{busy}}" variant="tonal">
+      以当前登录恢复原请求
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{config}}" class="card ops-section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view>
+      {{config.accountLabel}}
+    </view>
+    <view>
+      {{config.readiness === 'synthetic_ready' ? '合成测试可用' : config.readiness === 'disabled' ? '当前已停用' : '当前服务不可用'}}
+    </view>
+    <view>
+      合成时段：Etc/UTC 00:00，自动执行关闭
+    </view>
+    <label>
+      作者
+    </label>
+    <input value="{{author}}" bindinput="onAuthor" maxlength="64" disabled="{{busy || pending}}" />
+    <wu-f7-button class="ops-disclosure" data-panel="artwork" bind:press="onToggleUiPanel" aria-expanded="{{uiPanel === 'artwork'}}" variant="plain">
+      <text>
+        封面与标题图
+      </text>
+      <wu-icon name="{{uiPanel === 'artwork' ? 'chevron-up' : 'chevron-down'}}" size="17" tone="muted" />
+    </wu-f7-button>
+    <view wx:if="{{uiPanel === 'artwork'}}" class="ops-details">
+      <view>
+        封面：{{config.coverAppearanceId || '未设置'}}
+      </view>
+      <wu-f7-button data-purpose="cover" data-action="keep" bind:press="onArtwork" disabled="{{busy || pending}}" variant="tonal">
+        保留封面
+      </wu-f7-button>
+      <wu-f7-button data-purpose="cover" data-action="clear" bind:press="onArtwork" disabled="{{busy || pending}}" variant="tonal">
+        清除封面
+      </wu-f7-button>
+      <input data-purpose="cover" value="{{coverAppearanceId}}" bindinput="onAppearance" placeholder="替换为已授权封面 Media 引用" maxlength="36" disabled="{{busy || pending}}" />
+      <view>
+        标题图：{{config.titleAppearanceId || '未设置'}}
+      </view>
+      <wu-f7-button data-purpose="title" data-action="keep" bind:press="onArtwork" disabled="{{busy || pending}}" variant="tonal">
+        保留标题图
+      </wu-f7-button>
+      <wu-f7-button data-purpose="title" data-action="clear" bind:press="onArtwork" disabled="{{busy || pending}}" variant="tonal">
+        清除标题图
+      </wu-f7-button>
+      <input data-purpose="title" value="{{titleAppearanceId}}" bindinput="onAppearance" placeholder="替换为已授权标题图 Media 引用" maxlength="36" disabled="{{busy || pending}}" />
+    </view>
+    <wu-f7-button bind:press="onSave" disabled="{{busy || pending || !capabilities.canManage}}" class="ops-primary" variant="fill" size="large">
+      单独保存配置
+    </wu-f7-button>
+    <wu-f7-button bind:press="onPreview" disabled="{{busy || pending || !capabilities.canPreview}}" variant="tonal">
+      预览每日热门草稿
+    </wu-f7-button>
+    <wu-f7-button bind:press="onTestPreview" disabled="{{busy || pending || !capabilities.canTest}}" variant="tonal">
+      预览单条合成测试
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{preview}}" class="card ops-section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view>
+      合成预览 · {{preview.accountLabel}}
+    </view>
+    <view>
+      {{preview.selectionAt}} · {{preview.eligibleCount}} 条
+    </view>
+    <view>
+      {{preview.article.title}}
+    </view>
+    <view wx:for="{{preview.article.items}}" wx:key="locator">
+      {{item.excerpt}}
+    </view>
+    <view>
+      预览有效期至 {{preview.expiresAt}}
+    </view>
+    <wu-f7-button wx:if="{{preview.kind === 'test'}}" bind:press="onCreateTest" disabled="{{busy || pending || !preview.actions.createDraft}}" class="ops-primary" variant="fill" size="large">
+      确认创建合成测试草稿（未发布）
+    </wu-f7-button>
+  </wu-f7-block>
+  <view wx:if="{{status}}">
+    已接受素材 {{status.acceptedMaterialCount}} · {{status.withdrawal === 'none' ? '无待撤回内容' : status.withdrawal === 'local_withdrawn_remote_unverified' ? '本地已撤回，远端结果未确认' : status.withdrawal === 'retraction_needed' ? '仍需处理撤回' : '撤回状态待确认'}}
+  </view>
 </view>

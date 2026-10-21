@@ -1,0 +1,61 @@
+<template name="discussion-status">
+  <view wx:if="{{status &amp;&amp; (!loaded || busy)}}" class="major-status">{{status}}</view><view wx:if="{{error}}" class="major-error">{{error}}</view>
+  <view wx:if="{{deletionLocatorUnavailable}}" class="major-notice">定位缓存暂不可用；原操作回执仍可查询。未确认保存新的撤回定位记录。</view>
+  <view wx:if="{{receiptStatus}}" class="major-notice">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="major-link" url="/pages/login/login">登录后继续<wu-icon name="chevron-right" size="16" /></navigator>
+  <view wx:if="{{uiPanel === 'options' || !loaded || error}}"><button class="major-quiet" bindtap="onRefresh" disabled="{{busy}}"><wu-icon name="refresh" size="18" />重新加载</button></view>
+  <button wx:if="{{busy}}" class="major-quiet" bindtap="onCancelWait">停止等待</button>
+  <view wx:if="{{frozen}}" class="major-recovery">
+    <view class="major-section-title">原请求待确认</view><view class="major-meta">专业：{{recoveryMajorId}}</view>
+    <view class="major-meta">操作：{{recoveryOperation}} · {{recoveryPhase === 'cancel' ? '已确认取消，等待服务端结果' : '提交结果待确认'}}</view>
+    <view wx:if="{{recoveryCommentId}}" class="major-meta">回复 / 主题：{{recoveryCommentId}}</view>
+    <view class="major-notice">原请求编号、原文与版本已固定。停止等待不会取消服务端操作，也不能创建替代请求。</view>
+    <button bindtap="onRecover" disabled="{{busy}}">查询原回执</button>
+    <button bindtap="onRetry" disabled="{{busy}}">先查回执，再重试原{{recoveryPhase === 'cancel' ? '取消' : '请求'}}</button>
+    <button wx:if="{{recoveryPhase === 'submit'}}" bindtap="onRequestCancellation" disabled="{{busy}}">查询后申请取消</button>
+    <view wx:if="{{confirming === 'cancel'}}" class="major-confirmation"><view>确认取消这个原请求？若已完成，以原回执为准。</view><button bindtap="onConfirmCancellation" disabled="{{busy}}">确认服务端取消</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回</button></view>
+  </view>
+</template>
+<template name="discussion-item">
+  <view class="major-comment {{focusCommentId === item.id ? 'major-focused' : ''}}">
+    <view class="major-comment-heading"><view class="major-author"><view class="major-avatar"><wu-icon name="person" size="20" tone="muted" /></view><view><view class="major-author-name">{{item.author.displayName}}</view><view class="major-meta">公开<text wx:if="{{timeLabels[item.id]}}"> · {{timeLabels[item.id]}}</text></view></view></view><button class="major-icon-button" data-id="{{item.id}}" bindtap="onDeleteMenu" disabled="{{busy || frozen || confirming}}" aria-label="更多讨论操作"><wu-icon name="more" size="20" /></button></view>
+    <view wx:if="{{item.addressedAuthor}}" class="major-meta">回复 {{item.addressedAuthor.displayName}}</view>
+    <view class="major-body">{{item.body}}</view>
+    <view wx:if="{{item.images &amp;&amp; item.images.length}}" class="major-images"><button wx:for="{{item.images}}" wx:for-item="image" wx:key="bindingId" data-id="{{item.id}}" data-index="{{image.ordinal}}" bindtap="onImage" disabled="{{busy || imageBusy}}"><wu-icon name="image" size="22" />查看图片 {{image.ordinal + 1}}</button></view>
+    <view class="major-inline-actions"><button class="major-quiet {{item.isLiked ? 'major-liked' : ''}}" data-id="{{item.id}}" bindtap="onLike" disabled="{{busy || frozen || confirming}}" aria-label="{{item.isLiked ? '取消我的赞' : '点赞'}}"><wu-icon name="{{item.isLiked ? 'heart-filled' : 'heart'}}" size="20" tone="{{item.isLiked ? 'pink' : 'muted'}}" />{{item.likes}}</button>
+      <button wx:if="{{mode === 'roots'}}" class="major-quiet" data-id="{{item.id}}" bindtap="onThread" disabled="{{busy}}"><wu-icon name="message" size="20" tone="muted" />{{item.replyCount}} 条回复</button>
+      <button wx:elif="{{item.rootId}}" class="major-quiet" data-id="{{item.id}}" bindtap="onReply" disabled="{{busy || frozen || confirming}}"><wu-icon name="reply" size="20" tone="muted" />回复 {{item.author.displayName}}</button>
+    </view>
+    <button wx:if="{{deleteTarget &amp;&amp; deleteTarget.commentId === item.id}}" class="major-delete" data-id="{{item.id}}" bindtap="onDelete" disabled="{{busy || frozen || confirming}}">撤回 / 管理删除</button>
+  </view>
+</template>
+<template name="discussion-form">
+  <view wx:if="{{confirming === 'delete' &amp;&amp; deleteTarget}}" class="major-overlay"><view class="major-sheet major-confirmation"><view class="major-section-title">确认删除这条讨论</view><view class="major-notice">仅作者或有权限的管理员可操作，服务端会核验权限。删除主题后其回复也将不可查看；删除回复不会撤回其他回复。此操作不提供恢复入口。</view><view class="major-meta">目标：{{deleteTarget.commentId}}</view><template is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" /><button class="major-delete" bindtap="onSubmit" disabled="{{busy}}">确认删除</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回</button></view></view>
+  <view wx:if="{{loaded &amp;&amp; !frozen}}">
+    <view wx:if="{{uiPanel === 'compose' &amp;&amp; !confirming}}" class="major-overlay"><view class="major-sheet">
+      <view class="major-list-heading"><view class="major-section-title">{{mode === 'thread' ? '写回复' : '发布主题'}}</view><button class="major-icon-button" bindtap="onClosePanel" aria-label="收起编辑"><wu-icon name="close" size="22" /></button></view>
+      <view class="major-meta">公开</view>
+      <view wx:if="{{mode === 'thread'}}" class="major-reply-target">{{replyTarget ? '回复 ' + replyTarget.author.displayName : '回复主题作者'}}<button wx:if="{{replyTarget}}" class="major-quiet" bindtap="onReplyRoot" disabled="{{busy || imageBusy || imageFrozen || confirming}}">改为回复主题</button></view>
+      <textarea value="{{body}}" maxlength="-1" bindinput="onBody" disabled="{{busy || imageBusy || imageFrozen || confirming}}" placeholder="分享你的专业体验或问题" />
+      <view class="major-meta">{{bodyBytes}} / 8000 字节</view>
+      <view wx:if="{{imageEnabled}}" class="major-image-composer"><view class="major-inline-actions"><button class="major-quiet" data-source="album" bindtap="onPickImage" disabled="{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"><wu-icon name="image" size="22" />相册</button><button class="major-quiet" data-source="camera" bindtap="onPickImage" disabled="{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"><wu-icon name="camera" size="22" />拍照</button><view class="major-meta">{{imageCount}} / 3 张</view></view><view class="major-meta">JPEG / PNG，每张最多 5 MiB，按添加顺序发表。</view><view wx:if="{{imageCount}}" class="major-notice">移除或调整图片顺序，需先取消整组，待确认后重新选择。</view></view>
+      <template is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" />
+      <button class="major-primary" bindtap="onConfirmPublish" disabled="{{busy || imageBusy || imageFrozen || confirming || !canPublish}}">下一步</button>
+    </view></view>
+  </view>
+  <view wx:if="{{confirming === 'publish'}}" class="major-overlay"><view class="major-sheet major-confirmation"><view class="major-section-title">确认公开发表</view><view class="major-body">{{body}}</view><view class="major-notice">将使用公开昵称发表原文与 {{imageCount}} 张有序图片；文字必填，发表需有效基础认证或实际管理权限。</view><template is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" /><button class="major-primary" bindtap="onSubmit" disabled="{{busy}}">确认发表原文</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回修改</button></view></view>
+  <view wx:if="{{confirming === 'like' &amp;&amp; selectedComment}}" class="major-overlay"><view class="major-sheet major-confirmation"><view class="major-section-title">确认{{selectedComment.isLiked ? '取消我的赞' : '点赞'}}</view><view class="major-body">{{selectedComment.body}}</view><view class="major-notice">只修改自己的点赞。其他设备上的新版本不会被覆盖。</view><template is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" /><button class="major-primary" bindtap="onSubmit" disabled="{{busy}}">确认这次{{selectedComment.isLiked ? '取消点赞' : '点赞'}}</button><button bindtap="onCloseConfirmation" disabled="{{busy}}">返回</button></view></view>
+</template>
+<template name="discussion-image-state">
+  <view wx:if="{{imageEnabled &amp;&amp; (imageStatus || imagePending || imageBusy)}}" class="major-recovery major-image-state">
+    <view class="major-section-title">图片与发表进度</view><view class="major-notice">{{imageStatus}}</view><view wx:if="{{imageBusy}}" class="major-meta">进度 {{imageProgress}}%</view>
+    <view wx:if="{{imagePending}}" class="major-meta">原请求：{{imageRequestId}}。本地只保存恢复编号；关闭页面后不会保留文字或图片文件。结果待确认时不能创建替代请求。</view>
+    <button wx:if="{{imageRecoverable}}" bindtap="onRecoverImages" disabled="{{busy || imageBusy}}">查询原图片讨论回执</button>
+    <button wx:if="{{imageRecoverable}}" bindtap="onRequestImageCancel" disabled="{{busy || imageBusy}}">取消整组原图片及发表请求</button>
+    <view wx:if="{{imageCancelConfirm}}" class="major-confirmation"><view>确认取消此原请求及其图片上传？已发表的请求以原回执为准。</view><button bindtap="onConfirmImageCancel" disabled="{{busy || imageBusy}}">确认取消原请求</button><button bindtap="onCloseImageCancel" disabled="{{busy || imageBusy}}">返回</button></view>
+    <button wx:if="{{imageBusy}}" bindtap="onCancelWait">停止等待并保留恢复编号</button>
+  </view>
+</template>
+<template name="discussion-gallery">
+  <view wx:if="{{galleryOpen}}" class="major-gallery"><view class="major-gallery-sheet"><view class="major-list-heading"><view>{{galleryIndex + 1}} / {{galleryCount}}</view><button class="major-quiet" bindtap="onCloseGallery">关闭图片</button></view><view wx:if="{{galleryStatus}}" class="major-notice">{{galleryStatus}}</view><image wx:if="{{gallerySrc}}" src="{{gallerySrc}}" mode="aspectFit" class="major-gallery-image" /><view class="major-inline-actions"><button bindtap="onImagePrevious" disabled="{{galleryIndex === 0}}">上一张</button><button bindtap="onImageNext" disabled="{{galleryIndex + 1 >= galleryCount}}">下一张</button></view><view class="major-meta">图片仅在当前页面短暂显示，离开页面会关闭。</view></view></view>
+</template>

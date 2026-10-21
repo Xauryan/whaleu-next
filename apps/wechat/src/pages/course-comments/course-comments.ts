@@ -1,3 +1,4 @@
+import { ratingTimeLabels } from '../../ratings/presentation';
 import type { WhaleuApp } from '../../app';
 import { isRecord } from '../../api/errors';
 import { courseId } from '../../course-ratings/contract';
@@ -6,7 +7,11 @@ import {
   initialCourseCommentsView,
 } from '../../course-comments/controller';
 Page({
-  data: initialCourseCommentsView(),
+  data: {
+    timeLabels: {} as Record<string, string>,
+    ...initialCourseCommentsView(),
+    uiPanel: '',
+  },
   courseId: null as string | null,
   validRoute: false,
   controller: undefined as CourseCommentsController | undefined,
@@ -21,6 +26,7 @@ Page({
         : null;
   },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
     const runtime = getApp<WhaleuApp>().community;
@@ -34,9 +40,22 @@ Page({
       return;
     }
     this.controller = new CourseCommentsController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        timeLabels: ratingTimeLabels(view.items),
+        ...(!view.hasSession || !view.loaded ? { uiPanel: '' } : {}),
+      }),
     );
     void this.controller.load(this.courseId);
+  },
+  onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel;
+    if (typeof panel !== 'string' || !/^[a-zA-Z0-9:_-]{1,100}$/.test(panel))
+      return;
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
+  onClosePanel() {
+    this.setData({ uiPanel: '' });
   },
   onRefresh() {
     void this.controller?.reload();
@@ -78,6 +97,7 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
   },

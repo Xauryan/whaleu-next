@@ -1,0 +1,11 @@
+<view class="tab-safe-space" />
+<view class="tab-dock">
+  <view wx:if="{{navigationError}}" class="navigation-error" aria-role="alert">{{navigationError}}</view>
+  <view class="tab-items">
+    <button class="tab {{selected === 'home' || selected === 'hot' ? 'selected' : ''}}" aria-label="首页{{selected === 'home' ? '，当前页面' : ''}}" data-target="home" bindtap="onNavigate"><text>首页</text></button>
+    <button class="tab {{selected === 'campus' ? 'selected' : ''}}" aria-label="校园{{selected === 'campus' ? '，当前页面' : ''}}" data-target="campus" bindtap="onNavigate"><text>校园</text></button>
+    <button class="tab compose-tab" aria-label="发布新帖子" data-target="compose" bindtap="onNavigate"><view class="compose-symbol"><wu-icon name="plus" tone="white" size="28" /></view></button>
+    <button class="tab {{selected === 'messages' ? 'selected' : ''}}" aria-label="消息{{selected === 'messages' ? '，当前页面' : ''}}" data-target="messages" bindtap="onNavigate"><text>消息</text></button>
+    <button class="tab {{selected === 'me' ? 'selected' : ''}}" aria-label="我的{{selected === 'me' ? '，当前页面' : ''}}" data-target="me" bindtap="onNavigate"><text>我的</text></button>
+  </view>
+</view>

@@ -1,43 +1,208 @@
-<import src="../../course-ratings/common.wxml" />
-<view class="screen">
-  <view class="eyebrow">WHALEU · 课程评分</view><view class="title">课程详情</view>
-  <template is="course-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryCourseId,recoveryScores,busy,restartRequired}}" />
+<import src="../../course-ratings/framework7-product.wxml" />
+<view class="screen course-product f7-ios-theme f7-course-product has-dock">
+  <view class="product-heading product-toolbar"
+    ><wu-f7-button
+      class="plain-button"
+      data-panel="info"
+      bind:press="onTogglePanel"
+      aria-label="课程信息"
+      variant="plain"
+    >
+      <wu-icon name="more" size="20" /> </wu-f7-button
+  ></view>
+  <wu-f7-block class="product-state" spacing="compact"
+    ><template
+      is="product-course-status"
+      data="{{status,error,receiptStatus,hasSession,frozen,recoveryCourseId,recoveryScores,busy,restartRequired,loaded}}"
+  /></wu-f7-block>
   <block wx:if="{{loaded &amp;&amp; detail}}">
-    <navigator class="link" url="/pages/course-comments/course-comments?courseId={{detail.course.id}}">查看与发表课程文字评论 →</navigator>
-    <view class="card"><template is="course-facts" data="{{course:detail.course}}" /><view class="meta">来源校区标识：{{detail.course.sourceCampusKey}}</view><view class="meta">已核验目录版本：{{detail.catalogRevision}}</view><view class="notice">来源标识用于保留目录映射，不授予校区或评分权限。</view></view>
-    <view class="card"><view class="section-title">三个独立均分</view><template is="course-summary" data="{{summary:detail.course.summary}}" /></view>
-    <view class="card">
-      <view class="section-title">我的首次评分</view>
-      <view wx:if="{{frozen &amp;&amp; (!recoveryCourseId || recoveryCourseId === detail.course.id)}}" class="notice">原请求结果待确认，当前快照不能解除原请求；请查询原回执。</view>
-      <block wx:elif="{{detail.myScore.kind === 'recorded'}}">
-        <view class="body">得分维度（grade_score）：{{detail.myScore.gradeScore}}</view>
-        <view class="body">能力维度（ability_score）：{{detail.myScore.abilityScore}}</view>
-        <view class="body">综合评分（overall_score）：{{detail.myScore.overallScore}}</view>
-        <view class="notice">已提交。每个账号对每门课只有一次评分，不能修改或删除。</view>
-      </block>
-      <view wx:elif="{{detail.myScore.kind === 'unavailable'}}" class="notice">我的历史评分暂不能确认，不能当作尚未提交。</view>
-      <view wx:else class="notice">当前已确认尚未评分。</view>
-      <view class="notice">{{blocker}}</view>
+    <view class="product-hero"
+      ><view class="title">{{detail.course.name}}</view
+      ><view class="meta"
+        >{{detail.course.campusLabel}} · 院系 {{detail.course.department}}</view
+      ><view
+        wx:if="{{detail.course.category !== null || detail.course.nature !== null}}"
+        class="meta"
+        ><text wx:if="{{detail.course.category !== null}}"
+          >{{detail.course.category}}</text
+        ><text wx:if="{{detail.course.nature !== null}}">
+          · {{detail.course.nature}}</text
+        ></view
+      ><template
+        is="product-course-summary"
+        data="{{summary:detail.course.summary}}"
+    /></view>
+    <view wx:if="{{uiPanel === 'info'}}" class="product-disclosure"
+      ><view class="section-title">课程信息</view
+      ><view class="meta"
+        >课程代码：{{detail.course.code === null ? '未提供' :
+        detail.course.code}}</view
+      ><view class="meta">来源校区：{{detail.course.sourceCampusKey}}</view
+      ><view class="meta">目录版本：{{detail.catalogRevision}}</view
+      ><view class="meta">以上为目录信息，不代表评分权限。</view></view
+    >
+    <view class="product-section">
+      <view class="section-title">我的评分</view>
+      <view
+        wx:if="{{frozen &amp;&amp; (!recoveryCourseId || recoveryCourseId === detail.course.id)}}"
+        class="notice"
+        >上次评分结果待确认，请先查询。</view
+      >
+      <block wx:elif="{{detail.myScore.kind === 'recorded'}}"
+        ><view class="product-score-grid"
+          ><view class="product-score-axis"
+            ><view class="value">{{detail.myScore.gradeScore}}</view
+            ><view class="label">得分</view></view
+          ><view class="product-score-axis"
+            ><view class="value">{{detail.myScore.abilityScore}}</view
+            ><view class="label">能力</view></view
+          ><view class="product-score-axis"
+            ><view class="value">{{detail.myScore.overallScore}}</view
+            ><view class="label">综合</view></view
+          ></view
+        ><view class="meta">已提交，首次评分不能修改或删除。</view></block
+      >
+      <view wx:elif="{{detail.myScore.kind === 'unavailable'}}" class="notice"
+        >暂未确认你的历史评分，请稍后重试。</view
+      >
+      <view wx:else class="meta">还没有为这门课评分</view>
+      <view wx:if="{{blocker}}" class="notice">{{blocker}}</view>
     </view>
-    <view wx:if="{{canScore}}" class="card">
-      <view class="section-title">分别选择三个分数</view>
-      <view class="body">得分维度（grade_score）：{{gradeScore === null ? '尚未选择' : gradeScore}}</view>
-      <view class="course-scores"><button wx:for="{{scores}}" wx:key="*this" data-axis="gradeScore" data-score="{{item}}" class="{{gradeScore === item ? 'score-selected' : ''}}" bindtap="onScore" disabled="{{busy || confirming}}">{{item}}</button></view>
-      <view class="body">能力维度（ability_score）：{{abilityScore === null ? '尚未选择' : abilityScore}}</view>
-      <view class="course-scores"><button wx:for="{{scores}}" wx:key="*this" data-axis="abilityScore" data-score="{{item}}" class="{{abilityScore === item ? 'score-selected' : ''}}" bindtap="onScore" disabled="{{busy || confirming}}">{{item}}</button></view>
-      <view class="body">综合评分（overall_score）：{{overallScore === null ? '尚未选择' : overallScore}}</view>
-      <view class="course-scores"><button wx:for="{{scores}}" wx:key="*this" data-axis="overallScore" data-score="{{item}}" class="{{overallScore === item ? 'score-selected' : ''}}" bindtap="onScore" disabled="{{busy || confirming}}">{{item}}</button></view>
-      <view class="notice">综合评分由你独立选择，不会用前两项计算。三个维度均为 0.5 至 5 分。</view>
-      <button bindtap="onConfirm" disabled="{{busy || !canSubmit || confirming}}">核对首次评分</button>
-    </view>
-    <view wx:if="{{confirming}}" class="card confirmation">
-      <view class="section-title">确认唯一一次评分</view>
-      <view class="body">课程：{{detail.course.name}}</view>
-      <view class="body">得分 {{gradeScore}} · 能力 {{abilityScore}} · 综合 {{overallScore}}</view>
-      <view class="notice">提交后不能修改或删除。确认后会先保存原请求，再发送；断网或退出后只能恢复这个请求。</view>
-      <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认提交这三个分数</button>
-      <button bindtap="onCloseConfirmation" disabled="{{busy || frozen}}">返回调整</button>
-    </view>
+    <navigator
+      class="link"
+      url="/pages/course-comments/course-comments?courseId={{detail.course.id}}"
+      ><view class="product-section-heading"
+        ><view class="section-title">课程回复</view
+        ><wu-icon name="chevron-right" size="20" /></view
+      ><view class="meta">看看大家的上课体验</view></navigator
+    >
+    <view wx:if="{{canScore}}" class="product-dock"
+      ><view class="meta">每门课仅一次</view
+      ><wu-f7-button
+        class="primary"
+        data-panel="score"
+        bind:press="onTogglePanel"
+        disabled="{{busy || frozen}}"
+        variant="fill"
+        size="large"
+      >
+        为课程评分
+      </wu-f7-button></view
+    >
+    <view wx:if="{{canScore}}"
+      ><view
+        wx:if="{{uiPanel === 'score' &amp;&amp; !confirming}}"
+        class="modal-mask"
+        ><view class="modal">
+          <view class="product-heading"
+            ><view class="section-title">{{detail.course.name}}</view
+            ><wu-f7-button
+              class="plain-button"
+              bind:press="onClosePanel"
+              variant="plain"
+            >
+              收起
+            </wu-f7-button></view
+          >
+          <view class="meta">三个维度分别评分，提交后不能修改或删除。</view>
+          <view class="section-title"
+            >得分 · {{gradeScore === null ? '请选择' : gradeScore}}</view
+          ><view class="course-scores"
+            ><wu-f7-button
+              wx:for="{{scores}}"
+              wx:key="*this"
+              data-axis="gradeScore"
+              data-score="{{item}}"
+              class="{{gradeScore === item ? 'score-selected' : ''}}"
+              bind:press="onScore"
+              disabled="{{busy || confirming}}"
+              variant="{{gradeScore === item ? 'fill' : 'tonal'}}"
+            >
+              {{item}}
+            </wu-f7-button></view
+          >
+          <view class="section-title"
+            >能力 · {{abilityScore === null ? '请选择' : abilityScore}}</view
+          ><view class="course-scores"
+            ><wu-f7-button
+              wx:for="{{scores}}"
+              wx:key="*this"
+              data-axis="abilityScore"
+              data-score="{{item}}"
+              class="{{abilityScore === item ? 'score-selected' : ''}}"
+              bind:press="onScore"
+              disabled="{{busy || confirming}}"
+              variant="{{abilityScore === item ? 'fill' : 'tonal'}}"
+            >
+              {{item}}
+            </wu-f7-button></view
+          >
+          <view class="section-title"
+            >综合 · {{overallScore === null ? '请选择' : overallScore}}</view
+          ><view class="course-scores"
+            ><wu-f7-button
+              wx:for="{{scores}}"
+              wx:key="*this"
+              data-axis="overallScore"
+              data-score="{{item}}"
+              class="{{overallScore === item ? 'score-selected' : ''}}"
+              bind:press="onScore"
+              disabled="{{busy || confirming}}"
+              variant="{{overallScore === item ? 'fill' : 'tonal'}}"
+            >
+              {{item}}
+            </wu-f7-button></view
+          >
+          <wu-f7-button
+            class="primary"
+            bind:press="onConfirm"
+            disabled="{{busy || !canSubmit || confirming}}"
+            variant="fill"
+            size="large"
+          >
+            核对评分
+          </wu-f7-button>
+        </view></view
+      ></view
+    >
+    <view wx:if="{{confirming}}" class="modal-mask"
+      ><view class="modal"
+        ><view class="section-title">确认首次评分</view
+        ><view class="body">{{detail.course.name}}</view
+        ><view class="product-score-grid"
+          ><view class="product-score-axis"
+            ><view class="value">{{gradeScore}}</view
+            ><view class="label">得分</view></view
+          ><view class="product-score-axis"
+            ><view class="value">{{abilityScore}}</view
+            ><view class="label">能力</view></view
+          ><view class="product-score-axis"
+            ><view class="value">{{overallScore}}</view
+            ><view class="label">综合</view></view
+          ></view
+        ><view class="notice"
+          >提交后不能修改或删除。若结果未确认，请查询或重试原请求。</view
+        ><wu-f7-button
+          class="primary"
+          bind:press="onSubmit"
+          disabled="{{busy || frozen}}"
+          variant="fill"
+          size="large"
+        >
+          确认提交</wu-f7-button
+        ><wu-f7-button
+          bind:press="onCloseConfirmation"
+          disabled="{{busy || frozen}}"
+          variant="tonal"
+        >
+          返回调整
+        </wu-f7-button></view
+      ></view
+    >
   </block>
-  <navigator class="link" url="/pages/course-ratings/course-ratings">课程目录与独立回执查询 →</navigator>
+  <view class="product-end"
+    ><navigator class="link" url="/pages/course-ratings/course-ratings"
+      >课程目录</navigator
+    ></view
+  >
 </view>

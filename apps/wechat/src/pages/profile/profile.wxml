@@ -1,91 +1,279 @@
-<view class="screen">
-  <navigator class="link" url="/pages/school-uid-lookup/school-uid-lookup">超级管理员：学校与 UID 查询 →</navigator>
-  <navigator class="link" url="/pages/school-identity-management/school-identity-management">学校归属管理与原请求恢复 →</navigator>
-  <view wx:if="{{schoolUidView.error}}" class="notice">校内 UID 查询未完成：{{schoolUidView.error}}</view>
-  <view wx:if="{{schoolUidView.loaded}}" class="card">
-    <view class="card-title">当前校内 UID</view>
-    <view wx:if="{{schoolUidView.schoolUid.status === 'assigned'}}">{{schoolUidView.schoolUid.school.name}} · {{schoolUidView.schoolUid.formattedUid}}</view>
-    <view wx:elif="{{schoolUidView.schoolUid.status === 'unassigned'}}">当前没有校内 UID</view>
-    <view wx:else>校内 UID 暂不可用，请以独立的认证结果确认学校归属状态</view>
-  </view>
-
-  <navigator class="link" url="/pages/safety-punishment-management/safety-punishment-management">超级管理员：账号处罚管理 →</navigator>
-  <navigator class="link" url="/pages/safety-appeal-management/safety-appeal-management">超级管理员：私人申诉处理 →</navigator>
-  <navigator class="link" url="/pages/account-status/account-status">账号状态、禁言/封号原因与私人申诉 →</navigator><navigator class="link" url="/pages/school-admin-management/school-admin-management">学校管理员管理与原请求恢复 →</navigator><navigator class="link" url="/pages/organizations/organizations">我管理的组织与学校审核 →</navigator><navigator class="link" url="/pages/feedback/feedback">全站意见与建议 →</navigator><view class="card"><navigator class="link" url="/pages/private-message-list/private-message-list">我的私信 <text wx:if="{{privateMessages.count !== null}}">（{{privateMessages.count}} 条未读）</text> →</navigator><view wx:if="{{privateMessages.error}}" class="notice">私信未读暂不可确认</view><view wx:if="{{privateMessages.coverage === 'local'}}" class="meta">仅含已核验本地范围</view></view><navigator class="link" url="/pages/rating-recovery/rating-recovery">评分与文字请求恢复 →</navigator><navigator class="link" url="/pages/report-progress/report-progress">举报与陪审结果恢复 →</navigator><navigator class="link" url="/pages/system-notices/system-notices">我的系统通知 →</navigator>
-  <view class="eyebrow">WHALEU · 我的</view>
-  <view class="title">让校园更懂你</view>
-  <view class="intro">个人资料与偏好仅属于当前登录账号。离开页面会放弃未保存的编辑。</view>
-  <view class="status-panel">
-    <view class="status" aria-role="status">{{status}}</view>
-    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-    <view wx:if="{{requestId}}" class="request-id" selectable="true">问题编号：{{requestId}}</view>
-    <button wx:if="{{loading || saving}}" class="secondary" bindtap="onCancelOperation">{{saving ? '停止等待保存结果' : '取消加载'}}</button>
-    <button wx:if="{{!loading &amp;&amp; !saving &amp;&amp; (!loaded || error)}}" class="secondary" bindtap="onReload" disabled="{{!hasSession || !configured}}">{{needsReload || profileDirty || preferencesDirty ? '重新加载并放弃未保存编辑' : '重新加载'}}</button>
-    <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
-  </view>
-  <navigator wx:if="{{!profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/verification/verification">查看我的认证状态 →</navigator>
-  <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/community-blocks/community-blocks">我的拉黑与结果恢复 →</navigator>
-  <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/identity-campus/identity-campus">选择或重新确认身份校区 →</navigator>
-  <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/public-profile/public-profile">我的公开主页 →</navigator>
-  <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/community-liked/community-liked">我的点赞历史 →</navigator>
-  <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/experience/experience">我的经验、头衔与颜色 →</navigator>
-  <view class="card">
-    <view class="card-title">头像</view>
-    <image wx:if="{{avatarRead.localSrc}}" class="profile-avatar" src="{{avatarRead.localSrc}}" mode="aspectFit" bindtap="onOpenAvatar" binderror="onAvatarImageError" />
-    <view wx:else class="hint">{{avatarRead.status === 'none' ? '尚未选择头像' : '头像当前不可显示'}}</view>
-    <view wx:if="{{avatarRead.expanded &amp;&amp; avatarRead.localSrc}}" class="avatar-overlay"><image src="{{avatarRead.localSrc}}" mode="aspectFit" binderror="onAvatarImageError" /><button bindtap="onCloseAvatar">关闭预览</button></view>
-    <image wx:if="{{avatar.previewSrc}}" class="profile-avatar" src="{{avatar.previewSrc}}" mode="aspectFit" /><view wx:if="{{avatar.previewSrc}}" class="hint">本地预览，尚未保存</view>
-    <view aria-role="status">{{avatar.status}}</view><view wx:if="{{avatar.error}}" class="error">{{avatar.error}}</view>
-    <button bindtap="onChooseCustomAvatar" disabled="{{!avatar.canChoose || avatar.busy || loading || saving || profileDirty || preferencesDirty}}">选择自定义头像</button>
-    <view wx:for="{{avatar.catalog}}" wx:key="itemId"><button data-item="{{item.itemId}}" bindtap="onAvatarCatalog" disabled="{{loading || saving || profileDirty || preferencesDirty}}">{{item.label}}{{avatar.selectedItem === item.itemId ? ' · 已选择' : ''}}</button></view>
-    <view wx:if="{{avatar.pickerWaiting}}" class="notice">系统选图界面尚未确认结束。请关闭系统选图界面，收到系统结束回调后可继续选择；其他头像选择与资料读取仍按当前可用资源执行。</view>
-    <view class="hint">使用系统图片选择器；专属 chooseAvatar 界面与裁切体验尚未启用或验收。</view>
-    <view wx:if="{{!avatar.catalog.length}}" class="hint">默认头像资源暂不可用；真实 91 项素材仍待核实导入。</view>
-    <button bindtap="onClearAvatar" disabled="{{!avatar.loaded || avatar.busy || loading || saving || profileDirty || preferencesDirty}}">选择清除头像</button>
-    <button wx:if="{{avatar.canSave}}" bindtap="onSaveAvatar" disabled="{{avatar.busy}}">保存头像选择</button>
-    <button wx:if="{{avatar.busy}}" bindtap="onStopAvatar">停止本地等待</button>
-    <button wx:if="{{avatar.needsRecovery}}" bindtap="onRecoverAvatar" disabled="{{avatar.busy}}">查询原头像请求</button>
-    <button wx:if="{{avatar.needsRecovery}}" bindtap="onRetryAvatar" disabled="{{avatar.busy}}">查询并重试原保存请求</button>
-    <button wx:if="{{avatar.needsRecovery}}" bindtap="onCancelAvatarCommand" disabled="{{avatar.busy}}">取消原保存请求及未绑定上传</button>
-    <button wx:if="{{avatar.needsRecovery}}" bindtap="onCancelAvatarEdit" disabled="{{avatar.busy}}">取消未保存的上传编辑</button>
-    <button bindtap="onReloadAvatar" disabled="{{avatar.busy}}">重新加载当前头像</button>
-    <view class="hint">上传 100% 不代表已保存；离开页面或切换账号会清除本地图片，未确认请求可由原账号恢复。清除头像是新增回退能力。</view>
-  </view>
-  <navigator wx:if="{{!profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/campus-tools/campus-tools">校园工具：地图、校车与科研资源 →</navigator>
-  <block wx:if="{{loaded}}">
-    <view class="card">
-      <view class="card-title">我的校园</view>
-      <navigator class="text-link" url="/pages/school-services/school-services">学校服务：进群与联系管理员 →</navigator>
-      <view class="campus-name">{{selectedCampusName}}</view>
-      <view class="detail">这里是你选择浏览的校园，不代表已通过学生身份认证，也不会授予管理权限。</view>
-      <navigator wx:if="{{!profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="text-link" url="/pages/campus/campus">选择或切换校园 →</navigator>
-      <view wx:else class="hint">切换校园前，请保存或取消当前编辑</view>
+<view class="screen profile-editor f7-ios-theme f7-profile-verification-screen">
+  <wu-safe-top />
+  <view class="editor-navigation">
+    <view class="editor-navigation-side">
+      <navigator wx:if="{{canGoBack}}" class="editor-back" open-type="navigateBack" delta="1" aria-label="返回">
+        <wu-icon name="chevron-right" size="25" />
+      </navigator>
     </view>
-    <view class="card">
-      <view class="card-title">个人资料</view>
-      <label class="field-label" for="nickname">昵称</label>
-      <input id="nickname" class="input" value="{{nickname}}" placeholder="填写你的昵称" maxlength="-1" disabled="{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}" bindinput="onNickname" />
-      <view class="hint">1–20 个中文、字母、数字或 _ # &amp; @ . + -</view>
-      <label class="field-label" for="bio">个人简介</label>
-      <textarea id="bio" class="textarea" value="{{bio}}" placeholder="向校园介绍一下自己" maxlength="-1" disabled="{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}" bindinput="onBio" />
-      <view class="counter">{{bioLength}} / 100 字 · 最多 5 次换行</view>
-      <view wx:if="{{validationError}}" class="error" aria-role="alert">{{validationError}}</view>
-      <button class="primary" bindtap="onSaveProfile" loading="{{saving}}" disabled="{{!profileDirty || loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}">保存个人资料</button>
+    <view class="editor-navigation-title">
+      编辑资料
     </view>
-    <view class="card">
-      <view class="card-title">使用偏好</view>
-      <view class="detail">这些设置从服务端读取，点击保存后生效。对应业务页面和消息投递仍在开发中。</view>
-      <view wx:for="{{preferences}}" wx:key="key" class="preference-row">
-        <view class="preference-text">
-          <label class="preference-label" for="{{item.key}}">{{item.label}}</label>
-          <view class="hint">{{item.hint}}</view>
-        </view>
-        <switch id="{{item.key}}" checked="{{item.checked}}" color="#195a93" data-key="{{item.key}}" disabled="{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}" bindchange="onPreference" />
+    <view class="editor-navigation-side editor-navigation-end">
+      <navigator wx:if="{{hasSession &amp;&amp; !profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !details.dirty &amp;&amp; !loading &amp;&amp; !saving}}" class="editor-preview" url="/pages/public-profile/public-profile">
+        预览
+        <wu-icon name="chevron-right" size="12" tone="muted" />
+      </navigator>
+    </view>
+  </view>
+  <view class="editor-avatar-stage">
+    <view class="editor-avatar-wrap">
+      <button class="editor-avatar-button" aria-label="预览当前头像" bindtap="onOpenAvatar" disabled="{{avatarRead.status !== 'ready'}}">
+        <image wx:if="{{avatarRead.localSrc}}" class="profile-avatar" src="{{avatarRead.localSrc}}" mode="aspectFill" binderror="onAvatarImageError" />
+        <wu-icon name="person" size="55" tone="muted" wx:else />
+      </button>
+      <button class="editor-avatar-badge" aria-label="展开头像编辑选项" bindtap="onToggleAvatarTools">
+        <wu-icon name="camera" size="19" tone="white" />
+      </button>
+    </view>
+    <wu-f7-button class="avatar-tools-toggle" bind:press="onToggleAvatarTools" variant="plain" size="normal">
+      {{showAvatarTools ? '收起头像编辑' : '更换头像'}}
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{avatarRead.expanded &amp;&amp; avatarRead.localSrc}}" class="avatar-overlay">
+    <image src="{{avatarRead.localSrc}}" mode="aspectFit" binderror="onAvatarImageError" />
+    <wu-f7-button bind:press="onCloseAvatar" variant="tonal" size="normal">
+      关闭预览
+    </wu-f7-button>
+  </view>
+  <wu-f7-block wx:if="{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}" class="card avatar-editor-tools" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <image wx:if="{{avatar.previewSrc}}" class="profile-avatar" src="{{avatar.previewSrc}}" mode="aspectFit" />
+    <view wx:if="{{avatar.previewSrc}}" class="hint">
+      本地预览，尚未保存
+    </view>
+    <view aria-role="status">
+      {{avatar.status}}
+    </view>
+    <view wx:if="{{avatar.error}}" class="error">
+      {{avatar.error}}
+    </view>
+    <wu-f7-button disabled="{{!avatar.canChoose || avatar.busy || loading || saving || profileDirty || preferencesDirty}}" bind:press="onChooseCustomAvatar" variant="tonal" size="normal">
+      选择自定义头像
+    </wu-f7-button>
+    <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+      <view wx:for="{{avatar.catalog}}" wx:key="itemId">
+        <wu-f7-list-item data-item="{{item.itemId}}" disabled="{{loading || saving || profileDirty || preferencesDirty}}" bind:press="onAvatarCatalog" link="{{true}}" title="{{item.label}}{{avatar.selectedItem === item.itemId ? ' · 已选择' : ''}}" />
       </view>
-      <button class="primary" bindtap="onSavePreferences" loading="{{saving}}" disabled="{{!preferencesDirty || loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}">保存使用偏好</button>
+    </wu-f7-list>
+    <view wx:if="{{avatar.pickerWaiting}}" class="notice">
+      请先完成或关闭系统选图界面，再继续选择。
     </view>
-    <button wx:if="{{profileDirty || preferencesDirty}}" class="secondary" bindtap="onCancelEdits" disabled="{{loading || saving}}">取消未保存的修改</button>
+    <view wx:if="{{!avatar.catalog.length}}" class="hint">
+      默认头像暂不可用
+    </view>
+    <wu-f7-button disabled="{{!avatar.loaded || avatar.busy || loading || saving || profileDirty || preferencesDirty}}" bind:press="onClearAvatar" variant="tonal" size="normal">
+      选择清除头像
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{avatar.canSave}}" disabled="{{avatar.busy}}" bind:press="onSaveAvatar" variant="tonal" size="normal">
+      保存头像选择
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{avatar.busy}}" bind:press="onStopAvatar" variant="tonal" size="normal">
+      停止本地等待
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{avatar.needsRecovery}}" disabled="{{avatar.busy}}" bind:press="onRecoverAvatar" variant="tonal" size="normal">
+      查询原头像请求
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{avatar.needsRecovery}}" disabled="{{avatar.busy}}" bind:press="onRetryAvatar" variant="tonal" size="normal">
+      查询并重试原保存请求
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{avatar.needsRecovery}}" disabled="{{avatar.busy}}" bind:press="onCancelAvatarCommand" variant="tonal" size="normal">
+      取消原保存请求及未绑定上传
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{avatar.needsRecovery}}" disabled="{{avatar.busy}}" bind:press="onCancelAvatarEdit" variant="tonal" size="normal">
+      取消未保存的上传编辑
+    </wu-f7-button>
+    <wu-f7-button disabled="{{avatar.busy}}" bind:press="onReloadAvatar" variant="tonal" size="normal">
+      重新加载当前头像
+    </wu-f7-button>
+    <view class="hint">
+      上传完成后仍需保存。未确认的请求可由原账号恢复。
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{error || loading || saving || !loaded || needsReload}}" class="status-panel" spacing="compact">
+    <view class="status" aria-role="status">
+      {{status}}
+    </view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">
+      {{error}}
+    </view>
+    <view wx:if="{{requestId}}" class="request-id" selectable="true">
+      问题编号：{{requestId}}
+    </view>
+    <wu-f7-button wx:if="{{loading || saving}}" class="secondary" bind:press="onCancelOperation" variant="tonal" size="normal">
+      {{saving ? '停止等待保存结果' : '取消加载'}}
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{!loading &amp;&amp; !saving &amp;&amp; (!loaded || error)}}" class="secondary" disabled="{{!hasSession || !configured}}" bind:press="onReload" variant="tonal" size="normal">
+      {{needsReload || profileDirty || preferencesDirty ? '重新加载并放弃未保存编辑' : '重新加载'}}
+    </wu-f7-button>
+    <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login" open-type="reLaunch">
+      前往登录
+    </navigator>
+  </wu-f7-block>
+  <block wx:if="{{loaded}}">
+    <wu-f7-list class="card editor-fields" strong="{{true}}" inset="{{true}}" spacing="compact">
+      <view class="editor-field-row">
+        <wu-f7-input id="nickname" class="input" value="{{nickname}}" placeholder="填写你的昵称" maxlength="-1" disabled="{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}" bind:input="onNickname" clearable="{{false}}" label="名字" />
+      </view>
+      <view wx:if="{{profileDirty}}" class="hint">
+        1–20 个中文、字母、数字或 _ # &amp; @ . + -
+      </view>
+      <wu-f7-list-item class="editor-field-row" title="UID" footer-slot="{{true}}">
+        <view class="editor-readonly" slot="footer">
+          {{schoolUidView.loaded &amp;&amp; schoolUidView.schoolUid.status === 'assigned' ? schoolUidView.schoolUid.formattedUid : schoolUidView.loaded &amp;&amp; schoolUidView.schoolUid.status === 'unassigned' ? '未分配' : '暂不可用'}}
+        </view>
+      </wu-f7-list-item>
+      <wu-f7-list-item class="editor-field-row editor-cover-row" aria-label="编辑主页背景图" bind:press="onToggleCoverTools" link="{{true}}" title="背景图" after-slot="{{true}}">
+        <view slot="after">
+          <image wx:if="{{coverRead.localSrc}}" class="editor-cover-thumbnail" src="{{coverRead.localSrc}}" mode="aspectFill" binderror="onCoverImageError" show-menu-by-longpress="{{false}}" />
+          <text class="editor-cover-status" wx:else>
+            {{coverRead.status === 'none' ? '未设置' : coverRead.status === 'loading' ? '读取中' : '暂不可用'}}
+          </text>
+        </view>
+      </wu-f7-list-item>
+    </wu-f7-list>
+    <wu-f7-block class="card editor-bio-card" strong="{{true}}" inset="{{true}}" spacing="compact">
+      <view class="editor-field-row editor-bio-row">
+        <label class="field-label" for="bio">
+          简介
+        </label>
+        <textarea id="bio" class="textarea" auto-height="{{true}}" value="{{bio}}" placeholder="介绍一下自己" maxlength="-1" disabled="{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}" bindinput="onBio" />
+      </view>
+      <view wx:if="{{profileDirty}}" class="counter">
+        {{bioLength}} / 100 字 · 最多 5 次换行
+      </view>
+      <view wx:if="{{validationError}}" class="error" aria-role="alert">
+        {{validationError}}
+      </view>
+      <wu-f7-button wx:if="{{profileDirty || saving}}" class="primary" loading="{{saving}}" disabled="{{!profileDirty || loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}" bind:press="onSaveProfile" variant="fill" size="large">
+        保存个人资料
+      </wu-f7-button>
+    </wu-f7-block>
   </block>
-  <view class="footnote">头像媒体仅有默认关闭的开发链路；真实素材、微信真机与背景图仍待验收。手机号与学生认证办理、主题外观及其他业务功能待接入。此开发构建不代表完整功能对齐。</view>
-  <navigator class="text-link" url="/pages/login/login" open-type="reLaunch">返回登录与会话管理</navigator>
+  <wu-f7-block wx:if="{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}" class="card cover-editor-tools" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="card-title">
+      主页背景图
+    </view>
+    <image wx:if="{{cover.previewSrc}}" class="editor-cover-preview" src="{{cover.previewSrc}}" mode="aspectFit" show-menu-by-longpress="{{false}}" />
+    <view wx:if="{{cover.previewSrc}}" class="hint">
+      未保存
+    </view>
+    <view wx:if="{{cover.error}}" class="error" aria-role="alert">
+      {{cover.error}}
+    </view>
+    <view wx:if="{{cover.busy || cover.needsRecovery || cover.pickerWaiting}}" class="hint" aria-role="status">
+      {{cover.status}}
+    </view>
+    <view wx:if="{{!cover.busy &amp;&amp; !cover.uploadAvailable}}" class="hint">
+      背景图上传暂未开放
+    </view>
+    <wu-f7-button wx:if="{{cover.uploadAvailable}}" class="secondary" disabled="{{!cover.canChoose || cover.busy}}" bind:press="onChooseCover" variant="tonal" size="normal">
+      选择并上传背景图
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{cover.loaded}}" class="secondary" disabled="{{cover.busy}}" bind:press="onClearCover" variant="tonal" size="normal">
+      移除背景图
+    </wu-f7-button>
+    <view wx:if="{{cover.canSave}}" class="hint">
+      保存后会显示在公开主页。
+    </view>
+    <wu-f7-button wx:if="{{cover.canSave}}" class="primary" disabled="{{cover.busy}}" bind:press="onSaveCover" variant="fill" size="large">
+      保存背景图
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{cover.busy}}" class="secondary" bind:press="onStopCover" variant="tonal" size="normal">
+      停止等待
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{cover.needsRecovery}}" class="secondary" disabled="{{cover.busy}}" bind:press="onRecoverCover" variant="tonal" size="normal">
+      查询保存结果
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{cover.needsRecovery}}" class="secondary" disabled="{{cover.busy}}" bind:press="onRetryCover" variant="tonal" size="normal">
+      查询并重试原保存
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{cover.needsRecovery}}" class="secondary" disabled="{{cover.busy}}" bind:press="onCancelCoverCommand" variant="tonal" size="normal">
+      取消原保存
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{cover.needsRecovery}}" class="secondary" disabled="{{cover.busy}}" bind:press="onCancelCoverEdit" variant="tonal" size="normal">
+      取消未保存的上传
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{coverConfigured &amp;&amp; !cover.busy &amp;&amp; (!cover.loaded || cover.needsReload || cover.error)}}" class="secondary" bind:press="onReloadCover" variant="tonal" size="normal">
+      重新加载
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-list wx:if="{{hasSession}}" class="card profile-details-editor" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view wx:if="{{details.error}}" class="error" aria-role="alert">
+      {{details.error}}
+    </view>
+    <view wx:if="{{details.validationError}}" class="error" aria-role="alert">
+      {{details.validationError}}
+    </view>
+    <view wx:if="{{details.loaded}}">
+      <view class="editor-field-row">
+        <wu-f7-input id="profile-region" class="input" value="{{details.regionInput}}" placeholder="选填" maxlength="80" disabled="{{details.busy || details.needsReload}}" bind:input="onDetailsRegion" clearable="{{false}}" label="地区" />
+      </view>
+      <view class="editor-field-row">
+        <label class="field-label">
+          性别
+        </label>
+        <picker class="input detail-gender-picker" range="{{detailGenderLabels}}" value="{{details.gender === 'female' ? 1 : details.gender === 'male' ? 2 : 0}}" bindchange="onDetailsGender" disabled="{{details.busy || details.needsReload}}">
+          <view>
+            {{details.gender === 'female' ? '女' : details.gender === 'male' ? '男' : '私密'}}
+          </view>
+        </picker>
+      </view>
+      <view class="editor-field-row">
+        <wu-f7-input id="profile-age" class="input" type="number" value="{{details.ageInput}}" placeholder="选填" maxlength="3" disabled="{{details.busy || details.needsReload}}" bind:input="onDetailsAge" clearable="{{false}}" label="年龄" />
+      </view>
+      <wu-f7-list-item class="editor-disclosure" data-panel="visibility" bind:press="onToggleEditorPanel" link="{{true}}" title="公开范围" after="{{showDetailsVisibility ? '收起' : ''}}" />
+      <view wx:if="{{showDetailsVisibility || details.dirty}}" class="editor-visibility">
+        <view class="hint">
+          选填，默认仅自己可见。开启并保存后显示在公开主页。手动填写年龄，不收集生日。
+        </view>
+        <view class="preference-row">
+          <wu-f7-toggle id="show-region" checked="{{details.showRegion}}" color="#007aff" data-key="showRegion" disabled="{{details.busy || details.needsReload}}" bind:change="onDetailsVisibility" label="在主页显示地区" />
+        </view>
+        <view class="preference-row">
+          <wu-f7-toggle id="show-gender" checked="{{details.showGender}}" color="#007aff" data-key="showGender" disabled="{{details.busy || details.needsReload}}" bind:change="onDetailsVisibility" label="在主页显示性别" />
+        </view>
+        <view class="preference-row">
+          <wu-f7-toggle id="show-age" checked="{{details.showAge}}" color="#007aff" data-key="showAge" disabled="{{details.busy || details.needsReload}}" bind:change="onDetailsVisibility" label="在主页显示年龄" />
+        </view>
+      </view>
+      <wu-f7-button wx:if="{{details.dirty || details.saving}}" class="primary" loading="{{details.saving}}" disabled="{{!details.dirty || details.busy || details.needsReload}}" bind:press="onSaveDetails" variant="fill" size="large">
+        保存展示信息与公开设置
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{details.dirty &amp;&amp; !details.needsReload}}" class="secondary" disabled="{{details.busy}}" bind:press="onCancelDetails" variant="tonal" size="normal">
+        取消修改
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{details.busy}}" class="hint" aria-role="status">
+      {{details.saving ? '正在保存展示信息' : '正在读取展示信息'}}
+    </view>
+    <wu-f7-button wx:if="{{!details.busy &amp;&amp; (!details.loaded || details.error || details.needsReload)}}" class="secondary" bind:press="onReloadDetails" variant="tonal" size="normal">
+      重新加载展示信息
+    </wu-f7-button>
+  </wu-f7-list>
+  <block wx:if="{{loaded}}">
+    <wu-f7-list class="card editor-campus" strong="{{true}}" inset="{{true}}" spacing="compact">
+      <navigator wx:if="{{!profileDirty &amp;&amp; !preferencesDirty &amp;&amp; !loading &amp;&amp; !saving}}" class="editor-field-row editor-campus-row" url="/pages/campus/campus">
+        <wu-f7-list-item title-slot="{{true}}" footer-slot="{{true}}" after-slot="{{true}}">
+          <view class="field-label" slot="title">
+            浏览校园
+          </view>
+          <view class="editor-campus-value" slot="footer">
+            {{selectedCampusName}}
+          </view>
+          <wu-icon name="chevron-right" size="14" tone="muted" slot="after" />
+        </wu-f7-list-item>
+      </navigator>
+      <view class="editor-field-row" wx:else>
+        <view class="field-label">
+          浏览校园
+        </view>
+        <view class="editor-campus-value">
+          {{selectedCampusName}}
+        </view>
+      </view>
+    </wu-f7-list>
+    <wu-f7-button wx:if="{{profileDirty}}" class="secondary" disabled="{{loading || saving}}" bind:press="onCancelEdits" variant="tonal" size="normal">
+      取消未保存的修改
+    </wu-f7-button>
+  </block>
 </view>

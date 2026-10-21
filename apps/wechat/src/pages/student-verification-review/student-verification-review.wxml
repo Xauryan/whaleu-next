@@ -1,11 +1,39 @@
-<view class="screen"><view class="eyebrow">WHALEU · 校方审核</view><view class="title">学生归属申请队列</view>
- <view class="intro">仅当前被授权的学校管理员可查看本地区申请。请人工判断学校归属；材料内容安全检查不等于学生认证。不能审核自己的申请。</view><view wx:if="{{error}}" class="error">{{error}}</view><view>{{message}}</view>
- <view wx:if="{{management==='none'}}">当前账号没有学校审核权限。</view><view wx:if="{{regionId}}">目标地区：{{regionName||regionId}}</view>
- <view wx:if="{{management==='global'}}"><input value="{{campusQuery}}" bindinput="onSearchInput" maxlength="100" placeholder="搜索校区以明确选择审核地区"/><button bindtap="onSearch" disabled="{{busy}}">搜索</button><button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onChooseCampus" disabled="{{busy}}">{{item.fullName}}</button></view>
- <button wx:for="{{items}}" wx:key="id" bindtap="onSelect" data-id="{{item.id}}" disabled="{{busy}}">{{item.campusName}} · {{item.submittedAt}}</button><button bindtap="onPrevious" disabled="{{busy||page<=1}}">上一页</button><button bindtap="onNext" disabled="{{busy||!hasNext}}">下一页</button>
- <view wx:if="{{application}}" class="card"><view class="card-title">{{stateLabel}}</view><view>{{application.campusName}}</view><view>公开账号编号：{{application.profileId||'暂未建立'}}</view><view wx:if="{{application.reason}}">拒绝原因：{{application.reason}}</view><button wx:if="{{application.state==='pending'&&application.evidenceAvailable}}" bindtap="onPreview" disabled="{{busy}}">私密读取申请材料</button><view>{{evidenceMessage}}</view><block wx:if="{{application.state==='pending'}}"><button bindtap="onApprove" disabled="{{busy||pending}}">通过学校归属审核</button><textarea value="{{reason}}" bindinput="onReason" maxlength="200" placeholder="拒绝必须填写原因，不超过200字"/><button bindtap="onReject" disabled="{{busy||pending||!reason}}">拒绝本次申请</button></block></view>
- <view wx:if="{{evidenceSrc}}" class="card"><image class="evidence" src="{{evidenceSrc}}" mode="widthFix"/><button bindtap="onClosePreview">关闭并清除材料</button></view>
- <view wx:if="{{confirmation}}" class="card"><view>{{confirmation==='approved'?'确认通过？将发行学校归属认证，不会发行学号。':'确认拒绝本次申请？申请人可重新提交新材料。'}}</view><button bindtap="onConfirm" disabled="{{busy}}">确认审核决定</button><button bindtap="onDismiss" disabled="{{busy}}">返回</button></view>
- <view wx:if="{{pending}}"><button bindtap="onRecover" disabled="{{busy}}">查询原审核请求</button><button bindtap="onCancelRequest" disabled="{{busy}}">关闭尚未执行的原请求</button></view>
- <button bindtap="onReload" disabled="{{busy}}">刷新队列</button><navigator url="/pages/student-verification-notices/student-verification-notices">认证站内消息</navigator><navigator url="/pages/student-verification/student-verification">我的认证申请</navigator>
+<view class="management-page moderation-native f7-ios-theme">
+  <view class="page-heading"><view class="section-label">{{regionName || '审核范围待确认'}}</view><wu-f7-button class="icon-button" bind:press="onReload" disabled="{{busy}}" aria-label="刷新队列" variant="plain"><wu-icon name="refresh" tone="accent" size="22" /></wu-f7-button></view>
+  <view class="scope"><wu-icon name="shield" tone="muted" size="18" /><text>仅当前获授权的学校管理员可查看本地区申请。需人工判断学校归属，材料安全检查不等于学生认证，不能审核自己的申请。</text></view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view class="status" aria-role="status">{{message}}</view>
+  <wu-f7-block wx:if="{{management==='none'}}" class="empty" strong="{{true}}" inset="{{true}}" spacing="compact"><wu-icon name="lock" tone="muted" size="32" /><view class="section-title">当前没有审核权限</view><view class="notice">不能读取申请材料或提交审核决定。</view></wu-f7-block>
+  <view wx:if="{{regionId}}" class="field-row"><text>本次审核地区</text><text>{{regionName||regionId}}</text></view>
+  <wu-f7-block wx:if="{{management==='global'}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">选择审核地区</view>
+    <input value="{{campusQuery}}" bindinput="onSearchInput" maxlength="100" placeholder="搜索校区" />
+    <wu-f7-button class="secondary" bind:press="onSearch" disabled="{{busy}}" variant="tonal">搜索校区</wu-f7-button>
+    <wu-f7-button wx:for="{{campuses}}" wx:key="id" class="disclosure" data-id="{{item.id}}" bind:press="onChooseCampus" disabled="{{busy}}" variant="plain"><text>{{item.fullName}}</text><wu-icon name="chevron-right" tone="muted" size="18" /></wu-f7-button>
+  </wu-f7-block>
+  <view class="section-label">申请队列</view>
+  <wu-f7-button wx:for="{{items}}" wx:key="id" class="disclosure queue-row" bind:press="onSelect" data-id="{{item.id}}" disabled="{{busy}}" variant="plain"><view><view class="section-title">{{item.campusName}}</view><view class="meta">提交（UTC）：{{item.submittedAt}}</view></view><wu-icon name="chevron-right" tone="muted" size="18" /></wu-f7-button>
+  <view class="inline-actions"><wu-f7-button bind:press="onPrevious" disabled="{{busy||page<=1}}" variant="plain">上一页</wu-f7-button><text class="meta">{{page}}</text><wu-f7-button bind:press="onNext" disabled="{{busy||!hasNext}}" variant="plain">下一页</wu-f7-button></view>
+  <wu-f7-block wx:if="{{loaded &amp;&amp; management !== 'none' &amp;&amp; regionId &amp;&amp; !items.length &amp;&amp; !error}}" class="empty" strong="{{true}}" inset="{{true}}" spacing="compact"><wu-icon name="check" tone="muted" size="30" /><view class="section-title">当前队列暂无申请</view><view class="notice">可刷新查看最新提交。</view></wu-f7-block>
+  <wu-f7-block wx:if="{{application}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-label">当前申请</view><view class="section-title">{{application.campusName}}</view><view class="notice">{{stateLabel}}</view>
+    <view wx:if="{{application.reason}}" class="body">拒绝原因：{{application.reason}}</view>
+    <view class="field-row"><text>当前申请版本</text><text>{{application.revision}}</text></view>
+    <view class="field-row"><text>材料有效期（UTC）</text><text>{{application.evidenceExpiresAt || '暂无有效材料'}}</text></view>
+    <wu-f7-button class="disclosure" bind:press="onToggleDetails" aria-expanded="{{detailsExpanded}}" variant="plain">申请核验信息<wu-icon name="{{detailsExpanded ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="18" /></wu-f7-button>
+    <view wx:if="{{detailsExpanded}}" class="reference"><view>申请编号：{{application.id}}</view><view>公开账号编号：{{application.profileId||'暂未建立'}}</view><view>材料版本：{{application.evidenceRevision || '暂无'}}</view><view>申请地区：{{application.regionId}}</view></view>
+    <wu-f7-button wx:if="{{application.state==='pending'&&application.evidenceAvailable}}" class="secondary" bind:press="onPreview" disabled="{{busy}}" variant="tonal">私密查看申请材料</wu-f7-button>
+    <view wx:if="{{!application.evidenceAvailable}}" class="notice">当前材料不可读取，请刷新核验材料与申请状态。</view>
+    <view class="status" aria-role="status">{{evidenceMessage}}</view>
+    <block wx:if="{{application.state==='pending'}}">
+      <view class="notice">审核时将再次核验管理员、学校范围、申请版本及材料有效期；当前展示不代替提交时核验。</view>
+      <wu-f7-button class="primary" bind:press="onApprove" disabled="{{busy||pending}}" variant="fill">通过学校归属审核</wu-f7-button>
+      <view class="field-label">不通过的原因</view><textarea value="{{reason}}" bindinput="onReason" maxlength="200" placeholder="拒绝须说明原因，最多 200 字" />
+      <wu-f7-button class="secondary" bind:press="onReject" disabled="{{busy||pending||!reason}}" variant="tonal">拒绝本次申请</wu-f7-button>
+    </block>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{evidenceSrc}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact"><view class="section-title">私密申请材料</view><view class="notice">仅用于本次学校归属审核。关闭或离开前台后清除展示；请勿另存或传播。</view><image class="evidence" src="{{evidenceSrc}}" mode="widthFix" /><wu-f7-button class="secondary" bind:press="onClosePreview" variant="tonal">关闭并清除材料</wu-f7-button></wu-f7-block>
+  <wu-f7-block wx:if="{{confirmation}}" class="confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact"><view class="section-title">确认审核决定？</view><view class="body">{{confirmation==='approved'?'通过后将发行学校归属认证，不会发行学号。':'将拒绝本次申请，申请人可重新提交新材料。'}}</view><view class="notice">仅处理上方显示的学校申请，决定以当前权限与申请版本重新核验为准。</view><wu-f7-button class="primary" bind:press="onConfirm" disabled="{{busy}}" variant="fill">确认审核决定</wu-f7-button><wu-f7-button class="quiet" bind:press="onDismiss" disabled="{{busy}}" variant="plain">返回修改</wu-f7-button></wu-f7-block>
+  <wu-f7-block wx:if="{{pending}}" class="recovery" strong="{{true}}" inset="{{true}}" spacing="compact"><view class="section-title">原审核结果待确认</view><view class="notice">查询不到回执不代表未执行。请保留本机数据并使用原账号查询；关闭尚未执行的请求不会撤销已完成的决定。</view><wu-f7-button class="primary" bind:press="onRecover" disabled="{{busy}}" variant="fill">查询原审核请求</wu-f7-button><wu-f7-button class="quiet" bind:press="onCancelRequest" disabled="{{busy}}" variant="plain">关闭尚未执行的原请求</wu-f7-button></wu-f7-block>
+  <view class="links"><navigator class="link" url="/pages/student-verification-notices/student-verification-notices">认证站内消息<wu-icon name="chevron-right" tone="muted" size="18" /></navigator><navigator class="link" url="/pages/student-verification/student-verification">我的认证申请<wu-icon name="chevron-right" tone="muted" size="18" /></navigator></view>
 </view>

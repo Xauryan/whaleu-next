@@ -15,6 +15,12 @@ import type {
   ActivityMediaReadView,
 } from '../../activities/media-runtime';
 import type { OrganizationMediaReader } from '../../organizations/media-runtime';
+import {
+  activityDisplayTimestamp,
+  activityTypeLabels,
+  initialActivityPanels,
+  toggledActivityPanels,
+} from '../activity-list/presentation';
 Page({
   data: {
     activity: null as NativeActivity | null,
@@ -24,6 +30,11 @@ Page({
     slots: [] as { slot: string; label: string }[],
     image: { status: 'idle', src: '', message: '' } as ActivityMediaReadView,
     qr: { status: 'idle', src: '', message: '' } as ActivityMediaReadView,
+    activityTypeLabels,
+    uiPanels: initialActivityPanels(),
+    selectedSlot: 'cover',
+    endAtLabel: '',
+    publishedAtLabel: '',
   },
   id: null as string | null,
   reader: undefined as ActivityMediaReader | undefined,
@@ -77,6 +88,8 @@ Page({
       this.setData({
         activity,
         loaded: true,
+        endAtLabel: activityDisplayTimestamp(activity.content.endAt),
+        publishedAtLabel: activityDisplayTimestamp(activity.createdAt),
         slots: activityMediaSlots
           .filter((slot) => !!activity.mediaBindings[slot])
           .map((slot) => ({ slot, label: activitySlotLabels[slot] })),
@@ -97,13 +110,26 @@ Page({
   onImage(e: { currentTarget: { dataset: { slot: string } } }) {
     const activity = this.data.activity,
       slot = activityMediaSlot(e.currentTarget.dataset.slot);
-    if (activity && activity.mediaBindings[slot])
+    if (activity && activity.mediaBindings[slot]) {
+      this.setData({ selectedSlot: slot });
       void this.reader?.load({
         activityId: activity.id,
         revision: activity.revision,
         slot,
         audience: 'public',
       });
+    }
+  },
+  onRefresh() {
+    if (!this.data.busy) void this.onShow();
+  },
+  onTogglePanel(e: { currentTarget: { dataset: { field: string } } }) {
+    this.setData({
+      uiPanels: toggledActivityPanels(
+        this.data.uiPanels,
+        e.currentTarget.dataset.field,
+      ),
+    });
   },
   onQr() {
     const qr = this.data.activity?.organizerQr;
@@ -135,6 +161,10 @@ Page({
       error: '',
       image: { status: 'idle', src: '', message: '' },
       qr: { status: 'idle', src: '', message: '' },
+      uiPanels: initialActivityPanels(),
+      selectedSlot: 'cover',
+      endAtLabel: '',
+      publishedAtLabel: '',
     });
   },
   onHide() {

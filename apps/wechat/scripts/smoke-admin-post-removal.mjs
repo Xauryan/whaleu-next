@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse, render } from './smoke-ratings.mjs';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 
 /** Actual emitted Page/gateway/storage/WXML; only transport and platform are synthetic. */
@@ -254,6 +255,26 @@ export async function smokeAdminPostRemoval({ dist }) {
     page.onShow();
     return page;
   };
+  // Actual emitted Component → Page event boundary; native fields and direct
+  // invalid/double-submit probes below intentionally retain controller coverage.
+  const moderationBridges = new WeakMap();
+  const nativePress = (page, handler) => {
+    let bridge = moderationBridges.get(page);
+    if (!bridge) {
+      bridge = createNativePressBridge({
+        page,
+        pageFile: path.join(
+          dist,
+          'pages/admin-post-removal/admin-post-removal',
+        ),
+        dist,
+      });
+      moderationBridges.set(page, bridge);
+    }
+    const capture = bridge.capture(handler);
+    assert.equal(capture.press(), true, `Native management press ${handler}`);
+    capture.detach();
+  };
   const flatten = (nodes) =>
     nodes.flatMap((node) =>
       typeof node === 'string' ? [node] : [node, ...flatten(node.children)],
@@ -272,13 +293,13 @@ export async function smokeAdminPostRemoval({ dist }) {
       ).pages.includes('pages/admin-post-removal/admin-post-removal'),
     );
     const confirm = async (page) => {
-      page.onRemovePost();
+      nativePress(page, 'onRemovePost');
       await flush();
       assert.equal(page.data.confirming, 'remove');
       const words = flatten(render(template.children, page.data, {}))
         .filter((n) => typeof n === 'string')
         .join(' ');
-      assert.match(words, /评论、回复将不可访问/);
+      assert.match(words, /此主题及其全部回复将不可访问/);
       assert.match(words, /私有系统通知/);
       assert.match(words, /没有恢复此帖/);
       assert.doesNotMatch(words, /super_admin|school_admin|公开昵称/);
@@ -286,12 +307,12 @@ export async function smokeAdminPostRemoval({ dist }) {
     let page = mount('admin-post-removal', { kind: 'post', id: id(10) });
     await flush();
     await confirm(page);
-    page.onClose();
+    nativePress(page, 'onClose');
     page.onSubmit();
     await flush();
     assert.equal(writes, 0);
     await confirm(page);
-    page.onSubmit();
+    nativePress(page, 'onSubmit');
     page.onSubmit();
     await flush();
     assert.equal(writes, 1);
@@ -329,7 +350,7 @@ export async function smokeAdminPostRemoval({ dist }) {
     page = mount();
     await flush();
     assert.equal(page.data.pendingRequestId, original.command.clientRequestId);
-    page.onRecover();
+    nativePress(page, 'onRecover');
     await flush();
     assert.equal(runtime.pendingAdminPostRemoval.load(accountId), null);
     assert.equal(writes, 2);
@@ -348,15 +369,15 @@ export async function smokeAdminPostRemoval({ dist }) {
     page.onSubmit();
     await flush();
     const unrecorded = runtime.pendingAdminPostRemoval.load(accountId);
-    page.onRecover();
+    nativePress(page, 'onRecover');
     await flush();
     assert.equal(page.data.frozen, true);
     assert.equal(
       page.data.pendingRequestId,
       unrecorded.command.clientRequestId,
     );
-    page.onCancelRequest();
-    page.onConfirmCancel();
+    nativePress(page, 'onCancelRequest');
+    nativePress(page, 'onConfirmCancel');
     await flush();
     assert.equal(
       receipts.get(unrecorded.command.clientRequestId).code,
@@ -387,7 +408,14 @@ export async function smokeAdminPostRemoval({ dist }) {
     const rendered = flatten(
       render(
         noticeTree.children,
-        { ...noticesPage.data, items: [notices[0]] },
+        {
+          ...noticesPage.data,
+          items: [
+            noticesPage.data.items.find(
+              (item) => item.key === `system:${notices[0].noticeId}`,
+            ),
+          ],
+        },
         {},
       ),
     );
@@ -398,11 +426,21 @@ export async function smokeAdminPostRemoval({ dist }) {
       !rendered.some((n) => typeof n !== 'string' && n.tag === 'navigator'),
     );
     noticesPage.onRead({
-      currentTarget: { dataset: { id: notices[0].noticeId } },
+      currentTarget: { dataset: { id: `system:${notices[0].noticeId}` } },
     });
     await flush();
-    assert.equal(noticesPage.data.items[3].readAt, createdAt);
-    assert.equal(noticesPage.data.items[0].readAt, null);
+    assert.equal(
+      noticesPage.data.items.find(
+        (item) => item.key === `system:${notices[0].noticeId}`,
+      ).readAt,
+      createdAt,
+    );
+    assert.equal(
+      noticesPage.data.items.find(
+        (item) => item.key === `system:${notices[1].noticeId}`,
+      ).readAt,
+      null,
+    );
 
     // Keep every preceding ordinary/v1 receipt assertion. Exercise v2 using
     // the same emitted controls, strict gateway and durable pending journal.
@@ -458,7 +496,7 @@ export async function smokeAdminPostRemoval({ dist }) {
       page.onUnload();
       page = mount('admin-post-removal');
       await flush();
-      page.onRecover();
+      nativePress(page, 'onRecover');
       await flush();
       assert.equal(runtime.pendingAdminPostRemoval.load(accountId), null);
       assert.equal(

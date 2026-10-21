@@ -1,3 +1,7 @@
+import {
+  guardNoticeRead,
+  type NoticeReadGuard,
+} from '../notifications/notice-read-guard';
 import { decodeDiscussionV2Notices } from './v2-contract';
 import {
   CommunityController,
@@ -38,6 +42,7 @@ export class WindowDiscussionNoticesController extends CommunityController<Windo
   constructor(
     runtime: CommunityRuntime,
     render: (v: WindowDiscussionNoticesView) => void,
+    private readonly appendPages = false,
   ) {
     super(runtime, initialWindowDiscussionNoticesView, render);
   }
@@ -63,6 +68,7 @@ export class WindowDiscussionNoticesController extends CommunityController<Windo
   }
   private async load(cursor: string | null): Promise<void> {
     const number = cursor ? this.view.pageNumber + 1 : 1;
+    const previous = this.appendPages && cursor ? this.view.items : [];
     this.snapshot = null;
     this.update({
       loaded: false,
@@ -88,7 +94,16 @@ export class WindowDiscussionNoticesController extends CommunityController<Windo
         this.snapshot = p;
         this.update({
           loaded: true,
-          items: p.items,
+          items: this.appendPages
+            ? [
+                ...new Map(
+                  [...previous, ...p.items].map((item) => [
+                    item.noticeId,
+                    item,
+                  ]),
+                ).values(),
+              ]
+            : p.items,
           unreadCount: p.unreadCount,
           pageNumber: number,
           canNext: p.nextCursor !== null,
@@ -132,7 +147,7 @@ export class WindowDiscussionNoticesController extends CommunityController<Windo
       },
     );
   }
-  async read(id: string): Promise<void> {
+  async read(id: string, guard?: NoticeReadGuard): Promise<void> {
     if (this.view.busy || !this.ready() || !this.view.loaded) return;
     const notice = this.view.items.find((i) => i.noticeId === id);
     if (!notice || notice.readAt !== null) return;
@@ -142,7 +157,7 @@ export class WindowDiscussionNoticesController extends CommunityController<Windo
       async (c) => {
         const r = decodeDiscussionRead(
           await (this.runtime.windowDiscussionV2 ??
-            this.runtime.windowDiscussion)!.read(id, c),
+            this.runtime.windowDiscussion)!.read(id, guardNoticeRead(c, guard)),
         );
         if (r.noticeId !== id) invalidDiscussion();
         return r;

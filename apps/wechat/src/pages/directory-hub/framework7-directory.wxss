@@ -1,0 +1,100 @@
+@import '../../design/framework7-ios.wxss';
+.f7-directory-screen {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 1px 0 calc(24px + env(safe-area-inset-bottom));
+  background: var(--f7-page-bg-color);
+}
+.f7-directory-search,
+.f7-directory-search-label,
+.f7-directory-toolbar,
+.f7-directory-section-toolbar,
+.f7-directory-pagination,
+.f7-directory-scope-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.f7-directory-search-label {
+  justify-content: center;
+}
+.f7-directory-toolbar,
+.f7-directory-section-toolbar,
+.f7-directory-pagination {
+  justify-content: space-between;
+}
+.f7-directory-toolbar {
+  margin-top: 8px;
+}
+.f7-directory-segments {
+  margin-top: 16px;
+}
+.f7-directory-scope-link {
+  min-height: 44px;
+  min-width: 0;
+  color: var(--f7-block-footer-text-color);
+  font-size: 13px;
+}
+.f7-directory-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  color: var(--f7-theme-color);
+  font-size: 15px;
+}
+.f7-directory-note,
+.f7-directory-status,
+.f7-directory-empty,
+.f7-directory-pagination {
+  color: var(--f7-block-footer-text-color);
+  font-size: var(--f7-block-footer-font-size);
+  line-height: 1.5;
+}
+.f7-directory-error {
+  color: var(--wu-danger);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+.f7-directory-empty {
+  padding: 20px 0;
+  text-align: center;
+}
+.f7-directory-empty-title {
+  color: var(--f7-text-color);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+.f7-directory-search-field {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--f7-list-strong-bg-color);
+}
+.f7-directory-search-field input {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+}
+.f7-directory-section-toolbar {
+  margin: 24px 16px -10px;
+  font-size: var(--f7-block-title-font-size);
+  font-weight: var(--f7-block-title-font-weight);
+  color: var(--f7-block-title-text-color);
+}
+.f7-directory-section-toolbar .f7-directory-note {
+  margin-top: 3px;
+  font-weight: 400;
+}
+.f7-directory-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  margin-top: 6px;
+}

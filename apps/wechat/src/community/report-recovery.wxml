@@ -1,6 +1,6 @@
 <template name="report-recovery">
   <view wx:if="{{report.confirmation}}" class="confirm" aria-role="dialog" aria-label="确认举报">
-    <view class="section-title">举报此{{report.confirmation.target.kind === 'post' ? '帖子' : report.confirmation.target.kind === 'comment' ? '评论' : '回复'}}？</view>
+    <view class="section-title">举报此{{report.confirmation.target.kind === 'post' ? '帖子' : report.confirmation.target.kind === 'comment' ? '回复' : '回复'}}？</view>
     <view class="notice">每个账号只能举报一次。确认后无法修改或撤回；举报受理不代表内容已经审核或删除。</view>
     <button class="danger" bindtap="onConfirmReport" disabled="{{report.busy || report.frozen}}">确认举报</button><button bindtap="onDismissReport" disabled="{{report.busy}}">取消</button>
   </view>

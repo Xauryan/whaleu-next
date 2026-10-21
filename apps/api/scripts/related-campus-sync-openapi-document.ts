@@ -75,7 +75,7 @@ export const relatedCommentCapabilitiesSchema = z.strictObject({
   forcedAuthorMode: z.literal('anonymous').nullable(),
 });
 export const relatedPostViewSchema = hotPostViewSchema
-  .extend({
+  .safeExtend({
     allowAnonymousDm: z.boolean(),
     feedback: z
       .strictObject({

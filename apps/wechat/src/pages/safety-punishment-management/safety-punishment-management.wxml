@@ -1,2 +1,2 @@
-<import src="../../account-moderation/screen.wxml" />
-<template is="account-moderation" data="{{mode,status,error,receiptStatus,hasSession,busy,frozen,accountStatus,punishments,appeals,nextCursor,selectedPunishment,text,reason,canRelease,selectedAppeal,canDecide,history,historyCursor,confirming,decision,pendingAction,pendingPhase,pendingRequestId,pendingCommand,recordedReceipt}}" />
+<import src="../safety-appeal-management/framework7-management.wxml" />
+<template is="management-review" data="{{detailsExpanded,historyExpanded,loaded,mode,status,error,receiptStatus,hasSession,busy,frozen,accountStatus,punishments,appeals,nextCursor,selectedPunishment,text,reason,canRelease,selectedAppeal,canDecide,history,historyCursor,confirming,decision,pendingAction,pendingPhase,pendingRequestId,pendingCommand,recordedReceipt}}" />

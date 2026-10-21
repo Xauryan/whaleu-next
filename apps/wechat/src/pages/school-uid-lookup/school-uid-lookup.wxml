@@ -1,19 +1,73 @@
-<view class="screen">
-  <view class="title">按学校与 UID 查询</view>
-  <view class="notice">仅超级管理员可查询当前学校与当前校内 UID。历史号码、不可查看的主页及未知状态均不会显示身份。</view>
-  <view aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <button bindtap="onReload" disabled="{{busy}}">重新核验权限</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
-  <view wx:if="{{canLookup}}" class="card">
-    <input class="input" value="{{campusQuery}}" placeholder="搜索学校或校区" bindinput="onQuery" disabled="{{busy}}" />
-    <button bindtap="onSearch" disabled="{{busy}}">搜索学校目录</button>
-    <button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onChoose" disabled="{{busy}}">{{item.institutionName}} · {{item.fullName}}（{{item.institutionId}}）</button>
-    <button wx:if="{{campusPage > 1}}" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{campusPage * 20 &lt; campusTotal}}" bindtap="onNext" disabled="{{busy}}">下一页</button>
-    <view wx:if="{{schoolCode}}">已选学校：{{schoolName}}（{{schoolCode}}）</view>
-    <input class="input" value="{{uid}}" placeholder="校内 UID，如 000123" maxlength="19" bindinput="onUid" disabled="{{busy}}" />
-    <button bindtap="onLookup" disabled="{{busy || !schoolCode || !uid}}">查询此学校与 UID</button>
+<view class="screen ops-page ops-school-uid-lookup f7-ios-theme ops-native">
+  <view class="ops-context">
+    <view class="ops-context-icon">
+      <wu-icon name="search" size="23" tone="accent" />
+    </view>
+    <view class="ops-context-title">
+      查找校内账号
+    </view>
   </view>
-  <view wx:if="{{result &amp;&amp; result.status === 'found' &amp;&amp; !busy}}" class="card"><view>{{result.target.displayName}}</view><navigator class="link" url="/pages/public-profile/public-profile?profileId={{result.target.profileId}}">打开当前公开主页 →</navigator></view>
-  <view wx:if="{{result &amp;&amp; result.status === 'unavailable'}}" class="notice">此学校与 UID 当前不可查询。</view>
-  <navigator class="link" url="/pages/school-identity-management/school-identity-management">恢复原学校归属管理请求 →</navigator>
-  <navigator class="link" url="/pages/profile/profile">返回我的资料 →</navigator>
+  <view class="notice">
+    仅超级管理员可查询当前学校与当前校内 UID。历史号码、不可查看的主页及未知状态均不会显示身份。
+  </view>
+  <view aria-role="status">
+    {{status}}
+  </view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">
+    {{error}}
+  </view>
+  <wu-f7-button bind:press="onReload" disabled="{{busy}}" class="ops-quiet" variant="plain">
+    重新核验权限
+  </wu-f7-button>
+  <wu-f7-button wx:if="{{busy}}" bind:press="onCancel" class="ops-quiet" variant="plain">
+    停止等待
+  </wu-f7-button>
+  <wu-f7-block wx:if="{{canLookup}}" class="card ops-section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">
+      1 · 选择准确学校
+    </view>
+    <input class="input" value="{{campusQuery}}" placeholder="搜索学校或校区" bindinput="onQuery" disabled="{{busy}}" />
+    <wu-f7-button bind:press="onSearch" disabled="{{busy}}" variant="tonal">
+      搜索学校目录
+    </wu-f7-button>
+    <wu-f7-button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bind:press="onChoose" disabled="{{busy}}" class="ops-choice" variant="plain">
+      {{item.institutionName}} · {{item.fullName}}（{{item.institutionId}}）
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{campusPage &gt; 1}}" bind:press="onPrevious" disabled="{{busy}}" variant="tonal">
+      上一页
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{campusPage * 20 &lt; campusTotal}}" bind:press="onNext" disabled="{{busy}}" variant="tonal">
+      下一页
+    </wu-f7-button>
+    <view wx:if="{{schoolCode}}">
+      已选学校：{{schoolName}}（{{schoolCode}}）
+    </view>
+    <view class="section-title">
+      2 · 输入当前 UID
+    </view>
+    <input class="input" value="{{uid}}" placeholder="校内 UID，如 000123" maxlength="19" bindinput="onUid" disabled="{{busy}}" />
+    <wu-f7-button bind:press="onLookup" disabled="{{busy || !schoolCode || !uid}}" class="ops-primary" variant="fill" size="large">
+      查询此学校与 UID
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{result &amp;&amp; result.status === 'found' &amp;&amp; !busy}}" class="card ops-section ops-found" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view>
+      {{result.target.displayName}}
+    </view>
+    <navigator class="ops-link" url="/pages/public-profile/public-profile?profileId={{result.target.profileId}}">
+      打开当前公开主页
+      <wu-icon name="chevron-right" size="17" tone="muted" />
+    </navigator>
+  </wu-f7-block>
+  <view wx:if="{{result &amp;&amp; result.status === 'unavailable'}}" class="notice">
+    此学校与 UID 当前不可查询。
+  </view>
+  <navigator class="ops-link" url="/pages/school-identity-management/school-identity-management">
+    恢复原学校归属管理请求
+    <wu-icon name="chevron-right" size="17" tone="muted" />
+  </navigator>
+  <navigator class="ops-link" url="/pages/profile/profile">
+    返回我的资料
+    <wu-icon name="chevron-right" size="17" tone="muted" />
+  </navigator>
 </view>

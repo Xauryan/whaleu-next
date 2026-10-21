@@ -55,7 +55,9 @@ test('one registered native scoped page wires rendered flows, real lifecycle dis
       path.resolve(__dirname, '../src/pages/rating-scoped/rating-scoped.wxml'),
       'utf8',
     );
-    for (const match of wxml.matchAll(/bind(?:tap|input)="([A-Za-z]+)"/g))
+    for (const match of wxml.matchAll(
+      /bind(?::(?:press|input)|tap|input)="([A-Za-z]+)"/g,
+    ))
       assert.equal(
         typeof native[match[1]!],
         'function',
@@ -65,9 +67,15 @@ test('one registered native scoped page wires rendered flows, real lifecycle dis
       readFileSync(path.resolve(__dirname, '../src/app.json'), 'utf8'),
     ) as { pages: string[] };
     assert.ok(app.pages.includes('pages/rating-scoped/rating-scoped'));
-    assert.match(wxml, /全部版本原请求恢复/);
-    assert.match(wxml, /明确选择校园/);
-    assert.match(wxml, /完整候选范围/);
+    assert.match(wxml, /查询上次操作/);
+    assert.match(wxml, /data-panel="scope"/);
+    assert.match(wxml, /随机范围包含所选学校全部校园与全局/);
+    (native.onTogglePanel as (event: unknown) => void)({
+      currentTarget: { dataset: { panel: 'scope' } },
+    });
+    assert.equal(native.data.uiPanel, 'scope');
+    (native.onClosePanel as () => void)();
+    assert.equal(native.data.uiPanel, '');
     native.onLoad({
       mode: 'detail',
       scope: 'campus',

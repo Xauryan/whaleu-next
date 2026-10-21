@@ -1,0 +1,1130 @@
+{
+  "profile": {
+    "sourceSha256": "979f4442f6d54b662149a00e774ed7196b0f1ec625814a56cf450df215f1884a",
+    "typescriptSha256": "d64df22361b6768044be3adfb8367522a27ece004df1fdc03cf1f855da429254",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{canGoBack}}",
+          "class": "editor-back",
+          "open-type": "navigateBack",
+          "delta": "1",
+          "aria-label": "返回"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canGoBack}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession && !profileDirty && !preferencesDirty && !details.dirty && !loading && !saving}}",
+          "class": "editor-preview",
+          "url": "/pages/public-profile/public-profile"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession && !profileDirty && !preferencesDirty && !details.dirty && !loading && !saving}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "editor-avatar-button",
+          "aria-label": "预览当前头像",
+          "bindtap": "onOpenAvatar",
+          "disabled": "{{avatarRead.status !== 'ready'}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "image",
+        "attrs": {
+          "wx:if": "{{avatarRead.localSrc}}",
+          "class": "profile-avatar",
+          "src": "{{avatarRead.localSrc}}",
+          "mode": "aspectFill",
+          "binderror": "onAvatarImageError"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{avatarRead.localSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "editor-avatar-badge",
+          "aria-label": "展开头像编辑选项",
+          "bindtap": "onToggleAvatarTools"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "avatar-tools-toggle",
+          "bindtap": "onToggleAvatarTools"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "image",
+        "attrs": {
+          "src": "{{avatarRead.localSrc}}",
+          "mode": "aspectFit",
+          "binderror": "onAvatarImageError"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{avatarRead.expanded && avatarRead.localSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseAvatar"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{avatarRead.expanded && avatarRead.localSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onChooseCustomAvatar",
+          "disabled": "{{!avatar.canChoose || avatar.busy || loading || saving || profileDirty || preferencesDirty}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-item": "{{item.itemId}}",
+          "bindtap": "onAvatarCatalog",
+          "disabled": "{{loading || saving || profileDirty || preferencesDirty}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          },
+          {
+            "wx:for": "{{avatar.catalog}}",
+            "wx:key": "itemId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClearAvatar",
+          "disabled": "{{!avatar.loaded || avatar.busy || loading || saving || profileDirty || preferencesDirty}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{avatar.canSave}}",
+          "bindtap": "onSaveAvatar",
+          "disabled": "{{avatar.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          },
+          {
+            "wx:if": "{{avatar.canSave}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{avatar.busy}}",
+          "bindtap": "onStopAvatar"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          },
+          {
+            "wx:if": "{{avatar.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{avatar.needsRecovery}}",
+          "bindtap": "onRecoverAvatar",
+          "disabled": "{{avatar.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          },
+          {
+            "wx:if": "{{avatar.needsRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{avatar.needsRecovery}}",
+          "bindtap": "onRetryAvatar",
+          "disabled": "{{avatar.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          },
+          {
+            "wx:if": "{{avatar.needsRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{avatar.needsRecovery}}",
+          "bindtap": "onCancelAvatarCommand",
+          "disabled": "{{avatar.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          },
+          {
+            "wx:if": "{{avatar.needsRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{avatar.needsRecovery}}",
+          "bindtap": "onCancelAvatarEdit",
+          "disabled": "{{avatar.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          },
+          {
+            "wx:if": "{{avatar.needsRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReloadAvatar",
+          "disabled": "{{avatar.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showAvatarTools || avatar.canSave || avatar.needsRecovery || avatar.busy || avatar.error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{loading || saving}}",
+          "class": "secondary",
+          "bindtap": "onCancelOperation"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{error || loading || saving || !loaded || needsReload}}"
+          },
+          {
+            "wx:if": "{{loading || saving}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!loading && !saving && (!loaded || error)}}",
+          "class": "secondary",
+          "bindtap": "onReload",
+          "disabled": "{{!hasSession || !configured}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{error || loading || saving || !loaded || needsReload}}"
+          },
+          {
+            "wx:if": "{{!loading && !saving && (!loaded || error)}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "text-link",
+          "url": "/pages/login/login",
+          "open-type": "reLaunch"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{error || loading || saving || !loaded || needsReload}}"
+          },
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "id": "nickname",
+          "class": "input",
+          "value": "{{nickname}}",
+          "placeholder": "填写你的昵称",
+          "maxlength": "-1",
+          "disabled": "{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}",
+          "bindinput": "onNickname"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "editor-field-row editor-cover-row",
+          "bindtap": "onToggleCoverTools",
+          "aria-label": "编辑主页背景图"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "image",
+        "attrs": {
+          "wx:if": "{{coverRead.localSrc}}",
+          "class": "editor-cover-thumbnail",
+          "src": "{{coverRead.localSrc}}",
+          "mode": "aspectFill",
+          "binderror": "onCoverImageError",
+          "show-menu-by-longpress": "{{false}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{coverRead.localSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "id": "bio",
+          "class": "textarea",
+          "auto-height": "{{true}}",
+          "value": "{{bio}}",
+          "placeholder": "介绍一下自己",
+          "maxlength": "-1",
+          "disabled": "{{loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}",
+          "bindinput": "onBio"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{profileDirty || saving}}",
+          "class": "primary",
+          "bindtap": "onSaveProfile",
+          "loading": "{{saving}}",
+          "disabled": "{{!profileDirty || loading || saving || needsReload || avatar.busy || avatar.canSave || avatar.needsRecovery}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{profileDirty || saving}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{cover.uploadAvailable}}",
+          "class": "secondary",
+          "bindtap": "onChooseCover",
+          "disabled": "{{!cover.canChoose || cover.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}"
+          },
+          {
+            "wx:if": "{{cover.uploadAvailable}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{cover.loaded}}",
+          "class": "secondary",
+          "bindtap": "onClearCover",
+          "disabled": "{{cover.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}"
+          },
+          {
+            "wx:if": "{{cover.loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{cover.canSave}}",
+          "class": "primary",
+          "bindtap": "onSaveCover",
+          "disabled": "{{cover.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}"
+          },
+          {
+            "wx:if": "{{cover.canSave}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{cover.busy}}",
+          "class": "secondary",
+          "bindtap": "onStopCover"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}"
+          },
+          {
+            "wx:if": "{{cover.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{cover.needsRecovery}}",
+          "class": "secondary",
+          "bindtap": "onRecoverCover",
+          "disabled": "{{cover.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}"
+          },
+          {
+            "wx:if": "{{cover.needsRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{cover.needsRecovery}}",
+          "class": "secondary",
+          "bindtap": "onRetryCover",
+          "disabled": "{{cover.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}"
+          },
+          {
+            "wx:if": "{{cover.needsRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{cover.needsRecovery}}",
+          "class": "secondary",
+          "bindtap": "onCancelCoverCommand",
+          "disabled": "{{cover.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}"
+          },
+          {
+            "wx:if": "{{cover.needsRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{cover.needsRecovery}}",
+          "class": "secondary",
+          "bindtap": "onCancelCoverEdit",
+          "disabled": "{{cover.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}"
+          },
+          {
+            "wx:if": "{{cover.needsRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{coverConfigured && !cover.busy && (!cover.loaded || cover.needsReload || cover.error)}}",
+          "class": "secondary",
+          "bindtap": "onReloadCover"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{showCoverTools || cover.canSave || cover.needsRecovery || cover.busy || cover.error}}"
+          },
+          {
+            "wx:if": "{{coverConfigured && !cover.busy && (!cover.loaded || cover.needsReload || cover.error)}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "id": "profile-region",
+          "class": "input",
+          "value": "{{details.regionInput}}",
+          "placeholder": "选填",
+          "maxlength": "80",
+          "bindinput": "onDetailsRegion",
+          "disabled": "{{details.busy || details.needsReload}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{details.loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "picker",
+        "attrs": {
+          "class": "input detail-gender-picker",
+          "range": "{{detailGenderLabels}}",
+          "value": "{{details.gender === 'female' ? 1 : details.gender === 'male' ? 2 : 0}}",
+          "bindchange": "onDetailsGender",
+          "disabled": "{{details.busy || details.needsReload}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{details.loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "id": "profile-age",
+          "class": "input",
+          "type": "number",
+          "value": "{{details.ageInput}}",
+          "placeholder": "选填",
+          "maxlength": "3",
+          "bindinput": "onDetailsAge",
+          "disabled": "{{details.busy || details.needsReload}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{details.loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "editor-disclosure",
+          "data-panel": "visibility",
+          "bindtap": "onToggleEditorPanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{details.loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "id": "show-region",
+          "checked": "{{details.showRegion}}",
+          "color": "#007aff",
+          "data-key": "showRegion",
+          "bindchange": "onDetailsVisibility",
+          "disabled": "{{details.busy || details.needsReload}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{details.loaded}}"
+          },
+          {
+            "wx:if": "{{showDetailsVisibility || details.dirty}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "id": "show-gender",
+          "checked": "{{details.showGender}}",
+          "color": "#007aff",
+          "data-key": "showGender",
+          "bindchange": "onDetailsVisibility",
+          "disabled": "{{details.busy || details.needsReload}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{details.loaded}}"
+          },
+          {
+            "wx:if": "{{showDetailsVisibility || details.dirty}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "id": "show-age",
+          "checked": "{{details.showAge}}",
+          "color": "#007aff",
+          "data-key": "showAge",
+          "bindchange": "onDetailsVisibility",
+          "disabled": "{{details.busy || details.needsReload}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{details.loaded}}"
+          },
+          {
+            "wx:if": "{{showDetailsVisibility || details.dirty}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{details.dirty || details.saving}}",
+          "class": "primary",
+          "bindtap": "onSaveDetails",
+          "loading": "{{details.saving}}",
+          "disabled": "{{!details.dirty || details.busy || details.needsReload}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{details.loaded}}"
+          },
+          {
+            "wx:if": "{{details.dirty || details.saving}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{details.dirty && !details.needsReload}}",
+          "class": "secondary",
+          "bindtap": "onCancelDetails",
+          "disabled": "{{details.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{details.loaded}}"
+          },
+          {
+            "wx:if": "{{details.dirty && !details.needsReload}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!details.busy && (!details.loaded || details.error || details.needsReload)}}",
+          "class": "secondary",
+          "bindtap": "onReloadDetails"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}"
+          },
+          {
+            "wx:if": "{{!details.busy && (!details.loaded || details.error || details.needsReload)}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!profileDirty && !preferencesDirty && !loading && !saving}}",
+          "class": "editor-field-row editor-campus-row",
+          "url": "/pages/campus/campus"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{!profileDirty && !preferencesDirty && !loading && !saving}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{profileDirty}}",
+          "class": "secondary",
+          "bindtap": "onCancelEdits",
+          "disabled": "{{loading || saving}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{profileDirty}}"
+          }
+        ]
+      }
+    ]
+  },
+  "student-verification": {
+    "sourceSha256": "14f5b347a03de8119a505e39f3867361738479ea4d84a328db0fa8d518c82ba6",
+    "typescriptSha256": "a62dca3646c13cf4ff9f0f463190ad5c93396e1f6f50d8a4bab694ad5b08f413",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "text-link",
+          "url": "/pages/login/login",
+          "open-type": "reLaunch"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onSearchInput",
+          "maxlength": "100",
+          "placeholder": "搜索学校或校区"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canApply}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onSearch",
+          "disabled": "{{busy||pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canApply}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChooseCampus",
+          "class": "choice {{selectedCampusId===item.id?'selected':''}}",
+          "disabled": "{{busy||pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canApply}}"
+          },
+          {
+            "wx:for": "{{campuses}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onPrepare",
+          "disabled": "{{busy||pending||!selectedCampusId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canApply}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onChooseEvidence",
+          "disabled": "{{busy||pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='draft'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onRecoverEvidence",
+          "disabled": "{{busy||pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='draft'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy||pending||!evidenceReady}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='draft'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{application.state==='draft'||application.state==='pending'}}",
+          "class": "quiet",
+          "bindtap": "onWithdraw",
+          "disabled": "{{busy||pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.state==='draft'||application.state==='pending'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{application.evidenceAvailable}}",
+          "class": "secondary",
+          "bindtap": "onPreview",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{application}}"
+          },
+          {
+            "wx:if": "{{application.evidenceAvailable}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onDismiss",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "bindtap": "onClosePreview"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{evidenceSrc}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onCleanup",
+          "disabled": "{{busy||pending}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/verification/verification"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/phone-binding/phone-binding"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/identity-campus/identity-campus"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/student-verification-notices/student-verification-notices"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/student-verification-review/student-verification-review"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "student-verification-notices": {
+    "sourceSha256": "dff12422d74d1094ceb0bcbeb0ab1e09b0d26da0c139b64ccf940dc81eb8ffaf",
+    "typescriptSha256": "13b91e0d4b50dc2992f6e38ab90f2cad10a8133a678af35d59783d4783850949",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-button",
+          "data-id": "{{item.id}}",
+          "bindtap": "onNotice",
+          "disabled": "{{busy||!item.available}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{notices}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-button muted",
+          "data-id": "{{item.id}}",
+          "bindtap": "onReadNotice",
+          "disabled": "{{busy||!item.available||item.read}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{notices}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onPrevious",
+          "disabled": "{{busy||page<=1}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onNext",
+          "disabled": "{{busy||!hasNext}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/student-verification/student-verification"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/student-verification-review/student-verification-review"
+        },
+        "scopes": []
+      }
+    ]
+  }
+}

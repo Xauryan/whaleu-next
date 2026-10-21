@@ -45,6 +45,10 @@ export function registerDiscussionMediaPage(): void {
     onMore() {
       void this.controller?.more();
     },
+    onReadNotice(event: { detail?: { interactionKey?: unknown } }) {
+      const key = event.detail?.interactionKey;
+      if (typeof key === 'string') void this.controller?.acknowledgeNotice(key);
+    },
     onCompose(event: Tap) {
       void this.controller?.compose(event.currentTarget.dataset.id);
     },

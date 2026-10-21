@@ -1,0 +1,112 @@
+<template name="support-recovery">
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" wx:if="{{recordedReceipt}}" class="recovery-section">
+    <view class="section-title">原请求的历史回执</view>
+    <view class="status-value"
+      >{{recordedReceipt.outcome === 'applied' ? '已记录处理结果' :
+      '原请求未应用'}}</view
+    >
+    <view class="reference" selectable="true"
+      >请求编号：{{recordedReceipt.requestId}}</view
+    >
+    <view class="meta"
+      >{{recordedReceipt.action === 'submit_appeal' ? '提交申诉' :
+      recordedReceipt.action === 'release' ? '解除处罚' : '处理申诉'}}</view
+    >
+    <view wx:if="{{recordedReceipt.punishment}}" class="reference"
+      >{{recordedReceipt.punishment.kind === 'interaction_mute' ? '禁言' :
+      '封号'}} · {{recordedReceipt.punishment.punishmentId}} · 版本
+      {{recordedReceipt.punishment.revision}}</view
+    >
+    <view wx:if="{{recordedReceipt.appealId}}" class="reference"
+      >申诉编号：{{recordedReceipt.appealId}}</view
+    >
+    <view wx:if="{{recordedReceipt.decision}}"
+      >历史决定：{{recordedReceipt.decision === 'released' ? '解除绑定的处罚' :
+      recordedReceipt.decision === 'upheld' ? '维持原处罚' :
+      '原处罚已失效，结案'}}</view
+    >
+    <view wx:if="{{recordedReceipt.recordedAt}}" class="meta"
+      >记录时间：{{recordedReceipt.recordedAt}}</view
+    >
+    <view class="disclosure"
+      >历史回执不代表当前权限或最新处罚，请以重新核验的状态为准。</view
+    >
+  </wu-f7-block>
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" wx:if="{{frozen}}" class="recovery-section">
+    <view class="section-heading"
+      ><wu-icon name="clock" size="22" tone="accent" /><view
+        class="section-title"
+        >原请求待确认</view
+      ></view
+    >
+    <view class="meta"
+      >{{pendingAction === 'submit_appeal' ? '提交私人申诉' : pendingAction ===
+      'release' ? '解除处罚' : pendingAction === 'decide_appeal' ?
+      '处理私人申诉' : '请求记录待核验'}} · {{pendingPhase === 'cancel' ?
+      '取消待确认' : '处理结果待确认'}}</view
+    >
+    <view class="reference" selectable="true">{{pendingRequestId}}</view>
+    <view wx:if="{{pendingCommand}}" class="original-request">
+      <view wx:if="{{pendingCommand.punishment}}" class="reference"
+        >原处罚：{{pendingCommand.punishment.kind === 'interaction_mute' ?
+        '禁言' : '封号'}} · {{pendingCommand.punishment.punishmentId}} · 版本
+        {{pendingCommand.punishment.revision}}</view
+      >
+      <view wx:if="{{pendingCommand.appealId}}" class="reference"
+        >原申诉：{{pendingCommand.appealId}}</view
+      >
+      <view wx:if="{{pendingCommand.text}}" selectable="true" class="body-copy"
+        >{{pendingCommand.text}}</view
+      >
+      <view
+        wx:if="{{pendingCommand.reason}}"
+        selectable="true"
+        class="body-copy"
+        >原处理理由：{{pendingCommand.reason}}</view
+      >
+      <view wx:if="{{pendingCommand.decision}}"
+        >原决定：{{pendingCommand.decision === 'released' ? '解除绑定的处罚' :
+        pendingCommand.decision === 'upheld' ? '维持原处罚' :
+        '原处罚失效，结案'}}</view
+      >
+      <view wx:if="{{pendingCommand.expectedStateVersion}}" class="reference"
+        >原管理状态版本：{{pendingCommand.expectedStateVersion}}</view
+      >
+    </view>
+    <view class="disclosure"
+      >查询不到回执不代表失败。离开或停止等待不会取消处理。请保留本机数据，用原账号查询；失去管理权限仍可恢复自己的原请求。</view
+    >
+    <wu-f7-button variant="fill"
+      class="primary"
+      bind:press="onRecover"
+      disabled="{{busy || !pendingRequestId}}"
+    >
+      查询原请求回执
+    </wu-f7-button>
+    <wu-f7-button variant="plain"
+      class="quiet"
+      bind:press="onRetry"
+      disabled="{{busy || !pendingRequestId}}"
+    >
+      查询并重试原请求
+    </wu-f7-button>
+    <wu-f7-button variant="plain" tone="danger"
+      class="quiet danger-text"
+      bind:press="onCancelRequest"
+      disabled="{{busy || !pendingRequestId}}"
+    >
+      取消原请求
+    </wu-f7-button>
+  </wu-f7-block>
+  <view
+    wx:if="{{confirming === 'cancel'}}"
+    class="confirmation"
+    aria-role="alert"
+  >
+    <view class="section-title">取消未完成的原请求？</view>
+    <view class="disclosure">如果已经完成，将返回既有结果，不会回滚。</view>
+    <wu-f7-button variant="fill" class="primary" bind:press="onConfirmCancel" disabled="{{busy}}">
+      确认取消原请求</wu-f7-button
+    ><wu-f7-button variant="plain" class="quiet" bind:press="onClose" disabled="{{busy}}">返回</wu-f7-button>
+  </view>
+</template>

@@ -1,19 +1,109 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 私信</view><view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后使用私信</navigator>
-  <view wx:if="{{needsOpen}}" class="card"><view class="section-title">确认私信身份</view><view class="notice">本次使用{{openingMode === 'anonymous' ? '此帖子内的分身身份' : '公开身份'}}。身份在会话创建后不会切换，原内容和发送资格仍需重新核验。</view><button bindtap="onOpen" disabled="{{busy || pending}}">确认身份并打开会话</button></view>
-  <view wx:if="{{conversation}}" class="card"><view class="title">{{conversation.peer.displayName}}</view><view class="identity-banner">我：{{conversation.self.displayName}}（{{conversation.self.mode === 'anonymous' ? '本帖分身' : '公开身份'}}）
-对方：{{conversation.peer.displayName}}（{{conversation.peer.mode === 'anonymous' ? '本帖分身' : '公开身份'}}）</view>
-    <button wx:if="{{conversation.peer.mode === 'named' &amp;&amp; conversation.peer.profileId}}" bindtap="onProfile" disabled="{{busy}}">查看公开主页</button><button wx:if="{{conversation.source &amp;&amp; conversation.source.available}}" bindtap="onSource" disabled="{{busy}}">查看来源帖子</button><view wx:if="{{conversation.source &amp;&amp; !conversation.source.available}}" class="notice">来源帖子当前不可打开，会话历史独立保留。</view>
-    <view class="notice">{{sendReason}}</view><view class="row"><button data-kind="{{conversation.hidden ? 'reopen' : 'hide'}}" bindtap="onAction" disabled="{{busy || pending}}">{{conversation.hidden ? '重新显示会话' : '隐藏会话'}}</button><button wx:if="{{!conversation.blockedByYou}}" data-kind="block" bindtap="onAction" disabled="{{busy || pending}}">{{conversation.blockScope === 'named' ? '拉黑公开身份用户' : '屏蔽此会话'}}</button></view>
+<view class="f7-ios-theme chat-page" style="height: calc(100vh - {{uiKeyboardHeight}}px)">
+  <view wx:if="{{conversation}}" class="chat-heading">
+    <view class="chat-heading-copy">
+      <view class="chat-name">{{conversation.peer.displayName}}</view>
+      <view class="chat-identity">{{conversation.self.mode === 'anonymous' ? '以分身身份聊天' : '私信'}}</view>
+    </view>
+    <button class="icon-button" data-panel="conversation" bindtap="onTogglePanel" aria-label="会话选项" aria-expanded="{{uiPanel === 'conversation'}}">
+      <wu-icon name="more" tone="muted" size="24" />
+    </button>
   </view>
-  <button wx:if="{{!needsOpen}}" bindtap="onReload" disabled="{{busy}}">刷新会话</button><button wx:if="{{busy}}" bindtap="onCancel">停止等待（不撤销请求）</button>
-  <button wx:if="{{browsingOlder || hasNewMessages}}" bindtap="onLatest" disabled="{{busy}}">{{hasNewMessages ? '有新消息，回到最新' : '回到最新消息'}}</button>
-  <scroll-view class="history" scroll-y="true" scroll-into-view="{{anchor}}" scroll-with-animation="false"><button wx:if="{{canMore}}" bindtap="onMore" disabled="{{busy}}">载入更早消息</button><view wx:if="{{loaded &amp;&amp; !messages.length}}" class="empty">还没有消息</view>
-    <view wx:for="{{messages}}" wx:key="id" id="message-{{item.id}}" class="message {{item.sender === 'self' ? 'self' : 'peer'}}"><view class="meta">{{item.sender === 'self' ? '我' : conversation.peer.displayName}} · {{item.createdAt}}</view><text class="body" selectable="{{item.state === 'text'}}">{{item.state === 'text' ? item.text : item.state === 'image' ? '[图片]' : item.state === 'recalled' ? '消息已撤回' : '消息暂不可查看'}}</text><image wx:if="{{imageMessageId === item.id &amp;&amp; imagePath}}" src="{{imagePath}}" mode="widthFix" class="private-message-image" /><button wx:if="{{item.state === 'image'}}" data-id="{{item.id}}" bindtap="onShowImage" disabled="{{busy}}">查看私密图片</button><view class="row"><button wx:if="{{item.state === 'text'}}" size="mini" data-id="{{item.id}}" bindtap="onCopy" disabled="{{busy}}">复制</button><button wx:if="{{item.canRecall}}" size="mini" data-kind="recall" data-id="{{item.id}}" bindtap="onAction" disabled="{{busy || pending}}">撤回</button></view></view>
+  <view wx:if="{{error}}" class="chat-notice error" aria-role="alert">{{error}}<wu-f7-button wx:if="{{!needsOpen}}" disabled="{{busy}}" bind:press="onReload">重试</wu-f7-button></view>
+  <view wx:if="{{busy}}" class="chat-notice" aria-role="status">
+    <text>处理中…</text>
+    <wu-f7-button wx:if="{{busy}}" bind:press="onCancel">停止等待</wu-f7-button>
+  </view>
+  <navigator wx:if="{{pending}}" class="chat-notice pending" url="/pages/private-message-recovery/private-message-recovery">
+    <wu-icon name="clock" tone="muted" size="16" />
+    <text>原请求尚未确认</text>
+    <text class="notice-action">查看</text>
+  </navigator>
+  <view wx:if="{{!conversation &amp;&amp; !busy &amp;&amp; hasSession &amp;&amp; !needsOpen &amp;&amp; !error}}" class="chat-notice" aria-role="status">{{status}}</view>
+  <navigator wx:if="{{!hasSession}}" class="empty-state" url="/pages/login/login">
+    <wu-icon name="message" tone="muted" size="36" />
+    <view class="empty-title">登录后使用私信</view>
+    <text class="notice-action">去登录</text>
+  </navigator>
+  <view wx:if="{{needsOpen}}" class="open-conversation">
+    <wu-icon name="message" tone="muted" size="40" />
+    <view class="empty-title">开始聊天</view>
+    <view class="open-note">本次使用{{openingMode === 'anonymous' ? '此帖子内的分身身份' : '公开身份'}}，创建后不可切换。</view>
+    <wu-f7-button class="primary-button" disabled="{{busy || pending}}" bind:press="onOpen" variant="fill" size="large">确认身份并打开会话</wu-f7-button>
+  </view>
+  <scroll-view class="history" scroll-y="true" scroll-into-view="{{anchor}}" scroll-with-animation="false">
+    <wu-f7-button wx:if="{{canMore}}" class="history-more" disabled="{{busy}}" bind:press="onMore">载入更早消息</wu-f7-button>
+    <view wx:if="{{loaded &amp;&amp; !messages.length}}" class="history-empty">还没有消息，打个招呼吧</view>
+    <view wx:for="{{uiMessages}}" wx:key="id" id="message-{{item.id}}" class="message-row {{item.sender === 'self' ? 'self' : 'peer'}} {{item.state === 'recalled' || item.state === 'unavailable' ? 'system-message' : ''}}">
+      <view wx:if="{{item.showTime}}" class="message-time">{{item.timeLabel}}</view>
+      <view wx:if="{{item.state === 'recalled' || item.state === 'unavailable'}}" class="message-system-text" data-id="{{item.id}}" bindlongpress="onMessageMenu">{{item.state === 'recalled' ? '消息已撤回' : '消息暂不可查看'}}<button wx:if="{{item.canRecall}}" class="system-more" data-id="{{item.id}}" bindtap="onMessageMenu">消息选项</button></view>
+      <view class="message-content" data-id="{{item.id}}" bindlongpress="onMessageMenu" wx:else>
+        <text wx:if="{{item.state === 'text'}}" class="message-bubble" selectable="{{item.state === 'text'}}">{{item.text}}</text>
+        <view wx:if="{{item.state === 'image'}}" class="message-media">
+          <image wx:if="{{imageMessageId === item.id &amp;&amp; imagePath}}" src="{{imagePath}}" mode="widthFix" class="private-message-image" />
+          <button wx:if="{{item.state === 'image'}}" class="image-open" data-id="{{item.id}}" bindtap="onShowImage" disabled="{{busy}}">
+            <wu-icon name="image" tone="muted" size="28" />
+            <text>{{imageMessageId === item.id &amp;&amp; imagePath ? '重新查看图片' : '查看图片'}}</text>
+          </button>
+        </view>
+      </view>
+      <view wx:if="{{uiMessageMenu === item.id}}" class="message-menu">
+        <wu-f7-button wx:if="{{item.state === 'text'}}" size="mini" data-id="{{item.id}}" disabled="{{busy}}" bind:press="onCopy">复制</wu-f7-button>
+        <wu-f7-button wx:if="{{item.canRecall}}" size="mini" data-kind="recall" data-id="{{item.id}}" disabled="{{busy || pending}}" bind:press="onAction">撤回</wu-f7-button>
+        <wu-f7-button class="menu-dismiss" bind:press="onCloseMenus">收起</wu-f7-button>
+      </view>
+    </view>
+    <view class="history-bottom" />
   </scroll-view>
-  <view wx:if="{{conversation}}" class="card"><textarea value="{{text}}" maxlength="-1" bindinput="onText" disabled="{{busy || pending}}" placeholder="文字私信，最多 500 个字符 / 2000 字节" /><button bindtap="onSend" disabled="{{busy || pending || !canSend || !text}}">发送文字</button><view class="row"><button bindtap="onImageAlbum" disabled="{{busy || pending || !canSend}}">从相册发送图片</button><button bindtap="onImageCamera" disabled="{{busy || pending || !canSend}}">拍照发送图片</button></view><view class="status">{{imageStatus}}</view><button wx:if="{{canReedit}}" bindtap="onReedit" disabled="{{busy || pending}}">重新编辑刚撤回的文字</button></view>
-  <view wx:if="{{confirm}}" class="confirm" aria-role="dialog"><view class="notice">{{confirm.description}}</view><button bindtap="onConfirm" disabled="{{busy || pending}}">确认</button><button bindtap="onDismiss">取消</button></view>
-  <navigator class="link" url="/pages/private-message-recovery/private-message-recovery">{{pending ? '原请求待确认，请到恢复页查询或按原内容重试 →' : '查看私信请求恢复 →'}}</navigator>
-  <navigator class="link" url="/pages/private-message-list/private-message-list">返回私信列表 →</navigator><view wx:if="{{coverage === 'local'}}" class="notice">当前为已核验的本地历史范围，旧版完整历史尚未迁移。</view><view class="notice">支持单张静态 JPEG / PNG（最多 5 MiB）；GIF、HEIC 兼容和站外通知投递仍待验证。退出登录、切换账号或离开页面会清除当前显示与临时草稿；待确认请求的原文在退出登录或切换账号时清除，最小请求凭据保留供原账号查询或安全取消。</view>
+  <wu-f7-button wx:if="{{browsingOlder || hasNewMessages}}" class="latest-button" disabled="{{busy}}" bind:press="onLatest">{{hasNewMessages ? '有新消息，回到最新' : '回到最新消息'}}</wu-f7-button>
+  <view wx:if="{{conversation}}" class="composer" style="padding-bottom: {{uiKeyboardHeight > 0 ? '12rpx' : 'max(12rpx, env(safe-area-inset-bottom))'}}">
+    <view wx:if="{{!canSend &amp;&amp; !pending}}" class="send-reason">{{sendReason}}</view>
+    <view wx:if="{{imageStatus}}" class="image-status" aria-role="status">{{imageStatus}}</view>
+    <wu-f7-list-item wx:if="{{canReedit}}" class="reedit-link" disabled="{{busy || pending}}" bind:press="onReedit" link="{{true}}" last="{{true}}" aria-label="重新编辑刚撤回的文字">
+      <view class="full-action">重新编辑刚撤回的文字</view>
+    </wu-f7-list-item>
+    <view class="composer-row">
+      <button class="composer-attachment" data-panel="media" bindtap="onTogglePanel" disabled="{{busy || pending || !canSend}}" aria-label="发送图片" aria-expanded="{{uiPanel === 'media'}}">
+        <wu-icon name="plus" tone="muted" size="24" />
+      </button>
+      <textarea class="composer-input" value="{{text}}" maxlength="-1" bindinput="onText" bindkeyboardheightchange="onKeyboardHeight" auto-height="true" adjust-position="false" show-confirm-bar="false" cursor-spacing="16" disabled="{{busy || pending}}" placeholder="发消息…" />
+      <wu-f7-button class="send-button" disabled="{{busy || pending || !canSend || !text}}" aria-label="发送文字" bind:press="onSend" variant="fill" round="{{true}}">
+        <wu-icon name="arrow-right" tone="white" size="22" />
+      </wu-f7-button>
+    </view>
+  </view>
+  <view wx:if="{{uiPanel === 'media'}}" class="sheet-backdrop">
+    <view class="action-sheet" aria-role="dialog" aria-label="发送图片">
+      <view class="sheet-title">发送图片</view>
+      <view class="sheet-note">单张 JPEG / PNG，最多 5 MiB</view>
+      <wu-f7-button class="sheet-action" disabled="{{busy || pending || !canSend}}" bind:press="onImageAlbum" size="large">从相册发送图片</wu-f7-button>
+      <wu-f7-button class="sheet-action" disabled="{{busy || pending || !canSend}}" bind:press="onImageCamera" size="large">拍照发送图片</wu-f7-button>
+      <wu-f7-button class="sheet-action secondary" bind:press="onCloseMenus" size="large">取消</wu-f7-button>
+    </view>
+  </view>
+  <view wx:if="{{conversation &amp;&amp; uiPanel === 'conversation'}}" class="sheet-backdrop">
+    <view class="action-sheet conversation-sheet" aria-role="dialog" aria-label="会话选项">
+      <view class="sheet-title">会话选项</view>
+      <view class="identity-detail">我：{{conversation.self.displayName}} · {{conversation.self.mode === 'anonymous' ? '本帖分身' : '公开身份'}}<text>对方：{{conversation.peer.displayName}} · {{conversation.peer.mode === 'anonymous' ? '本帖分身' : '公开身份'}}</text></view>
+      <wu-f7-button wx:if="{{conversation.peer.mode === 'named' &amp;&amp; conversation.peer.profileId}}" class="sheet-action" disabled="{{busy}}" bind:press="onProfile" size="large">查看公开主页</wu-f7-button>
+      <wu-f7-button wx:if="{{conversation.source &amp;&amp; conversation.source.available}}" class="sheet-action" disabled="{{busy}}" bind:press="onSource" size="large">查看来源帖子</wu-f7-button>
+      <view wx:if="{{conversation.source &amp;&amp; !conversation.source.available}}" class="sheet-note">来源帖子当前不可打开</view>
+      <wu-f7-button wx:if="{{!needsOpen}}" class="sheet-action" disabled="{{busy}}" bind:press="onReload" size="large">刷新会话</wu-f7-button>
+      <wu-f7-button class="sheet-action" data-kind="{{conversation.hidden ? 'reopen' : 'hide'}}" disabled="{{busy || pending}}" bind:press="onAction" size="large">{{conversation.hidden ? '重新显示会话' : '隐藏会话'}}</wu-f7-button>
+      <wu-f7-button wx:if="{{!conversation.blockedByYou}}" class="sheet-action danger" data-kind="block" disabled="{{busy || pending}}" bind:press="onAction" tone="danger" size="large">{{conversation.blockScope === 'named' ? '拉黑公开身份用户' : '屏蔽此会话'}}</wu-f7-button>
+      <navigator class="sheet-action" url="/pages/private-message-recovery/private-message-recovery">查看请求恢复</navigator>
+      <navigator class="sheet-action" url="/pages/private-message-list/private-message-list">返回私信列表</navigator>
+      <view class="sheet-note">{{sendReason}}</view>
+      <view wx:if="{{coverage === 'local'}}" class="sheet-note">仅显示已核验的本地历史</view>
+      <view class="sheet-note">离开页面会清除草稿和临时图片。待确认请求可在恢复页处理。</view>
+      <wu-f7-button class="sheet-action secondary" bind:press="onCloseMenus" size="large">关闭</wu-f7-button>
+    </view>
+  </view>
+  <view wx:if="{{confirm}}" class="sheet-backdrop confirm-backdrop">
+    <view class="action-sheet" aria-role="dialog" aria-label="确认操作">
+      <view class="sheet-title">{{confirm.kind === 'recall' ? '撤回这条消息？' : confirm.kind === 'block' ? '确认屏蔽？' : confirm.kind === 'hide' ? '隐藏此会话？' : '重新显示会话？'}}</view>
+      <view class="sheet-note">{{confirm.description}}</view>
+      <wu-f7-button class="sheet-action danger" disabled="{{busy || pending}}" bind:press="onConfirm" tone="danger" size="large">确认</wu-f7-button>
+      <wu-f7-button class="sheet-action" bind:press="onDismiss" size="large">取消</wu-f7-button>
+    </view>
+  </view>
 </view>

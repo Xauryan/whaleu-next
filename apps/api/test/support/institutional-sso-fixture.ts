@@ -134,13 +134,12 @@ export async function institutionalSsoFixture(
     };
     await install();
     await install(f.deferred);
-    const http = f.app.getHttpServer(),
-      auth = (actor: SessionCredentials) => `Bearer ${actor.accessToken}`;
+    const auth = (actor: SessionCredentials) => `Bearer ${actor.accessToken}`;
     const capability = async (
       actor: SessionCredentials,
       campusId = f.home.campusId,
     ) =>
-      request(http)
+      request(f.app.getHttpServer())
         .get('/v1/me/institutional-sso/capability')
         .query({ campusId })
         .set('Authorization', auth(actor));
@@ -157,7 +156,7 @@ export async function institutionalSsoFixture(
         capabilityVersion: String(cap.body.capabilityVersion),
         consent: INSTITUTIONAL_CONSENT,
       };
-      const response = await request(http)
+      const response = await request(f.app.getHttpServer())
         .post('/v1/me/institutional-sso/requests')
         .set('Authorization', auth(actor))
         .send(command);
@@ -218,7 +217,7 @@ export async function institutionalSsoFixture(
       hash: string,
       response: string,
     ) =>
-      request(http)
+      request(f.app.getHttpServer())
         .post(`/v1/me/institutional-sso/requests/${id}/complete`)
         .set('Authorization', auth(actor))
         .send({
@@ -227,7 +226,7 @@ export async function institutionalSsoFixture(
           authorizationResponse: response,
         });
     const recover = (actor: SessionCredentials, id: string, hash: string) =>
-      request(http)
+      request(f.app.getHttpServer())
         .post(`/v1/me/institutional-sso/requests/${id}/complete`)
         .set('Authorization', auth(actor))
         .send({ mode: 'recover', requestHash: hash });
@@ -236,12 +235,12 @@ export async function institutionalSsoFixture(
       id: string,
       hash: string,
     ) =>
-      request(http)
+      request(f.app.getHttpServer())
         .post(`/v1/me/institutional-sso/requests/${id}/close`)
         .set('Authorization', auth(actor))
         .send({ requestHash: hash });
     const read = (actor: SessionCredentials, id: string) =>
-      request(http)
+      request(f.app.getHttpServer())
         .get(`/v1/me/institutional-sso/requests/${id}`)
         .set('Authorization', auth(actor));
     return extendLiveFixture(f, {

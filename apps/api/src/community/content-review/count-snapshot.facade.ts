@@ -73,6 +73,13 @@ export interface CountSnapshotBatch {
   };
   optionalUntil: number | null;
 }
+export interface DiscussionCountCandidate {
+  kind: 'comment' | 'reply';
+  id: string;
+  postId: string;
+  rootId: string;
+}
+export type DiscussionCountPurpose = 'list_projection' | 'detail_projection';
 interface ConditionalDecision {
   mediaRequired?: true;
   decision: CountSnapshotDecision;
@@ -157,6 +164,7 @@ class SnapshotEvaluator {
       string,
       Decision<CurrentRatingTargetLink>
     > = new Map(),
+    private readonly privateViewer: string | null = null,
   ) {}
   private regionActive(post: DefinitionPost): boolean {
     const space = this.snapshot.spaces.get(post.space_id);
@@ -194,7 +202,7 @@ class SnapshotEvaluator {
       )
     )
       return { kind: 'unavailable' };
-    if (post.owner_hidden === true)
+    if (post.owner_hidden === true && post.account_id !== this.privateViewer)
       return { kind: 'deny', reason: 'POST_NOT_FOUND' };
     const scopeDecision = definitionScopeDecision(
       spaces.get(post.space_id),
@@ -409,6 +417,7 @@ export class ContentReviewCountFacade {
     viewer: string | null,
     tx: PoolClient,
     managed?: PoolClient,
+    purpose?: DiscussionCountPurpose,
   ) {
     const regions = await this.campuses.readRegionsBatch(
       [
@@ -428,7 +437,13 @@ export class ContentReviewCountFacade {
       managed ?? tx,
       snapshot.budget,
     );
-    let evaluator = new SnapshotEvaluator(snapshot, regions, new Map(), links);
+    let evaluator = new SnapshotEvaluator(
+      snapshot,
+      regions,
+      new Map(),
+      links,
+      purpose === 'detail_projection' ? viewer : null,
+    );
     // Probe canonical gates first. Earlier Review/structure denial never gains
     // an artificial Media dependency, and all image requests are batch-local.
     for (const post of snapshot.posts.values())
@@ -467,7 +482,13 @@ export class ContentReviewCountFacade {
           throw new ApplicationError('COMMUNITY_UNAVAILABLE');
         throw error;
       }
-      evaluator = new SnapshotEvaluator(snapshot, regions, media, links);
+      evaluator = new SnapshotEvaluator(
+        snapshot,
+        regions,
+        media,
+        links,
+        purpose === 'detail_projection' ? viewer : null,
+      );
     }
     const before = new Map<string, ConditionalDecision>();
     const named: string[] = [];
@@ -488,7 +509,12 @@ export class ContentReviewCountFacade {
     for (const post of snapshot.posts.values()) collect('post', post);
     for (const root of snapshot.roots.values()) collect('comment', root);
     for (const reply of snapshot.replies.values()) collect('reply', reply);
-    const safety = await this.safety.checkBatch(viewer, named, tx);
+    const safety = await this.safety.checkBatch(
+      viewer,
+      named,
+      tx,
+      purpose ? 'list_projection' : 'direct_post',
+    );
     snapshot.dependencies.namedAccountIds = safety.namedAccountIds;
     const direct = (kind: ContentKind, id: string): ConditionalDecision => {
       const first = before.get(contentKey(kind, id)) ?? denied();
@@ -530,6 +556,89 @@ export class ContentReviewCountFacade {
         id,
         publicFact(direct('post', id), snapshot.posts.get(id), snapshot),
       );
+    return {
+      facts,
+      mediaRequired: [...facts.values()].some(
+        (fact) => fact.mediaRequired === true,
+      ),
+      dependencies: snapshot.dependencies,
+      optionalUntil: minimum(
+        ...[...facts.values()].map((fact) => fact.optionalUntil),
+      ),
+    };
+  }
+  /** Child counts use list relationship semantics, including private detail.
+   * Exact ancestry, review, category and media remain the same canonical owners.
+   * Target-reply identity is deliberately not a visibility dependency. */
+  async evaluateDiscussion(
+    candidates: readonly DiscussionCountCandidate[],
+    viewer: string | null,
+    purpose: DiscussionCountPurpose,
+    tx: PoolClient,
+    managed?: PoolClient,
+  ): Promise<CountSnapshotBatch> {
+    if (candidates.length > COUNT_SNAPSHOT_BATCH)
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const snapshot = await this.records.read(
+      {
+        posts: candidates.map((row) => row.postId),
+        roots: candidates.map((row) => row.rootId),
+        replies: candidates
+          .filter((row) => row.kind === 'reply')
+          .map((row) => row.id),
+      },
+      tx,
+    );
+    // The Ratings v5 batch owner still requires the original managed client
+    // identity and has no monotonic optional-time contract. Do not invoke it
+    // outside this count's budget, and do not change mandatory content reads or
+    // the existing profile/liked count facades. Generic unknown is sufficient.
+    if (snapshot.ratingTargetLinks?.size)
+      return {
+        facts: new Map(
+          candidates.map((candidate) => [
+            contentKey(candidate.kind, candidate.id),
+            publicFact(
+              unknown(),
+              snapshot.posts.get(candidate.postId),
+              snapshot,
+            ),
+          ]),
+        ),
+        mediaRequired: false,
+        dependencies: snapshot.dependencies,
+        optionalUntil: null,
+      };
+    const direct = await this.prepare(snapshot, viewer, tx, managed, purpose);
+    const facts = new Map<string, CountSnapshotFact>();
+    for (const candidate of candidates) {
+      let result = direct('post', candidate.postId);
+      result = then(result, () => {
+        const root = snapshot.roots.get(candidate.rootId);
+        if (!root) return denied();
+        if (
+          root.post_id !== candidate.postId ||
+          (candidate.kind === 'comment' && root.id !== candidate.id)
+        )
+          return unknown();
+        return direct('comment', root.id);
+      });
+      if (candidate.kind === 'reply')
+        result = then(result, () => {
+          const reply = snapshot.replies.get(candidate.id);
+          if (!reply) return denied();
+          if (
+            reply.post_id !== candidate.postId ||
+            reply.root_comment_id !== candidate.rootId
+          )
+            return unknown();
+          return direct('reply', reply.id);
+        });
+      facts.set(
+        contentKey(candidate.kind, candidate.id),
+        publicFact(result, snapshot.posts.get(candidate.postId), snapshot),
+      );
+    }
     return {
       facts,
       mediaRequired: [...facts.values()].some(

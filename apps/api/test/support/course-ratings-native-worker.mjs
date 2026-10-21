@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { parse, render } from '../../../wechat/scripts/smoke-ratings.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 import { mountEmittedPage } from '../../../wechat/test/text-review-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
@@ -40,6 +42,12 @@ const visibleText = (page) =>
     .nodes()
     .filter((node) => typeof node === 'string')
     .join(' ');
+const componentText = (nodes) =>
+  nodes
+    .map((node) =>
+      typeof node === 'string' ? node : componentText(node.children),
+    )
+    .join('');
 process.once('message', async (input) => {
   let app;
   const pages = new Set();
@@ -101,7 +109,7 @@ process.once('message', async (input) => {
       );
     }
     function mount(name, route = {}) {
-      const h = mountEmittedPage(name, app, wx);
+      const h = mountEmittedPage(name, app, wx, { dist });
       pages.add(h);
       h.page.onLoad?.(route);
       h.page.onShow?.();
@@ -131,10 +139,40 @@ process.once('message', async (input) => {
       reference,
       'Fixture rated course must be in the initial bounded catalog page',
     );
-    assert.match(
-      visibleText(catalog),
-      new RegExp(reference.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    );
+    const courseControl = catalog.capturePress('onCourse', {
+      id: input.courseId,
+    });
+    try {
+      assert.equal(courseControl.node.tag, 'wu-f7-list-item');
+      assert.equal(courseControl.node.attrs.title, reference.name);
+      assert.equal(courseControl.node.attrs['aria-label'], reference.name);
+      const component = JSON.parse(
+        readFileSync(`${dist}pages/course-ratings/course-ratings.json`, 'utf8'),
+      ).usingComponents[courseControl.node.tag];
+      assert.equal(component, '../../components/f7-list-item/f7-list-item');
+      assert.equal(courseControl.instance.properties.titleSlot, false);
+      const actualTemplate = parse(
+        readFileSync(
+          `${dist}components/f7-list-item/f7-list-item.wxml`,
+          'utf8',
+        ),
+      );
+      assert.ok(
+        componentText(
+          render(
+            actualTemplate.children,
+            {
+              ...courseControl.instance.data,
+              ...courseControl.instance.properties,
+            },
+            {},
+          ),
+        ).includes(reference.name),
+        'The registered real ListItem template renders the selected course title',
+      );
+    } finally {
+      courseControl.detach();
+    }
     for (const key of [
       'department',
       'category',
@@ -170,6 +208,8 @@ process.once('message', async (input) => {
       value: String(reference.department <= 54 ? reference.department : 55),
     });
     if (reference.category) {
+      if (catalog.page.data.uiPanel !== 'filters')
+        catalog.tap('onTogglePanel', { panel: 'filters' });
       catalog.event('bindinput', 'onCategoryInput', {
         value: reference.category,
       });
@@ -213,17 +253,22 @@ process.once('message', async (input) => {
     assert.equal(unknown.page.data.detail.myScore.kind, 'unavailable');
     assert.equal(unknown.page.data.detail.course.summary.kind, 'unavailable');
     assert.equal(unknown.page.data.canScore, false);
-    assert.match(visibleText(unknown), /不能当作尚未提交/);
+    assert.match(visibleText(unknown), /暂未确认你的历史评分，请稍后重试。/);
     assert.equal(unknown.button('bindtap', 'onConfirm'), undefined);
     close(unknown);
     let detail = mount('course-rating-detail', { courseId: input.courseId });
     await loaded(detail, 'known empty first score');
     assert.equal(detail.page.data.detail.myScore.kind, 'not_submitted');
     assert.equal(detail.page.data.detail.course.summary.kind, 'known');
+    if (detail.page.data.uiPanel !== 'score')
+      detail.tap('onTogglePanel', { panel: 'score' });
     const choices = detail
       .nodes()
       .filter(
-        (node) => typeof node !== 'string' && node.attrs?.bindtap === 'onScore',
+        (node) =>
+          typeof node !== 'string' &&
+          node.tag === 'wu-f7-button' &&
+          node.attrs['bind:press'] === 'onScore',
       );
     for (const axis of ['gradeScore', 'abilityScore', 'overallScore'])
       assert.deepEqual(
@@ -286,17 +331,20 @@ process.once('message', async (input) => {
     );
     assert.equal(detail.page.data.loaded, false);
     assert.equal(visibleText(detail).includes('当前已确认尚未评分'), false);
+    assert.equal(visibleText(detail).includes('还没有为这门课评分'), false);
     detail.tap('onRefresh');
     await loaded(
       detail,
       'fresh snapshot cannot settle an unresolved original request',
     );
     assert.equal(detail.page.data.frozen, true);
+    assert.match(visibleText(detail), /上次评分结果待确认/);
     assert.match(
       visibleText(detail),
-      /原请求结果待确认，当前快照不能解除原请求/,
+      /请查询或重试原请求。确认结果前不能重新评分。/,
     );
     assert.equal(visibleText(detail).includes('当前已确认尚未评分'), false);
+    assert.equal(visibleText(detail).includes('还没有为这门课评分'), false);
     assert.equal(detail.button('bindtap', 'onConfirm'), undefined);
     assert.deepEqual(
       app.community.pendingCourseRatings.load(input.actor.accountId),

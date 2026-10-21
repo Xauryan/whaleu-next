@@ -1,0 +1,26 @@
+<import src="../../personal-timetable/recovery.wxml" />
+<view class="tt-page f7-ios-theme">
+  <view class="tt-heading">{{editing ? '编辑学期' : '新建学期'}}</view>
+  <view class="tt-subtitle">所有日期按北京时间计算</view>
+  <template is="timetable-status" data="{{error,message,busy,pending,cancelPending,requestId,blocked,mode,authenticated}}" />
+  <wu-f7-block wx:if="{{ready &amp;&amp; !pending}}" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <wu-f7-input label="学期名称" data-field="name" value="{{termForm.name}}" bind:input="onTerm" maxlength="120" disabled="{{busy || blocked}}" placeholder="例如：2026 年秋季学期" />
+    <view class="tt-label">第一周的周一</view>
+    <picker mode="date" value="{{termForm.weekOneMonday}}" start="1900-01-01" end="2199-12-31" bindchange="onDate" disabled="{{busy || blocked}}"><view class="tt-picker">{{termForm.weekOneMonday}} <text class="tt-muted">选择日期 <wu-icon name="chevron-right" size="16" tone="muted" /></text></view></picker>
+    <wu-f7-input label="学期周数（1–30）" data-field="weekCount" value="{{termForm.weekCount}}" type="number" bind:input="onTerm" maxlength="2" disabled="{{busy || blocked}}" />
+    <view class="tt-muted">缩短学期前，需先调整超出周数的课程。</view>
+    <wu-f7-button bind:press="onSave" disabled="{{busy || blocked}}" loading="{{busy}}" variant="fill" size="large">保存学期</wu-f7-button>
+    <view wx:if="{{dateShiftPrompt}}" class="tt-confirm">
+      <view>{{dateShiftPrompt}}</view>
+      <wu-f7-button bind:press="onConfirmDateShift" disabled="{{busy || blocked}}" variant="fill">确认移动课程日期并保存</wu-f7-button>
+      <wu-f7-button bind:press="onCancelConfirmation" disabled="{{busy}}">暂不修改</wu-f7-button>
+    </view>
+    <wu-f7-button wx:if="{{editing &amp;&amp; !deletePrompt}}" bind:press="onDelete" disabled="{{busy || blocked}}" tone="danger">删除学期</wu-f7-button>
+    <view wx:if="{{deletePrompt}}" class="tt-confirm">
+      <view class="tt-error">将删除本学期及全部课程。请输入完整学期名称“{{term.name}}”确认。</view>
+      <wu-f7-input label="确认学期名称" value="{{deleteText}}" bind:input="onDeleteText" maxlength="120" disabled="{{busy || blocked}}" />
+      <wu-f7-button bind:press="onConfirmDelete" disabled="{{busy || blocked || deleteText !== term.name}}" tone="danger" variant="fill">确认删除学期及全部课程</wu-f7-button>
+      <wu-f7-button bind:press="onCancelConfirmation" disabled="{{busy}}">保留学期</wu-f7-button>
+    </view>
+  </wu-f7-block>
+</view>

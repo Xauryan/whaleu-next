@@ -160,6 +160,7 @@ function fixture(
         },
       },
       enrollment,
+      { allocateForPublication: async () => ({ state: 'inactive' }) },
     ),
   };
 }

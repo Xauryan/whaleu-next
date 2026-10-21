@@ -14,10 +14,15 @@ import {
 } from '../../directory/controller';
 Page({
   data: {
+    showInfo: false,
     ...initialDirectoryView(),
     directoryKinds,
     directoryKindLabels,
     directoryPlatformLabels,
+    directorySegmentOptions: directoryKinds.map((value) => ({
+      value,
+      label: directoryKindLabels[value],
+    })),
   },
   route: null as DirectoryRoute | null,
   resume: null as DirectoryResume | null,
@@ -56,6 +61,9 @@ Page({
       }
     });
   },
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
+  },
   onShow() {
     const resume = this.controller?.snapshot() ?? this.resume;
     this.controller?.dispose();
@@ -93,6 +101,10 @@ Page({
   },
   onKind(event: { currentTarget: { dataset: { kind: string } } }) {
     void this.controller?.chooseKind(event.currentTarget.dataset.kind);
+  },
+  onKindSegment(event: { detail: { value: string } }) {
+    if (!directoryKinds.some((kind) => kind === event.detail.value)) return;
+    this.onKind({ currentTarget: { dataset: { kind: event.detail.value } } });
   },
   onCategory(event: { currentTarget: { dataset: { id: string } } }) {
     this.navigator?.open(

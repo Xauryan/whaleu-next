@@ -1,1 +1,207 @@
-@import '../../messaging/messaging.wxss';
+/* Framework7 v9.2.0 native controls; existing native chat, media and overlay lifecycle retained. */
+@import '../../design/framework7-ios.wxss';
+
+.recovery-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24rpx 36rpx calc(40rpx + env(safe-area-inset-bottom));
+  color: var(--wu-text);
+  background: var(--wu-surface);
+}
+.recovery-page button {
+  margin: 0;
+  font-weight: 400;
+}
+.recovery-heading {
+  padding: 8rpx 0 32rpx;
+  font-size: 40rpx;
+  font-weight: 650;
+  letter-spacing: -1rpx;
+}
+.request-content {
+  padding: 28rpx 8rpx 24rpx;
+}
+.request-symbol {
+  margin: 4rpx 0 24rpx;
+}
+.request-title {
+  font-size: 35rpx;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.request-description {
+  padding: 16rpx 0 36rpx;
+  color: var(--wu-secondary);
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+.original-message {
+  padding: 24rpx 28rpx;
+  margin-bottom: 40rpx;
+  border-radius: 24rpx 24rpx 8rpx 24rpx;
+  background: var(--wu-bg);
+}
+.message-body {
+  display: block;
+  font-size: 29rpx;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.original-label {
+  margin-top: 18rpx;
+  font-size: 22rpx;
+  color: var(--wu-tertiary);
+}
+.detail-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  width: 100%;
+  min-height: 88rpx;
+  padding: 0;
+  font-size: 24rpx;
+  line-height: 88rpx;
+  color: var(--wu-secondary);
+  background: transparent;
+}
+.request-status {
+  margin-bottom: 16rpx;
+}
+.request-id {
+  margin-bottom: 16rpx;
+  overflow-wrap: anywhere;
+}
+.image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  padding: 38rpx 20rpx;
+  margin-bottom: 32rpx;
+  border-radius: 20rpx;
+  color: var(--wu-secondary);
+  background: var(--wu-bg);
+  font-size: 27rpx;
+}
+.navigation-row,
+.login-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 106rpx;
+  padding: 0 6rpx;
+  border-bottom: 1rpx solid var(--wu-separator);
+  color: var(--wu-text);
+  font-size: 28rpx;
+}
+.settled-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  padding: 100rpx 24rpx 56rpx;
+  text-align: center;
+}
+.settled-state .request-description {
+  padding-top: 0;
+}
+.error-state {
+  margin: 4rpx 0 24rpx;
+  color: var(--wu-danger);
+  font-size: 25rpx;
+  line-height: 1.7;
+}
+.draft-content {
+  padding: 24rpx 4rpx 32rpx;
+}
+.draft-input {
+  width: 100%;
+  min-height: 240rpx;
+  padding: 24rpx;
+  box-sizing: border-box;
+  border-radius: 20rpx;
+  background: var(--wu-bg);
+  color: var(--wu-text);
+  font-size: 29rpx;
+  line-height: 1.65;
+}
+.draft-note {
+  padding: 16rpx 0 28rpx;
+  color: var(--wu-secondary);
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+.waiting-state {
+  padding: 16rpx 0 28rpx;
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  text-align: center;
+}
+.waiting-state button {
+  min-height: 76rpx;
+  padding: 0;
+  font-size: 24rpx;
+  line-height: 76rpx;
+  color: var(--wu-accent);
+  background: transparent;
+}
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20rpx 20rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.26);
+  box-sizing: border-box;
+}
+.action-sheet {
+  padding: 28rpx 28rpx 0;
+  border-radius: 28rpx;
+  background: var(--wu-elevated);
+}
+.sheet-title {
+  padding: 8rpx 0 16rpx;
+  font-size: 31rpx;
+  font-weight: 600;
+  text-align: center;
+}
+.sheet-note {
+  padding: 8rpx 12rpx 28rpx;
+  color: var(--wu-secondary);
+  font-size: 25rpx;
+  text-align: center;
+  line-height: 1.6;
+}
+.danger {
+  color: var(--wu-danger);
+}
+
+/* Isolated F7 controls provide their own radius, color and disabled visuals. */
+.primary-button,
+.secondary-link {
+  display: block;
+  width: 100%;
+}
+.secondary-link {
+  margin: 6px 0;
+}
+.request-details {
+  display: block;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--wu-secondary);
+}
+.sheet-action {
+  display: block;
+  border-top: 1rpx solid var(--wu-separator);
+}
+.full-action {
+  padding: 4px 0;
+  white-space: normal;
+  line-height: 1.7;
+  color: var(--wu-accent);
+}

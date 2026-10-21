@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "专业讨论独立恢复",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon"
+  }
+}

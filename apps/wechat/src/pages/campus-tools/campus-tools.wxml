@@ -1,23 +1,36 @@
-<view class="page">
-  <view class="title">校园工具</view>
-  <view class="hint">选择的是浏览校区，不代表学生身份或管理权限。</view>
-  <view wx:if="{{campusId}}" class="subtitle">{{campusName}}</view>
-  <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <view wx:if="{{authRecovery}}" class="card"><navigator url="/pages/login/login">重新登录</navigator><button bindtap="onContinueGuest">明确以访客继续</button></view>
-  <button bindtap="onChooseCampus" disabled="{{busy}}">{{needsCampus ? '选择浏览校区' : '切换浏览校区'}}</button>
-  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">刷新当前资料</button>
-  <view wx:if="{{choosing}}" class="card">
-    <input value="{{query}}" placeholder="搜索校园名称" maxlength="100" bindinput="onQuery" />
-    <button bindtap="onSearch" disabled="{{busy}}">搜索</button>
-    <button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onSelectCampus" disabled="{{busy || !item.isActive}}">{{item.fullName}}</button>
-    <view wx:if="{{!busy &amp;&amp; !campuses.length}}" class="hint">没有匹配的校园</view>
-    <view class="row"><button bindtap="onPrevious" disabled="{{busy || !hasPrevious}}">上一页</button><text>第 {{campusPage}} 页</text><button bindtap="onNext" disabled="{{busy || !hasNext}}">下一页</button></view>
+<view class="tools-page tools-index f7-ios-theme">
+  <view class="f7-tools-toolbar">
+    <view class="f7-tools-campus">
+      <wu-f7-list spacing="compact" strong="{{true}}" inset="{{true}}">
+        <wu-f7-list-item link="{{true}}" media="{{true}}" last="{{true}}" title-slot="{{true}}" title="{{campusName ? (campusName !== campusId ? campusName : '当前校区') : campusId ? '当前校区' : '选择校区'}}" subtitle="浏览校区" bind:press="onChooseCampus" disabled="{{busy}}">
+          <wu-icon slot="media" name="campus" size="25" />
+          <text slot="title">{{campusName ? (campusName !== campusId ? campusName : '当前校区') : campusId ? '当前校区' : '选择校区'}}</text>
+        </wu-f7-list-item>
+      </wu-f7-list>
+    </view>
+    <wu-f7-button aria-label="刷新当前资料" bind:press="onRefresh" disabled="{{busy}}" loading="{{busy}}"><wu-icon name="refresh" tone="accent" size="21" /></wu-f7-button>
   </view>
-  <view wx:for="{{entries}}" wx:key="id" class="card">
-    <view class="subtitle">{{item.title}}</view>
-    <view wx:if="{{item.state !== 'enabled'}}" class="hint">{{item.state === 'withdrawn' ? '已撤回' : '已停用'}}</view>
-    <button data-id="{{item.id}}" bindtap="onOpen" disabled="{{busy || item.state !== 'enabled'}}">查看工具</button>
+  <wu-f7-block spacing="compact" wx:if="{{status &amp;&amp; state !== 'ready' &amp;&amp; !choosing}}"><view class="f7-tools-status" aria-role="status">{{status}}</view></wu-f7-block>
+  <wu-f7-block spacing="compact" wx:if="{{error}}"><view class="f7-tools-error" aria-role="alert">{{error}}</view></wu-f7-block>
+  <wu-f7-block spacing="compact" wx:if="{{authRecovery}}">
+    <view class="f7-tools-recovery"><navigator class="f7-tools-link" url="/pages/login/login">重新登录</navigator><wu-f7-button bind:press="onContinueGuest">以访客继续</wu-f7-button></view>
+  </wu-f7-block>
+  <view wx:if="{{choosing}}">
+    <wu-f7-block spacing="compact"><view class="f7-tools-note">仅切换浏览范围，不会更改学生身份或管理权限。</view><view class="f7-tools-search"><view class="f7-tools-search-field"><wu-icon name="search" size="18" /><input value="{{query}}" placeholder="搜索校园名称" maxlength="100" bindinput="onQuery" /></view><wu-f7-button bind:press="onSearch" disabled="{{busy}}">搜索</wu-f7-button></view></wu-f7-block>
+    <wu-f7-list spacing="compact" strong="{{true}}" inset="{{true}}">
+      <wu-f7-list-item wx:for="{{campuses}}" wx:key="id" link="{{true}}" title-slot="{{true}}" title="{{item.fullName}}" last="{{index === campuses.length - 1}}" data-id="{{item.id}}" bind:press="onSelectCampus" disabled="{{busy || !item.isActive}}"><text slot="title">{{item.fullName}}</text></wu-f7-list-item>
+    </wu-f7-list>
+    <wu-f7-block spacing="compact" wx:if="{{!busy &amp;&amp; !campuses.length}}"><view class="f7-tools-empty">没有找到相关校园</view></wu-f7-block>
+    <wu-f7-block spacing="compact"><view class="f7-tools-pagination"><wu-f7-button bind:press="onPrevious" disabled="{{busy || !hasPrevious}}">上一页</wu-f7-button><text>{{campusPage}}</text><wu-f7-button bind:press="onNext" disabled="{{busy || !hasNext}}">下一页</wu-f7-button></view></wu-f7-block>
   </view>
-  <view wx:if="{{provenance}}" class="hint">资料维护：{{provenance.maintainer}} · {{provenance.attribution}}<view>发布时间：{{provenance.publishedAt}}</view><view wx:if="{{provenance.validity.kind === 'finite'}}">有效期至：{{provenance.validity.expiresAt}}</view></view>
+  <wu-f7-list spacing="compact" strong="{{true}}" inset="{{true}}">
+    <view wx:for="{{entries}}" wx:key="id">
+      <wu-f7-list-item link="{{true}}" media="{{true}}" title-slot="{{true}}" after-slot="{{true}}" title="{{item.title}}" aria-label="{{item.title + '，' + (item.kind === 'map' ? '浏览校园地点' : item.kind === 'shuttle' ? '查看校车资料' : item.kind === 'research' ? '学习与科研资源' : '校园在线服务') + (item.state === 'enabled' ? '' : item.state === 'withdrawn' ? '，已撤回' : '，已停用')}}" after="{{item.state === 'enabled' ? '' : item.state === 'withdrawn' ? '已撤回' : '已停用'}}" text="{{item.kind === 'map' ? '浏览校园地点' : item.kind === 'shuttle' ? '查看校车资料' : item.kind === 'research' ? '学习与科研资源' : '校园在线服务'}}" last="{{index === entries.length - 1}}" data-id="{{item.id}}" bind:press="onOpen" disabled="{{busy || item.state !== 'enabled'}}">
+        <wu-icon slot="media" name="{{item.kind === 'map' ? 'map' : item.kind === 'shuttle' ? 'bus' : item.kind === 'research' ? 'book' : 'campus'}}" size="25" />
+        <text slot="title">{{item.title}}</text>
+        <text slot="after" wx:if="{{item.state !== 'enabled'}}">{{item.state === 'withdrawn' ? '已撤回' : '已停用'}}</text>
+      </wu-f7-list-item>
+    </view>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact" wx:if="{{provenance}}"><view class="f7-tools-note"><view>{{provenance.maintainer}} · {{provenance.attribution}}</view><view>发布于 {{provenance.publishedAt}}</view><view wx:if="{{provenance.validity.kind === 'finite'}}">有效期至 {{provenance.validity.expiresAt}}</view></view></wu-f7-block>
 </view>

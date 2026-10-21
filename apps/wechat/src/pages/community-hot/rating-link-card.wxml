@@ -1,0 +1,7 @@
+<template name="rating-target-link-card">
+  <view wx:if="{{component.kind === 'rating_target_link'}}" class="card">
+    <view class="section-title">{{component.label}}</view>
+    <view>{{component.target.name}}</view>
+    <button data-id="{{postId}}" bindtap="onRatingTargetLink" disabled="{{busy}}">查看评分<wu-icon name="chevron-right" tone="accent" size="13" /></button>
+  </view>
+</template>

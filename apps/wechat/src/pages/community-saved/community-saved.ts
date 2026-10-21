@@ -13,9 +13,18 @@ import {
 } from '../../community/saved-controller';
 import { tradingLabels } from '../../community/trading-contract';
 import { SavedController, initialSavedView } from './controller';
+/** View-only date label. Original timestamps stay on the DTO for all actions. */
+function displayDate(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 Page({
   ratingLinkNavigator: undefined as RatingLinkNavigator | undefined,
   data: {
+    showInfo: false,
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     ...initialSavedView(),
     identityOverlay: initialOverlayView(),
@@ -27,6 +36,9 @@ Page({
   controller: undefined as SavedController | undefined,
   savedMutations: undefined as SavedMutationController | undefined,
   authorNavigator: undefined as AuthorNavigator | undefined,
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
+  },
   onShow() {
     this.ratingLinkNavigator?.dispose();
     const linkRuntime = getApp<WhaleuApp>().community;
@@ -58,7 +70,13 @@ Page({
       runtime.privateViews,
     );
     this.controller = new SavedController(runtime, (view) => {
-      this.setData({ ...view });
+      this.setData({
+        ...view,
+        items: view.items.map((item) => ({
+          ...item,
+          savedAtLabel: displayDate(item.savedAt),
+        })),
+      });
       const targets = view.items.map((item) => ({
         kind: 'post' as const,
         id: item.post.id,

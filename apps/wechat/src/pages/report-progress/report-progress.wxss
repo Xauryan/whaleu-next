@@ -1,1 +1,70 @@
-@import '../../community/forms.wxss';
+@import '../account-status/support.wxss';
+.report-count {
+  display: flex;
+  align-items: baseline;
+  gap: 18rpx;
+  color: var(--wu-secondary, #6e6e73);
+  font-size: 27rpx;
+  margin: 20rpx 0 10rpx;
+}
+.count-number {
+  font-size: 76rpx;
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: -2rpx;
+  color: var(--wu-text, #1d1d1f);
+}
+.jury-section {
+  margin-top: 32rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--wu-separator, #e5e5ea);
+}
+.choice-actions {
+  display: flex;
+  gap: 18rpx;
+}
+.choice-actions button {
+  flex: 1;
+}
+.tally {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+  padding: 28rpx 0;
+}
+.tally-number {
+  font-size: 46rpx;
+  font-weight: 600;
+}
+.rules {
+  font-size: 24rpx;
+  color: var(--wu-secondary, #6e6e73);
+  line-height: 1.7;
+  margin: 26rpx 0;
+}
+.rules view + view {
+  margin-top: 12rpx;
+}
+.original-requests {
+  border-top: 1rpx solid var(--wu-separator, #e5e5ea);
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+}
+.request-state {
+  display: flex;
+  gap: 24rpx;
+  justify-content: space-between;
+  font-size: 25rpx;
+  line-height: 1.6;
+  padding: 12rpx 0;
+  color: var(--wu-secondary, #6e6e73);
+}
+.request-state text:first-child {
+  flex-shrink: 0;
+  color: var(--wu-text, #1d1d1f);
+}
+.request-state text:last-child {
+  text-align: right;
+}
+
+@import '../account-status/framework7-support.wxss';

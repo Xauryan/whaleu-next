@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse, render } from './smoke-ratings.mjs';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 
 /** Emitted App runtime/Page/HTTP/WXML-model lifecycle with synthetic authority.
@@ -230,6 +231,26 @@ export async function smokeProfileAvatarModeration({ dist }) {
     page.onShow();
     return page;
   };
+  // Actual emitted Component → Page event boundary; native fields and direct
+  // invalid/double-submit probes below intentionally retain controller coverage.
+  const moderationBridges = new WeakMap();
+  const nativePress = (page, handler) => {
+    let bridge = moderationBridges.get(page);
+    if (!bridge) {
+      bridge = createNativePressBridge({
+        page,
+        pageFile: path.join(
+          dist,
+          'pages/profile-avatar-moderation/profile-avatar-moderation',
+        ),
+        dist,
+      });
+      moderationBridges.set(page, bridge);
+    }
+    const capture = bridge.capture(handler);
+    assert.equal(capture.press(), true, `Native management press ${handler}`);
+    capture.detach();
+  };
   const flatten = (nodes) =>
     nodes.flatMap((node) =>
       typeof node === 'string' ? [node] : [node, ...flatten(node.children)],
@@ -258,7 +279,7 @@ export async function smokeProfileAvatarModeration({ dist }) {
       const page = mount('profile-avatar-moderation', { kind, id: targetId });
       await flush();
       assert.equal(page.data.management.target.kind, kind);
-      page.onClearCustomAvatar();
+      nativePress(page, 'onClearCustomAvatar');
       await flush();
       assert.equal(page.data.confirming, 'clear');
       const rendered = flatten(render(template.children, page.data, {}));
@@ -266,16 +287,15 @@ export async function smokeProfileAvatarModeration({ dist }) {
         rendered.some(
           (node) =>
             typeof node === 'string' &&
-            node.includes('包括其他地区的非匿名头像展示'),
+            node.includes('包括其他地区的非分身头像展示'),
         ),
       );
       assert.ok(
         rendered.some(
-          (node) =>
-            typeof node === 'string' && node.includes('匿名分身保持不变'),
+          (node) => typeof node === 'string' && node.includes('分身保持不变'),
         ),
       );
-      page.onSubmit();
+      nativePress(page, 'onSubmit');
       page.onSubmit();
       await flush();
       assert.equal(page.data.frozen, false);
@@ -294,7 +314,7 @@ export async function smokeProfileAvatarModeration({ dist }) {
       id: targetId,
     });
     await flush();
-    page.onClearCustomAvatar();
+    nativePress(page, 'onClearCustomAvatar');
     await flush();
     loseAfterCommit = true;
     page.onSubmit();
@@ -309,7 +329,7 @@ export async function smokeProfileAvatarModeration({ dist }) {
     page = mount();
     await flush();
     assert.equal(page.data.pendingRequestId, original.command.clientRequestId);
-    page.onRecover();
+    nativePress(page, 'onRecover');
     await flush();
     assert.equal(runtime.pendingProfileAvatarModeration.load(accountId), null);
     assert.equal(writes, 4);
@@ -323,13 +343,13 @@ export async function smokeProfileAvatarModeration({ dist }) {
     appearanceId = id(counter++);
     page = mount('profile-avatar-moderation', { kind: 'reply', id: targetId });
     await flush();
-    page.onClearCustomAvatar();
+    nativePress(page, 'onClearCustomAvatar');
     await flush();
     dropBeforeRecord = true;
     page.onSubmit();
     await flush();
     const unrecorded = runtime.pendingProfileAvatarModeration.load(accountId);
-    page.onRecover();
+    nativePress(page, 'onRecover');
     await flush();
     assert.equal(page.data.frozen, true);
     assert.equal(
@@ -337,9 +357,9 @@ export async function smokeProfileAvatarModeration({ dist }) {
         .clientRequestId,
       unrecorded.command.clientRequestId,
     );
-    page.onCancelRequest();
+    nativePress(page, 'onCancelRequest');
     assert.equal(page.data.confirming, 'cancel');
-    page.onConfirmCancel();
+    nativePress(page, 'onConfirmCancel');
     await flush();
     assert.equal(page.data.frozen, false);
     assert.equal(writes, 4);
@@ -369,7 +389,14 @@ export async function smokeProfileAvatarModeration({ dist }) {
         'utf8',
       ),
     );
-    const onlyReset = { ...noticePage.data, items: [notices[0]] };
+    const onlyReset = {
+      ...noticePage.data,
+      items: [
+        noticePage.data.items.find(
+          (item) => item.key === `system:${notices[0].noticeId}`,
+        ),
+      ],
+    };
     const resetText = flatten(render(noticeTemplate.children, onlyReset, {}))
       .filter((node) => typeof node === 'string')
       .join(' ');
@@ -377,11 +404,21 @@ export async function smokeProfileAvatarModeration({ dist }) {
     assert.doesNotMatch(resetText, /违规昵称|随机|91/);
     assert.doesNotMatch(resetText, /保留 .*票|移除 .*票/);
     noticePage.onRead({
-      currentTarget: { dataset: { id: notices[0].noticeId } },
+      currentTarget: { dataset: { id: `system:${notices[0].noticeId}` } },
     });
     await flush();
-    assert.equal(noticePage.data.items[1].readAt, createdAt);
-    assert.equal(noticePage.data.items[0].readAt, null);
+    assert.equal(
+      noticePage.data.items.find(
+        (item) => item.key === `system:${notices[0].noticeId}`,
+      ).readAt,
+      createdAt,
+    );
+    assert.equal(
+      noticePage.data.items.find(
+        (item) => item.key === `system:${notices[1].noticeId}`,
+      ).readAt,
+      null,
+    );
   } finally {
     for (const page of pages) page.onUnload?.();
     globalThis.Page = originalPage;

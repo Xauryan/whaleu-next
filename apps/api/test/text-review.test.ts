@@ -299,12 +299,19 @@ test('review submission rolls back tentative work and reacquires preparation bef
     {} as Args[4],
     {} as Args[5],
     {
+      allocateForPublication: async () => {
+        throw new Error(
+          'Review-only work must not allocate permanent references',
+        );
+      },
+    },
+    {
       configured: () => true,
       submit: async () => {
         events.push('queue');
         return { requestId, operation: 'publish_post', status: 'pending' };
       },
-    } as unknown as Args[6],
+    } as unknown as Args[7],
   );
   const result = await repository.execute(
     'private-session',
@@ -358,11 +365,18 @@ test('fresh preparation mismatch fails instead of using rolled-back authorizatio
     {} as Args[4],
     {} as Args[5],
     {
+      allocateForPublication: async () => {
+        throw new Error(
+          'Review-only work must not allocate permanent references',
+        );
+      },
+    },
+    {
       configured: () => true,
       submit: async () => {
         queued = true;
       },
-    } as unknown as Args[6],
+    } as unknown as Args[7],
   );
   await assert.rejects(
     repository.execute(

@@ -1,0 +1,54 @@
+/* Course-only native Framework7 v9.2.0 presentation. Existing controllers own
+ * first-score confirmation, irreversible likes and uncertain receipt recovery. */
+@import '../design/framework7-ios.wxss';
+.f7-course-product {
+  color: var(--f7-text-color);
+}
+.f7-course-product wu-f7-button,
+.f7-course-product wu-f7-input,
+.f7-course-product wu-f7-list,
+.f7-course-product wu-f7-list-item,
+.f7-course-product wu-f7-block {
+  display: block;
+  min-width: 0;
+}
+.f7-course-product .product-inline-actions,
+.f7-course-product .product-tabs {
+  flex-wrap: wrap;
+}
+.f7-course-product .product-tabs wu-f7-button,
+.f7-course-product .product-inline-actions wu-f7-button {
+  flex: none;
+}
+.f7-course-product .course-scores wu-f7-button {
+  flex: 0 0 calc(20% - 12rpx);
+  min-width: 0;
+}
+.f7-course-product .product-search wu-f7-input,
+.f7-course-product .product-dock wu-f7-button {
+  flex: 1;
+  min-width: 0;
+}
+.f7-course-product .product-recovery wu-f7-button + wu-f7-button,
+.f7-course-product .modal wu-f7-button + wu-f7-button {
+  margin-top: 8px;
+}
+.f7-course-product .course-scores wu-f7-button + wu-f7-button,
+.f7-course-product .product-inline-actions wu-f7-button + wu-f7-button {
+  margin-top: 0;
+}
+/* Host geometry only. Isolated components own their colors and 44px targets. */
+.f7-course-product wu-f7-button.plain-button {
+  padding: 0;
+  min-height: 44px;
+  background: transparent;
+}
+.f7-course-product wu-f7-list-item.product-row-open {
+  padding: 0;
+  margin: 0;
+}
+.f7-course-product wu-f7-input.course-field {
+  padding: 0;
+  border: 0;
+  margin: 0;
+}

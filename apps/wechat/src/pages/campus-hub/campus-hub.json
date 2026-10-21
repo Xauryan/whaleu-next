@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "校园",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "wu-tab-bar": "../../components/tab-bar/tab-bar",
+    "wu-icon": "../../components/icon/icon",
+    "wu-f7-button": "../../components/f7-button/f7-button",
+    "wu-f7-list": "../../components/f7-list/f7-list",
+    "wu-f7-list-item": "../../components/f7-list-item/f7-list-item"
+  }
+}

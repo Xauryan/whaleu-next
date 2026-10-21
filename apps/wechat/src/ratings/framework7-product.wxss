@@ -1,0 +1,46 @@
+/* Five-page native Framework7 presentation only. Business/recovery and media
+ * ownership remain in the original controllers. No global/legacy overrides. */
+@import '../design/framework7-ios.wxss';
+
+.f7-rating-product {
+  color: var(--f7-text-color);
+}
+.f7-rating-product wu-f7-button,
+.f7-rating-product wu-f7-input,
+.f7-rating-product wu-f7-list,
+.f7-rating-product wu-f7-block {
+  display: block;
+  min-width: 0;
+}
+.f7-rating-product .product-inline-actions,
+.f7-rating-product .product-tabs {
+  flex-wrap: wrap;
+}
+.f7-rating-product .product-inline-actions wu-f7-button,
+.f7-rating-product .product-tabs wu-f7-button {
+  flex: none;
+}
+.f7-rating-product .product-score-scale wu-f7-button,
+.f7-rating-product .product-dock wu-f7-button.primary {
+  flex: 1;
+  min-width: 0;
+}
+.f7-rating-product .product-disclosure wu-f7-button + wu-f7-button,
+.f7-rating-product .product-recovery wu-f7-button + wu-f7-button,
+.f7-rating-product .modal wu-f7-button + wu-f7-button {
+  margin-top: 8px;
+}
+.f7-rating-product .product-tabs wu-f7-button + wu-f7-button,
+.f7-rating-product .product-inline-actions wu-f7-button + wu-f7-button {
+  margin-top: 0;
+}
+/* Host geometry only; isolated F7 components own colors, targets and states. */
+.f7-rating-product wu-f7-button.plain-button,
+.f7-rating-product wu-f7-button.product-like {
+  padding: 0;
+  min-height: 44px;
+  background: transparent;
+}
+.f7-rating-product .product-form-canvas wu-f7-input {
+  margin-bottom: 16px;
+}

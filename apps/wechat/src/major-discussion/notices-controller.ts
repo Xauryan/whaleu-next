@@ -1,3 +1,7 @@
+import {
+  guardNoticeRead,
+  type NoticeReadGuard,
+} from '../notifications/notice-read-guard';
 import { decodeDiscussionV2Notices } from './v2-contract';
 import {
   CommunityController,
@@ -38,6 +42,7 @@ export class MajorDiscussionNoticesController extends CommunityController<MajorD
   constructor(
     runtime: CommunityRuntime,
     render: (v: MajorDiscussionNoticesView) => void,
+    private readonly appendPages = false,
   ) {
     super(runtime, initialMajorDiscussionNoticesView, render);
   }
@@ -63,6 +68,7 @@ export class MajorDiscussionNoticesController extends CommunityController<MajorD
   }
   private async load(cursor: string | null): Promise<void> {
     const number = cursor ? this.view.pageNumber + 1 : 1;
+    const previous = this.appendPages && cursor ? this.view.items : [];
     this.snapshot = null;
     this.update({
       loaded: false,
@@ -88,7 +94,16 @@ export class MajorDiscussionNoticesController extends CommunityController<MajorD
         this.snapshot = p;
         this.update({
           loaded: true,
-          items: p.items,
+          items: this.appendPages
+            ? [
+                ...new Map(
+                  [...previous, ...p.items].map((item) => [
+                    item.noticeId,
+                    item,
+                  ]),
+                ).values(),
+              ]
+            : p.items,
           unreadCount: p.unreadCount,
           pageNumber: number,
           canNext: p.nextCursor !== null,
@@ -132,7 +147,7 @@ export class MajorDiscussionNoticesController extends CommunityController<MajorD
       },
     );
   }
-  async read(id: string): Promise<void> {
+  async read(id: string, guard?: NoticeReadGuard): Promise<void> {
     if (this.view.busy || !this.ready() || !this.view.loaded) return;
     const notice = this.view.items.find((i) => i.noticeId === id);
     if (!notice || notice.readAt !== null) return;
@@ -142,7 +157,7 @@ export class MajorDiscussionNoticesController extends CommunityController<MajorD
       async (c) => {
         const r = decodeDiscussionRead(
           await (this.runtime.majorDiscussionV2 ??
-            this.runtime.majorDiscussion)!.read(id, c),
+            this.runtime.majorDiscussion)!.read(id, guardNoticeRead(c, guard)),
         );
         if (r.noticeId !== id) invalidDiscussion();
         return r;

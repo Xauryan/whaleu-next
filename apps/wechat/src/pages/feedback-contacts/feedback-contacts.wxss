@@ -1,1 +1,31 @@
-@import '../../community/forms.wxss';
+@import '../account-status/support.wxss';
+.identity-heading {
+  text-align: center;
+  padding: 32rpx 0 8rpx;
+}
+.identity-heading .section-title {
+  margin-bottom: 10rpx;
+}
+.contact-list {
+  margin: 28rpx 0;
+}
+.contact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20rpx;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator, #e5e5ea);
+}
+.contact-value {
+  min-width: 0;
+  font-size: 31rpx;
+  overflow-wrap: anywhere;
+}
+.support-page .copy-button {
+  flex-shrink: 0;
+  min-width: 100rpx;
+  padding-right: 0;
+}
+
+@import '../account-status/framework7-support.wxss';

@@ -1,34 +1,77 @@
-<view class="page">
-  <view class="title">学校服务</view>
-  <view class="subtitle">{{campusName || '进群 · 公众号 · 联系管理员'}}</view>
-  <view wx:if="{{regionName}}" class="hint">{{regionName}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <view wx:if="{{status}}" class="hint">{{status}}</view>
-  <navigator class="link" url="/pages/campus/campus">选择或切换浏览校区</navigator>
-  <button bindtap="onRefresh" loading="{{busy}}" disabled="{{busy}}">刷新当前资料</button>
-  <view wx:for="{{entries}}" wx:key="entryKey" class="card">
-    <view class="card-title">{{item.label}}</view>
-    <view wx:if="{{item.state === 'unconfigured'}}" class="hint">该校暂未配置</view>
-    <view wx:elif="{{item.state === 'disabled'}}" class="hint">当前服务已停用</view>
+<view class="f7-forms-screen f7-ios-theme school-services-screen">
+  <wu-f7-block spacing="compact">
+    <view class="toolbar">
+      <navigator class="scope-caption campus-link" url="/pages/campus/campus">
+        <wu-icon name="location" size="18" />
+        <text>{{campusName || '选择浏览校区'}}</text>
+        <wu-icon name="chevron-down" size="13" />
+      </navigator>
+      <wu-f7-button class="icon-button" aria-label="刷新当前学校资料" loading="{{busy}}" disabled="{{busy}}" bind:press="onRefresh">
+        <wu-icon name="refresh" size="19" />
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{status &amp;&amp; status !== '当前学校服务资料'}}" class="status" aria-role="status">{{status}}</view>
+    <view wx:if="{{needsCampus}}" class="empty">
+      <wu-icon name="campus" size="40" />
+      <view class="empty-title">先选一个校区</view>
+      <view>查看校园群、公众号和管理员联系方式</view>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:for="{{entries}}" wx:key="entryKey" class="service-section" spacing="compact" inset="{{true}}" strong="{{true}}">
+    <wu-f7-list-item class="service-heading" media="{{true}}" title-slot="{{true}}" last="{{true}}">
+      <wu-icon name="{{item.entryKey === 'official_account' ? 'post' : item.entryKey === 'admin' ? 'person' : 'message'}}" size="25" slot="media" />
+      <view class="service-title" slot="title">{{item.label}}</view>
+    </wu-f7-list-item>
+    <view wx:if="{{item.state === 'unconfigured'}}" class="service-unavailable">该校暂未配置</view>
+    <view wx:elif="{{item.state === 'disabled'}}" class="service-unavailable">当前服务已停用</view>
     <block wx:else>
-      <view wx:if="{{item.data.name}}" class="name">{{item.data.name}}</view>
-      <view wx:if="{{item.data.description}}" class="description">{{item.data.description}}</view>
-      <view wx:if="{{item.data.maxGroupNumber}}" class="hint">群序号上限：{{item.data.maxGroupNumber}}</view>
-      <view wx:if="{{item.data.wechatId}}">微信号：{{item.data.wechatId}}</view>
-      <view wx:if="{{item.data.qqGroupNumber}}">QQ群号：{{item.data.qqGroupNumber}}</view>
-      <button wx:if="{{item.data.wechatId}}" data-key="{{item.entryKey}}" data-field="wechatId" bindtap="onCopy" disabled="{{busy}}">复制管理员微信号</button>
-      <button wx:if="{{item.data.qqGroupNumber}}" data-key="{{item.entryKey}}" data-field="qqGroupNumber" bindtap="onCopy" disabled="{{busy}}">复制QQ群号</button>
-      <button wx:if="{{item.data.joinUrl}}" data-key="{{item.entryKey}}" data-field="joinUrl" bindtap="onCopy" disabled="{{busy}}">复制官方入群链接</button>
-      <button wx:if="{{item.entryKey === 'official_account' &amp;&amp; item.data.name}}" data-key="{{item.entryKey}}" data-field="name" bindtap="onCopy" disabled="{{busy}}">复制公众号名称</button>
-      <button wx:if="{{item.qrcode.status === 'configured'}}" data-key="{{item.entryKey}}" bindtap="onPreview" disabled="{{busy}}">预览当前二维码</button>
-      <view wx:if="{{item.state === 'partial'}}" class="hint">部分资料尚未配置</view>
+      <view wx:if="{{item.data.name}}" class="service-name">{{item.data.name}}</view>
+      <view wx:if="{{item.data.description}}" class="service-description">{{item.data.description}}</view>
+      <view wx:if="{{item.data.maxGroupNumber}}" class="meta">群序号上限：{{item.data.maxGroupNumber}}</view>
+      <view wx:if="{{item.data.wechatId}}" class="contact-row">
+        <view>
+          <view class="contact-label">微信号</view>
+          <text class="contact-value" selectable="true">{{item.data.wechatId}}</text>
+        </view>
+        <wu-f7-button wx:if="{{item.data.wechatId}}" class="text-button" data-key="{{item.entryKey}}" data-field="wechatId" disabled="{{busy}}" aria-label="复制管理员微信号" bind:press="onCopy">复制</wu-f7-button>
+      </view>
+      <view wx:if="{{item.data.qqGroupNumber}}" class="contact-row">
+        <view>
+          <view class="contact-label">QQ群号</view>
+          <text class="contact-value" selectable="true">{{item.data.qqGroupNumber}}</text>
+        </view>
+        <wu-f7-button wx:if="{{item.data.qqGroupNumber}}" class="text-button" data-key="{{item.entryKey}}" data-field="qqGroupNumber" disabled="{{busy}}" aria-label="复制QQ群号" bind:press="onCopy">复制</wu-f7-button>
+      </view>
+      <view class="service-actions">
+        <wu-f7-button wx:if="{{item.qrcode.status === 'configured'}}" class="qr-button" data-key="{{item.entryKey}}" disabled="{{busy}}" bind:press="onPreview" variant="tonal">
+          <wu-icon name="scan" size="21" />
+          <text>查看二维码</text>
+        </wu-f7-button>
+        <wu-f7-button wx:if="{{item.data.joinUrl}}" class="quiet-button" data-key="{{item.entryKey}}" data-field="joinUrl" disabled="{{busy}}" bind:press="onCopy">复制官方入群链接</wu-f7-button>
+        <wu-f7-button wx:if="{{item.entryKey === 'official_account' &amp;&amp; item.data.name}}" class="quiet-button" data-key="{{item.entryKey}}" data-field="name" disabled="{{busy}}" bind:press="onCopy">复制公众号名称</wu-f7-button>
+      </view>
+      <view wx:if="{{item.state === 'partial'}}" class="meta">部分资料尚未配置</view>
     </block>
-  </view>
-  <view wx:if="{{qr.status !== 'idle'}}" class="card">
-    <view class="hint">{{qr.message}}</view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{qr.status !== 'idle'}}" class="image-reader qr-reader" spacing="compact" inset="{{true}}" strong="{{true}}">
+    <view class="notice">{{qr.message}}</view>
     <image wx:if="{{qr.src}}" src="{{qr.src}}" mode="widthFix" class="qr-image" />
-    <button bindtap="onCloseQr">关闭二维码预览</button>
-  </view>
-  <navigator class="link" url="/pages/school-configuration/school-configuration">学校服务管理</navigator>
-  <view class="footnote">资料由该地区授权管理员发布。管理员与群号变更后需刷新；旧系统资料尚未导入的学校会明确显示未配置。</view>
+    <wu-f7-button class="quiet-button" bind:press="onCloseQr">关闭二维码预览</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block class="reading-notes" spacing="compact" inset="{{true}}" strong="{{true}}">
+    <wu-f7-button class="disclosure" bind:press="onToggleInfo">
+      <text>资料来源与管理</text>
+      <wu-icon name="{{showInfo ? 'chevron-up' : 'chevron-down'}}" size="14" />
+    </wu-f7-button>
+    <view wx:if="{{showInfo}}">
+      <view wx:if="{{regionName}}">{{regionName}}</view>
+      <view>资料由该地区授权管理员发布。管理员与群号变更后需刷新；尚未导入的资料会显示未配置。</view>
+      <navigator class="utility-row" url="/pages/school-configuration/school-configuration">
+        <wu-icon name="settings" size="21" />
+        <text>学校服务管理</text>
+        <wu-icon name="chevron-right" size="14" />
+      </navigator>
+    </view>
+  </wu-f7-block>
 </view>

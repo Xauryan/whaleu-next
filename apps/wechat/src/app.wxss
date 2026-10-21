@@ -1,5 +1,45 @@
+/* WhaleU: semantic, system-native materials. No third-party UI components. */
 page {
-  background: #f3f6fb;
-  color: #172338;
-  font-family: system-ui, sans-serif;
+  --wu-bg: #f5f5f7;
+  --wu-surface: #ffffff;
+  --wu-elevated: #ffffff;
+  --wu-text: #1d1d1f;
+  --wu-secondary: #6e6e73;
+  --wu-tertiary: #8e8e93;
+  --wu-accent: #007aff;
+  --wu-tint: #eaf3ff;
+  --wu-separator: rgba(60, 60, 67, 0.14);
+  --wu-danger: #b42318;
+  --wu-danger-bg: #fff0ee;
+  background: var(--wu-bg);
+  color: var(--wu-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  font-size: 28rpx;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button {
+  min-height: 88rpx;
+  font-family: inherit;
+}
+button::after {
+  border: 0;
+}
+button[disabled] {
+  opacity: 0.45;
+}
+@media (prefers-color-scheme: dark) {
+  page {
+    --wu-bg: #000000;
+    --wu-surface: #1c1c1e;
+    --wu-elevated: #2c2c2e;
+    --wu-text: #f5f5f7;
+    --wu-secondary: #aeaeb2;
+    --wu-tertiary: #98989d;
+    --wu-accent: #0a84ff;
+    --wu-tint: #102844;
+    --wu-separator: rgba(235, 235, 245, 0.18);
+    --wu-danger: #ff6961;
+    --wu-danger-bg: #371b1b;
+  }
 }

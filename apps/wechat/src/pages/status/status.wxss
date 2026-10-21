@@ -1,26 +1,27 @@
-.screen {
-  padding: 80rpx 48rpx;
+@import '../account-status/support.wxss';
+.build-identity {
+  padding: 68rpx 0 42rpx;
+  text-align: center;
 }
-.label {
-  font-size: 26rpx;
-  color: #4b6384;
+.build-identity .identity-mark.large {
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 38rpx;
+}
+.brand {
+  font-size: 42rpx;
+  font-weight: 650;
+  letter-spacing: -1rpx;
+  margin: 14rpx 0;
+}
+.build-page > .body-copy {
+  text-align: center;
   margin-bottom: 24rpx;
 }
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  margin-bottom: 32rpx;
+.build-page > .disclosure {
+  margin: 0 auto 40rpx;
+  max-width: 580rpx;
+  text-align: center;
 }
-.description {
-  font-size: 30rpx;
-  line-height: 1.8;
-}
-.notice {
-  margin-top: 48rpx;
-  padding: 28rpx;
-  border: 2rpx solid #c8d5e7;
-  border-radius: 16rpx;
-  color: #465970;
-  font-size: 26rpx;
-  line-height: 1.7;
-}
+
+@import '../account-status/framework7-support.wxss';

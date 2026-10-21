@@ -334,6 +334,7 @@
           "commentCount": {
             "maximum": 9007199254740991,
             "minimum": 0,
+            "nullable": true,
             "type": "integer"
           },
           "commentsPolicy": {
@@ -979,6 +980,7 @@
           "discussionCount": {
             "maximum": 9007199254740991,
             "minimum": 0,
+            "nullable": true,
             "type": "integer"
           },
           "feedback": {
@@ -1079,6 +1081,7 @@
           "replyCount": {
             "maximum": 9007199254740991,
             "minimum": 0,
+            "nullable": true,
             "type": "integer"
           },
           "saveCount": {

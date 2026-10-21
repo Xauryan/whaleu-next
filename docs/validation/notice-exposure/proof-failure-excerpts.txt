@@ -1,0 +1,20 @@
+Resumed focused run, 2026-10-20 23:26 UTC.
+This is a preserved excerpt/transcription of the original tool output, not a reconstructed full log.
+Command: node --import tsx --test apps/wechat/test/notice-exposure.test.ts apps/wechat/test/notice-exposure-pages.test.ts apps/wechat/test/notice-exposure-inventory.test.ts
+Result: 38 tests; 37 pass; 1 fail.
+Failed: all eleven owner adapters change only optional guard threading; every original authority/receipt/action token survives.
+Target: src/notifications/social-updates/controller.ts.
+Difference: standalone scanner treated the remainder after a template literal as string content, so line breaks in `(cancel) => this.gateway!.markRead(noticeId, cancel)` incorrectly differed.
+The source, predecessor fixtures and pinned source manifest were unchanged.
+
+Intermediate parser-owned-token run, 2026-10-20 23:27 UTC.
+Command: node --import tsx --test apps/wechat/test/notice-exposure-inventory.test.ts
+Result: 3 tests; 2 pass; 1 fail.
+Target: src/pages/community-updates/controller.ts.
+Difference: a formatting-only trailing comma remained after reducing the approved guard wrapper.
+Resolution: replace broad text stripping and scanning with a narrowly validated AST transform. It removes only the approved named imports, optional method/reader guard parameters, exact guardNoticeRead(cancel|c, guard) wrappers and exact approved forwarding arguments. All remaining AST structure, identifiers, literals, operators and authority/receipt logic are compared with immutable predecessor fixtures. Negative tests reject changed authority checks, receipt identity comparisons and unconditional guard replacements.
+
+Expanded actual-Page fixture run, 2026-10-20 23:30 UTC.
+Full output: expanded-fixture-failure.log.
+Result: 77 tests; 69 pass; 8 fail.
+The selected window/major v1/v2 read reached the correct endpoint, but the fixture returned its old unread DTO after the existing owner controller's authoritative reload. Corrected only the transport fixture to return its accepted read state for the selected source. Production controllers and their reload/decoder logic were not changed.

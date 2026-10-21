@@ -1,0 +1,167 @@
+/* Framework7 v9.2.0 iOS native composition, MIT. Copyright (c) 2014
+ * Vladimir Kharlampidi. See docs/vendor/framework7-v9.2.0/LICENSE.
+ * Block/List/Button geometry is owned by real isolated native components.
+ * Native map, trusted web-view, image callbacks and navigators stay native. */
+@import '../../design/framework7-ios.wxss';
+
+/* Existing page-native geometry is retained before F7 composition overrides. */
+.shuttle-group {
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.tools-page .shuttle-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  width: 100%;
+  min-height: 144rpx;
+  padding: 24rpx 0;
+  border-radius: 0;
+  background: transparent;
+}
+.shuttle-group-content {
+  padding: 0 0 22rpx 86rpx;
+}
+.tools-page .shuttle-sheet {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  width: 100%;
+  min-height: 104rpx;
+  padding: 20rpx 0;
+  border-radius: 0;
+  background: transparent;
+}
+.shuttle-sheet + .shuttle-sheet {
+  border-top: 1rpx solid var(--wu-separator);
+}
+.shuttle-sheet text {
+  flex: 1;
+  min-width: 0;
+  font-size: 27rpx;
+  overflow-wrap: anywhere;
+}
+.sheet-icon {
+  display: flex;
+  align-items: center;
+  width: 40rpx;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.f7-campus-tool-screen {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 1px 0 calc(24px + env(safe-area-inset-bottom));
+  background: var(--f7-page-bg-color);
+  color: var(--f7-text-color);
+}
+.f7-campus-tool-screen .tool-entry-title {
+  padding: 0 0 12px;
+  font-size: 22px;
+  line-height: 1.4;
+}
+.f7-campus-tool-screen .tool-status,
+.f7-campus-tool-screen .tool-footnote,
+.f7-campus-tool-screen .tool-source,
+.f7-campus-tool-screen .tool-count {
+  color: var(--f7-block-footer-text-color);
+  font-size: var(--f7-block-footer-font-size);
+  line-height: 1.5;
+}
+.f7-campus-tool-screen .tool-error {
+  color: var(--f7-input-error-text-color);
+  font-size: var(--f7-block-footer-font-size);
+}
+.f7-campus-tool-screen .tool-section-title {
+  font-size: var(--f7-block-title-font-size);
+  font-weight: var(--f7-block-title-font-weight);
+  line-height: var(--f7-block-title-line-height);
+}
+.f7-campus-tool-screen .tool-row-title {
+  font-size: var(--f7-list-item-title-font-size);
+  font-weight: var(--f7-list-item-title-font-weight);
+  line-height: var(--f7-list-item-title-line-height);
+}
+.f7-campus-tool-screen .tool-row-detail {
+  margin-top: 4px;
+  color: var(--f7-list-item-footer-text-color);
+  font-size: var(--f7-list-item-footer-font-size);
+  line-height: var(--f7-list-item-footer-line-height);
+}
+.f7-campus-tool-screen .tool-text-button,
+.f7-campus-tool-screen .tool-primary,
+.f7-campus-tool-screen .tool-secondary,
+.f7-campus-tool-screen .tool-icon-button {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+.f7-campus-tool-screen .tool-icon-button {
+  flex: 0 0 44px;
+  width: 44px;
+}
+.f7-campus-tool-screen .tool-recovery {
+  gap: 12px;
+  padding: 8px 0;
+}
+.f7-campus-tool-screen .tool-recovery navigator {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--f7-theme-color);
+  font-size: 15px;
+}
+.f7-campus-tool-screen .tool-source-footer {
+  padding-top: 8px;
+  gap: 12px;
+}
+.f7-campus-tool-screen .tool-navigation {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-color: var(--f7-list-item-border-color);
+}
+.f7-campus-tool-screen .tool-home {
+  min-height: 44px;
+  color: var(--f7-theme-color);
+  font-size: 14px;
+}
+.f7-campus-tool-screen .tool-preview {
+  background: var(--f7-page-bg-color);
+}
+.f7-campus-tool-screen .preview-controls .tool-secondary {
+  flex: 1;
+}
+.f7-tool-action-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.f7-campus-tool-screen .shuttle-group {
+  border: 0;
+}
+/* Group disclosure remains a native button: a forward-navigation ListItem
+ * would misrepresent the existing expand/collapse interaction. */
+.f7-campus-tool-screen .shuttle-group-heading {
+  min-height: 44px;
+  padding: 0;
+  gap: 12px;
+}
+.f7-campus-tool-screen .shuttle-group-content {
+  padding: 0;
+}
+.f7-campus-tool-screen .shuttle-sheet {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+.f7-campus-tool-screen .shuttle-sheet text {
+  font-size: var(--f7-list-item-title-font-size);
+}
+.f7-campus-tool-screen .sheet-icon {
+  width: 24px;
+}

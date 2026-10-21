@@ -1,73 +1,165 @@
-<view class="screen"><view wx:if="{{relatedCampusDistribution === 'unavailable'}}" class="notice">关联学校展示范围暂不可确认，当前仅展示已核验内容，不能据此判断关联学校没有帖子。请稍后刷新。</view>
-  <view class="eyebrow">WHALEU · 内容搜索</view>
-  <view class="title">搜帖子、评论和回复</view>
-  <view class="subtitle">{{mode === 'keyword' ? '按原文字面匹配，不区分大小写，按内容时间从新到旧排列。' : '按语义相关度返回有限结果，并非全部匹配。服务开启后才可使用。'}}可筛选社区、分类、类型和时间。</view>
-  <view class="chips">
-    <view class="chip {{mode === 'keyword' ? 'active' : ''}}" data-mode="keyword" bindtap="onMode">关键词</view>
-    <view class="chip {{mode === 'semantic' ? 'active' : ''}}" data-mode="semantic" bindtap="onMode">语义（需服务开启）</view>
-  </view>
-  <view class="card">
-    <view class="scope">{{selectedScope === 'all' ? '全部社区' : selectedScope === 'regional' ? '跨校园分类' : selectedScope === 'global' ? '所有全站社区' : space ? (space.kind === 'global' ? '全站社区 · ' : '地区社区 · ') + space.name : '尚未确认可用的搜索范围'}}</view>
+<view class="f7-forms-screen f7-ios-theme community-search-screen">
+  <wu-f7-block spacing="compact">
+    <view class="search-row">
+      <view class="search-field">
+        <wu-f7-searchbar value="{{inputDraft}}" placeholder="搜索主题、回复" maxlength="400" bind:input="onInput" bind:confirm="onSubmit" clearable="{{false}}" aria-label="搜索主题、回复" />
+      </view>
+      <wu-f7-button class="text-button" disabled="{{!selectedScope || selectedScope === 'explicit' &amp;&amp; !space || !configured}}" bind:press="onSubmit">搜索</wu-f7-button>
+    </view>
+    <scroll-view class="tab-scroll" scroll-x="{{true}}" show-scrollbar="{{false}}">
+      <view class="tabs">
+        <wu-f7-button wx:for="{{searchTypes}}" wx:key="key" class="tab {{searchType === item.key ? 'active' : ''}}" data-key="{{item.key}}" bind:press="onType" variant="{{searchType === item.key ? 'fill' : 'tonal'}}" size="small">{{item.label}}</wu-f7-button>
+      </view>
+    </scroll-view>
+    <view class="toolbar">
+      <view class="scope-caption">
+        {{selectedScope === 'all' ? '全部社区' : selectedScope === 'regional' ? '跨校园分类' : selectedScope === 'global' ? '所有全站社区' : space ? space.name : '请选择搜索范围'}}
+        <text wx:if="{{category !== 'all'}}">· {{categoryLabels[category]}}</text>
+      </view>
+      <wu-f7-button class="text-button filter-toggle {{showFilters ? 'selected' : ''}}" bind:press="onToggleFilters">
+        筛选
+        <wu-icon name="{{showFilters ? 'chevron-up' : 'chevron-down'}}" size="13" />
+      </wu-f7-button>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{showFilters}}" class="filter-panel" spacing="compact" inset="{{true}}" strong="{{true}}">
+    <view class="filter-heading">搜索方式</view>
     <view class="chips">
-      <view class="chip {{selectedScope === 'all' ? 'active' : ''}}" data-scope="all" bindtap="onAggregateScope">全部社区</view>
-      <view class="chip {{selectedScope === 'regional' ? 'active' : ''}}" data-scope="regional" bindtap="onAggregateScope">跨校园分类</view>
-      <view class="chip {{selectedScope === 'global' ? 'active' : ''}}" data-scope="global" bindtap="onAggregateScope">所有全站社区</view>
+      <wu-f7-button class="chip {{mode === 'keyword' ? 'active' : ''}}" data-mode="keyword" bind:press="onMode" variant="{{mode === 'keyword' ? 'fill' : 'tonal'}}" size="small">关键词</wu-f7-button>
+      <wu-f7-button class="chip {{mode === 'semantic' ? 'active' : ''}}" data-mode="semantic" bind:press="onMode" variant="{{mode === 'semantic' ? 'fill' : 'tonal'}}" size="small">语义搜索</wu-f7-button>
+    </view>
+    <view class="filter-heading">社区范围</view>
+    <view class="chips">
+      <wu-f7-button class="chip {{selectedScope === 'all' ? 'active' : ''}}" data-scope="all" bind:press="onAggregateScope" variant="{{selectedScope === 'all' ? 'fill' : 'tonal'}}" size="small">全部社区</wu-f7-button>
+      <wu-f7-button class="chip {{selectedScope === 'regional' ? 'active' : ''}}" data-scope="regional" bind:press="onAggregateScope" variant="{{selectedScope === 'regional' ? 'fill' : 'tonal'}}" size="small">跨校园分类</wu-f7-button>
+      <wu-f7-button class="chip {{selectedScope === 'global' ? 'active' : ''}}" data-scope="global" bind:press="onAggregateScope" variant="{{selectedScope === 'global' ? 'fill' : 'tonal'}}" size="small">所有全站社区</wu-f7-button>
     </view>
     <view wx:if="{{browseNotice}}" class="meta">{{browseNotice}}</view>
     <view class="chips">
-      <view wx:if="{{regional}}" class="chip {{selectedSpaceId === regional.id ? 'active' : ''}}" data-id="{{regional.id}}" bindtap="onScope">{{regional.name}}</view>
-      <view wx:for="{{globalSpaces}}" wx:key="id" class="chip {{selectedSpaceId === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="onScope">全站 · {{item.name}}</view>
+      <wu-f7-button wx:if="{{regional}}" class="chip {{selectedSpaceId === regional.id ? 'active' : ''}}" data-id="{{regional.id}}" bind:press="onScope" variant="{{selectedSpaceId === regional.id ? 'fill' : 'tonal'}}" size="small">{{regional.name}}</wu-f7-button>
+      <wu-f7-button wx:for="{{globalSpaces}}" wx:key="id" class="chip {{selectedSpaceId === item.id ? 'active' : ''}}" data-id="{{item.id}}" bind:press="onScope" variant="{{selectedSpaceId === item.id ? 'fill' : 'tonal'}}" size="small">全站 · {{item.name}}</wu-f7-button>
     </view>
     <view wx:if="{{selectedScope === 'all'}}" class="meta">选择下方分类会切换到跨校园分类搜索。</view>
-    <view class="chips" wx:if="{{selectedScope === 'all' || selectedScope === 'regional' || selectedScope === 'explicit' &amp;&amp; space}}">
-      <block wx:for="{{categories}}" wx:key="key"><view wx:if="{{selectedScope === 'all' || selectedScope === 'regional' || space &amp;&amp; space.kind === 'regional' || item.key === 'all' || item.key === 'discussion'}}" class="chip {{category === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onCategory">{{item.label}}</view></block>
+    <view wx:if="{{selectedScope === 'all' || selectedScope === 'regional' || selectedScope === 'explicit' &amp;&amp; space}}" class="chips">
+      <block wx:for="{{categories}}" wx:key="key">
+        <wu-f7-button wx:if="{{selectedScope === 'all' || selectedScope === 'regional' || space &amp;&amp; space.kind === 'regional' || item.key === 'all' || item.key === 'discussion'}}" class="chip {{category === item.key ? 'active' : ''}}" data-key="{{item.key}}" bind:press="onCategory" variant="{{category === item.key ? 'fill' : 'tonal'}}" size="small">{{item.label}}</wu-f7-button>
+      </block>
     </view>
-    <view class="chips" wx:if="{{category === 'trading'}}">
-      <view class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bindtap="onTradingSubtype">全部交易</view>
-      <view wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTradingSubtype">{{item.label}}</view>
+    <view wx:if="{{category === 'trading'}}" class="chips">
+      <wu-f7-button class="chip {{!tradingSubtype ? 'active' : ''}}" data-key="" bind:press="onTradingSubtype" variant="{{!tradingSubtype ? 'fill' : 'tonal'}}" size="small">全部交易</wu-f7-button>
+      <wu-f7-button wx:for="{{tradingCategories}}" wx:key="key" class="chip {{tradingSubtype === item.key ? 'active' : ''}}" data-key="{{item.key}}" bind:press="onTradingSubtype" variant="{{tradingSubtype === item.key ? 'fill' : 'tonal'}}" size="small">{{item.label}}</wu-f7-button>
     </view>
-    <view class="filter-label">内容类型 · {{mode === 'keyword' ? '最新排序' : '语义相关度'}}</view>
-    <view class="chips"><view wx:for="{{searchTypes}}" wx:key="key" class="chip {{searchType === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onType">{{item.label}}</view></view>
+    <view class="filter-heading">发布时间</view>
     <view class="date-filters">
-      <picker mode="date" value="{{fromDay}}" bindchange="onFromDate"><view class="chip">起始日期（含）：{{fromDay || '不限'}}</view></picker>
-      <picker mode="date" value="{{toDay}}" bindchange="onToDate"><view class="chip">结束日期（不含）：{{toDay || '不限'}}</view></picker>
-      <view wx:if="{{from || to}}" class="link" bindtap="onClearDates">清除时间筛选</view>
+      <picker mode="date" value="{{fromDay}}" bindchange="onFromDate">
+        <view class="date-field">
+          从 {{fromDay || '不限'}}
+          <wu-icon name="calendar" size="16" />
+        </view>
+      </picker>
+      <picker mode="date" value="{{toDay}}" bindchange="onToDate">
+        <view class="date-field">
+          至 {{toDay || '不限'}}
+          <wu-icon name="calendar" size="16" />
+        </view>
+      </picker>
+      <wu-f7-button wx:if="{{from || to}}" class="text-button" bind:press="onClearDates">清除日期</wu-f7-button>
     </view>
-    <view class="meta">日期以 UTC 零点为界，筛选命中内容自身时间。</view>
-    <view wx:if="{{withinPostId}}" class="notice">仅搜索所选讨论 <text class="link" bindtap="onClearPost">取消限制</text></view>
-    <view wx:if="{{!hasSession}}" class="notice">访客仅能预览帖子；登录后可搜索评论和回复。</view>
-    <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">前往登录 →</navigator>
-    <textarea class="search-input" value="{{inputDraft}}" bindinput="onInput" bindconfirm="onSubmit" placeholder="输入关键词或描述想找的内容" maxlength="400" auto-height="true" />
-    <button bindtap="onSubmit" disabled="{{!selectedScope || selectedScope === 'explicit' &amp;&amp; !space || !configured}}">搜索</button>
-    <view wx:if="{{submittedQuery}}" class="meta">本次查询：{{submittedQuery}}</view>
-    <view wx:if="{{submittedQuery &amp;&amp; inputDraft !== submittedQuery}}" class="notice">输入尚未提交，切换模式、筛选和翻页仍使用本次查询。</view>
-    <view wx:if="{{selectedScope === 'all' || selectedScope === 'regional'}}" class="meta">跨校园搜索包含普通、急出和已完成的交易。所有全站社区范围仅搜索全站话题。</view>
-    <view wx:if="{{category === 'all' &amp;&amp; space &amp;&amp; space.kind === 'regional'}}" class="meta">全部分类不含急出交易；校园交易分类包含普通、急出和已完成的交易。</view>
-    <view wx:if="{{space &amp;&amp; space.kind === 'global'}}" class="meta">全站社区仅搜索该社区的内容，不合并各地校园。</view>
-  </view>
-  <view wx:if="{{loaded &amp;&amp; searchType === 'all' &amp;&amp; effectiveTypes.length === 1 &amp;&amp; effectiveTypes[0] === 'post'}}" class="notice">本次仅搜索帖子。登录后重新搜索可包含评论和回复。</view>
-  <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <button class="secondary" bindtap="onRefresh" disabled="{{busy || !selectedScope}}" loading="{{busy}}">{{submittedQuery ? '重新搜索' : '重新确认范围'}}</button>
-  <button wx:if="{{busy}}" class="secondary" bindtap="onCancel">停止搜索</button>
-  <navigator class="link" url="/pages/community-feed/community-feed">返回社区选择校园 →</navigator>
-  <navigator class="link" open-type="navigateBack">返回上一页</navigator>
-  <view wx:for="{{hits}}" wx:key="key" class="card search-hit">
-    <view class="hit-kind">{{item.kind === 'post' ? '帖子' : item.kind === 'comment' ? '评论' : '回复'}} · {{mode === 'semantic' ? '语义相关' : '关键词命中'}}</view>
-    <view class="author">{{item.author.displayName}}<text class="badge">{{item.author.kind === 'anonymous' ? '匿名' : '公开身份'}}</text></view>
-    <view class="meta">{{item.space.name}}<text wx:if="{{item.isRelatedCampusSync}}" class="badge"> · 来自 {{item.sourceRegion.name}}（关联学校同步）</text> · {{categoryLabels[item.category]}} · {{item.createdAt}}</view>
-    <view class="snippet"><text wx:if="{{item.snippet.truncatedBefore}}">…</text><text wx:for="{{item.snippet.segments}}" wx:for-item="segment" class="{{segment.matched ? 'match' : ''}}">{{segment.text}}</text><text wx:if="{{item.snippet.truncatedAfter}}">…</text></view>
-    <view wx:if="{{item.kind !== 'post' &amp;&amp; item.postSummary}}" class="post-summary">原帖摘要：{{item.postSummary}}</view>
-    <view wx:if="{{hasSession}}" class="link" data-kind="{{item.kind}}" data-id="{{item.contentId}}" bindtap="onHit">{{item.kind === 'post' ? '查看帖子' : '定位此条讨论'}} →</view>
-    <view wx:if="{{!withinPostId}}" class="link" data-post-id="{{item.postId}}" bindtap="onWithinPost">仅搜索这条讨论</view>
-  </view>
-  <view wx:if="{{continuation === 'scan_pending'}}" class="notice">本批尚未查完，暂时没有显示匹配项也不代表没有结果。</view>
-  <view wx:if="{{continuation === 'login_required'}}" class="notice">访客可预览本次首批结果；继续查找还需登录及手机号验证。这里不表示后面一定有匹配项。</view>
-  <navigator wx:if="{{continuation === 'login_required'}}" class="link" url="/pages/login/login">前往登录 →</navigator>
-  <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">继续查找需要手机号验证。可前往授权验证；服务需环境单独启用，完成后请重新搜索。</view>
-  <view wx:if="{{loaded &amp;&amp; mode === 'keyword'}}" class="meta">第 {{pageNumber}} 页 · 翻页会重新核验当前可查看内容</view>
-  <view class="actions"><button wx:if="{{canPrevious}}" class="secondary" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canNext}}" class="secondary" bindtap="onNext" disabled="{{busy}}">{{continuation === 'scan_pending' ? '继续查找' : '下一页'}}</button></view>
-  <view class="notice">{{mode === 'keyword' ? '关键词按原文字面搜索，仅按最新排序。' : '语义服务默认未开启；不可用时不会自动改用关键词搜索。'}}不会保存搜索历史。</view>
+    <view class="meta">UTC 日期，包含起始日，不含结束日。</view>
+    <navigator class="link" url="/pages/community-feed/community-feed">
+      选择浏览校园
+      <wu-icon name="chevron-right" tone="accent" size="13" />
+    </navigator>
+  </wu-f7-block>
+  <wu-f7-block spacing="compact">
+    <view wx:if="{{withinPostId}}" class="context-strip">
+      当前主题内搜索
+      <wu-f7-button class="text-button" bind:press="onClearPost">取消限制</wu-f7-button>
+    </view>
+    <view wx:if="{{submittedQuery &amp;&amp; inputDraft !== submittedQuery}}" class="notice">输入尚未提交，当前结果与筛选仍使用「{{submittedQuery}}」。</view>
+    <view wx:if="{{relatedCampusDistribution === 'unavailable'}}" class="notice">关联学校范围暂不可确认，仅展示已核验内容，不代表其他学校没有帖子。</view>
+    <view wx:if="{{!hasSession}}" class="context-strip">
+      <text>登录后可搜索回复</text>
+      <navigator class="link" url="/pages/login/login">
+        登录
+        <wu-icon name="chevron-right" tone="accent" size="13" />
+      </navigator>
+    </view>
+    <view wx:if="{{loaded &amp;&amp; searchType === 'all' &amp;&amp; effectiveTypes.length === 1 &amp;&amp; effectiveTypes[0] === 'post'}}" class="notice">本次仅搜索帖子中的主题，登录后重新搜索可包含回复。</view>
+    <view wx:if="{{busy || !loaded &amp;&amp; submittedQuery}}" class="status" aria-role="status">{{status}}</view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <view wx:if="{{submittedQuery || error}}" class="toolbar results-toolbar">
+      <text class="meta">{{mode === 'keyword' ? '最新发布' : '语义相关度'}}</text>
+      <wu-f7-button class="icon-button" aria-label="重新搜索" disabled="{{busy || !selectedScope}}" loading="{{busy}}" bind:press="onRefresh">
+        <wu-icon name="refresh" size="18" />
+      </wu-f7-button>
+    </view>
+    <wu-f7-button wx:if="{{busy}}" class="quiet-button" bind:press="onCancel">停止搜索</wu-f7-button>
+    <view wx:if="{{!submittedQuery &amp;&amp; !busy &amp;&amp; !error}}" class="search-start">
+      <wu-icon name="search" size="34" />
+      <view class="meta">输入关键词，搜索主题与回复</view>
+      <wu-f7-button wx:if="{{!scopeLoaded}}" class="text-button" disabled="{{busy || !selectedScope}}" bind:press="onRefresh">重新确认范围</wu-f7-button>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:for="{{hits}}" wx:key="key" class="content-row search-hit" spacing="compact" inset="{{true}}" strong="{{true}}">
+    <view class="row-top">
+      <view class="author">
+        {{item.author.displayName}}
+        <text wx:if="{{item.author.kind === 'anonymous'}}" class="identity-label">分身</text>
+      </view>
+      <text class="content-kind">{{item.kind === 'post' ? '主题' : '回复'}}</text>
+    </view>
+    <view class="snippet">
+      <text wx:if="{{item.snippet.truncatedBefore}}">…</text>
+      <text wx:for="{{item.snippet.segments}}" wx:for-item="segment" wx:key="index" class="{{segment.matched ? 'match' : ''}}">{{segment.text}}</text>
+      <text wx:if="{{item.snippet.truncatedAfter}}">…</text>
+    </view>
+    <view wx:if="{{item.kind !== 'post' &amp;&amp; item.postSummary}}" class="post-summary">{{item.postSummary}}</view>
+    <view class="meta">
+      {{item.space.name}} · {{categoryLabels[item.category]}}
+      <text wx:if="{{item.createdAtLabel}}">· {{item.createdAtLabel}}</text>
+    </view>
+    <view wx:if="{{item.isRelatedCampusSync}}" class="source-label">来自 {{item.sourceRegion.name}} · 关联学校同步</view>
+    <view class="row-actions">
+      <wu-f7-button wx:if="{{hasSession}}" class="text-button" data-kind="{{item.kind}}" data-id="{{item.contentId}}" bind:press="onHit">
+        {{item.kind === 'post' ? '查看主题' : '查看回复'}}
+        <wu-icon name="chevron-right" tone="accent" size="13" />
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{!withinPostId}}" class="text-button muted" data-post-id="{{item.postId}}" bind:press="onWithinPost">主题内搜索</wu-f7-button>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block spacing="compact">
+    <view wx:if="{{loaded &amp;&amp; !hits.length &amp;&amp; continuation === 'end'}}" class="empty">
+      <view class="empty-title">暂时没有找到</view>
+      <view>试试其他关键词，或调整筛选范围。</view>
+    </view>
+    <view wx:if="{{continuation === 'scan_pending'}}" class="notice">搜索尚未完成，可以继续查找。暂未显示结果不代表没有匹配项。</view>
+    <view wx:if="{{continuation === 'login_required'}}" class="notice">
+      继续查找需要登录及手机号验证，不表示后面一定有匹配项。
+      <navigator class="link" url="/pages/login/login">前往登录</navigator>
+    </view>
+    <view wx:if="{{continuation === 'phone_verification_required'}}" class="notice">
+      继续查找需要手机号验证，完成后请重新搜索。
+      <navigator class="link" url="/pages/phone-binding/phone-binding">前往手机号授权验证</navigator>
+    </view>
+    <view class="pagination">
+      <wu-f7-button wx:if="{{canPrevious}}" class="secondary" disabled="{{busy}}" bind:press="onPrevious" variant="tonal">上一页</wu-f7-button>
+      <text wx:if="{{loaded &amp;&amp; mode === 'keyword'}}">第 {{pageNumber}} 页</text>
+      <wu-f7-button wx:if="{{canNext}}" class="secondary" disabled="{{busy}}" bind:press="onNext" variant="tonal">{{continuation === 'scan_pending' ? '继续查找' : '下一页'}}</wu-f7-button>
+    </view>
+    <view class="reading-notes">
+      <wu-f7-button class="disclosure" bind:press="onToggleInfo">
+        搜索说明
+        <wu-icon name="{{showInfo ? 'chevron-up' : 'chevron-down'}}" size="13" />
+      </wu-f7-button>
+      <view wx:if="{{showInfo}}" class="meta">
+        <view>{{mode === 'keyword' ? '关键词按原文字面匹配，不区分大小写，按内容时间从新到旧排列。' : '语义搜索返回有限的相关结果，并非全部匹配；服务未开启时不会自动切换到关键词搜索。'}}不会保存搜索历史。</view>
+        <view wx:if="{{selectedScope === 'all' || selectedScope === 'regional'}}">跨校园搜索包含普通、急出和已完成的交易；所有全站社区范围仅搜索全站主题。</view>
+        <view wx:if="{{category === 'all' &amp;&amp; space &amp;&amp; space.kind === 'regional'}}">全部分类不含急出交易；校园交易包含普通、急出和已完成的交易。</view>
+        <view wx:if="{{space &amp;&amp; space.kind === 'global'}}">只搜索当前全站社区，不合并各地校园。</view>
+        <view>每次翻页重新核验可查看内容。</view>
+      </view>
+    </view>
+    <navigator class="back-link" open-type="navigateBack">返回上一页</navigator>
+  </wu-f7-block>
 </view>
-
-<navigator wx:if="{{continuation === 'phone_verification_required'}}" class="text-link" url="/pages/phone-binding/phone-binding">前往手机号授权验证</navigator>

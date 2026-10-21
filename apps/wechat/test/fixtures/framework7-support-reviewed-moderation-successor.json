@@ -1,0 +1,20 @@
+{
+  "src/pages/feedback-notices/feedback-notices.json": {
+    "before": "3608316ac7e3f77fb7c95ddf38ca23bf2542867220eea9e78efc02cfc52aff23",
+    "beforeEvidence": "test/fixtures/framework7-support-feedback-notices-before-json.txt",
+    "after": "6279798a21eb32eb30dcd752200663a3868cd3cc8b727170b1416dc4964b32fb",
+    "successorEvidence": "test/framework7-moderation-migration.test.ts"
+  },
+  "src/pages/feedback-notices/feedback-notices.wxml": {
+    "before": "8f8f412ff33e7d6c5dc3f353c583546efb1048db203de30d97df6284062d6845",
+    "beforeEvidence": "test/fixtures/framework7-support-feedback-notices-before-wxml.txt",
+    "after": "c28c3ad26f7b2b59331e27260f75a34b7fb9dff3e9923c3ca5f52e9bdce358c5",
+    "successorEvidence": "test/framework7-moderation-migration.test.ts"
+  },
+  "src/pages/feedback-notices/feedback-notices.wxss": {
+    "before": "abc53f6b9b5166d9b80864430b465b88d95a6b797574f58bf633f1a7679566e4",
+    "beforeEvidence": "test/fixtures/framework7-support-feedback-notices-before-wxss.txt",
+    "after": "e0dc6fd28eb2348776747e7a8e7d9012ece618c1240b11d63a1a5f2663e21e02",
+    "successorEvidence": "test/framework7-moderation-migration.test.ts"
+  }
+}

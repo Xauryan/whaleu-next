@@ -448,7 +448,7 @@ for (const kind of ['comment', 'reply'] as const) {
     controller.requestCancellation();
     await controller.confirmCancellation();
     assert.equal(s.store.load(s.accountId), null);
-    assert.match(s.view().receiptStatus, /已确认删除评论\/回复/);
+    assert.match(s.view().receiptStatus, /已确认删除回复/);
   });
 
   test(`${kind}: write failure, silent write and readback failure prevent any admin removal dispatch`, async (t) => {
@@ -620,7 +620,7 @@ for (const kind of ['comment', 'reply'] as const) {
     });
     await work;
     assert.equal(s.view().frozen, false);
-    assert.match(s.view().receiptStatus, /已确认删除评论\/回复/);
+    assert.match(s.view().receiptStatus, /已确认删除回复/);
   });
 
   test(`${kind}: late management and close/hide never restore confirmation or persist a command`, async (t) => {
@@ -735,7 +735,7 @@ for (const kind of ['comment', 'reply'] as const) {
     ])
       assert.match(page, new RegExp(`on${handler}\\(`));
     assert.match(page, /controller\?\.dispose/);
-    assert.match(wxml, /该根评论及其全部回复将不可访问/);
+    assert.match(wxml, /该根回复及其全部回复将不可访问/);
     assert.match(wxml, /仅删除选中的这条回复/);
     assert.match(wxml, /不会通知作者/);
     assert.doesNotMatch(wxml, /作者已收到|并通知作者|私有系统通知/);
@@ -748,15 +748,15 @@ for (const kind of ['comment', 'reply'] as const) {
     );
     const detail = source('pages/community-detail/community-detail.wxml');
     const entry = detail.match(
-      /<button[^>]*bindtap="onAdminDiscussionRemoval"[^>]*>[^<]*<\/button>/,
+      /<wu-f7-button[^>]*bind:press="onAdminDiscussionRemoval"[^>]*>[^<]*<\/wu-f7-button>/,
     )?.[0];
     assert.ok(entry);
     assert.match(entry, /!item.viewer.isSelf/);
     assert.doesNotMatch(entry, /author.kind|role|canManage/);
-    assert.match(detail, /删除我的评论/);
+    assert.match(detail, /删除我的回复/);
     assert.match(
       source('pages/community-mine/community-mine.wxml'),
-      /恢复本账号原管理员评论\/回复删除请求/,
+      /bind:press="onToggleTools"[\s\S]*wx:if="\{\{showTools\}\}"[\s\S]*原管理请求恢复[\s\S]*url="\/pages\/admin-discussion-removal\/admin-discussion-removal">\s*<text>回复删除<\/text>/,
     );
   });
 
@@ -788,7 +788,7 @@ for (const kind of ['comment', 'reply'] as const) {
     await controller.request(target);
     await controller.submit();
     assert.equal(s.view().ownContent, true);
-    assert.match(s.view().error, /删除我的评论/);
+    assert.match(s.view().error, /删除我的回复/);
     assert.equal(s.view().confirming, null);
     assert.equal(s.commands.length, 0);
   });
@@ -836,7 +836,7 @@ for (const kind of ['comment', 'reply'] as const) {
     assert.equal(s.view().management, null);
     assert.ok(s.store.load(s.accountId));
     assert.deepEqual(calls, ['invalidated']);
-    assert.match(s.view().receiptStatus, /已确认评论\/回复删除/);
+    assert.match(s.view().receiptStatus, /已确认回复删除/);
     s.storage.failRemove = false;
     s.gateway.receipt = async () => ({ state: 'recorded', receipt: receipt() });
     await controller.recover();

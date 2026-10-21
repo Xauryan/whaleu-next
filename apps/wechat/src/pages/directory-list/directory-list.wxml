@@ -1,24 +1,21 @@
-<import src="../../directory/common.wxml" />
-<view class="screen">
-  <view class="eyebrow">WHALEU · {{directoryKindLabels[kind]}}</view><view class="title">{{categoryId ? '分类目录' : '跨分类名称搜索'}}</view>
-  <view class="card"><input value="{{inputDraft}}" bindinput="onInput" bindconfirm="onSubmit" maxlength="200" placeholder="按条目名称搜索，最多 100 字" />
-    <button bindtap="onSubmit" disabled="{{!configured || !hasSession}}">搜索名称</button><button class="secondary" bindtap="onClear">清除搜索</button>
-    <view wx:if="{{submittedQuery}}" class="meta">已提交：{{submittedQuery}}</view>
-  </view>
-  <template is="directory-feedback" data="{{status,error,hasSession}}" />
-  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">{{restartRequired ? '重新加载首批结果' : '刷新结果'}}</button><button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
-  <view class="section-title">已核验历史目录</view>
-  <view wx:for="{{entries}}" wx:key="id" class="card">
-    <view class="section-title">{{item.name}}</view><template is="directory-entry-labels" data="{{item,directoryPlatformLabels}}" />
-    <view class="directory-text">{{item.introPreview}}</view><button class="secondary" bindtap="onEntry" data-id="{{item.id}}" disabled="{{busy}}">查看详情 →</button>
-  </view>
-  <view wx:if="{{loaded &amp;&amp; !entries.length &amp;&amp; pageNumber === 1}}" class="empty">{{submittedQuery ? '没有匹配的名称' : '当前分类暂无条目'}}</view>
-  <view wx:if="{{loaded}}" class="pagination"><button bindtap="onPrevious" disabled="{{busy || !canPrevious}}">上一页</button><text>第 {{pageNumber}} 页</text><button bindtap="onNext" disabled="{{busy || !canNext}}">下一页</button></view>
-  <view class="section-title">本平台审核通过</view><view class="meta">独立可信来源，单独分页；不与历史目录合并计数。</view>
-  <view wx:if="{{nativeDirectory.error}}" class="notice">{{nativeDirectory.error}}</view>
-  <button bindtap="onNativeRefresh" disabled="{{nativeDirectory.busy}}">刷新本平台组织</button>
-  <view wx:for="{{nativeDirectory.items}}" wx:key="id" class="card"><view class="section-title">{{item.data.name}}</view><view>{{directoryPlatformLabels[item.data.platform]}}</view><view>{{item.data.introText}}</view><button data-id="{{item.id}}" bindtap="onNativeEntry">查看详情 →</button></view>
-  <view wx:if="{{nativeDirectory.loaded &amp;&amp; !nativeDirectory.items.length}}" class="notice">当前条件下暂无本平台批准的组织。</view>
-  <button wx:if="{{nativeDirectory.more}}" bindtap="onNativeMore" disabled="{{nativeDirectory.busy}}">下一批本平台组织</button>
-  <navigator class="link" url="/pages/directory-hub/directory-hub?kind={{kind}}">返回目录首页 →</navigator>
+<view class="f7-directory-screen f7-ios-theme">
+  <wu-f7-block spacing="compact">
+    <view class="f7-directory-search"><view class="f7-directory-search-field"><wu-icon name="search" size="19" /><input value="{{inputDraft}}" bindinput="onInput" bindconfirm="onSubmit" confirm-type="search" maxlength="200" placeholder="搜索{{directoryKindLabels[kind]}}名称" /></view><wu-f7-button bind:press="onSubmit" disabled="{{!configured || !hasSession}}">搜索</wu-f7-button></view>
+    <view class="f7-directory-toolbar"><text class="f7-directory-note">{{categoryId ? '当前分类' : '全部分类'}} · {{directoryKindLabels[kind]}}</text><wu-f7-button bind:press="onClear">清除搜索</wu-f7-button></view><view wx:if="{{submittedQuery &amp;&amp; inputDraft !== submittedQuery}}" class="f7-directory-note">输入尚未提交，仍显示「{{submittedQuery}}」的结果。</view>
+    <view wx:if="{{busy || !loaded}}" class="f7-directory-status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="f7-directory-error" aria-role="alert">{{error}}</view><navigator wx:if="{{!hasSession}}" class="f7-directory-link" url="/pages/login/login">登录后查看目录<wu-icon name="chevron-right" tone="accent" size="15" /></navigator><wu-f7-button wx:if="{{busy}}" bind:press="onCancel">停止加载</wu-f7-button>
+  </wu-f7-block>
+  <view class="f7-directory-section-toolbar"><text>已核验目录</text><wu-f7-button aria-label="{{restartRequired ? '重新加载首批结果' : '刷新目录结果'}}" bind:press="onRefresh" disabled="{{busy}}" loading="{{busy}}"><wu-icon name="refresh" tone="accent" size="18" /></wu-f7-button></view>
+  <wu-f7-list spacing="compact" inset="{{true}}" strong="{{true}}">
+    <wu-f7-list-item wx:for="{{entries}}" wx:key="id" link="{{true}}" media="{{true}}" title-slot="{{true}}" footer-slot="{{true}}" title="{{item.name}}" text="{{item.introPreview}}" aria-label="{{item.name + '，' + item.introPreview + '，' + directoryPlatformLabels[item.platform] + (item.badge.status === 'unavailable' ? '，推广标记待确认' : item.badge.status === 'known' &amp;&amp; item.badge.value === 'official' ? '，官方推广' : item.badge.status === 'known' &amp;&amp; item.badge.value === 'partner' ? '，合作推广' : '')}}" last="{{index === entries.length - 1}}" bind:press="onEntry" data-id="{{item.id}}" disabled="{{busy}}"><wu-icon slot="media" name="{{item.platform === 'official' ? 'post' : 'people'}}" tone="accent" size="24" /><text slot="title">{{item.name}}</text><view slot="footer" class="f7-directory-labels"><text>{{directoryPlatformLabels[item.platform]}}</text><text wx:if="{{item.badge.status === 'known' &amp;&amp; item.badge.value === 'official'}}">官方推广</text><text wx:elif="{{item.badge.status === 'known' &amp;&amp; item.badge.value === 'partner'}}">合作推广</text><text wx:elif="{{item.badge.status === 'unavailable'}}">推广标记待确认</text></view></wu-f7-list-item>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact" wx:if="{{loaded &amp;&amp; !entries.length &amp;&amp; pageNumber === 1}}"><view class="f7-directory-empty"><view class="f7-directory-empty-title">{{submittedQuery ? '没有匹配的名称' : '当前分类暂无条目'}}</view><view wx:if="{{submittedQuery}}">试试更短的关键词</view></view></wu-f7-block>
+  <wu-f7-block spacing="compact" wx:if="{{loaded}}"><view class="f7-directory-pagination"><wu-f7-button bind:press="onPrevious" disabled="{{busy || !canPrevious}}">上一页</wu-f7-button><text>第 {{pageNumber}} 页</text><wu-f7-button bind:press="onNext" disabled="{{busy || !canNext}}">下一页</wu-f7-button></view></wu-f7-block>
+  <view class="f7-directory-section-toolbar"><view><view>本平台组织</view><view class="f7-directory-note">审核通过 · 独立目录</view></view><wu-f7-button aria-label="刷新本平台组织" bind:press="onNativeRefresh" disabled="{{nativeDirectory.busy}}" loading="{{nativeDirectory.busy}}"><wu-icon name="refresh" tone="accent" size="18" /></wu-f7-button></view>
+  <wu-f7-block spacing="compact" wx:if="{{nativeDirectory.error}}"><view class="f7-directory-error" aria-role="alert">{{nativeDirectory.error}}</view></wu-f7-block>
+  <wu-f7-list spacing="compact" inset="{{true}}" strong="{{true}}">
+    <wu-f7-list-item wx:for="{{nativeDirectory.items}}" wx:key="id" link="{{true}}" media="{{true}}" title-slot="{{true}}" footer-slot="{{true}}" title="{{item.data.name}}" text="{{item.data.introText}}" aria-label="{{item.data.name + '，' + item.data.introText + '，' + directoryPlatformLabels[item.data.platform]}}" last="{{index === nativeDirectory.items.length - 1}}" data-id="{{item.id}}" bind:press="onNativeEntry"><wu-icon slot="media" name="people" tone="accent" size="24" /><text slot="title">{{item.data.name}}</text><text slot="footer">{{directoryPlatformLabels[item.data.platform]}}</text></wu-f7-list-item>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact" wx:if="{{nativeDirectory.loaded &amp;&amp; !nativeDirectory.items.length}}"><view class="f7-directory-empty">当前条件下暂无本平台组织</view></wu-f7-block><wu-f7-block spacing="compact" wx:if="{{nativeDirectory.more}}"><wu-f7-button wx:if="{{nativeDirectory.more}}" variant="tonal" bind:press="onNativeMore" disabled="{{nativeDirectory.busy}}">下一批本平台组织</wu-f7-button></wu-f7-block>
+  <wu-f7-list spacing="compact" inset="{{true}}" strong="{{true}}"><navigator url="/pages/identity-campus/identity-campus"><wu-f7-list-item media="{{true}}" title-slot="{{true}}" after-slot="{{true}}" last="{{true}}"><wu-icon slot="media" name="location" size="20" /><text slot="title">查看或选择身份校区</text><wu-icon slot="after" name="chevron-right" size="14" /></wu-f7-list-item></navigator></wu-f7-list>
+  <wu-f7-block spacing="compact"><wu-f7-button bind:press="onToggleInfo">目录说明<wu-icon name="{{showInfo ? 'chevron-up' : 'chevron-down'}}" tone="accent" size="13" /></wu-f7-button><view wx:if="{{showInfo}}" class="f7-directory-note">范围由身份校区决定，不随浏览校园改变。两个来源分别展示与翻页，不合并计数。</view><navigator class="f7-directory-link" url="/pages/directory-hub/directory-hub?kind={{kind}}">全部{{directoryKindLabels[kind]}}</navigator></wu-f7-block>
 </view>

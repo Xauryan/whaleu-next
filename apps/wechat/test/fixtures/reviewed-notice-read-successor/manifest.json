@@ -1,0 +1,45 @@
+{
+  "reviewedDeltaSha256": "1327bc5a75c50698cfbb8be0150b701be8f2fa2d2449ae55d8790ce51df7cd80",
+  "sources": {
+    "src/pages/rating-discussion-media/rating-discussion-media.wxml": {
+      "before": "d23690259d3b6b22610ef9c2e23e73e3ab4b92b31bd989865d14f5039822f6f6",
+      "after": "02f86e2eaf061ce518d995694fc0899252f18708b50467c277e5ea89564a0013",
+      "evidence": "test/fixtures/reviewed-notice-read-successor/src/pages/rating-discussion-media/rating-discussion-media.wxml.txt"
+    },
+    "src/pages/rating-scoped/rating-scoped.wxml": {
+      "before": "28545d264f6ec08e7aa979497cdc50758da0e9c8a1ca588541ff80873c82913f",
+      "after": "0a818bc14a877bf8b30030f02a31a4b7d8d4a66bb4f32cdcf861cf74223061b3",
+      "evidence": "test/fixtures/reviewed-notice-read-successor/src/pages/rating-scoped/rating-scoped.wxml.txt"
+    },
+    "src/ratings/discussion-controller.ts": {
+      "before": "233d8a4227e204585b6e1e1c51d029c88cc31e0b2179763663aa94cbcef40bff",
+      "after": "dc35adfe8e1ea79fd94d4e01e8d29f7ca6bedb6d7084250932c850038b6dcd56",
+      "evidence": "test/fixtures/reviewed-notice-read-successor/src/ratings/discussion-controller.ts.txt"
+    },
+    "src/ratings/discussion-media-page-controller.ts": {
+      "before": "ac6e6d639e767531321d42e20c959a689cc4eb93ebdaf88ac2bdf9fdffd80e80",
+      "after": "a5a75ebb4a78bcfd6a4e53ba6dad8fb4187d20d4f8fd9112105511359de741c7",
+      "evidence": "test/fixtures/reviewed-notice-read-successor/src/ratings/discussion-media-page-controller.ts.txt"
+    },
+    "src/ratings/discussion-media-page.ts": {
+      "before": "dd232cd12487027c74aaaae2b4b86337a4dbf9facd6c1faa27c0fd1359454b20",
+      "after": "cc35521337bd7ec6d25942c815208b6b035049fc91d5beaa9010af6f90bfa0f4",
+      "evidence": "test/fixtures/reviewed-notice-read-successor/src/ratings/discussion-media-page.ts.txt"
+    },
+    "src/ratings/scoped-controller.ts": {
+      "before": "3262ff19d8e5995196251bbcd1b013677d74003b207b04b9f5e6271c73df504d",
+      "after": "dccbde4f5a1e66dea1ef8981a8fc20500afbd7ed71e4b65ae3e452b2baa7c48e",
+      "evidence": "test/fixtures/reviewed-notice-read-successor/src/ratings/scoped-controller.ts.txt"
+    },
+    "src/ratings/scoped-page.ts": {
+      "before": "bfa8ab4477507b59adc1477f4b9a66a3d7b4042ad9bf811b9a04813b7e73efa0",
+      "after": "2d1368cc148c42effda7cb89185498196cf68eef245d1dfc486bafd239a55eb2",
+      "evidence": "test/fixtures/reviewed-notice-read-successor/src/ratings/scoped-page.ts.txt"
+    },
+    "src/ratings/updates-controller.ts": {
+      "before": "4d9650f4bde58b93c5cdc67ccb088fb1ea6534339a73143f8486b013bdf9a910",
+      "after": "eabd0cf50d3b51cd113cc11492bb2765752b281f5adaa32046ed2fae5ecec5be",
+      "evidence": "test/fixtures/reviewed-notice-read-successor/src/ratings/updates-controller.ts.txt"
+    }
+  }
+}

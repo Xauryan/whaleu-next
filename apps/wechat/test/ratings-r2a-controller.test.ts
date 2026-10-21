@@ -594,20 +594,27 @@ test('newer route owns the page while a previous position is late', async () => 
     0,
   );
 });
-test('current thread locates and applies position before exact current notice markRead; failures never claim empty', async () => {
+test('current thread locates and applies position without reading the notice; failures never claim empty', async () => {
   const s = r2aHarness();
-  let loadedAtRead = false;
   s.ratingUpdates.markReadImpl = async () => {
-    loadedAtRead = s.view().loaded && s.view().replies[0]?.id === replyId;
-    return readReceipt();
+    assert.fail('Content loading must not acknowledge the source notice');
   };
   await s.controller.load({ ...route, replyId, noticeId });
-  assert.equal(loadedAtRead, true);
+  assert.equal(s.view().loaded, true);
+  assert.equal(s.view().replies[0]?.id, replyId);
   assert.deepEqual(
     s.ratingUpdates.calls.map((call) => call.method),
-    ['target', 'markRead'],
+    ['target'],
   );
-  assert.match(s.view().status, /已读/);
+  assert.doesNotMatch(s.view().status, /已读/);
+  await s.controller.reload();
+  s.controller.collapse();
+  await s.controller.expand();
+  assert.equal(s.view().loaded, true);
+  assert.equal(
+    s.ratingUpdates.calls.filter((call) => call.method === 'markRead').length,
+    0,
+  );
   for (const failure of [missing(), unknown()]) {
     s.ratingDiscussion.positionImpl = async () => {
       throw failure;

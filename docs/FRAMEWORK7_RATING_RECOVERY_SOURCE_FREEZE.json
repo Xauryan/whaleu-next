@@ -1,0 +1,383 @@
+{
+  "schemaVersion": 1,
+  "title": "Eleven native Framework7 rating management and recovery routes source freeze",
+  "framework7": {
+    "version": "9.2.0",
+    "commit": "7668f883c29f69dd2ad7bd8ac3b35b9124082b0b"
+  },
+  "runtimeScope": "exact eleven Page WXML/WXSS/JSON and six isolated presentation files; no business/Page TS, original shared templates, components or globals modified",
+  "pages": [
+    "rating-random",
+    "rating-discussion-media",
+    "rating-recovery",
+    "rating-deletion",
+    "rating-category-create",
+    "rating-category-manage",
+    "rating-category-editor",
+    "target-owner-delete",
+    "target-owner-edit",
+    "window-discussion-recovery",
+    "major-discussion-recovery"
+  ],
+  "sourceActions": 282,
+  "protectedEntries": 183,
+  "fixtureCount": 42,
+  "explicitExceptions": [
+    {
+      "file": "apps/wechat/src/ratings/framework7-recovery-category.wxml",
+      "attribute": "class",
+      "handler": "onChoice",
+      "datasetField": "lifecycleAction",
+      "from": "management-action management-choice {{lifecycleAction === '{{item.value}}' ? 'is-selected' : ''}}",
+      "to": "management-action management-choice {{lifecycleAction === item.value ? 'is-selected' : ''}}",
+      "reason": "Explicitly approved isolated presentation correction of inherited nested interpolation; original source/hash preserved"
+    }
+  ],
+  "diagnosticModel": "Actual native registrations and Page/controller source; category wrappers use exact-static-include-projection, not native compiler proof",
+  "frozenSharedHarness": {
+    "file": "apps/wechat/test/native-press-emitted-harness.mjs",
+    "sha256": "f271187e9a5a7110e8d9632b2b88213191e32a878946e9cf5e1ffcfd5ceccd05"
+  },
+  "preEdit": {
+    "actionsSha256": "0be8a6ee1335b4842178a6d70d23f56cc0ce919a3989fe53b2b0b0cec47f2db2",
+    "protectedSha256": "702ad98406037a0238bfa4e80aa22358f5dd174bc009eb22eca9fde5ec1c1f10",
+    "r3rOriginalSha256": "7b712d627f43edd27ee62344e51ebc847ece1950a82cae2891a7a83cc4d7f831"
+  },
+  "verification": {
+    "focused": 47,
+    "finalFocusedAndAdaptedPresentation": 91,
+    "broad": 1243,
+    "passed": true,
+    "lint": true,
+    "format": true,
+    "workspaceTypecheck": "integration-owner",
+    "canonicalBuild": "integration-owner",
+    "deviceAcceptance": "not-run"
+  },
+  "files": {
+    "apps/wechat/scripts/fixtures/framework7-rating-recovery-preview.mjs": {
+      "sha256": "d0e0db18c85b5cd4c8f8b3c3481c68b620c1e5444c615e4700a05942476f2f37",
+      "bytes": 4366
+    },
+    "apps/wechat/scripts/smoke-rating-category-management.mjs": {
+      "sha256": "406b8fcfbd428e1f5aba8b4e4f4ffb1cb829e93c19b29f51e1bde3ffd001d2af",
+      "bytes": 22211
+    },
+    "apps/wechat/scripts/smoke-rating-category-scoped.mjs": {
+      "sha256": "a1cf493c0a0e15a1680c8f739ccc4c4b1b9f38b27bcee1b4d5017edf0e2c9b1e",
+      "bytes": 12773
+    },
+    "apps/wechat/scripts/smoke-rating-owner-editing.mjs": {
+      "sha256": "4f7bd88edc476b1410ed98fd56a419c6819b53340629cadfbf8248938639c1c3",
+      "bytes": 17579
+    },
+    "apps/wechat/scripts/smoke-rating-owner-management.mjs": {
+      "sha256": "20863c22154b468a3e7a0cabe79a50e2ab6df71d1fbb16cd229333dafc88973a",
+      "bytes": 11388
+    },
+    "apps/wechat/scripts/smoke-ratings-r3r.mjs": {
+      "sha256": "540705c4ea5fe67ecb8df9980666f63519d1d70f31ebf800bb01604aeafb44f8",
+      "bytes": 12233
+    },
+    "apps/wechat/src/major-discussion/framework7-recovery-common.wxml": {
+      "sha256": "9aef1bccbe598b8ca54d7cdfe2e4aad347ff1491c78b16c52e4c8aa3aab183b0",
+      "bytes": 9478
+    },
+    "apps/wechat/src/pages/major-discussion-recovery/major-discussion-recovery.json": {
+      "sha256": "22dafce0da65cd36f03564b73c91b22a36a1e6aebbdeaf13dac47091fa5478e2",
+      "bytes": 305
+    },
+    "apps/wechat/src/pages/major-discussion-recovery/major-discussion-recovery.wxml": {
+      "sha256": "e699896b89e9f0bbe504b701c6f7be2c6209bbf35abb798709f98b3462f83abb",
+      "bytes": 4270
+    },
+    "apps/wechat/src/pages/major-discussion-recovery/major-discussion-recovery.wxss": {
+      "sha256": "606b3c3d96dddea2c77fa9cb35c7217998979c9120f8c1b68cb1cf6d76fd57e9",
+      "bytes": 149
+    },
+    "apps/wechat/src/pages/rating-category-create/rating-category-create.json": {
+      "sha256": "3452ad260654da5164c570233370110bb147deb33965bc3793f3c405a6c2e0dc",
+      "bytes": 299
+    },
+    "apps/wechat/src/pages/rating-category-create/rating-category-create.wxml": {
+      "sha256": "43faf9d990c0be2aa3f521e3204d957dedb9582478ae27276c10198aa2db1ca3",
+      "bytes": 6789
+    },
+    "apps/wechat/src/pages/rating-category-create/rating-category-create.wxss": {
+      "sha256": "bcbb8750befe744e812ed743e003a888bd3ea41ca95b7b2b86c4ad3ea7ac68e7",
+      "bytes": 130
+    },
+    "apps/wechat/src/pages/rating-category-editor/rating-category-editor.json": {
+      "sha256": "a9cd80eccfb4a06ce1706fbb591e94722006cc0372b0e01a530b9618bd1a472f",
+      "bytes": 293
+    },
+    "apps/wechat/src/pages/rating-category-editor/rating-category-editor.wxml": {
+      "sha256": "3291f7e839bdc37904e674c38830bec7b8d31d2ae9dae0275a70b992afd1b287",
+      "bytes": 66
+    },
+    "apps/wechat/src/pages/rating-category-editor/rating-category-editor.wxss": {
+      "sha256": "60b7e5cdff26b5efe2cbdf295c46156e896fdd5fb337a7cfc0592e6c4f66e94d",
+      "bytes": 189
+    },
+    "apps/wechat/src/pages/rating-category-manage/rating-category-manage.json": {
+      "sha256": "a9cd80eccfb4a06ce1706fbb591e94722006cc0372b0e01a530b9618bd1a472f",
+      "bytes": 293
+    },
+    "apps/wechat/src/pages/rating-category-manage/rating-category-manage.wxml": {
+      "sha256": "3291f7e839bdc37904e674c38830bec7b8d31d2ae9dae0275a70b992afd1b287",
+      "bytes": 66
+    },
+    "apps/wechat/src/pages/rating-category-manage/rating-category-manage.wxss": {
+      "sha256": "60b7e5cdff26b5efe2cbdf295c46156e896fdd5fb337a7cfc0592e6c4f66e94d",
+      "bytes": 189
+    },
+    "apps/wechat/src/pages/rating-deletion/rating-deletion.json": {
+      "sha256": "2c0c004542ebd65e1cf5f339742ecf294f11358d74d08d4e4a5ea3fd96b34f9c",
+      "bytes": 302
+    },
+    "apps/wechat/src/pages/rating-deletion/rating-deletion.wxml": {
+      "sha256": "b6f66805579237d89e00d924fbdbd071dc3b867d6a70ae6a238fe7826f0e005d",
+      "bytes": 3177
+    },
+    "apps/wechat/src/pages/rating-deletion/rating-deletion.wxss": {
+      "sha256": "377f4141143b449734473508ed61cb53957d03aab83d3a9001aff9cc6e344dff",
+      "bytes": 131
+    },
+    "apps/wechat/src/pages/rating-discussion-media/rating-discussion-media.json": {
+      "sha256": "812cbfe25c3be2712f9d3a182414aaa6e3711f0b0b57385070fb96743846d4b3",
+      "bytes": 299
+    },
+    "apps/wechat/src/pages/rating-discussion-media/rating-discussion-media.wxml": {
+      "sha256": "d23690259d3b6b22610ef9c2e23e73e3ab4b92b31bd989865d14f5039822f6f6",
+      "bytes": 8220
+    },
+    "apps/wechat/src/pages/rating-discussion-media/rating-discussion-media.wxss": {
+      "sha256": "bcbb8750befe744e812ed743e003a888bd3ea41ca95b7b2b86c4ad3ea7ac68e7",
+      "bytes": 130
+    },
+    "apps/wechat/src/pages/rating-random/rating-random.json": {
+      "sha256": "f5c95f6cae23aea9676e9953ee4e28dab231b783fc6eca664b16a87bc15750d5",
+      "bytes": 296
+    },
+    "apps/wechat/src/pages/rating-random/rating-random.wxml": {
+      "sha256": "c3151f21da44ac6706a03566be32f65f797896bd7d0416ee1050198a7024b87e",
+      "bytes": 5751
+    },
+    "apps/wechat/src/pages/rating-random/rating-random.wxss": {
+      "sha256": "61a115f9dd56926baee549f8ad238aea23c03a09b972c860449559acff4b56b1",
+      "bytes": 128
+    },
+    "apps/wechat/src/pages/rating-recovery/rating-recovery.json": {
+      "sha256": "1613466db975e2c44ca036943d58268565dd745544fbf711151da2670da4174b",
+      "bytes": 299
+    },
+    "apps/wechat/src/pages/rating-recovery/rating-recovery.wxml": {
+      "sha256": "74d1f9a974a8f10dab62dfb8bf32b729e66bb7d3d65dd74402309eade5fdb191",
+      "bytes": 4942
+    },
+    "apps/wechat/src/pages/rating-recovery/rating-recovery.wxss": {
+      "sha256": "377f4141143b449734473508ed61cb53957d03aab83d3a9001aff9cc6e344dff",
+      "bytes": 131
+    },
+    "apps/wechat/src/pages/target-owner-delete/target-owner-delete.json": {
+      "sha256": "c6c891a6abf3ab701bbab3f70180311bc4f867173e7941e09a7417b7f2444d24",
+      "bytes": 305
+    },
+    "apps/wechat/src/pages/target-owner-delete/target-owner-delete.wxml": {
+      "sha256": "4debe951bf5fad7400e72d342f2e1cd2a06976303c3ac48bf03161a097cf982a",
+      "bytes": 2888
+    },
+    "apps/wechat/src/pages/target-owner-delete/target-owner-delete.wxss": {
+      "sha256": "377f4141143b449734473508ed61cb53957d03aab83d3a9001aff9cc6e344dff",
+      "bytes": 131
+    },
+    "apps/wechat/src/pages/target-owner-edit/target-owner-edit.json": {
+      "sha256": "dcfd838efda4f0d3d197c2e1042f7622452d953a31a11aaf31eb086e38d96441",
+      "bytes": 299
+    },
+    "apps/wechat/src/pages/target-owner-edit/target-owner-edit.wxml": {
+      "sha256": "99b8fc75c0ec295527ebba7a019098aec398c72bbf8c391dde3ca4d000e34ff2",
+      "bytes": 3547
+    },
+    "apps/wechat/src/pages/target-owner-edit/target-owner-edit.wxss": {
+      "sha256": "377f4141143b449734473508ed61cb53957d03aab83d3a9001aff9cc6e344dff",
+      "bytes": 131
+    },
+    "apps/wechat/src/pages/window-discussion-recovery/window-discussion-recovery.json": {
+      "sha256": "408230e51f8e51108e474f03f54ea564548d418a354a5f8475809e3688421b89",
+      "bytes": 305
+    },
+    "apps/wechat/src/pages/window-discussion-recovery/window-discussion-recovery.wxml": {
+      "sha256": "3db57029e6444f08639e4f6389ba4081f9c4cc43f6175a6c001f4271c6a19b1f",
+      "bytes": 3489
+    },
+    "apps/wechat/src/pages/window-discussion-recovery/window-discussion-recovery.wxss": {
+      "sha256": "7cf6a61510387c73fc695d295ce38979e699f9ad97980a6c4c239443fd925cc7",
+      "bytes": 151
+    },
+    "apps/wechat/src/ratings/framework7-recovery-category.wxml": {
+      "sha256": "34cac5197d3af69610952138a212fdde2b0dc86d1cbe5d117a0261378237297b",
+      "bytes": 37261
+    },
+    "apps/wechat/src/ratings/framework7-recovery-category.wxss": {
+      "sha256": "ba25f02692a535c0529c64468a4e77ac2c79f540e49b65c4bf04f8cee9aec65e",
+      "bytes": 370
+    },
+    "apps/wechat/src/ratings/framework7-recovery-common.wxml": {
+      "sha256": "9bd79dafeb6bd0d72b8aad8e52c594e4566fd7978ee0ef5284436025d1b58eb4",
+      "bytes": 2050
+    },
+    "apps/wechat/src/ratings/framework7-recovery.wxss": {
+      "sha256": "cc126b7504df6b2798409d539819e058c21372da01041c05c6ff2f09d908596f",
+      "bytes": 1214
+    },
+    "apps/wechat/src/window-discussion/framework7-recovery-common.wxml": {
+      "sha256": "e31d533232f5e9400dc661df56617611cee2542fc52d3e6486352e907f84548a",
+      "bytes": 8318
+    },
+    "apps/wechat/test/category-scoped-native.test.ts": {
+      "sha256": "4219192eb33d2b49189285039f129547420bbf0d37f5490e0520a91ad7174cf6",
+      "bytes": 15919
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-before-actions.json": {
+      "sha256": "0be8a6ee1335b4842178a6d70d23f56cc0ce919a3989fe53b2b0b0cec47f2db2",
+      "bytes": 116501
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-before-protected.json": {
+      "sha256": "702ad98406037a0238bfa4e80aa22358f5dd174bc009eb22eca9fde5ec1c1f10",
+      "bytes": 20300
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-category-scoped-native.test.ts.txt": {
+      "sha256": "d9194d2bc052e792d8eb2426446e8e228d83a791e3a560b33ad01799432f10b2",
+      "bytes": 15616
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-major-discussion-template.test.ts.txt": {
+      "sha256": "afeef0897115aa45c1ed865d05e45c5ee3c224f264c6ed806ebe84bdaebe0eae",
+      "bytes": 10156
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-rating-discussion-media-page-smoke.mjs.txt": {
+      "sha256": "9afbc979afb4d372e513a549cda0ae25c7f30efe0296c70ba9f7529250dd3920",
+      "bytes": 3562
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-rating-management-presentation.test.ts.txt": {
+      "sha256": "7a924e39053756041b8faf8536d3702e5bff45ef88d621fbec8fb972892a8c25",
+      "bytes": 10078
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-smoke-rating-category-management.mjs.txt": {
+      "sha256": "7d1326e39955db57fbb8c03c7deece9e1a2e6a0c599f6ca8efaa8f281106476e",
+      "bytes": 21475
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-smoke-rating-category-scoped.mjs.txt": {
+      "sha256": "58ba6be82d02429764dfab8846c83bd100b145ac8d6aa3fbbd31da98edc50765",
+      "bytes": 12357
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-smoke-rating-owner-editing.mjs.txt": {
+      "sha256": "419b6c651b7434fbc53ffb412ac0d756ed7d1ad26254586cf2ac19f7a4e0a3ba",
+      "bytes": 16939
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-smoke-rating-owner-management.mjs.txt": {
+      "sha256": "0b7c87ffd44fe11f924d800b92e6e7941b4d88200b00813cde2f2d66e7e8e764",
+      "bytes": 10829
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-smoke-ratings-r3r.mjs.txt": {
+      "sha256": "7b712d627f43edd27ee62344e51ebc847ece1950a82cae2891a7a83cc4d7f831",
+      "bytes": 11466
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__major-discussion__common.wxml.txt": {
+      "sha256": "cece0ddaea8780c520eaa21b9fa1da2ff0668ecdb792f652e1d8884656c725ca",
+      "bytes": 8489
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__major-discussion-recovery__major-discussion-recovery.wxml.txt": {
+      "sha256": "69cf8a6cc79c6d9e22e8d231a55fb739f4aa3216607d4f383fc06edae020bde2",
+      "bytes": 3925
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__rating-category-create__rating-category-create.wxml.txt": {
+      "sha256": "993a3c71b2ec77df8475d3588dfcc1e5d5e8285fefc08662573eb17ccccd2ad0",
+      "bytes": 6206
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__rating-category-editor__rating-category-editor.wxml.txt": {
+      "sha256": "7a93e6e40e5aa79b54165f9f3cda5cddf7bdc80318b01c3cedbb2f4689da9300",
+      "bytes": 53
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__rating-category-manage__rating-category-manage.wxml.txt": {
+      "sha256": "7a93e6e40e5aa79b54165f9f3cda5cddf7bdc80318b01c3cedbb2f4689da9300",
+      "bytes": 53
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__rating-deletion__rating-deletion.wxml.txt": {
+      "sha256": "8386d1fcd1f7a91ec30391f91684b6d0bc6e26f2b1a459c0a6b3e140a3c4ed52",
+      "bytes": 2908
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__rating-discussion-media__rating-discussion-media.wxml.txt": {
+      "sha256": "2dc04837ae774ee49770df83afe50e1e196085136411f56e69088e7dd39d522b",
+      "bytes": 7204
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__rating-random__rating-random.wxml.txt": {
+      "sha256": "f6a97ca5e64c77111625cf0a88823a9092678cb238e8b19493afac7031b5a106",
+      "bytes": 5230
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__rating-recovery__rating-recovery.wxml.txt": {
+      "sha256": "7f4702feb6e437fad60019238b04d0a67d9f45723deaa6392c586c1402785a23",
+      "bytes": 4811
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__target-owner-delete__target-owner-delete.wxml.txt": {
+      "sha256": "e5862417066fb2cba79e0a086a0d95cc533a1c5e3522c056c8da7941c2d6c2ec",
+      "bytes": 2481
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__target-owner-edit__target-owner-edit.wxml.txt": {
+      "sha256": "d0cf83ff96f4a9d010104eb1fdb3bbdbfcef000530334befeda2244852a9f5d0",
+      "bytes": 3122
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__pages__window-discussion-recovery__window-discussion-recovery.wxml.txt": {
+      "sha256": "b7b775573d37e56855eb76839e2dbeba7117889d3648e0b837420253508c42b5",
+      "bytes": 3175
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__ratings__category-scoped.wxml.txt": {
+      "sha256": "036849710abca5953cc381d13fecda80c8b809ac97ba5fa18e311c4d5dd6f48f",
+      "bytes": 33417
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__ratings__common.wxml.txt": {
+      "sha256": "36ef058559f2ed97a92ad1be0080835c543caf6b7f3e950421a0bfccbc4c02e7",
+      "bytes": 1895
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-src__window-discussion__common.wxml.txt": {
+      "sha256": "8b5e25b4ee7638c7513edb69be576762208a1463a5c49711a42185a28800a2e3",
+      "bytes": 7453
+    },
+    "apps/wechat/test/fixtures/framework7-rating-recovery-original-window-discussion-template.test.ts.txt": {
+      "sha256": "4b359cbcb8f6c4ba01da4cd5bd0372e5a0c43de5f563e1c34ee86d9e3fd4ed0b",
+      "bytes": 14498
+    },
+    "apps/wechat/test/framework7-rating-recovery-migration.test.ts": {
+      "sha256": "4aff02bda14cb2ac08ded016c878e341f93b843af2f8cb31d0aa260f8012e21c",
+      "bytes": 26985
+    },
+    "apps/wechat/test/framework7-rating-recovery-native-harness.mjs": {
+      "sha256": "f821c5a3a6c4bb5265cbc16c0d85fcc0c56198459c829b73db7e817f0b7fc9f1",
+      "bytes": 8047
+    },
+    "apps/wechat/test/framework7-rating-recovery-render.ts": {
+      "sha256": "57b23164cfaf35960b85ce4ef6858f38ac6fc28e63de9012aa63d34f368c2d4b",
+      "bytes": 6343
+    },
+    "apps/wechat/test/major-discussion-template.test.ts": {
+      "sha256": "3b6da602acedcb9b99d873231057ce45b803a2276caa759c871e1d871744ff79",
+      "bytes": 10452
+    },
+    "apps/wechat/test/rating-discussion-media-page-smoke.mjs": {
+      "sha256": "c13e3822ea5b9778a27578d44106b6a1e12a6e057e0e9cf4a5081f1ef5aaeb4f",
+      "bytes": 5186
+    },
+    "apps/wechat/test/rating-management-presentation.test.ts": {
+      "sha256": "db033266e8fce35c95cae1dd67996b19666ff628ffbce09ab136e2d654abb183",
+      "bytes": 10646
+    },
+    "apps/wechat/test/window-discussion-template.test.ts": {
+      "sha256": "64b01737c77421521bba1be75f774366ff266ecd9d1579f583475f9b3256eeb3",
+      "bytes": 14740
+    },
+    "docs/FRAMEWORK7_RATING_RECOVERY_MIGRATION.md": {
+      "sha256": "7148ad578389a751cfd2abd5da86c56ebb4ed3d493059f30f3646c00c164a454",
+      "bytes": 8588
+    }
+  }
+}

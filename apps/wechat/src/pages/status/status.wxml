@@ -1,8 +1,27 @@
-<view class="screen">
-  <navigator class="link" url="/pages/announcements/announcements">公告（无需登录） →</navigator>
-  <view class="label">{{stage}}</view>
-  <view class="title">{{title}}</view>
-  <view class="description">{{summary}}</view>
-  <view class="notice">{{notice}}</view>
-  <navigator url="/pages/verification/verification">查看我的认证状态（只读） →</navigator>
+<view class="support-page build-page support-native f7-ios-theme">
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" class="build-identity"
+    ><view class="identity-mark large"
+      ><wu-icon name="campus" size="34" tone="accent" /></view
+    ><view class="brand">{{title}}</view
+    ><view class="state-label">{{stage}}</view></wu-f7-block
+  >
+  <view class="body-copy">{{summary}}</view>
+  <view class="disclosure">{{notice}}</view>
+  <wu-f7-list spacing="compact" strong="{{true}}" inset="{{true}}" class="service-links"
+    ><navigator class="link-row" url="/pages/announcements/announcements"
+      ><view class="link-leading"
+        ><wu-icon name="bell" size="22" tone="accent" /><text
+          >校园公告</text
+        ></view
+      ><wu-icon name="chevron-right" size="16" tone="muted" /></navigator
+    ><navigator class="link-row" url="/pages/verification/verification"
+      ><view class="link-leading"
+        ><wu-icon name="shield" size="22" tone="accent" /><text
+          >查看我的认证状态</text
+        ></view
+      ><wu-icon name="chevron-right" size="16" tone="muted" /></navigator
+  ></wu-f7-list>
+  <view class="footnote"
+    >公告无需登录。认证状态只读查询，不会发起认证或自动授予权限。</view
+  >
 </view>

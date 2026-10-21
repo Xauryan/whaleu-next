@@ -1,0 +1,79 @@
+/* Framework7 v9.2.0 toggle-vars.less/toggle-ios.less, MIT.
+ * Copyright (c) 2014 Vladimir Kharlampidi.
+ * See docs/vendor/framework7-v9.2.0/LICENSE.
+ * Native adaptation: source track/knob + transparent native switch/label target.
+ * No browser :has(), glass press morph or DOM checkbox. Real-device hit testing
+ * and assistive-technology behavior of the transparent native control remain
+ * a release validation requirement, not established by source unit tests.
+ */
+@import '../../design/framework7-ios.wxss';
+:host {
+  display: inline-block;
+  vertical-align: middle;
+}
+.f7-toggle-row {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.f7-toggle-label {
+  flex: 1;
+  min-width: 0;
+  margin-right: 16px;
+  font-size: var(--f7-list-font-size);
+}
+.f7-toggle-target {
+  position: relative;
+  flex: 0 0 var(--f7-toggle-width);
+  width: var(--f7-toggle-width);
+  min-height: 44px;
+}
+.f7-toggle-track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  margin-top: calc(var(--f7-toggle-height) / -2);
+  width: var(--f7-toggle-width);
+  height: var(--f7-toggle-height);
+  border-radius: var(--f7-toggle-height);
+  background: var(--f7-toggle-inactive-border-color);
+  transition: background-color 300ms;
+  pointer-events: none;
+}
+.f7-toggle-knob {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 38px;
+  height: calc(var(--f7-toggle-height) - 4px);
+  border-radius: calc(var(--f7-toggle-height) - 4px);
+  background: var(--f7-toggle-inactive-knob-bg-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transform: translateX(0);
+  transition: transform 300ms;
+}
+.f7-toggle-checked {
+  background: var(--f7-theme-color);
+}
+.f7-toggle-checked .f7-toggle-knob {
+  background: var(--f7-toggle-active-knob-bg-color);
+  transform: translateX(calc(var(--f7-toggle-width) - 38px - 4px));
+}
+.f7-toggle-native {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  opacity: 0;
+}
+.f7-toggle-disabled {
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .f7-toggle-track,
+  .f7-toggle-knob {
+    transition: none;
+  }
+}

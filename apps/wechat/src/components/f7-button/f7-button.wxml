@@ -1,0 +1,24 @@
+<!-- Native button hit target is at least 44px; the inner visual keeps F7's 34/28/48px sizes. -->
+<button
+  class="f7-ios-theme f7-button-hit f7-button-{{variant === 'fill' || variant === 'outline' || variant === 'tonal' ? variant : 'plain'}} f7-button-{{size === 'small' || size === 'large' ? size : 'normal'}} {{tone === 'danger' ? 'f7-button-danger' : ''}} {{round ? 'f7-button-round' : ''}} {{disabled ? 'f7-button-disabled' : ''}} {{loading ? 'f7-button-loading' : ''}}"
+  disabled="{{disabled || loading}}"
+  data-interaction-key="{{interactionKey}}"
+  hover-class="{{disabled || loading ? 'none' : 'f7-button-pressed'}}"
+  hover-stop-propagation="{{true}}"
+  hover-start-time="{{0}}"
+  hover-stay-time="{{0}}"
+  catchtap="onPress"
+  aria-role="button"
+  aria-label="{{ariaLabel}}"
+  aria-disabled="{{disabled || loading}}"
+  aria-busy="{{loading}}"
+>
+  <view class="f7-button-surface">
+    <view class="f7-button-label"><slot /></view>
+    <view class="f7-button-preloader" aria-hidden="true">
+      <view class="f7-button-preloader-inner">
+        <view wx:for="{{spokes}}" wx:key="angle" class="f7-button-preloader-line" style="transform:translate(-50%,-150%) rotate({{item.angle}}deg);opacity:{{item.opacity}};" />
+      </view>
+    </view>
+  </view>
+</button>

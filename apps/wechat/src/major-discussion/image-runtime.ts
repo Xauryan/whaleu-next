@@ -35,7 +35,7 @@ import {
   type DiscussionV2CancelTarget,
   type DiscussionV2Receipt,
 } from './v2-contract';
-import { majorDiscussionError } from './controller';
+import { majorDiscussionError } from './errors';
 import { discussionBody } from './contract';
 export interface MajorDiscussionComposition {
   readonly majorId: string;

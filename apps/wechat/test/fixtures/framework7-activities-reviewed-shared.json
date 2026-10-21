@@ -1,0 +1,8 @@
+{
+  "file": "test/native-press-emitted-harness.mjs",
+  "beforeSha256": "085e3f616ded754cb13694157e9598efe1de296c92d2b4e56748bcfb0c727d98",
+  "afterSha256": "f271187e9a5a7110e8d9632b2b88213191e32a878946e9cf5e1ffcfd5ceccd05",
+  "reason": "Integration owner independently reviewed and approved the personal worker's bounded source-text XML entity decoding on 2026-10-20. Five entities are decoded once, ampersand last. Runtime values, typed datasets, disabled, stale and detached guards are unchanged. The original pre-edit hash remains in the before-protected inventory.",
+  "regressions": "test/framework7-personal-migration.test.ts",
+  "reviewEvidence": "/tmp/whaleu-personal-helper-independent-review.log"
+}

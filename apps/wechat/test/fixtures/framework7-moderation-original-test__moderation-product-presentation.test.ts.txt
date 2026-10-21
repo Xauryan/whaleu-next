@@ -1,0 +1,379 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import test from 'node:test';
+import { initialModerationView } from '../src/account-moderation/controller';
+import { initialAdminPostRemovalView } from '../src/admin-post-removal/controller';
+import { initialAdminDiscussionRemovalView } from '../src/admin-discussion-removal/controller';
+import { initialProfileModerationView } from '../src/profile-moderation/controller';
+import { initialProfileAvatarModerationView } from '../src/profile-avatar-moderation/controller';
+import { initialStudentView } from '../src/verification/student-controller';
+import { initialFeedbackNoticesView } from '../src/pages/feedback-notices/controller';
+import { withModerationDetails } from '../src/pages/admin-post-removal/presentation';
+
+type Node =
+  string | { tag: string; attrs: Record<string, string>; children: Node[] };
+type Element = Exclude<Node, string>;
+type Action = {
+  tag: string;
+  attrs: Record<string, string>;
+  ancestors: Record<string, string>[];
+};
+type Fixture = {
+  id: string;
+  page: string;
+  patch: Record<string, unknown>;
+  expectedText: string[];
+};
+const require = createRequire(__filename);
+const { parsePreviewWxml: parse } = require('../scripts/preview-wxml.mjs') as {
+  parsePreviewWxml(source: string): Element;
+};
+const { render: renderNodes } = require('../scripts/smoke-ratings.mjs') as {
+  render(
+    nodes: Node[],
+    data: Record<string, unknown>,
+    templates: Record<string, Element>,
+  ): Node[];
+};
+const fixtures = (
+  require('../scripts/fixtures/moderation-preview.mjs') as {
+    default: Fixture[];
+  }
+).default;
+const root = path.resolve(__dirname, '../src');
+const read = (file: string) => readFileSync(path.join(root, file), 'utf8');
+const source = (page: string, extension = 'wxml') =>
+  read(`pages/${page}/${page}.${extension}`);
+function defaults(page: string): Record<string, unknown> {
+  const base = {
+    detailsExpanded: false,
+    historyExpanded: false,
+    addressError: '',
+    punishmentKind: 'none',
+    punishmentUnit: 'days',
+    punishmentValue: '7',
+    punishmentReason: '',
+  };
+  if (page === 'admin-post-removal')
+    return { ...base, ...initialAdminPostRemovalView() };
+  if (page === 'admin-discussion-removal')
+    return { ...base, ...initialAdminDiscussionRemovalView() };
+  if (page === 'profile-moderation')
+    return { ...base, ...initialProfileModerationView() };
+  if (page === 'profile-avatar-moderation')
+    return { ...base, ...initialProfileAvatarModerationView() };
+  if (page === 'student-verification-review')
+    return { ...base, ...initialStudentView() };
+  if (page === 'feedback-notices')
+    return { ...base, ...initialFeedbackNoticesView() };
+  return {
+    ...base,
+    ...initialModerationView(
+      page === 'safety-appeal-management'
+        ? 'appeal-management'
+        : 'punishment-management',
+    ),
+  };
+}
+function document(page: string) {
+  const templates: Record<string, Element> = {};
+  const collect = (file: string): Element => {
+    const tree = parse(read(file));
+    for (const node of tree.children) {
+      if (typeof node === 'string') continue;
+      if (node.tag === 'import')
+        collect(path.join(path.dirname(file), node.attrs.src!));
+      if (node.tag === 'template' && node.attrs.name)
+        templates[node.attrs.name] = node;
+    }
+    return tree;
+  };
+  return { tree: collect(`pages/${page}/${page}.wxml`), templates };
+}
+const flatten = (nodes: Node[]): Node[] =>
+  nodes.flatMap((n) =>
+    typeof n === 'string' ? [n] : [n, ...flatten(n.children)],
+  );
+function render(page: string, patch: Record<string, unknown> = {}) {
+  const { tree, templates } = document(page);
+  return flatten(
+    renderNodes(tree.children, { ...defaults(page), ...patch }, templates),
+  );
+}
+const text = (nodes: Node[]) =>
+  nodes
+    .filter((n) => typeof n === 'string')
+    .join(' ')
+    .replace(/\s+/g, ' ');
+const elements = (nodes: Node[]) =>
+  nodes.filter((n): n is Element => typeof n !== 'string');
+const actions = (nodes: Node[], handler: string) =>
+  elements(nodes).filter(
+    (n) =>
+      n.attrs.bindtap === handler ||
+      n.attrs.bindinput === handler ||
+      n.attrs.bindchange === handler,
+  );
+const fixture = (id: string) => fixtures.find((f) => f.id === id)!.patch;
+for (const f of fixtures)
+  test(`${f.id}: strict fictional semantic markers`, () => {
+    assert.ok(f.expectedText.length > 0);
+    const output = text(render(f.page, f.patch));
+    for (const marker of f.expectedText)
+      assert.ok(
+        output.includes(marker),
+        `${f.id}: missing ${marker}\n${output}`,
+      );
+    assert.doesNotMatch(
+      output,
+      /undefined|\{\{|<template|匿名|评论|https?:\/\//,
+    );
+    assert.doesNotMatch(
+      JSON.stringify(f),
+      /evidenceSrc":"[^"\s]+|https?:\/\/|wxfile:|tmp\/|private\/|storageKey|downloadUrl/,
+    );
+  });
+function inventoryOf(template: string): Action[] {
+  const out: Action[] = [];
+  const walk = (nodes: Node[], ancestors: Record<string, string>[] = []) => {
+    for (const n of nodes) {
+      if (typeof n === 'string') continue;
+      const guards = Object.fromEntries(
+        Object.entries(n.attrs).filter(([k]) =>
+          ['wx:if', 'wx:elif', 'wx:else', 'wx:for', 'wx:for-item'].includes(k),
+        ),
+      );
+      if (
+        Object.keys(n.attrs).some(
+          (k) =>
+            k.startsWith('bind') ||
+            k.startsWith('catch') ||
+            k === 'url' ||
+            k === 'open-type' ||
+            k === 'disabled',
+        )
+      )
+        out.push({
+          tag: n.tag,
+          attrs: Object.fromEntries(
+            Object.entries(n.attrs).filter(
+              ([k]) =>
+                k.startsWith('bind') ||
+                k.startsWith('catch') ||
+                k.startsWith('data-') ||
+                [
+                  'url',
+                  'open-type',
+                  'disabled',
+                  'maxlength',
+                  'type',
+                  'value',
+                  'checked',
+                ].includes(k) ||
+                k.startsWith('wx:'),
+            ),
+          ),
+          ancestors,
+        });
+      walk(
+        n.children,
+        Object.keys(guards).length ? [...ancestors, guards] : ancestors,
+      );
+    }
+  };
+  walk(parse(template).children);
+  return out;
+}
+const audit = JSON.parse(
+  readFileSync(
+    path.join(__dirname, 'fixtures/moderation-action-inventory.json'),
+    'utf8',
+  ),
+) as { before: Record<string, Action[]>; after: Record<string, Action[]> };
+for (const [page, after] of Object.entries(audit.after))
+  test(`${page}: exact payload, disabled and ancestor-guard inventory`, () => {
+    const actual = inventoryOf(
+      page.startsWith('safety-')
+        ? read('pages/safety-appeal-management/management.wxml')
+        : source(page),
+    );
+    assert.deepEqual(actual, after);
+    const existing = actual.filter(
+      (a) =>
+        !['onToggleDetails', 'onToggleHistory'].includes(a.attrs.bindtap ?? ''),
+    );
+    const canonical = (list: Action[]) =>
+      list.map((a) => JSON.stringify(a)).sort();
+    assert.deepEqual(canonical(existing), canonical(audit.before[page]!));
+  });
+
+test('disclosures only change transient display state, never controller facts or confirmation', () => {
+  const updates: Record<string, unknown>[] = [];
+  const controller = { sentinel: true };
+  const page = withModerationDetails({
+    data: { busy: true, frozen: true, canDecide: false, confirming: 'cancel' },
+    controller,
+  });
+  page.onToggleDetails.call({
+    data: page.data,
+    setData: (patch) => updates.push(patch),
+  });
+  assert.deepEqual(updates, [{ detailsExpanded: true }]);
+  assert.equal(page.controller, controller);
+  assert.equal(page.data.frozen, true);
+  assert.equal(page.data.canDecide, false);
+});
+
+test('content removal stays exact-target, frozen-safe and explicitly confirmed', () => {
+  for (const [page, fixtureId, entry] of [
+    ['admin-post-removal', 'moderation-post-ready', 'onRemovePost'],
+    [
+      'admin-discussion-removal',
+      'moderation-reply-ready',
+      'onRemoveDiscussion',
+    ],
+  ]) {
+    const ready = fixture(fixtureId!);
+    assert.equal(actions(render(page!, ready), 'onSubmit').length, 0);
+    assert.equal(
+      actions(render(page!, { ...ready, frozen: true }), entry!).length,
+      0,
+    );
+    assert.equal(
+      actions(render(page!, { ...ready, management: null }), entry!).length,
+      0,
+    );
+    assert.equal(
+      actions(render(page!, { ...ready, busy: true }), entry!)[0]?.attrs
+        .disabled,
+      'true',
+    );
+    const unknown = render(page!, {
+      ...ready,
+      management: null,
+      frozen: true,
+      pendingRequestId: 'fictional',
+    });
+    for (const h of ['onRecover', 'onRetry', 'onCancelRequest'])
+      assert.equal(actions(unknown, h).length, 1);
+  }
+});
+
+test('unavailable profile capability never exposes a mutation or fabricates a preview', () => {
+  for (const [page, key, action] of [
+    ['profile-moderation', 'nickname', 'onResetNickname'],
+    ['profile-avatar-moderation', 'avatar', 'onClearCustomAvatar'],
+  ]) {
+    const out = render(page!, fixture(`moderation-${key}-unavailable`));
+    assert.equal(actions(out, action!).length, 0);
+    assert.equal(actions(out, 'onSubmit').length, 0);
+    assert.equal(elements(out).filter((n) => n.tag === 'image').length, 0);
+  }
+});
+
+test('safety capability, reason, busy, frozen and selected-case guards stay independent', () => {
+  const appeal = fixture('moderation-appeal-detail');
+  const readOnly = render('safety-appeal-management', {
+    ...appeal,
+    canDecide: false,
+  });
+  assert.equal(actions(readOnly, 'onRequestDecision').length, 0);
+  for (const lock of [
+    { busy: true, reason: 'filled' },
+    { frozen: true, reason: 'filled' },
+    { reason: '' },
+  ]) {
+    const out = render('safety-appeal-management', { ...appeal, ...lock });
+    assert.equal(actions(out, 'onRequestDecision').length, 3);
+    assert.ok(
+      actions(out, 'onRequestDecision').every(
+        (n) => n.attrs.disabled === 'true',
+      ),
+    );
+    assert.equal(actions(out, 'onSubmit').length, 0);
+  }
+  const release = render(
+    'safety-punishment-management',
+    fixture('moderation-punishment-readonly'),
+  );
+  assert.equal(actions(release, 'onRequestRelease').length, 0);
+  for (const page of [
+    'safety-appeal-management',
+    'safety-punishment-management',
+  ]) {
+    const out = render(page, {
+      frozen: true,
+      hasSession: false,
+      pendingRequestId: 'fictional',
+      selectedAppeal: null,
+      selectedPunishment: null,
+    });
+    for (const handler of ['onRecover', 'onRetry', 'onCancelRequest'])
+      assert.equal(actions(out, handler).length, 1);
+    assert.match(text(out), /失去管理权限仍可恢复本账号原请求/);
+  }
+});
+
+test('student expiry and current evidence capability gate preview, with cleanup and original recovery intact', () => {
+  const expired = render(
+    'student-verification-review',
+    fixture('moderation-student-expired'),
+  );
+  for (const handler of ['onPreview', 'onApprove', 'onReject'])
+    assert.equal(actions(expired, handler).length, 0);
+  const locked = render('student-verification-review', {
+    ...fixture('moderation-student-queue'),
+    pending: true,
+  });
+  assert.equal(actions(locked, 'onApprove')[0]?.attrs.disabled, 'true');
+  assert.equal(actions(locked, 'onReject')[0]?.attrs.disabled, 'true');
+  assert.equal(actions(locked, 'onRecover').length, 1);
+  assert.equal(actions(locked, 'onCancelRequest').length, 1);
+  assert.match(source('student-verification-review'), /关闭并清除材料/);
+  assert.match(source('student-verification-review'), /材料有效期/);
+  assert.match(source('student-verification-review'), /不能审核自己的申请/);
+});
+
+test('feedback unavailable rows remain non-actionable and read acknowledgement stays explicit', () => {
+  const out = render('feedback-notices', fixture('moderation-feedback-list'));
+  assert.deepEqual(
+    actions(out, 'onOpen').map((n) => n.attrs.disabled),
+    ['false', 'true'],
+  );
+  assert.equal(actions(out, 'onRead').length, 1);
+  const policy = render(
+    'feedback-notices',
+    fixture('moderation-feedback-policy'),
+  );
+  assert.match(text(policy), /不会自动标记已读/);
+});
+
+test('all eight pages are local, scoped, accessible materials without generic hero banners', () => {
+  const css = read('pages/admin-post-removal/moderation.wxss');
+  assert.match(css, /min-height: 88rpx/);
+  assert.match(css, /var\(--wu-surface/);
+  for (const page of Object.keys(audit.after)) {
+    const json = JSON.parse(source(page, 'json')) as {
+      usingComponents: Record<string, string>;
+    };
+    assert.equal(json.usingComponents['wu-icon'], '../../components/icon/icon');
+    assert.doesNotMatch(
+      source(page),
+      /WHALEU|eyebrow|class="title"|https?:\/\//,
+    );
+    assert.doesNotMatch(
+      source(page, 'wxss'),
+      /community\/forms|account-moderation/,
+    );
+  }
+  assert.doesNotMatch(
+    source('safety-appeal-management'),
+    /account-moderation\/screen/,
+  );
+  assert.doesNotMatch(
+    source('safety-punishment-management'),
+    /account-moderation\/screen/,
+  );
+});

@@ -1,0 +1,1867 @@
+{
+  "note": "Before redesign. Shared moderation admin branches are recorded for evidence, but not moved into user pages. Existing shared templates/controllers remain unchanged. Feedback admin-only notices navigation is intentionally removed from the consumer page.",
+  "before": {
+    "pages/feedback/feedback.wxml": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{space && hasSession}}",
+          "url": "/pages/community-compose/community-compose?spaceId={{space.id}}&category=feedback"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "url": "/pages/feedback-notices/feedback-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "url": "/pages/community-detail/community-detail?postId={{item.id}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:for": "{{posts}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{continuation === 'phone_verification_required'}}",
+          "url": "/pages/phone-binding/phone-binding"
+        },
+        "ancestors": []
+      }
+    ],
+    "pages/feedback-contacts/feedback-contacts.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReveal",
+          "disabled": "{{busy || contacts.busy || !contacts.enabled}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCopy",
+          "data-field": "wechat",
+          "disabled": "{{contacts.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{contacts.contacts && contacts.contacts.wechat}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCopy",
+          "data-field": "qq",
+          "disabled": "{{contacts.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{contacts.contacts && contacts.contacts.qq}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCopy",
+          "data-field": "phone",
+          "disabled": "{{contacts.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{contacts.contacts && contacts.contacts.phone}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy || contacts.busy}}"
+        },
+        "ancestors": []
+      }
+    ],
+    "pages/report-progress/report-progress.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReloadRecovery",
+          "disabled": "{{report.busy || juryVote.busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{reportProgress.loaded && !reportProgress.progress.isSelf}}",
+          "bindtap": "onReport",
+          "disabled": "{{!reportProgress.canReport || report.busy || report.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "block",
+            "wx:if": "{{hasTarget}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!report.hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/system-notices/system-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-feed/community-feed"
+        },
+        "ancestors": []
+      }
+    ],
+    "pages/account-status/account-status.wxml": [],
+    "pages/safety-appeal/safety-appeal.wxml": [],
+    "pages/status/status.wxml": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/announcements/announcements"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/verification/verification"
+        },
+        "ancestors": []
+      }
+    ],
+    "community/report-progress.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReloadReportProgress",
+          "disabled": "{{reportProgress.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-progress"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{reportProgress.busy}}",
+          "bindtap": "onCancelReportProgress"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-progress"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-vote": "keep",
+          "bindtap": "onJuryChoice",
+          "disabled": "{{juryVote.busy || juryVote.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-progress"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.loaded && reportProgress.progress}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.progress.kind === 'post'}}"
+          },
+          {
+            "tag": "view",
+            "wx:else": ""
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.canVote}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-vote": "remove",
+          "bindtap": "onJuryChoice",
+          "disabled": "{{juryVote.busy || juryVote.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-progress"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.loaded && reportProgress.progress}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.progress.kind === 'post'}}"
+          },
+          {
+            "tag": "view",
+            "wx:else": ""
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.canVote}}"
+          }
+        ]
+      }
+    ],
+    "community/report-recovery.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmReport",
+          "disabled": "{{report.busy || report.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissReport",
+          "disabled": "{{report.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReportReceipt",
+          "disabled": "{{report.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReportRetry",
+          "disabled": "{{report.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{report.busy}}",
+          "bindtap": "onReportCancel"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/report-progress/report-progress"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmJuryVote",
+          "disabled": "{{juryVote.busy || juryVote.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "jury-vote-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissJuryVote",
+          "disabled": "{{juryVote.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "jury-vote-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onJuryReceipt",
+          "disabled": "{{juryVote.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "jury-vote-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onJuryRetry",
+          "disabled": "{{juryVote.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "jury-vote-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{juryVote.busy}}",
+          "bindtap": "onJuryCancel"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "jury-vote-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+          }
+        ]
+      }
+    ],
+    "account-moderation/screen.wxml": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.canAppeal}}",
+          "url": "/pages/safety-appeal/safety-appeal?punishmentId={{item.punishmentId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "tag": "view",
+            "wx:for": "{{accountStatus.current}}",
+            "wx:key": "punishmentId"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "tag": "view",
+            "wx:for": "{{accountStatus.current}}",
+            "wx:key": "punishmentId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.punishmentId}}",
+          "bindtap": "onSelectPunishment",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:for": "{{punishments}}",
+            "wx:key": "punishmentId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.appealId}}",
+          "bindtap": "onSelectAppeal",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:for": "{{appeals}}",
+            "wx:key": "appealId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{nextCursor}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "maxlength": "4000",
+          "bindinput": "onText",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestAppeal",
+          "disabled": "{{busy || frozen || !text}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{selectedPunishment.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedPunishment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'punishment-management'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestRelease",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'punishment-management'}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{canRelease}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "maxlength": "255",
+          "bindinput": "onReason",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "upheld",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "released",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-decision": "closed_no_longer_effective",
+          "bindtap": "onRequestDecision",
+          "disabled": "{{busy || frozen || !reason}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{selectedAppeal}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{canDecide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{historyCursor}}",
+          "bindtap": "onMoreHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/account-status/account-status"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/system-notices/system-notices"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/safety-appeal/safety-appeal"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "account-moderation"
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "pages/feedback/feedback.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{space && hasSession}}",
+          "url": "/pages/community-compose/community-compose?spaceId={{space.id}}&category=feedback"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "url": "/pages/community-detail/community-detail?postId={{item.id}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:for": "{{posts}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{continuation === 'phone_verification_required'}}",
+          "url": "/pages/phone-binding/phone-binding"
+        },
+        "ancestors": []
+      }
+    ],
+    "pages/feedback-contacts/feedback-contacts.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCopy",
+          "data-field": "wechat",
+          "disabled": "{{contacts.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{contacts.contacts && contacts.contacts.wechat}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCopy",
+          "data-field": "qq",
+          "disabled": "{{contacts.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{contacts.contacts && contacts.contacts.qq}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCopy",
+          "data-field": "phone",
+          "disabled": "{{contacts.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{contacts.contacts && contacts.contacts.phone}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReveal",
+          "disabled": "{{busy || contacts.busy || !contacts.enabled}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy || contacts.busy}}"
+        },
+        "ancestors": []
+      }
+    ],
+    "pages/report-progress/report-progress.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReloadReportProgress",
+          "disabled": "{{reportProgress.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "block",
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.loaded && reportProgress.progress}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-vote": "keep",
+          "bindtap": "onJuryChoice",
+          "disabled": "{{juryVote.busy || juryVote.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "block",
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.loaded && reportProgress.progress}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.progress.kind === 'post'}}"
+          },
+          {
+            "tag": "view",
+            "wx:else": ""
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.canVote}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-vote": "remove",
+          "bindtap": "onJuryChoice",
+          "disabled": "{{juryVote.busy || juryVote.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "block",
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.loaded && reportProgress.progress}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.progress.kind === 'post'}}"
+          },
+          {
+            "tag": "view",
+            "wx:else": ""
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{reportProgress.canVote}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReloadReportProgress",
+          "disabled": "{{reportProgress.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "block",
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "tag": "view",
+            "wx:else": ""
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{reportProgress.busy}}",
+          "bindtap": "onCancelReportProgress"
+        },
+        "ancestors": [
+          {
+            "tag": "block",
+            "wx:if": "{{hasTarget}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{reportProgress.loaded && !reportProgress.progress.isSelf}}",
+          "bindtap": "onReport",
+          "disabled": "{{!reportProgress.canReport || report.busy || report.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "block",
+            "wx:if": "{{hasTarget}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReloadRecovery",
+          "disabled": "{{report.busy || juryVote.busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!report.hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/system-notices/system-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-feed/community-feed"
+        },
+        "ancestors": []
+      }
+    ],
+    "pages/report-progress/recovery.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmReport",
+          "disabled": "{{report.busy || report.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissReport",
+          "disabled": "{{report.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReportReceipt",
+          "disabled": "{{report.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReportRetry",
+          "disabled": "{{report.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{report.busy}}",
+          "bindtap": "onReportCancel"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/report-progress/report-progress"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-report-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmJuryVote",
+          "disabled": "{{juryVote.busy || juryVote.frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-jury-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onDismissJuryVote",
+          "disabled": "{{juryVote.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-jury-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.confirmation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onJuryReceipt",
+          "disabled": "{{juryVote.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-jury-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onJuryRetry",
+          "disabled": "{{juryVote.busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-jury-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{juryVote.busy}}",
+          "bindtap": "onJuryCancel"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-jury-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+          }
+        ]
+      }
+    ],
+    "pages/account-status/account-status.wxml": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.canAppeal}}",
+          "url": "/pages/safety-appeal/safety-appeal?punishmentId={{item.punishmentId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "tag": "view",
+            "wx:for": "{{accountStatus.current}}",
+            "wx:key": "punishmentId"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "tag": "view",
+            "wx:for": "{{accountStatus.current}}",
+            "wx:key": "punishmentId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{historyCursor}}",
+          "bindtap": "onMoreHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/system-notices/system-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/safety-appeal/safety-appeal"
+        },
+        "ancestors": []
+      }
+    ],
+    "pages/account-status/recovery.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "template",
+            "name": "support-recovery"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      }
+    ],
+    "pages/safety-appeal/safety-appeal.wxml": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "maxlength": "4000",
+          "bindinput": "onText",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestAppeal",
+          "disabled": "{{busy || frozen || !text}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "tag": "view",
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{selectedPunishment.openAppealId}}",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{selectedPunishment}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.appealId}}",
+          "bindtap": "onSelectAppeal",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "tag": "view",
+            "wx:for": "{{appeals}}",
+            "wx:key": "appealId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{nextCursor}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/account-status/account-status"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/system-notices/system-notices"
+        },
+        "ancestors": []
+      }
+    ],
+    "pages/status/status.wxml": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/announcements/announcements"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/verification/verification"
+        },
+        "ancestors": []
+      }
+    ]
+  },
+  "exceptions": [
+    "Removed logged-in consumer navigation to admin-only feedback-notices. Destination page and management routes unchanged.",
+    "Consumer account-status/appeal templates do not expose shared admin release/decide branches. User-specific handlers, original request recovery including previously frozen admin commands, and shared controller remain unchanged.",
+    "Removed self-navigation links from account-status and safety-appeal. Existing cross-links and system notices remain.",
+    "Original account status punishments/selected detail arrays are unreachable in status load; actual current/history arrays retained. Appeal mode uses appeals/selectedPunishment/selectedAppeal; management-only arrays/history remain in original shared template.",
+    "Progress refresh is now in loaded/else branches, with unchanged busy disable gate."
+  ]
+}

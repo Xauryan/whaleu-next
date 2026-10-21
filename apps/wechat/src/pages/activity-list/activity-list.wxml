@@ -1,36 +1,69 @@
-<view><button bindtap="onNative">新发布活动</button><button bindtap="onPublish">发布活动</button><button bindtap="onMine">本人发布历史</button><text>以下为旧版已核验活动目录</text></view>
-<import src="../../activities/facts.wxml" />
-<view class="screen">
-  <view class="title">校园活动</view>
-  <view class="notice">按当前身份校区核验访问权限；浏览校园选择不会授予活动访问权限。</view>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录 →</navigator>
-  <navigator class="link" url="/pages/identity-campus/identity-campus">身份校区 →</navigator>
-  <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">{{restartRequired ? '重新开始浏览' : '重新加载活动'}}</button>
-  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
-  <button wx:if="{{window !== 'all'}}" bindtap="onAll" disabled="{{busy}}">查看全部活动</button>
-  <view wx:if="{{loaded}}" class="notice">{{selectionMessage}}</view>
-  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前已核验范围内没有活动。</view>
-  <view wx:for="{{items}}" wx:key="id" class="card">
-    <view class="subtitle exact">{{item.title}}</view>
-    <template is="activity-facts" data="{{item:item}}" />
-    <button data-id="{{item.id}}" bindtap="onActivity" disabled="{{busy}}">查看活动详情</button>
+<view class="f7-ios-theme activity-page">
+  <view class="activity-toolbar">
+    <wu-f7-button class="activity-text-button" bind:press="onNative" variant="plain">校园活动<wu-icon name="chevron-right" size="14" /></wu-f7-button>
+    <view class="activity-toolbar-actions">
+      <wu-f7-button class="activity-icon-button" bind:press="onMine" aria-label="我的发布" variant="plain"><wu-icon name="person" size="21" /></wu-f7-button>
+      <wu-f7-button class="activity-icon-button" data-field="preferences" bind:press="onTogglePanel" aria-label="活动提醒设置" variant="plain"><wu-icon name="bell" size="21" /></wu-f7-button>
+      <wu-f7-button class="activity-icon-button activity-accent" bind:press="onPublish" aria-label="发布活动" variant="plain"><wu-icon name="plus" tone="accent" size="23" /></wu-f7-button>
+    </view>
   </view>
-  <view wx:if="{{loaded}}" class="meta">第 {{pageNumber}} 页</view>
-  <button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy}}">上一页（重新核验）</button>
-  <button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button>
-  <view class="card">
-    <view class="meta">{{visit.status}}</view><view wx:if="{{visit.error}}" class="error">{{visit.error}}</view>
-    <button wx:if="{{visit.pending}}" bindtap="onVisitRetry" disabled="{{visit.busy}}" loading="{{visit.busy}}">重试原访问记录</button>
-    <view class="meta">访问记录仅表示进入活动中心，不表示逐项阅读。</view>
+  <view class="f7-ios-theme activity-page-heading">
+    <view class="f7-ios-theme activity-page-title">活动目录</view>
+    <view class="activity-caption">按身份校区查看已核验活动</view>
   </view>
-  <view class="card">
-    <view class="subtitle">活动提醒偏好</view>
-    <view class="notice">仅保存提醒选择，消息投递尚未接入。</view>
-    <switch wx:if="{{preference.loaded}}" checked="{{preference.checked}}" disabled="{{preference.busy || preference.needsReload}}" bindchange="onPreference" />
-    <view class="meta">{{preference.status}}</view><view wx:if="{{preference.error}}" class="error">{{preference.error}}</view>
-    <button wx:if="{{preference.dirty &amp;&amp; !preference.needsReload}}" bindtap="onPreferenceSave" disabled="{{preference.busy}}">保存提醒偏好</button>
-    <button bindtap="onPreferenceReload" disabled="{{preference.busy}}">重新加载提醒偏好</button>
+  <view class="activity-filterbar">
+    <view class="activity-filter-label">{{window === 'all' ? '全部活动' : (selection ? (selection.kind === 'historical' ? '历史活动' : '最近更新') : '最近更新')}}</view>
+    <wu-f7-button wx:if="{{window !== 'all'}}" class="activity-text-button" bind:press="onAll" disabled="{{busy}}" variant="plain">查看全部<wu-icon name="chevron-right" size="13" /></wu-f7-button>
+    <wu-f7-button class="activity-icon-button" bind:press="onRefresh" disabled="{{busy}}" loading="{{busy}}" aria-label="{{restartRequired ? '重新开始浏览' : '刷新活动'}}" variant="plain"><wu-icon name="refresh" size="19" /></wu-f7-button>
   </view>
+  <view wx:if="{{!loaded || busy || restartRequired}}" class="activity-status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="activity-error" aria-role="alert">{{error}}</view>
+  <navigator wx:if="{{!hasSession}}" class="activity-text-button" url="/pages/login/login">登录后查看<wu-icon name="chevron-right" size="14" /></navigator>
+  <wu-f7-button wx:if="{{busy}}" class="activity-text-button activity-muted" bind:press="onCancel" variant="plain">停止等待</wu-f7-button>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="activity-empty">
+    <wu-icon name="calendar" size="38" />
+    <view class="activity-empty-title">还没有可查看的活动</view>
+    <view class="activity-caption">当前身份校区内暂无活动。</view>
+  </view>
+  <wu-f7-block wx:for="{{items}}" wx:key="id" class="activity-event activity-provider-event" strong="{{true}}" spacing="compact">
+    <view class="activity-event-symbol"><wu-icon name="calendar" size="27" /></view>
+    <view class="activity-event-content">
+      <view class="activity-event-organizer">{{item.organizerLabel}}</view>
+      <view class="activity-event-title">{{item.title}}</view>
+      <view class="activity-tags">
+        <text class="activity-tag">{{item.online.status === 'known' ? (item.online.value === 'online' ? '线上活动' : '线下活动') : '活动形式待确认'}}</text>
+        <text class="activity-tag" wx:if="{{item.reward.status === 'known' &amp;&amp; item.reward.value}}">有奖</text>
+      </view>
+      <wu-f7-button class="activity-event-open" data-id="{{item.id}}" bind:press="onActivity" disabled="{{busy}}" variant="plain">查看详情<wu-icon name="arrow-right" tone="accent" size="17" /></wu-f7-button>
+    </view>
+  </wu-f7-block>
+  <view wx:if="{{loaded}}" class="activity-pagination">
+    <wu-f7-button wx:if="{{canPrevious}}" class="activity-text-button" bind:press="onPrevious" disabled="{{busy}}" variant="plain">上一页</wu-f7-button>
+    <text class="activity-caption">第 {{pageNumber}} 页</text>
+    <wu-f7-button wx:if="{{canNext}}" class="activity-text-button" bind:press="onNext" disabled="{{busy}}" variant="plain">下一页</wu-f7-button>
+  </view>
+  <wu-f7-block wx:if="{{visit.pending || visit.error}}" class="activity-recovery" strong="{{true}}" spacing="compact">
+    <view class="activity-section-title">浏览记录待同步</view>
+    <view class="activity-caption">{{visit.status}}</view>
+    <view wx:if="{{visit.error}}" class="activity-error">{{visit.error}}</view>
+    <wu-f7-button wx:if="{{visit.pending}}" class="activity-text-button" bind:press="onVisitRetry" disabled="{{visit.busy}}" loading="{{visit.busy}}" variant="plain">重试同步</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block class="activity-section" strong="{{true}}" spacing="compact">
+    <wu-f7-button class="activity-disclosure" data-field="information" bind:press="onTogglePanel" variant="plain"><text>查看范围</text><wu-icon name="{{uiPanels.information ? 'chevron-up' : 'chevron-down'}}" size="14" /></wu-f7-button>
+    <view wx:if="{{uiPanels.information}}" class="activity-disclosure-content">
+      <view wx:if="{{loaded}}" class="activity-caption">{{selectionMessage}}</view>
+      <view class="activity-caption">活动按身份校区开放，切换浏览校区不会改变访问权限。</view>
+      <navigator class="activity-text-button" url="/pages/identity-campus/identity-campus">查看身份校区<wu-icon name="chevron-right" size="14" /></navigator>
+      <view class="activity-footnote">浏览记录仅表示进入活动中心，不表示逐项阅读。</view>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{uiPanels.preferences || preference.dirty || preference.needsReload || preference.error}}" class="activity-section activity-preferences" strong="{{true}}" spacing="compact">
+    <view class="activity-setting-row"><view class="activity-setting-copy"><view class="activity-section-title">活动提醒</view><view class="activity-caption">目前仅保存偏好，暂不发送提醒。</view></view><wu-f7-toggle wx:if="{{preference.loaded}}" checked="{{preference.checked}}" disabled="{{preference.busy || preference.needsReload}}" bind:change="onPreference"  aria-label="活动提醒"/></view>
+    <view wx:if="{{preference.status}}" class="activity-caption">{{preference.status}}</view>
+    <view wx:if="{{preference.error}}" class="activity-error">{{preference.error}}</view>
+    <view class="activity-inline-actions">
+      <wu-f7-button wx:if="{{preference.dirty &amp;&amp; !preference.needsReload}}" class="activity-text-button" bind:press="onPreferenceSave" disabled="{{preference.busy}}" variant="plain">保存偏好</wu-f7-button>
+      <wu-f7-button class="activity-text-button activity-muted" bind:press="onPreferenceReload" disabled="{{preference.busy}}" variant="plain">重新加载</wu-f7-button>
+    </view>
+  </wu-f7-block>
 </view>

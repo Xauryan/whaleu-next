@@ -1,24 +1,22 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 当前范围讨论管理</view>
-  <view class="title">管理员删除评论/回复</view>
-  <view class="notice">从当前可查看的评论或回复核验本次浏览范围管理权限，匿名内容同样适用。权限和目标状态以服务端本次核验为准。</view>
+<view class="management-page moderation-native f7-ios-theme">
+  <view class="page-heading"><view class="section-label">按当前浏览范围核验</view><wu-f7-button class="icon-button" bind:press="onReload" disabled="{{busy}}" aria-label="重新核验目标与原请求" variant="plain"><wu-icon name="refresh" tone="accent" size="22" /></wu-f7-button></view>
+  <view class="scope"><wu-icon name="shield" tone="muted" size="18" /><text>仅处理当前可查看的回复，分身同样适用。管理权限与目标状态以本次服务端核验为准。</text></view>
   <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{addressError || error}}" class="error">{{addressError || error}}</view>
+  <view wx:if="{{addressError || error}}" class="error" aria-role="alert">{{addressError || error}}</view>
   <view wx:if="{{receiptStatus}}" class="notice" aria-role="status">{{receiptStatus}}</view>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator>
-  <navigator wx:if="{{ownContent &amp;&amp; target}}" class="link" open-type="navigateBack">返回原讨论使用“删除我的评论”或“删除我的回复” →</navigator>
-  <button bindtap="onReload" disabled="{{busy}}">重新核验目标与原请求</button>
-  <button wx:if="{{busy}}" bindtap="onStopWaiting">停止等待</button>
-  <view wx:if="{{management &amp;&amp; management.canRemove &amp;&amp; !frozen}}" class="card">
-    <view class="section-title">管理此{{management.target.kind === 'comment' ? '根评论' : '回复'}}</view>
-    <view class="meta">{{management.target.kind === 'comment' ? '根评论' : '回复'}}：{{management.target.id}}</view>
-    <button bindtap="onRemoveDiscussion" disabled="{{busy}}">删除此{{management.target.kind === 'comment' ? '根评论' : '回复'}}</button>
-  </view>
-  <view wx:if="{{confirming === 'remove' &amp;&amp; management &amp;&amp; !frozen}}" class="card" aria-role="alert">
-    <view class="section-title">确认管理员删除此{{management.target.kind === 'comment' ? '根评论' : '回复'}}？</view>
-    <view wx:if="{{management.target.kind === 'comment'}}" class="notice">删除根评论后，该根评论及其全部回复将不可访问。同帖的其他根评论及其回复仍保留。</view>
-    <view wx:else class="notice">仅删除选中的这条回复；根评论、其他回复以及回复它的后续回复仍保留，后续回复中的原对象将显示为不可查看。</view>
-    <view class="notice">此操作不会通知作者，不禁言，不扣除作者经验。当前没有恢复此内容的管理入口。已下载或正在展示的图片不会即时从所有设备消失。目标状态变化后需要重新确认。</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <navigator wx:if="{{ownContent &amp;&amp; target}}" class="link" open-type="navigateBack">返回原帖子删除自己的回复<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <wu-f7-button wx:if="{{busy}}" class="quiet" bind:press="onStopWaiting" variant="plain">停止等待</wu-f7-button>
+  <wu-f7-block wx:if="{{management &amp;&amp; management.canRemove &amp;&amp; !frozen}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="identity-row"><view class="identity-mark"><wu-icon name="reply" tone="muted" size="25" /></view><view><view class="section-title">当前{{management.target.kind === 'comment' ? '根回复' : '回复'}}</view><view class="meta">本次核验可删除</view></view></view>
+    <wu-f7-button class="disclosure" bind:press="onToggleDetails" aria-expanded="{{detailsExpanded}}" variant="plain">目标与核验信息<wu-icon name="{{detailsExpanded ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="18" /></wu-f7-button><view wx:if="{{detailsExpanded}}" class="reference">回复编号：{{management.target.id}}<view>目标版本：{{management.targetVersion}}</view><view wx:if="{{management.viewSpaceId}}">本次浏览范围：{{management.viewSpaceId}}</view></view>
+    <wu-f7-button class="primary" bind:press="onRemoveDiscussion" disabled="{{busy}}" variant="fill">继续核对删除</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{confirming === 'remove' &amp;&amp; management &amp;&amp; !frozen}}" class="confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">确认管理员删除此{{management.target.kind === 'comment' ? '根回复' : '回复'}}？</view>
+    <view wx:if="{{management.target.kind === 'comment'}}" class="notice">删除根回复后，该根回复及其全部回复将不可访问。同帖的其他根回复及其回复仍保留。</view>
+    <view wx:else class="notice">仅删除选中的这条回复；根回复、其他回复以及回复它的后续回复仍保留，后续回复中的原对象将显示为不可查看。</view>
+    <view class="notice">仅删除时不会通知作者，不禁言，不扣除作者经验。当前没有恢复此内容的管理入口。已下载或正在展示的图片不会即时从所有设备消失。目标状态变化后需要重新确认。</view>
     <view wx:if="{{management.version === 3}}" class="notice">当前浏览地区仅支持删除内容，删除会影响所有地区的同一条内容。</view>
     <view wx:if="{{management.punishmentOptions}}" class="punishment-controls">
       <view>可选：对该内容的原作者同时处罚</view>
@@ -42,23 +40,23 @@
         <view>有限时长从本次生效时重新计算。同类永久处罚须先由超级管理员解除，不能直接缩短；另一类处罚独立保留。</view>
       </view>
     </view>
-    <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认删除{{management.target.kind === 'comment' ? '根评论' : '此回复'}}</button>
-    <button bindtap="onClose" disabled="{{busy}}">返回</button>
-  </view>
-  <view wx:if="{{frozen}}" class="card">
-    <view class="section-title">原管理员评论/回复删除请求待确认</view>
-    <view wx:if="{{pendingTarget}}" class="meta">{{pendingTarget.kind === 'comment' ? '根评论' : '回复'}} {{pendingTarget.id}} · {{pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
+    <wu-f7-button class="primary destructive" bind:press="onSubmit" disabled="{{busy || frozen}}" variant="fill" tone="danger">确认删除{{management.target.kind === 'comment' ? '根回复' : '此回复'}}</wu-f7-button>
+    <wu-f7-button class="quiet" bind:press="onClose" disabled="{{busy}}" variant="plain">返回</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{frozen}}" class="recovery" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">原管理员回复删除请求待确认</view>
+    <view wx:if="{{pendingTarget}}" class="meta">{{pendingTarget.kind === 'comment' ? '根回复' : '回复'}} {{pendingTarget.id}} · {{pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
     <view class="notice">查询不到回执不代表原请求不会完成。确认结果或取消成功前不能创建新请求，请保留本机数据。停止等待不会取消服务器处理。</view>
-    <button bindtap="onRecover" disabled="{{busy || !pendingRequestId}}">查询原删除回执</button>
-    <button bindtap="onRetry" disabled="{{busy || !pendingRequestId}}">重试原删除请求</button>
-    <button bindtap="onCancelRequest" disabled="{{busy || !pendingRequestId}}">取消原删除请求</button>
-  </view>
-  <view wx:if="{{confirming === 'cancel'}}" class="card" aria-role="alert">
+    <wu-f7-button class="primary" bind:press="onRecover" disabled="{{busy || !pendingRequestId}}" variant="fill">查询原删除回执</wu-f7-button>
+    <wu-f7-button class="secondary" bind:press="onRetry" disabled="{{busy || !pendingRequestId}}" variant="tonal">重试原删除请求</wu-f7-button>
+    <wu-f7-button class="quiet" bind:press="onCancelRequest" disabled="{{busy || !pendingRequestId}}" variant="plain">取消原删除请求</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{confirming === 'cancel'}}" class="confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact">
     <view>确认取消尚未完成的原删除请求？如果删除已完成，仍返回原删除结果，不会恢复内容。</view>
-    <button bindtap="onConfirmCancel" disabled="{{busy}}">确认取消原请求</button>
-    <button bindtap="onClose" disabled="{{busy}}">返回</button>
-  </view>
-  <view wx:if="{{!target &amp;&amp; !frozen &amp;&amp; !busy}}" class="notice">没有待确认请求时，请从具体评论或回复进入管理。</view>
-  <navigator class="link" url="/pages/community-mine/community-mine">我的发布与请求恢复 →</navigator>
-  <navigator class="link" url="/pages/community-feed/community-feed">返回校园社区 →</navigator>
+    <wu-f7-button class="primary" bind:press="onConfirmCancel" disabled="{{busy}}" variant="fill">确认取消原请求</wu-f7-button>
+    <wu-f7-button class="quiet" bind:press="onClose" disabled="{{busy}}" variant="plain">返回</wu-f7-button>
+  </wu-f7-block>
+  <view wx:if="{{!target &amp;&amp; !frozen &amp;&amp; !busy}}" class="notice">没有待确认请求时，请从具体回复进入管理。</view>
+  <navigator class="link" url="/pages/community-mine/community-mine">我的发布与请求恢复<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <navigator class="link" url="/pages/community-feed/community-feed">返回校园社区<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
 </view>

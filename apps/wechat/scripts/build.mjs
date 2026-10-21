@@ -7,6 +7,11 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 const out = path.join(root, 'dist');
+execFileSync(
+  process.execPath,
+  [path.join(root, 'scripts/check-native-assets.mjs')],
+  { stdio: 'inherit' },
+);
 await rm(out, { recursive: true, force: true });
 execFileSync(
   process.execPath,
@@ -22,8 +27,10 @@ async function copyAssets(directory, destination) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const from = path.join(directory, entry.name);
     const to = path.join(destination, entry.name);
+    // Authoring vectors/contact sheets are not part of the native runtime package.
+    if (from === path.join(root, 'src/assets/icons/source')) continue;
     if (entry.isDirectory()) await copyAssets(from, to);
-    else if (/\.(json|wxml|wxss)$/.test(entry.name)) await cp(from, to);
+    else if (/\.(json|wxml|wxss|png)$/.test(entry.name)) await cp(from, to);
   }
 }
 await copyAssets(path.join(root, 'src'), out);
@@ -62,6 +69,9 @@ for (const relative of [
   'messaging/image-contract.js',
   'media/upload-contracts.js',
   'profile/avatar-contract.js',
+  'profile/cover-contract.js',
+  'browsing-history/store.js',
+  'personal-timetable/contracts.js',
   'profile-avatar-moderation/contract.js',
   'admin-post-removal/contract.js',
   'school-admin-management/contract.js',
@@ -117,6 +127,21 @@ await cp(
 execFileSync(process.execPath, [path.join(root, 'scripts/smoke-build.mjs')], {
   stdio: 'inherit',
 });
+
+execFileSync(
+  process.execPath,
+  [
+    '--import',
+    'tsx',
+    '--test',
+    path.join(root, 'test/native-press-emitted.smoke.mjs'),
+  ],
+  {
+    stdio: 'inherit',
+    cwd: root,
+    env: { ...process.env, WHALEU_WECHAT_DIST: out },
+  },
+);
 
 execFileSync(
   process.execPath,

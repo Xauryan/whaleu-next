@@ -1,4 +1,3 @@
 @import '../../ratings/ratings.wxss';
-.rating-anchor {
-  border: 2rpx solid #176b83;
-}
+@import '../../ratings/product.wxss';
+@import '../../ratings/framework7-product.wxss';

@@ -11,7 +11,10 @@ import {
 import { HttpSchoolPostingPolicyGateway } from '../../school-posting-policy/gateway';
 import { PostingPolicyJournal } from '../../school-posting-policy/pending';
 Page({
-  data: { ...initialSchoolPostingPolicyView() },
+  data: {
+    uiPanel: '',
+    ...initialSchoolPostingPolicyView(),
+  },
   controller: undefined as SchoolPostingPolicyController | undefined,
   routeRegionId: null as string | null,
   invalidRoute: false,
@@ -23,7 +26,12 @@ Page({
       this.invalidRoute = true;
     }
   },
+  onToggleUiPanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel ?? '';
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
     this.setData({ ...initialSchoolPostingPolicyView() });
@@ -47,7 +55,13 @@ Page({
         clientConfiguration.apiOrigin,
       ),
       app.community.newRequestId,
-      (view) => this.setData({ ...view }),
+      (view) =>
+        this.setData({
+          ...view,
+          ...(!view.loaded || view.management === 'none'
+            ? { uiPanel: '' }
+            : {}),
+        }),
     );
     void this.controller.load(this.routeRegionId);
   },
@@ -94,10 +108,12 @@ Page({
     void this.controller?.cancelPending();
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
   },

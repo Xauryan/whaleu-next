@@ -130,9 +130,24 @@ export const hotPostViewSchema = z
     author,
     publishedAt: text,
     likeCount: count,
-    commentCount: count,
-    replyCount: count,
-    discussionCount: count,
+    commentCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(Number.MAX_SAFE_INTEGER)
+      .nullable(),
+    replyCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(Number.MAX_SAFE_INTEGER)
+      .nullable(),
+    discussionCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(Number.MAX_SAFE_INTEGER)
+      .nullable(),
     saveCount: count,
     trading: trading.nullable(),
     component: z.union([
@@ -151,6 +166,23 @@ export const hotPostViewSchema = z
       canSetUpdatePreference: bool,
     }),
     commentsPolicy: z.enum(['open', 'restricted']),
+  })
+  .superRefine((post, ctx) => {
+    const values = [post.commentCount, post.replyCount, post.discussionCount];
+    if (values.every((value) => value === null)) return;
+    if (
+      post.commentCount === null ||
+      post.replyCount === null ||
+      post.discussionCount === null ||
+      !Number.isSafeInteger(post.commentCount + post.replyCount) ||
+      post.discussionCount !== post.commentCount + post.replyCount
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['discussionCount'],
+        message:
+          'Discussion counts must be an exact safe-integer triple or all null',
+      });
   })
   .meta({ id: 'HotPostView' });
 export const hotPageSchema = z

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 const deferred = () => {
   let resolve;
@@ -97,14 +98,17 @@ function render(nodes, scope, templates) {
   }
   return result;
 }
-export async function smokeActivities({ app, dist, flush }) {
-  const { ApiClient } = require(path.join(dist, 'api/client.js'));
+export async function smokeActivities({ app, dist, flush, extension = 'js' }) {
+  assert.ok(extension === 'js' || extension === 'ts');
+  const { ApiClient } = require(path.join(dist, `api/client.${extension}`));
   const { HttpActivitiesGateway } = require(
-    path.join(dist, 'activities/gateway.js'),
+    path.join(dist, `activities/gateway.${extension}`),
   );
-  const { HttpProfileGateway } = require(path.join(dist, 'profile/gateway.js'));
+  const { HttpProfileGateway } = require(
+    path.join(dist, `profile/gateway.${extension}`),
+  );
   const { PendingActivityVisitStore } = require(
-    path.join(dist, 'activities/pending.js'),
+    path.join(dist, `activities/pending.${extension}`),
   );
   const original = {
     activities: app.community.activities,
@@ -299,6 +303,76 @@ export async function smokeActivities({ app, dist, flush }) {
     );
   const presented = (mode, page) =>
     JSON.stringify(render(parse(source(mode)).children, page.data, templates));
+  const bridges = new WeakMap();
+  const press = (page, handler, dataset = {}) => {
+    const capture = bridges.get(page).capture(handler, dataset);
+    const emitted = capture.press();
+    capture.detach();
+    return emitted;
+  };
+  const preference = (page, value) => {
+    if (!page.data.uiPanels.preferences)
+      press(page, 'onTogglePanel', { field: 'preferences' });
+    const rendered = render(
+      parse(source('list')).children,
+      page.data,
+      templates,
+    );
+    const flatten = (nodes) =>
+      nodes.flatMap((node) =>
+        typeof node === 'string' ? [] : [node, ...flatten(node.children)],
+      );
+    const node = flatten(rendered).find(
+      (node) =>
+        node.tag === 'wu-f7-toggle' &&
+        node.attrs['bind:change'] === 'onPreference',
+    );
+    assert.ok(node, 'Actual visible preference Toggle');
+    const component = path.join(
+      dist,
+      `components/f7-toggle/f7-toggle.${extension}`,
+    );
+    let definition;
+    const previous = globalThis.Component;
+    globalThis.Component = (registered) => {
+      definition = registered;
+    };
+    try {
+      delete require.cache[require.resolve(component)];
+      require(component);
+    } finally {
+      globalThis.Component = previous;
+    }
+    const instance = {
+      properties: Object.fromEntries(
+        Object.entries(definition.properties).map(([key, property]) => {
+          const raw =
+            node.attrs[key.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())];
+          return [
+            key,
+            raw === undefined
+              ? property.value
+              : property.type === Boolean
+                ? raw === 'true'
+                : raw,
+          ];
+        }),
+      ),
+      data: structuredClone(definition.data),
+      ...definition.methods,
+      setData(patch) {
+        Object.assign(this.data, patch);
+      },
+      triggerEvent(name, detail, options) {
+        assert.equal(name, 'change');
+        assert.deepEqual(options, { bubbles: false, composed: false });
+        page[node.attrs['bind:change']]({ detail });
+      },
+    };
+    definition.lifetimes.attached.call(instance);
+    definition.methods.onChange.call(instance, { detail: { value } });
+    definition.lifetimes.detached.call(instance);
+  };
   const mount = (mode, query = {}, holdRender = false) => {
     let page;
     const old = globalThis.Page;
@@ -307,7 +381,7 @@ export async function smokeActivities({ app, dist, flush }) {
     };
     const module = path.join(
       dist,
-      `pages/activity-${mode}/activity-${mode}.js`,
+      `pages/activity-${mode}/activity-${mode}.${extension}`,
     );
     delete require.cache[require.resolve(module)];
     require(module);
@@ -322,6 +396,24 @@ export async function smokeActivities({ app, dist, flush }) {
     };
     page.onLoad(query);
     page.onShow();
+    const bridge = createNativePressBridge({
+      page,
+      pageFile: path.join(dist, `pages/activity-${mode}/activity-${mode}`),
+      dist,
+      extension,
+    });
+    bridges.set(page, bridge);
+    for (const [method, lifecycle] of [
+      ['onHide', 'hide'],
+      ['onUnload', 'detach'],
+      ['onShow', 'show'],
+    ]) {
+      const owner = page[method];
+      page[method] = function (...args) {
+        bridge.lifecycle(lifecycle);
+        return owner.apply(this, args);
+      };
+    }
     return page;
   };
   for (const mode of ['list', 'detail'])
@@ -329,8 +421,9 @@ export async function smokeActivities({ app, dist, flush }) {
       source(mode),
       /<image|rich-text|previewImage|subscribeMessage|data-url|eventChannel/i,
     );
+  // Product navigation moved from the feed to the catalog-backed Campus hub.
   const feed = readFileSync(
-    path.join(dist, 'pages/community-feed/community-feed.wxml'),
+    path.join(dist, `pages/campus-hub/campus-hub.${extension}`),
     'utf8',
   );
   assert.match(feed, /\/pages\/activity-list\/activity-list/);
@@ -340,23 +433,23 @@ export async function smokeActivities({ app, dist, flush }) {
   assert.equal(visits.length, 1);
   assert.equal(page.data.visit.confirmed, true);
   let text = presented('list', page);
-  for (const expected of [
-    '合成主办方快照',
-    '奖励信息未确认',
-    '线下活动',
-    '发布时间暂不可用',
-    '封面暂不可用',
-    '最近 72 小时',
-    '消息投递尚未接入',
-  ])
+  for (const expected of ['合成主办方快照', '线下活动'])
     assert.ok(text.includes(expected), expected);
+  assert.doesNotMatch(text, /有奖/);
+  if (!page.data.uiPanels.information)
+    press(page, 'onTogglePanel', { field: 'information' });
+  assert.ok(presented('list', page).includes('最近 72 小时'));
+  press(page, 'onTogglePanel', { field: 'preferences' });
+  assert.ok(presented('list', page).includes('暂不发送提醒'));
   state.historical = true;
-  page.onRefresh();
+  press(page, 'onRefresh');
   await flush();
+  if (!page.data.uiPanels.information)
+    press(page, 'onTogglePanel', { field: 'information' });
   assert.ok(presented('list', page).includes('最近 10 条历史活动'));
   state.historical = false;
-  page.onActivity({ currentTarget: { dataset: { id: activityId } } });
-  page.onActivity({ currentTarget: { dataset: { id: activityId } } });
+  press(page, 'onActivity', { id: activityId });
+  press(page, 'onActivity', { id: activityId });
   assert.equal(navigation.length, 1);
   assert.equal(
     navigation[0].url,
@@ -371,6 +464,8 @@ export async function smokeActivities({ app, dist, flush }) {
   await flush();
   assert.equal(child.data.loaded, true);
   assert.equal(visits.length, visitCount);
+  if (!child.data.uiPanels.information)
+    press(child, 'onTogglePanel', { field: 'information' });
   text = presented('detail', child);
   for (const expected of [
     '完整介绍',
@@ -386,15 +481,17 @@ export async function smokeActivities({ app, dist, flush }) {
   state.knownEmpty = true;
   child.onShow();
   await flush();
-  assert.ok(presented('detail', child).includes('无介绍图片'));
+  if (!child.data.uiPanels.information)
+    press(child, 'onTogglePanel', { field: 'information' });
+  assert.ok(presented('detail', child).includes('未提供介绍图片'));
   child.onUnload();
   state.paging = true;
   page.onShow();
   await flush();
-  page.onNext();
+  press(page, 'onNext');
   await flush();
   assert.equal(page.data.pageNumber, 2);
-  page.onPrevious();
+  press(page, 'onPrevious');
   await flush();
   assert.equal(page.data.pageNumber, 1);
   assert.equal(
@@ -415,11 +512,11 @@ export async function smokeActivities({ app, dist, flush }) {
   const beforeAll = visits.length;
   state.error = null;
   state.empty = true;
-  page.onAll();
+  press(page, 'onAll');
   await flush();
   assert.equal(page.data.loaded, true);
   assert.equal(visits.length, beforeAll + 1);
-  assert.ok(presented('list', page).includes('没有活动'));
+  assert.ok(presented('list', page).includes('还没有可查看的活动'));
   page.onUnload();
   state.empty = false;
   for (const invalidation of ['hide', 'scope', 'root', 'relogin']) {
@@ -474,29 +571,29 @@ export async function smokeActivities({ app, dist, flush }) {
   await flush();
   assert.equal(page.data.visit.pending, true);
   const beforeRetry = visits.length;
-  page.onVisitRetry();
-  page.onVisitRetry();
+  press(page, 'onVisitRetry');
+  press(page, 'onVisitRetry');
   await flush();
   assert.equal(visits.length, beforeRetry + 1);
   assert.equal(visits.at(-1).url, lost.url);
   assert.deepEqual(visits.at(-1).body, lost.body);
   assert.equal(page.data.visit.confirmed, true);
   assert.equal(stored.size, 0);
-  page.onPreference({ detail: { value: false } });
-  page.onPreferenceSave();
+  preference(page, false);
+  press(page, 'onPreferenceSave');
   await flush();
   assert.equal(page.data.preference.checked, false);
   assert.equal(page.data.preference.dirty, false);
   state.preferenceConflict = true;
-  page.onPreference({ detail: { value: true } });
-  page.onPreferenceSave();
+  preference(page, true);
+  press(page, 'onPreferenceSave');
   await flush();
   assert.equal(page.data.preference.checked, false);
   assert.match(page.data.preference.status, /核对/);
   assert.equal(page.data.preference.dirty, false);
   state.preferenceLoss = true;
-  page.onPreference({ detail: { value: true } });
-  page.onPreferenceSave();
+  preference(page, true);
+  press(page, 'onPreferenceSave');
   await flush();
   assert.equal(page.data.preference.needsReload, true);
   assert.notEqual(page.data.preference.status, '已保存');
@@ -514,6 +611,6 @@ export async function smokeActivities({ app, dist, flush }) {
   app.community.newRequestId = original.newRequestId;
   globalThis.wx.navigateTo = original.navigateTo;
   console.log(
-    'Activity emitted smoke passed: real gateway/strict decoders, template projection, recent/all/known-empty/unavailable, deep-link/fresh Back, opaque Previous, repeated navigation, successful render-only visit, hide/scope/root/login/late callbacks, exact response-loss retry, Profile preference success/conflict/uncertainty; synthetic native model, not device acceptance',
+    'Activity native Component-to-Page smoke passed: real gateway/strict decoders, template projection, recent/all/known-empty/unavailable, deep-link/fresh Back, opaque Previous, repeated navigation, successful render-only visit, hide/scope/root/login/late callbacks, exact response-loss retry, Profile preference success/conflict/uncertainty; synthetic native model, not device acceptance',
   );
 }

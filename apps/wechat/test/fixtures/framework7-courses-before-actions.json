@@ -1,0 +1,868 @@
+{
+  "src/pages/course-ratings/course-ratings.wxml": {
+    "sourceSha256": "bcc63eb6d9f7851057d31d40050ae49208e669ec53167ab8e9fb722cc7472ac1",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "more",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多课程功能"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/course-comments/course-comments"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'more'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "class": "course-field",
+          "value": "{{searchDraft}}",
+          "maxlength": "80",
+          "placeholder": "搜索课程",
+          "bindinput": "onSearchInput",
+          "bindconfirm": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "picker",
+        "attrs": {
+          "range": "{{departmentLabels}}",
+          "value": "{{departmentIndex}}",
+          "bindchange": "onDepartment",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "filters",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "class": "course-field",
+          "value": "{{categoryDraft}}",
+          "maxlength": "80",
+          "placeholder": "填写完整类别，回车查询",
+          "bindinput": "onCategoryInput",
+          "bindconfirm": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'filters'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{sortDraft === 'rating' ? 'selected' : ''}}",
+          "data-sort": "rating",
+          "bindtap": "onSort",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{sortDraft === 'time' ? 'selected' : ''}}",
+          "data-sort": "time",
+          "bindtap": "onSort",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "product-row-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCourse",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/course-rating-detail/course-rating-detail.wxml": {
+    "sourceSha256": "c268341f1714d1dcc5d5e95b7229c6079d49f8366003aa6802b6ac1270fbd22c",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "info",
+          "bindtap": "onTogglePanel",
+          "aria-label": "课程信息"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/course-comments/course-comments?courseId={{detail.course.id}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "data-panel": "score",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "bindtap": "onClosePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{scores}}",
+          "wx:key": "*this",
+          "data-axis": "gradeScore",
+          "data-score": "{{item}}",
+          "class": "{{gradeScore === item ? 'score-selected' : ''}}",
+          "bindtap": "onScore",
+          "disabled": "{{busy || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          },
+          {
+            "wx:for": "{{scores}}",
+            "wx:key": "*this",
+            "disabled": "{{busy || confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{scores}}",
+          "wx:key": "*this",
+          "data-axis": "abilityScore",
+          "data-score": "{{item}}",
+          "class": "{{abilityScore === item ? 'score-selected' : ''}}",
+          "bindtap": "onScore",
+          "disabled": "{{busy || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          },
+          {
+            "wx:for": "{{scores}}",
+            "wx:key": "*this",
+            "disabled": "{{busy || confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{scores}}",
+          "wx:key": "*this",
+          "data-axis": "overallScore",
+          "data-score": "{{item}}",
+          "class": "{{overallScore === item ? 'score-selected' : ''}}",
+          "bindtap": "onScore",
+          "disabled": "{{busy || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          },
+          {
+            "wx:for": "{{scores}}",
+            "wx:key": "*this",
+            "disabled": "{{busy || confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy || !canSubmit || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          },
+          {
+            "disabled": "{{busy || !canSubmit || confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{confirming}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{confirming}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/course-ratings/course-ratings"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/course-comments/course-comments.wxml": {
+    "sourceSha256": "55af6e1df922f0b5c9f092966c0b7522c4e873722fdc9f21a20145d586150f83",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-panel": "info",
+          "bindtap": "onTogglePanel",
+          "aria-label": "课程回复说明"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{courseId}}",
+          "class": "link",
+          "url": "/pages/course-rating-detail/course-rating-detail?courseId={{courseId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'info'}}"
+          },
+          {
+            "wx:if": "{{courseId}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/course-ratings/course-ratings"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'info'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "wx:if": "{{hasSession}}",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || confirming === 'cancel'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRequestCancellation",
+          "disabled": "{{busy || confirming === 'cancel'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancellation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{sort === 'likes' ? 'selected' : ''}}",
+          "data-sort": "likes",
+          "bindtap": "onSort",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{courseId}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{sort === 'time' ? 'selected' : ''}}",
+          "data-sort": "time",
+          "bindtap": "onSort",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{courseId}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "data-id": "{{item.id}}",
+          "bindtap": "onConfirmLike",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{courseId}}"
+          },
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          },
+          {
+            "disabled": "{{busy || frozen || confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{courseId}}"
+          },
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "data-panel": "compose",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{courseId}}"
+          },
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{!frozen}}"
+          },
+          {
+            "disabled": "{{busy || confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "bindtap": "onClosePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{courseId}}"
+          },
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{!frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "class": "comment-input",
+          "value": "{{body}}",
+          "maxlength": "8000",
+          "bindinput": "onBody",
+          "disabled": "{{busy || confirming}}",
+          "placeholder": "分享你的上课体验"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{courseId}}"
+          },
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{!frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          },
+          {
+            "disabled": "{{busy || confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirmPublish",
+          "disabled": "{{busy || !canPublish || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{courseId}}"
+          },
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{!frozen}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'compose' && !confirming}}"
+          },
+          {
+            "disabled": "{{busy || !canPublish || confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'publish'}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'publish'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'like' && selectedComment}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'like' && selectedComment}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/course-ratings/product.wxml": {
+    "sourceSha256": "1002d16c55810bef4fb2af16242629034e57070e4222a9d73bfe50071acd20d9",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession && error === '请先完成手机号验证，再重新加载课程评分'}}",
+          "class": "link",
+          "url": "/pages/phone-binding/phone-binding"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasSession && error === '请先完成手机号验证，再重新加载课程评分'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}",
+            "loading": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "plain-button",
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      }
+    ]
+  }
+}

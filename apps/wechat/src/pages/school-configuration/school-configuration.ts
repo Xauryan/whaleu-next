@@ -17,6 +17,7 @@ import {
 import { schoolKey } from '../../school-configuration/contract';
 Page({
   data: {
+    uiPanel: '',
     ...initialSchoolAdminView(),
     qrUpload: {
       status: 'idle',
@@ -28,7 +29,12 @@ Page({
   uploader: undefined as SchoolQrUploader | undefined,
   reader: undefined as SchoolQrReader | undefined,
   controller: undefined as SchoolAdminController | undefined,
+  onToggleUiPanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel ?? '';
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.uploader?.dispose();
     this.reader?.dispose();
@@ -56,7 +62,12 @@ Page({
       app.community.newRequestId,
       (view) => {
         this.reader?.clear();
-        this.setData({ ...view });
+        this.setData({
+          ...view,
+          ...(!view.loaded || view.management === 'none'
+            ? { uiPanel: '' }
+            : {}),
+        });
       },
     );
     void this.controller.load();
@@ -149,6 +160,7 @@ Page({
     void this.controller?.cancelPending();
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
     this.reader?.dispose();
@@ -157,6 +169,7 @@ Page({
     this.uploader = undefined;
   },
   onUnload() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
     this.reader?.dispose();

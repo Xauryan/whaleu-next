@@ -1,1 +1,82 @@
-<view class="screen"><view class="title">认证站内消息</view><view>仅本地站内通知，未启用微信或公众号外部送达。</view><view wx:if="{{error}}" class="error">{{error}}</view><view wx:for="{{notices}}" wx:key="id" class="card"><view>{{item.kind==='student_auth'?'有新的学生归属申请':item.outcome==='approved'?'学生归属申请已通过':'学生归属申请未通过'}}</view><view>{{item.createdAt}} · {{item.read?'已读':'未读'}}</view><button data-id="{{item.id}}" bindtap="onNotice" disabled="{{busy||!item.available}}">查看当前可访问的申请</button><button data-id="{{item.id}}" bindtap="onReadNotice" disabled="{{busy||!item.available||item.read}}">标记已读</button></view><button bindtap="onPrevious" disabled="{{busy||page<=1}}">上一页</button><button bindtap="onNext" disabled="{{busy||!hasNext}}">下一页</button><button bindtap="onReload" disabled="{{busy}}">刷新</button><navigator url="/pages/student-verification/student-verification">我的认证申请</navigator><navigator url="/pages/student-verification-review/student-verification-review">校方审核队列</navigator></view>
+<view class="account-page notices-page f7-ios-theme f7-profile-verification-screen">
+  <wu-f7-block spacing="compact">
+    <view wx:if="{{error}}" class="error" aria-role="alert">
+      {{error}}
+    </view>
+    <view wx:if="{{loaded &amp;&amp; !notices.length &amp;&amp; !error}}" class="empty-state">
+      <wu-icon name="bell" size="36" tone="muted" />
+      <view class="section-title">
+        还没有认证消息
+      </view>
+      <view class="body-copy">
+        申请有新进展时，在这里查看。
+      </view>
+    </view>
+  </wu-f7-block>
+  <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view wx:for="{{notices}}" wx:key="id" class="notice-item">
+      <wu-f7-list-item media="{{true}}" title-slot="{{true}}" after-slot="{{true}}" footer-slot="{{true}}">
+        <view class="notice-icon" slot="media">
+          <wu-icon name="{{item.kind==='student_auth'?'graduation':item.outcome==='approved'?'shield':'message'}}" tone="accent" size="24" />
+        </view>
+        <view class="notice-heading" slot="title">
+          {{item.kind==='student_auth'?'有新的学生归属申请':item.outcome==='approved'?'学生归属申请已通过':'学生归属申请未通过'}}
+        </view>
+        <view slot="footer">
+          <view class="notice-meta">
+            {{noticeDates[item.id]}} · {{item.read?'已读':'未读'}}
+          </view>
+          <view wx:if="{{!item.available}}" class="caption">
+            该申请当前不可访问
+          </view>
+        </view>
+        <view wx:if="{{!item.read}}" class="unread-dot" slot="after" />
+      </wu-f7-list-item>
+      <view class="notice-actions">
+        <wu-f7-button class="notice-button" data-id="{{item.id}}" disabled="{{busy||!item.available}}" bind:press="onNotice" variant="plain" size="normal">
+          查看申请
+        </wu-f7-button>
+        <wu-f7-button class="notice-button muted" data-id="{{item.id}}" disabled="{{busy||!item.available||item.read}}" bind:press="onReadNotice" variant="plain" size="normal">
+          标记已读
+        </wu-f7-button>
+      </view>
+    </view>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact">
+    <view class="caption delivery-note">
+      认证消息仅在站内展示，不通过微信或公众号外发。
+    </view>
+    <view class="pagination">
+      <wu-f7-button class="quiet" disabled="{{busy||page&lt;=1}}" bind:press="onPrevious" variant="plain" size="normal">
+        上一页
+      </wu-f7-button>
+      <text class="page-count">
+        第 {{page}} 页
+      </text>
+      <wu-f7-button class="quiet" disabled="{{busy||!hasNext}}" bind:press="onNext" variant="plain" size="normal">
+        下一页
+      </wu-f7-button>
+    </view>
+    <wu-f7-button class="quiet" disabled="{{busy}}" bind:press="onReload" variant="plain" size="normal">
+      刷新
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+    <navigator class="link-row" url="/pages/student-verification/student-verification">
+      <wu-f7-list-item title-slot="{{true}}" after-slot="{{true}}">
+        <text class="link-label" slot="title">
+          我的认证申请
+        </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+    <navigator class="link-row" url="/pages/student-verification-review/student-verification-review">
+      <wu-f7-list-item title-slot="{{true}}" after-slot="{{true}}">
+        <text class="link-label" slot="title">
+          校方审核队列
+        </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+  </wu-f7-list>
+</view>

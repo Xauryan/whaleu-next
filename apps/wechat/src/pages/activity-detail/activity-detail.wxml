@@ -1,17 +1,34 @@
-<import src="../../activities/facts.wxml" />
-<view class="screen">
-  <view class="title">活动详情</view>
-  <view class="status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录 →</navigator>
-  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">重新核验活动</button>
-  <button wx:if="{{busy}}" bindtap="onCancel">停止等待</button>
-  <view wx:if="{{loaded &amp;&amp; detail}}" class="card">
-    <view class="subtitle exact">{{detail.title}}</view>
-    <template is="activity-facts" data="{{item:detail}}" />
-    <view class="label">活动时间</view><text class="exact">{{detail.activityTime === null ? '活动时间资料未确认' : detail.activityTime}}</text>
-    <view class="label">活动地点</view><text class="exact">{{detail.activityLocation === null ? '活动地点资料未确认' : detail.activityLocation}}</text>
-    <view class="label">活动介绍</view><text class="exact">{{detail.bodyText}}</text>
-    <view class="media-state">{{detail.gallery.status === 'known_empty' ? '无介绍图片' : '介绍图片暂不可用，尚不能确认是否有图片'}}</view>
-    <view class="media-state">{{detail.organizerQr.status === 'absent' ? '无主办方二维码' : '主办方二维码暂不可用'}}</view>
+<view class="f7-ios-theme activity-page activity-detail-page">
+  <view class="activity-toolbar">
+    <text class="activity-eyebrow">活动目录</text>
+    <wu-f7-button class="activity-icon-button" bind:press="onRefresh" disabled="{{busy}}" loading="{{busy}}" aria-label="刷新活动详情" variant="plain"><wu-icon name="refresh" size="20" /></wu-f7-button>
+  </view>
+  <view wx:if="{{!loaded || busy}}" class="activity-status" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="activity-error" aria-role="alert">{{error}}</view>
+  <navigator wx:if="{{!hasSession}}" class="activity-text-button" url="/pages/login/login">登录后查看<wu-icon name="chevron-right" size="14" /></navigator>
+  <wu-f7-button wx:if="{{busy}}" class="activity-text-button activity-muted" bind:press="onCancel" variant="plain">停止等待</wu-f7-button>
+  <view wx:if="{{loaded &amp;&amp; detail}}">
+    <view class="activity-detail-heading">
+      <view class="activity-tags"><text class="activity-tag">{{detail.online.status === 'known' ? (detail.online.value === 'online' ? '线上活动' : '线下活动') : '活动形式待确认'}}</text><text class="activity-tag" wx:if="{{detail.reward.status === 'known' &amp;&amp; detail.reward.value}}">有奖</text></view>
+      <view class="activity-detail-title">{{detail.title}}</view>
+      <view class="activity-organizer"><view class="activity-organizer-symbol"><wu-icon name="people" size="20" /></view><view><view class="activity-organizer-name">{{detail.organizerLabel}}</view><view class="activity-footnote">主办方</view></view></view>
+    </view>
+    <wu-f7-list class="activity-facts" strong="{{true}}" spacing="compact">
+      <view class="activity-fact"><wu-icon name="clock" size="21" /><view class="activity-fact-value"><view class="activity-fact-label">活动时间</view><text>{{detail.activityTime === null ? '时间待确认' : detail.activityTime}}</text></view></view>
+      <view class="activity-fact"><wu-icon name="location" size="21" /><view class="activity-fact-value"><view class="activity-fact-label">活动地点</view><text>{{detail.activityLocation === null ? '地点待确认' : detail.activityLocation}}</text></view></view>
+    </wu-f7-list>
+    <wu-f7-block class="activity-section" strong="{{true}}" spacing="compact"><view class="activity-section-title">活动介绍</view><text class="activity-body" selectable="true">{{detail.bodyText}}</text></wu-f7-block>
+    <view wx:if="{{detail.gallery.status !== 'known_empty'}}" class="activity-media-unavailable"><wu-icon name="image" size="22" /><text>介绍图片暂不可用</text></view>
+    <wu-f7-block class="activity-section" strong="{{true}}" spacing="compact">
+      <wu-f7-button class="activity-disclosure" data-field="information" bind:press="onTogglePanel" variant="plain"><text>更多活动信息</text><wu-icon name="{{uiPanels.information ? 'chevron-up' : 'chevron-down'}}" size="14" /></wu-f7-button>
+      <view wx:if="{{uiPanels.information}}" class="activity-disclosure-content activity-information">
+        <view>{{detail.createdAt.status === 'known' ? '发布于 ' + publishedAtLabel : '发布时间暂不可用'}}</view>
+        <view>{{detail.reward.status === 'known' ? (detail.reward.value ? '有奖励' : '无奖励') : '奖励信息待确认'}}</view>
+        <view>{{detail.cover.status === 'absent' ? '未提供封面' : '封面暂不可用'}}</view>
+        <view>{{detail.organizerAvatar.status === 'absent' ? '未提供主办方头像' : '主办方头像暂不可用'}}</view>
+        <view>{{detail.gallery.status === 'known_empty' ? '未提供介绍图片' : '介绍图片暂不可用，尚不能确认是否有图片'}}</view>
+        <view>{{detail.organizerQr.status === 'absent' ? '未提供主办方二维码' : '主办方二维码暂不可用'}}</view>
+      </view>
+    </wu-f7-block>
   </view>
 </view>

@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import { CommunityDiscussionCounts } from '../../src/community/discussion/counts.js';
+import { UnprovedFixtureDiscussionCounts } from '../support/unproved-discussion-counts.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { request as nodeRequest } from 'node:http';
@@ -387,6 +389,8 @@ test(
             subject: code,
           }),
         })
+        .overrideProvider(CommunityDiscussionCounts)
+        .useValue(new UnprovedFixtureDiscussionCounts())
         .overrideProvider(COMMUNITY_AUTHORIZATION)
         .useValue(new FixtureAuthorization())
         .overrideProvider(COMMUNITY_VISIBILITY)
@@ -603,13 +607,38 @@ test(
           named.resourceId,
           cancel,
         );
-        assert.equal(
-          post.commentCount,
-          roots,
-          'Existing commentCount continues to mean visible roots',
+        assert.deepEqual(
+          [post.commentCount, post.replyCount, post.discussionCount],
+          [null, null, null],
         );
-        assert.equal(post.replyCount, visibleReplies);
-        assert.equal(post.discussionCount, roots + visibleReplies);
+        // Preserve original visibility totals as real projected membership, not
+        // a fabricated exact count from noncanonical fixture approval tables.
+        const projected: CommentView[] = [];
+        let cursor: string | null = null;
+        do {
+          const page: Roots = await actor.community.comments(
+            named.resourceId,
+            cursor,
+            cancel,
+          );
+          projected.push(...page.items);
+          cursor = page.nextCursor;
+        } while (cursor);
+        assert.equal(projected.length, roots);
+        let actualReplies = 0;
+        for (const root of projected) {
+          cursor = null;
+          do {
+            const page: Replies = await actor.community.replies(
+              root.id,
+              cursor,
+              cancel,
+            );
+            actualReplies += page.items.length;
+            cursor = page.nextCursor;
+          } while (cursor);
+        }
+        assert.equal(actualReplies, visibleReplies);
         noPrivateFields(post);
         const feed: { items: PostView[] } = await actor.community.feed(
           { spaceId },
@@ -617,9 +646,9 @@ test(
         );
         const inFeed = feed.items.find((item) => item.id === named.resourceId);
         assert.ok(inFeed);
-        assert.equal(inFeed.commentCount, roots);
-        assert.equal(inFeed.replyCount, visibleReplies);
-        assert.equal(inFeed.discussionCount, roots + visibleReplies);
+        assert.equal(inFeed.commentCount, null);
+        assert.equal(inFeed.replyCount, null);
+        assert.equal(inFeed.discussionCount, null);
       };
 
       await t.test(
@@ -802,7 +831,7 @@ test(
             rootA.resourceId,
             cancel,
           );
-          assert.equal(root.replyCount, 4);
+          assert.equal(root.replyCount, null);
           assert.deepEqual(
             root.replyPreview.items.map((item) => item.id),
             replies.slice(0, 2).map((item) => item.resourceId),
@@ -929,9 +958,9 @@ test(
       );
 
       await t.test(
-        'native v3 root cursors survive irrelevant off-page changes and freshly project selected replies',
+        'native opaque v4 root cursors survive irrelevant off-page changes and freshly project selected replies',
         async () => {
-          const body = intent('Synthetic isolated v3 root pagination');
+          const body = intent('Synthetic isolated v4 root pagination');
           await approve(pool, author.credentials.accountId, body.text);
           const parent = created(
             await author.community.publishPost(body, cancel),
@@ -943,7 +972,7 @@ test(
               await publishRoot(
                 author,
                 parent.resourceId,
-                `Synthetic v3 root ${index}`,
+                `Synthetic v4 root ${index}`,
                 'named',
               ),
             );
@@ -961,14 +990,18 @@ test(
           );
           assert.equal(first.items[0]!.id, roots[0]!.resourceId);
           assert.ok(first.nextCursor);
-          const encoded = JSON.parse(
-            Buffer.from(first.nextCursor, 'base64url').toString('utf8'),
-          );
-          assert.equal(encoded.v, 3);
+          assert.match(first.nextCursor, /^[A-Za-z0-9_-]{43}$/);
+          const encoded = (
+            await pool.query<{ position: { v: number } }>(
+              'SELECT position FROM whaleu_community.discovery_cursors WHERE cursor=$1',
+              [first.nextCursor],
+            )
+          ).rows[0]!.position;
+          assert.equal(encoded.v, 4);
           assert.ok(!first.nextCursor.includes(observer.credentials.accountId));
-          const legacy = Buffer.from(
-            JSON.stringify({ ...encoded, v: 2 }),
-          ).toString('base64url');
+          const legacy = Buffer.from(JSON.stringify({ v: 3 })).toString(
+            'base64url',
+          );
           await assert.rejects(
             observer.community.comments(
               parent.resourceId,
@@ -1010,7 +1043,7 @@ test(
             );
             assert.equal(current.items[0]!.id, roots[index]!.resourceId);
             if (index === roots.length - 1) {
-              assert.equal(current.items[0]!.replyCount, 1);
+              assert.equal(current.items[0]!.replyCount, null);
               assert.equal(current.items[0]!.likeCount, 1);
               assert.equal(
                 current.items[0]!.replyPreview.items[0]!.id,
@@ -1027,7 +1060,8 @@ test(
             options,
           );
           assert.equal(previous.items[0]!.id, roots[1]!.resourceId);
-          assert.equal(previous.items[0]!.replyCount, 0);
+          assert.equal(previous.items[0]!.replyCount, null);
+          assert.deepEqual(previous.items[0]!.replyPreview.items, []);
           const full: Roots = await observer.community.comments(
             parent.resourceId,
             null,
@@ -1612,7 +1646,7 @@ test(
             () =>
               decodePost({
                 ...post,
-                discussionCount: post.discussionCount + 1,
+                discussionCount: 1, // Mixed known/unknown triple is invalid.
               }),
             () => decodeReceipt({ ...replies[1], target: reply.target }),
           ])

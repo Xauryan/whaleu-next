@@ -1,0 +1,106 @@
+/* Framework7 v9.2.0 input-vars.less/input.less/input-ios.less, MIT.
+ * Copyright (c) 2014 Vladimir Kharlampidi.
+ * See docs/vendor/framework7-v9.2.0/LICENSE.
+ * Native adaptation: 40px editor inside a 44px target; no DOM floating-label,
+ * validation or outline layout. Native placeholder-class replaces ::placeholder.
+ */
+@import '../../design/framework7-ios.wxss';
+:host {
+  display: block;
+  min-width: 0;
+}
+.f7-input {
+  position: relative;
+  min-width: 0;
+}
+.f7-input-label {
+  color: var(--f7-label-text-color);
+  font-size: var(--f7-label-font-size);
+  font-weight: var(--f7-label-font-weight);
+  line-height: var(--f7-label-height);
+}
+.f7-input-wrap {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 0;
+}
+.f7-input-control {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  height: var(--f7-input-height);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--f7-input-text-color);
+  font-family: var(--f7-font-family);
+  font-size: var(--f7-input-font-size);
+  background: var(--f7-input-bg-color);
+}
+.f7-input-placeholder {
+  color: var(--f7-input-placeholder-color);
+}
+.f7-input-invalid .f7-input-control {
+  color: var(--f7-input-error-text-color);
+}
+.f7-input-disabled {
+  opacity: 0.55;
+}
+.f7-input-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.f7-input-clear::after {
+  border: 0;
+}
+.f7-input-clear-pressed {
+  opacity: 0.3;
+}
+.f7-input-clear-icon {
+  width: var(--f7-input-clear-button-size);
+  height: var(--f7-input-clear-button-size);
+  border-radius: 50%;
+  position: relative;
+  background: var(--f7-input-clear-button-color);
+}
+.f7-input-clear-icon::before,
+.f7-input-clear-icon::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 1px;
+  left: 3px;
+  top: 6.5px;
+  background: var(--f7-list-strong-bg-color);
+  transform: rotate(45deg);
+}
+.f7-input-clear-icon::after {
+  transform: rotate(-45deg);
+}
+.f7-input-error,
+.f7-input-info {
+  margin-top: -4px;
+  margin-bottom: 6px;
+}
+.f7-input-error {
+  color: var(--f7-input-error-text-color);
+  font-size: var(--f7-input-error-font-size);
+  line-height: var(--f7-input-error-line-height);
+  font-weight: var(--f7-input-error-font-weight);
+}
+.f7-input-info {
+  color: var(--f7-input-info-text-color);
+  font-size: var(--f7-input-info-font-size);
+  line-height: var(--f7-input-info-line-height);
+}

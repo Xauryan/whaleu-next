@@ -1,0 +1,4 @@
+{
+  "component": true,
+  "usingComponents": { "f7-button": "../f7-button/f7-button" }
+}

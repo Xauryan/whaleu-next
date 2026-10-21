@@ -1,3 +1,14 @@
+import { SocialUpdatesIngressModule } from '../notifications/social/ingress.js';
+import { CommunitySocialSourceCapture } from './social-source/capture.js';
+import { CommunitySocialSourceFacade } from './social-source/facade.js';
+import { CommunitySocialProjectionFacade } from './social-source/projection.js';
+import { CommunityDiscussionCounts } from './discussion/counts.js';
+import { DiscussionPages } from './discussion/pages.js';
+import { PublicationHistoryController } from './publications/controller.js';
+import { PublicationHistoryService } from './publications/service.js';
+import { PublicationHistoryRepository } from './publications/repository.js';
+import { FollowingController } from './following/controller.js';
+import { FollowingService } from './following/service.js';
 import { AdminDiscussionRemovalService } from './admin-discussion-removal/service.js';
 import { AdminDiscussionRemovalController } from './admin-discussion-removal/controller.js';
 import { AdminPostRemovalService } from './admin-removal/service.js';
@@ -181,6 +192,10 @@ import { CommunityAccessService } from './community-access.service.js';
 import { CommunitySerializer } from './community-serialization.js';
 import { FeedService } from './feed.service.js';
 import { PublicationRepository } from './publication.repository.js';
+import { ContentReferenceController } from './content-references/controller.js';
+import { ContentReferenceRepository } from './content-references/repository.js';
+import { ContentReferenceAllocation } from './content-references/allocation.js';
+import { ContentReferenceService } from './content-references/service.js';
 import { PublicationService } from './publication.service.js';
 import { ReactionsService } from './reactions.service.js';
 import { DeletionService } from './deletion.service.js';
@@ -303,6 +318,7 @@ export class CommunityRecoveryController {
 }
 @Module({
   imports: [
+    SocialUpdatesIngressModule,
     FeedbackNotificationsModule,
     SemanticSearchRequestModule,
     HotFeedProcessingModule,
@@ -322,6 +338,8 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    ContentReferenceController,
+    FollowingController,
     AdminPostRemovalController,
     AdminDiscussionRemovalController,
     CategoryReclassificationController,
@@ -340,6 +358,7 @@ export class CommunityRecoveryController {
     SearchController,
     SemanticSearchController,
     LikedHistoryController,
+    PublicationHistoryController,
     SavedController,
     SavedRecoveryController,
     FormationController,
@@ -357,6 +376,8 @@ export class CommunityRecoveryController {
     CommunityRecoveryController,
   ],
   exports: [
+    CommunitySocialSourceFacade,
+    CommunitySocialProjectionFacade,
     AdminPostRemovalService,
     AdminDiscussionRemovalService,
     ProfileModerationTargetFacade,
@@ -370,6 +391,13 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    ContentReferenceRepository,
+    ContentReferenceAllocation,
+    ContentReferenceService,
+    CommunitySocialSourceCapture,
+    CommunitySocialSourceFacade,
+    CommunitySocialProjectionFacade,
+    FollowingService,
     AdminPostRemovalService,
     AdminDiscussionRemovalService,
     ProfileModerationTargetFacade,
@@ -432,9 +460,13 @@ export class CommunityRecoveryController {
     CommunityExperienceSourceCapture,
     CommunityExperienceSourceFacade,
     CommunityDiscoveryCounts,
+    CommunityDiscussionCounts,
+    DiscussionPages,
     ContentReviewCountFacade,
     DiscoveryCursorRepository,
     LikedHistoryService,
+    PublicationHistoryService,
+    PublicationHistoryRepository,
     LikedHistoryRepository,
     CommunityProfileDiscoveryFacade,
     CommunityDmEntryFacade,

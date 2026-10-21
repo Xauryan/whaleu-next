@@ -1,3 +1,4 @@
+import { createRecoveryPressBridge } from './framework7-rating-recovery-native-harness.mjs';
 /** Real emitted Page and repository WXML condition model; not device rendering. */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -10,6 +11,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.resolve(
   process.env.WHALEU_WECHAT_DIST ?? path.join(root, 'dist'),
 );
+const extension = process.env.WHALEU_WECHAT_EXTENSION ?? 'js';
 const oldPage = globalThis.Page;
 let page;
 globalThis.Page = (definition) => {
@@ -17,7 +19,10 @@ globalThis.Page = (definition) => {
 };
 try {
   require(
-    path.join(dist, 'pages/rating-discussion-media/rating-discussion-media.js'),
+    path.join(
+      dist,
+      `pages/rating-discussion-media/rating-discussion-media.${extension}`,
+    ),
   );
 } finally {
   globalThis.Page = oldPage;
@@ -26,8 +31,8 @@ assert.ok(page);
 const template = parse(
   readFileSync(
     path.join(
-      root,
-      'src/pages/rating-discussion-media/rating-discussion-media.wxml',
+      dist,
+      'pages/rating-discussion-media/rating-discussion-media.wxml',
     ),
     'utf8',
   ),
@@ -37,7 +42,8 @@ const flatten = (nodes) =>
 const rendered = () => flatten(render(template.children, page.data));
 const button = (handler) =>
   rendered().filter(
-    (node) => node.tag === 'button' && node.attrs.bindtap === handler,
+    (node) =>
+      node.tag === 'wu-f7-button' && node.attrs['bind:press'] === handler,
   );
 assert.equal(page.data.maximum, 9);
 assert.equal(page.data.text, '');
@@ -109,6 +115,56 @@ assert.equal(
   0,
   'metadata never becomes a storage URL',
 );
+// Presentation delivery to the actual registered Page. These are bounded
+// controller-delegate spies, not claims of an executed upload/business command.
+const calls = [];
+page.controller = {
+  publish() {
+    calls.push(['publish']);
+  },
+  reorder(id, direction) {
+    calls.push(['reorder', id, direction]);
+  },
+  closeImage() {
+    calls.push(['release']);
+  },
+};
+page.data = {
+  ...page.data,
+  busy: false,
+  composerOpen: true,
+  authorMode: 'named',
+  text: '',
+  editor: {
+    ...page.data.editor,
+    frozen: false,
+    selected: [{ memberId: 'original', ready: true }],
+  },
+};
+const bridge = createRecoveryPressBridge({
+  page,
+  dist,
+  extension,
+  pageFile: path.join(
+    dist,
+    'pages/rating-discussion-media/rating-discussion-media',
+  ),
+});
+const publish = bridge.capture('onPublish');
+assert.equal(publish.press(), true);
+const move = bridge.capture('onMove', { id: 'original', direction: '-1' });
+assert.equal(move.press(), true);
+assert.deepEqual(calls, [['publish'], ['reorder', 'original', -1]]);
+page.data.editor.frozen = true;
+assert.equal(publish.press(), false);
+assert.equal(move.press(), false);
+page.data.gallery = { open: true, localSrc: '', index: 0, count: 2 };
+const release = bridge.capture('onCloseImage');
+assert.equal(release.press(), true);
+assert.deepEqual(calls.at(-1), ['release']);
+bridge.lifecycle('hide');
+assert.equal(release.press(), false);
+bridge.disposeProjection();
 let disposed = 0;
 page.controller = {
   dispose() {

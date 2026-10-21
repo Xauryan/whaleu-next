@@ -1,0 +1,14 @@
+<page-meta page-style="{{historyPageStyle}}" />
+<view class="history-screen f7-ios-theme" aria-hidden="{{historyOverlayLocked}}">
+  <wu-f7-block spacing="compact"><view class="history-toolbar"><view class="history-scope">本机 · 最近 30 天</view><view class="history-toolbar-actions"><wu-f7-button bind:press="onReload" disabled="{{busy || historyOverlayLocked}}" loading="{{busy}}" aria-label="刷新浏览记录"><wu-icon name="refresh" tone="accent" size="21" /></wu-f7-button><wu-f7-button bind:press="onRequestClear" disabled="{{busy || !hasSession || historyOverlayLocked}}">清空记录</wu-f7-button></view></view>
+    <wu-f7-button wx:if="{{!hasSession}}" bind:press="onLogin" disabled="{{historyOverlayLocked}}" aria-label="登录后查看本机记录"><view class="history-login">登录后查看本机记录 <wu-icon name="chevron-right" tone="accent" size="16" /></view></wu-f7-button>
+    <view wx:if="{{error}}" class="history-error" aria-role="alert">{{error}}</view><view wx:if="{{busy || !loaded}}" class="history-status" aria-role="status">{{status}}</view>
+  </wu-f7-block>
+  <wu-f7-block spacing="compact" wx:if="{{loaded &amp;&amp; !items.length}}"><view class="history-empty"><wu-icon name="clock" tone="muted" size="42" /><view class="history-empty-title">还没有可查看的记录</view><view>已删除或无法访问的帖子不会显示。</view></view></wu-f7-block>
+  <wu-f7-list spacing="compact" inset="{{true}}" strong="{{true}}">
+    <wu-f7-list-item wx:for="{{items}}" wx:key="postId" link="{{true}}" title-slot="{{true}}" footer-slot="{{true}}" title="{{item.summary}}" aria-label="{{item.summary + '，' + item.viewedAt}}" last="{{index === items.length - 1}}" data-id="{{item.postId}}" bind:press="onOpen" disabled="{{busy || historyOverlayLocked}}"><view slot="title" class="history-summary">{{item.summary}}</view><text slot="footer">{{item.viewedAt}}</text></wu-f7-list-item>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact" wx:if="{{loaded}}"><view class="history-actions"><wu-f7-button wx:if="{{canPrevious}}" bind:press="onPrevious" disabled="{{busy || historyOverlayLocked}}">上一页</wu-f7-button><wu-f7-button wx:if="{{canMore}}" bind:press="onMore" disabled="{{busy || historyOverlayLocked}}">下一页</wu-f7-button></view></wu-f7-block>
+  <wu-f7-block spacing="compact"><view class="history-note">最多保留 200 条已打开的帖子；退出登录会清除，不会跨设备同步。</view></wu-f7-block>
+</view>
+<wu-f7-dialog open="{{clearDialogOpen}}" session-id="{{clearDialogSessionId}}" attempt-key="{{clearDialogAttempt}}" loading="{{clearDialogLoading}}" mode="confirm" title="清空本机浏览记录？" message="{{clearDialogError ? '不会删除帖子，也不会影响收藏。\n' + clearDialogError : '不会删除帖子，也不会影响收藏。'}}" confirm-id="clear-history" confirm-label="{{clearDialogError ? '重试清空' : '清空记录'}}" cancel-label="取消" destructive="{{true}}" bind:opened="onClearDialogOpened" bind:action="onConfirmClear" bind:requestclose="onDismissClear" bind:closed="onClearDialogClosed" />

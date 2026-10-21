@@ -2,6 +2,7 @@ import type { WhaleuApp } from '../../app';
 import { Cancellation } from '../../platform/contracts';
 import { HttpActivityPublicationGateway } from '../../activities/publication/gateway';
 import type { NativeActivity } from '../../activities/publication/contract';
+import { activityTypeLabels } from '../activity-list/presentation';
 Page({
   data: {
     items: [] as NativeActivity[],
@@ -10,6 +11,7 @@ Page({
     error: '',
     more: false,
     mine: false,
+    activityTypeLabels,
   },
   gateway: undefined as HttpActivityPublicationGateway | undefined,
   cancel: undefined as Cancellation | undefined,

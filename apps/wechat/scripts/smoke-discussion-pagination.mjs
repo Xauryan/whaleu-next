@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -153,17 +154,27 @@ export async function smokeDiscussionPagination({
       { postId, replyId },
     );
     await flush();
+    const bridge = createNativePressBridge({
+      page,
+      pageFile: path.join(dist, 'pages/community-detail/community-detail'),
+      dist,
+    });
+    const press = (handler, dataset = {}) => {
+      const control = bridge.capture(handler, dataset);
+      assert.equal(control.press(), true, handler);
+      control.detach();
+    };
     assert.equal(page.data.loaded, true);
     assert.equal(page.data.comments.length, 10);
     assert.equal(page.data.pageNumber, 1);
     assert.equal(page.data.canPrevious, false);
     assert.equal(page.data.locatedReplyId, replyId);
-    page.onMoreReplies({ currentTarget: { dataset: { id: rootId } } });
+    press('onMoreReplies', { id: rootId });
     await flush();
     assert.equal(page.data.comments[0].replyPreview.items.length, 2);
 
     deferPage = true;
-    page.onMore();
+    press('onMore');
     page.onMore();
     page.onPrevious();
     assert.deepEqual(page.data.comments, []);
@@ -180,7 +191,7 @@ export async function smokeDiscussionPagination({
 
     fresh = true;
     deferPage = false;
-    page.onPrevious();
+    press('onPrevious');
     assert.deepEqual(page.data.comments, []);
     await flush();
     assert.equal(page.data.comments.length, 10);
@@ -191,15 +202,13 @@ export async function smokeDiscussionPagination({
       'fresh reply',
     );
     assert.equal(page.data.locatedComment.text, 'located context 3');
-    page.onMore();
+    press('onMore');
     await flush();
     assert.deepEqual(
       reads.map((read) => read.after),
       [null, 'root-next-old', null, 'root-next-fresh'],
     );
-    page.onOrder({
-      currentTarget: { dataset: { sort: 'likes', order: 'asc' } },
-    });
+    press('onOrder', { sort: 'likes', order: 'asc' });
     await flush();
     assert.equal(page.data.pageNumber, 1);
     assert.equal(page.data.canPrevious, false);
@@ -210,7 +219,7 @@ export async function smokeDiscussionPagination({
     });
 
     restart = true;
-    page.onMore();
+    press('onMore');
     await flush();
     assert.equal(page.data.loaded, false);
     assert.equal(page.data.post, null);
@@ -224,13 +233,13 @@ export async function smokeDiscussionPagination({
     await flush();
     assert.equal(reads.length, count);
     restart = false;
-    page.onReload();
+    press('onReload');
     await flush();
     assert.equal(page.data.pageNumber, 1);
     deferPage = true;
-    page.onMore();
+    press('onMore');
     await flush();
-    page.onCancel();
+    press('onCancel');
     assert.equal(pageCancellation.isCancelled, true);
     finishPage();
     await flush();
@@ -243,8 +252,8 @@ export async function smokeDiscussionPagination({
       path.join(dist, 'pages/community-detail/community-detail.wxml'),
       'utf8',
     );
-    assert.match(template, /bindtap="onPrevious"[^>]*>上一页/);
-    assert.match(template, /bindtap="onMore"[^>]*>下一页/);
+    assert.match(template, /bind:press="onPrevious"[^>]*>上一页/);
+    assert.match(template, /bind:press="onMore"[^>]*>下一页/);
     assert.match(template, /pageNumber/);
     assert.match(template, /copyCommentId=\{\{item.id\}\}/);
     assert.match(template, /rootCommentId=\{\{item.id\}\}/);

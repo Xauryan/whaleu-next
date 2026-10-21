@@ -1,0 +1,101 @@
+<view class="me-page">
+  <view class="profile-cover">
+    <image wx:if="{{coverRead.localSrc}}" class="profile-cover-image" src="{{coverRead.localSrc}}" mode="aspectFill" binderror="onCoverError" aria-label="主页背景图" show-menu-by-longpress="{{false}}" />
+    <view wx:if="{{coverRead.localSrc}}" class="profile-cover-shade" />
+    <wu-safe-top />
+    <view class="profile-toolbar">
+      <button class="icon-button" aria-label="打开我的菜单" bindtap="onOpenMenu"><wu-icon name="menu" size="25" tone="white" /></button>
+      <view class="profile-toolbar-actions">
+        <navigator class="edit-profile-pill" url="/pages/profile/profile" aria-label="编辑主页"><wu-icon name="edit" size="21" tone="white" /><text>编辑主页</text></navigator>
+        <button class="icon-button" aria-label="扫一扫 WhaleU 二维码" bindtap="onScan" disabled="{{scan.busy}}"><wu-icon name="scan" size="24" tone="white" /></button>
+        <button wx:if="{{publicIdentity.loaded &amp;&amp; publicIdentity.profile &amp;&amp; !publicIdentity.busy &amp;&amp; !publicIdentity.error}}" class="icon-button" aria-label="分享我的公开主页" open-type="share"><wu-icon name="share" size="24" tone="white" /></button>
+        <button wx:else class="icon-button" aria-label="查看主页分享状态" bindtap="onShareUnavailable"><wu-icon name="share" size="24" tone="muted" /></button>
+      </view>
+    </view>
+    <view class="profile-identity">
+      <button class="profile-avatar" aria-label="查看我的头像" bindtap="onOpenAvatar" disabled="{{avatarRead.status !== 'ready'}}">
+        <image wx:if="{{avatarRead.localSrc}}" class="avatar-image" src="{{avatarRead.localSrc}}" mode="aspectFill" binderror="onAvatarError" />
+        <wu-icon wx:else name="person" size="48" tone="muted" />
+      </button>
+      <navigator wx:if="{{profile.hasSession}}" class="profile-copy" url="/pages/public-profile/public-profile" aria-label="打开我的公开主页">
+        <view class="profile-name">{{profile.loaded ? (profile.nickname || '还没有设置昵称') : (profile.loading ? '正在读取资料' : '我的个人主页')}}</view>
+        <view wx:if="{{schoolUidView.loaded &amp;&amp; schoolUidView.schoolUid.status === 'assigned'}}" class="profile-uid">UID：{{schoolUidView.schoolUid.formattedUid}}</view>
+        <view wx:elif="{{schoolUidView.loaded &amp;&amp; schoolUidView.schoolUid.status === 'unassigned'}}" class="profile-uid">UID：未分配</view>
+        <view wx:else class="profile-uid">UID：{{schoolUidView.busy ? '正在核验' : '暂不可用'}}</view>
+        <view wx:if="{{profile.loaded}}" class="profile-campus"><wu-icon name="campus" size="13" tone="muted" /><text>{{profile.selectedCampusName}}</text></view>
+      </navigator>
+      <navigator wx:else class="profile-copy" url="/pages/login/login" open-type="reLaunch">
+        <view class="profile-name">登录 WhaleU</view>
+        <view class="profile-campus">记录属于你的校园生活</view>
+      </navigator>
+    </view>
+    <view wx:if="{{profile.hasSession}}" class="profile-social-summary">
+      <view class="profile-social-stats">
+        <view class="profile-stat" aria-label="{{stats.following.status === 'known' ? '关注数量：' + stats.following.value : '关注数量暂不可用'}}"><view class="profile-stat-value">{{stats.following.status === 'known' ? stats.following.value : '—'}}</view><view class="profile-stat-label">关注</view></view>
+        <view class="profile-stat" aria-label="{{stats.followers.status === 'known' ? '粉丝数量：' + stats.followers.value : '粉丝数量暂不可用'}}"><view class="profile-stat-value">{{stats.followers.status === 'known' ? stats.followers.value : '—'}}</view><view class="profile-stat-label">粉丝</view></view>
+        <view class="profile-stat" aria-label="获赞与收藏数量暂不可用"><view class="profile-stat-value">—</view><view class="profile-stat-label">获赞与收藏</view></view>
+      </view>
+      <view wx:if="{{stats.error}}" class="profile-stat-error"><text>{{stats.error}}</text><button class="text-button" bindtap="onStatsReload" disabled="{{stats.busy}}">重试</button></view>
+    </view>
+    <view wx:if="{{profile.hasSession &amp;&amp; profile.loaded &amp;&amp; profile.bio}}" class="profile-bio">{{profile.bio}}</view>
+    <navigator wx:elif="{{profile.hasSession &amp;&amp; profile.loaded}}" class="profile-bio profile-bio-empty" url="/pages/profile/profile">填写简介</navigator>
+    <view wx:if="{{profile.hasSession &amp;&amp; details.loaded &amp;&amp; ((details.showRegion &amp;&amp; details.region) || (details.showGender &amp;&amp; details.gender) || (details.showAge &amp;&amp; details.age !== null))}}" class="profile-detail-tags">
+      <view wx:if="{{details.showRegion &amp;&amp; details.region}}" class="profile-detail-capsule"><wu-icon name="location" size="15" tone="muted" /><text>{{details.region}}</text></view>
+      <view wx:if="{{details.showGender &amp;&amp; details.gender}}" class="profile-detail-capsule" aria-label="{{profileGenderLabels[details.gender]}}"><wu-icon name="{{details.gender === 'male' ? 'male' : 'female'}}" size="18" tone="{{details.gender === 'male' ? 'blue' : 'pink'}}" /></view>
+      <view wx:if="{{details.showAge &amp;&amp; details.age !== null}}" class="profile-detail-capsule"><text>{{details.age}} 岁</text></view>
+    </view>
+    <view wx:if="{{profile.error}}" class="profile-notice" aria-role="alert"><text>{{profile.error}}</text><button class="text-button" bindtap="onReload" disabled="{{profile.loading}}">重试</button></view>
+    <view wx:if="{{scan.error || actionError}}" class="profile-notice" aria-role="alert">{{scan.error || actionError}}</view>
+    <view wx:if="{{profile.hasSession}}" class="profile-shortcuts">
+      <navigator class="shortcut" url="/pages/browsing-history/browsing-history"><view class="shortcut-title"><wu-icon name="clock" size="18" tone="white" /><text>浏览记录</text></view><view class="shortcut-note">看过的内容</view></navigator>
+      <navigator class="shortcut" url="/pages/verification/verification"><view class="shortcut-title"><wu-icon name="graduation" size="18" tone="white" /><text>校园认证</text></view><view class="shortcut-note">认证状态</view></navigator>
+      <navigator class="shortcut" url="/pages/wallet/wallet"><view class="shortcut-title"><wu-icon name="wallet" size="18" tone="white" /><text>钱包</text></view><view class="shortcut-note">查看详情</view></navigator>
+    </view>
+  </view>
+
+  <view class="profile-content">
+    <view class="content-tabs" aria-role="tablist">
+      <button wx:for="{{tabs}}" wx:key="key" class="content-tab {{content.tab === item.key ? 'content-tab-active' : ''}}" data-key="{{item.key}}" bindtap="onTab" aria-role="tab" aria-selected="{{content.tab === item.key}}"><wu-icon wx:if="{{item.key === 'saved' || item.key === 'liked'}}" name="lock" size="16" tone="muted" /><text>{{item.label}}</text></button>
+      <button class="content-search-button" aria-label="搜索当前已加载的内容" bindtap="onContentSearchToggle"><wu-icon name="{{contentSearchOpen ? 'close' : 'search'}}" size="22" tone="muted" /></button>
+    </view>
+    <view wx:if="{{contentSearchOpen}}" class="content-search-panel"><input class="content-search-input" value="{{contentQuery}}" bindinput="onContentSearchInput" placeholder="搜索当前页内容" maxlength="100" /><view class="content-search-note">仅搜索当前已加载的内容，不包含未加载的历史</view></view>
+    <view wx:if="{{profile.hasSession &amp;&amp; (content.tab === 'posts' || content.tab === 'replies')}}" class="content-modes" aria-role="tablist">
+      <button class="content-mode {{content.mode === 'named' ? 'content-mode-active' : ''}}" data-key="named" bindtap="onContentMode" aria-role="tab" aria-selected="{{content.mode === 'named'}}">公开</button>
+      <button class="content-mode {{content.mode === 'anonymous' ? 'content-mode-active' : ''}}" data-key="anonymous" bindtap="onContentMode" aria-role="tab" aria-selected="{{content.mode === 'anonymous'}}">分身</button>
+    </view>
+    <view wx:if="{{!profile.hasSession}}" class="content-empty">
+      <view class="empty-icon"><wu-icon name="person" size="40" tone="muted" /></view><view class="empty-title">你的故事，从这里开始</view><view class="empty-note">登录后查看自己的发布、收藏和点赞</view><navigator class="empty-action" url="/pages/login/login" open-type="reLaunch">去登录</navigator>
+    </view>
+    <view wx:elif="{{content.error}}" class="content-error" aria-role="alert"><view>{{content.error}}</view><button class="empty-action" bindtap="onContentReload" disabled="{{content.busy}}">重新加载</button></view>
+    <view wx:elif="{{content.busy &amp;&amp; !content.items.length}}" class="content-empty" aria-role="status"><view class="empty-icon"><wu-icon name="refresh" size="34" tone="muted" /></view><view class="empty-note">正在读取{{content.tab === 'posts' ? '主题' : content.tab === 'replies' ? '回复' : content.tab === 'saved' ? '收藏' : '点赞'}}内容</view></view>
+    <view wx:elif="{{content.availability === 'unavailable' || content.availability === 'hidden'}}" class="content-empty" aria-role="status"><view class="empty-icon"><wu-icon name="shield" size="38" tone="muted" /></view><view class="empty-title">{{content.availability === 'hidden' ? '主页内容已隐藏' : '主页内容暂不可查看'}}</view><view class="empty-note">{{content.availability === 'hidden' ? '内容暂不展示。' : '请稍后重新加载。'}}</view><button class="empty-action" bindtap="onContentReload" disabled="{{content.busy}}">重新加载</button></view>
+    <view wx:elif="{{content.availability === 'no_profile'}}" class="content-empty"><view class="empty-icon"><wu-icon name="person" size="40" tone="muted" /></view><view class="empty-title">完善你的个人主页</view><view class="empty-note">当前还没有公开主页资料。</view><navigator class="empty-action" url="/pages/profile/profile">完善资料</navigator></view>
+    <view wx:elif="{{content.loaded &amp;&amp; content.availability === 'available' &amp;&amp; !content.items.length &amp;&amp; content.continuation === 'end'}}" class="content-empty">
+      <view class="empty-icon"><wu-icon name="{{content.tab === 'posts' ? 'post' : content.tab === 'replies' ? 'message' : content.tab === 'saved' ? 'bookmark' : 'heart'}}" size="42" tone="muted" /></view>
+      <view class="empty-title">{{content.total !== 0 ? '本页暂无可查看内容' : content.tab === 'posts' ? '分享你的第一个校园瞬间' : content.tab === 'replies' ? '还没有可查看的回复' : content.tab === 'saved' ? '把喜欢的内容收藏在这里' : '让喜欢留下痕迹'}}</view>
+      <view class="empty-note">{{content.tab === 'posts' || content.tab === 'replies' ? '' : content.tab === 'saved' ? '收藏的帖子会出现在这里' : '点赞的帖子会出现在这里'}}</view>
+      <navigator wx:if="{{content.tab === 'posts' &amp;&amp; content.total === 0}}" class="empty-action" url="/pages/compose-entry/compose-entry">去分享</navigator>
+    </view>
+    <view wx:if="{{contentQuery &amp;&amp; content.items.length &amp;&amp; !visibleContentItems.length}}" class="content-note">当前已加载内容中没有匹配结果。</view>
+    <view wx:if="{{profile.hasSession &amp;&amp; visibleContentItems.length}}" class="content-grid">
+      <navigator wx:for="{{visibleContentItems}}" wx:key="id" id="view-{{item.id}}" class="content-card" url="{{item.url}}" hover-class="card-pressed">
+        <view wx:if="{{item.images.length}}" class="content-thumbnail-box" style="padding-top: {{item.images[0].height / item.images[0].width &gt; 1.5 ? 150 : item.images[0].height / item.images[0].width &lt; 0.6 ? 60 : item.images[0].height / item.images[0].width * 100}}%;">
+          <image wx:if="{{contentImages[item.id] &amp;&amp; contentImages[item.id].localSrc}}" class="content-thumbnail" src="{{contentImages[item.id].localSrc}}" mode="aspectFit" data-id="{{item.id}}" data-src="{{contentImages[item.id].localSrc}}" data-view-id="{{contentImages[item.id].viewId}}" binderror="onContentImageError" aria-label="内容图片" />
+          <view wx:else class="content-thumbnail-placeholder"><wu-icon name="image" tone="muted" size="24" /><text>{{contentImages[item.id] &amp;&amp; contentImages[item.id].status === 'loading' ? '正在读取' : '点开查看图片'}}</text></view>
+        </view>
+        <view class="content-card-body"><view class="content-card-context">{{item.context}}</view><view class="content-card-text">{{item.text || (item.imageCount ? '图片分享' : '查看内容')}}</view><view wx:if="{{item.imageCount}}" class="content-card-media"><wu-icon name="image" size="14" tone="muted" /><text>{{item.imageCount}} 张图片 · 点开查看</text></view></view>
+        <view class="content-card-footer"><text class="content-card-author">{{item.author}}</text><view wx:if="{{item.likeCount !== null}}" class="content-card-likes"><wu-icon name="heart" size="14" tone="muted" /><text>{{item.likeCount}}</text></view><wu-icon wx:else name="chevron-right" size="12" tone="muted" /></view>
+      </navigator>
+    </view>
+    <view wx:if="{{profile.hasSession &amp;&amp; content.continuation === 'scan_pending'}}" class="content-note">还有内容待核验，继续查看。</view>
+    <view wx:if="{{profile.hasSession &amp;&amp; (content.canPrevious || content.canLoadMore)}}" class="content-pagination"><button wx:if="{{content.canPrevious}}" class="page-button" bindtap="onPrevious" disabled="{{content.busy}}">上一页</button><button wx:if="{{content.canLoadMore}}" class="page-button" bindtap="onMore" disabled="{{content.busy}}" loading="{{content.busy}}">{{content.continuation === 'scan_pending' ? '继续查看' : content.tab === 'saved' ? '加载更多' : '下一页'}}</button></view>
+  </view>
+</view>
+<view wx:if="{{showMenu}}" class="menu-backdrop" bindtap="onCloseMenu" aria-label="关闭菜单" />
+<view wx:if="{{showMenu}}" class="profile-menu" aria-role="dialog" aria-label="我的菜单">
+  <wu-safe-top /><view class="menu-heading"><button class="icon-button" aria-label="关闭菜单" bindtap="onCloseMenu"><wu-icon name="close" size="20" /></button></view>
+  <scroll-view class="menu-scroll" scroll-y><navigator wx:for="{{account}}" wx:key="url" class="menu-row" url="{{item.url}}" bindtap="onCloseMenu"><view class="menu-icon"><wu-icon name="{{item.icon === 'post' ? 'post' : item.icon === 'bag' ? 'bag' : item.icon === 'chart' ? 'chart' : item.icon === 'settings' ? 'settings' : item.icon === 'graduation' ? 'graduation' : item.icon === 'campus' ? 'campus' : item.icon === 'shield' ? 'shield' : item.icon === 'blocked-user' ? 'blocked-user' : item.icon === 'message' ? 'message' : 'person'}}" size="23" /></view><view class="menu-row-copy"><view class="menu-row-title">{{item.title}}</view></view><wu-icon name="chevron-right" size="13" tone="muted" /></navigator></scroll-view>
+  <view class="menu-footer"><button class="menu-footer-item" bindtap="onScan"><view class="menu-footer-icon"><wu-icon name="scan" size="25" /></view><text>扫一扫</text></button><navigator class="menu-footer-item" url="/pages/school-services/school-services" bindtap="onCloseMenu"><view class="menu-footer-icon"><wu-icon name="message" size="25" /></view><text>帮助与客服</text></navigator><navigator class="menu-footer-item" url="/pages/settings/settings" bindtap="onCloseMenu"><view class="menu-footer-icon"><wu-icon name="settings" size="25" /></view><text>设置</text></navigator></view>
+</view>
+<view wx:if="{{avatarRead.expanded}}" class="avatar-preview" aria-role="dialog" aria-label="我的头像预览"><button class="avatar-preview-close" bindtap="onCloseAvatar" aria-label="关闭头像预览"><wu-icon name="close" size="25" tone="white" /></button><image wx:if="{{avatarRead.localSrc}}" class="avatar-preview-image" src="{{avatarRead.localSrc}}" mode="aspectFit" binderror="onAvatarError" /><view wx:else class="avatar-preview-status">正在读取头像</view></view>
+<wu-tab-bar selected="me" />

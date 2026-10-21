@@ -18,6 +18,7 @@ import {
 } from '../../errands/restriction-contract';
 Page({
   data: {
+    uiPanel: '',
     ...initialErrandRestrictionView(),
     adminCommand: initialErrandAdminCommandView(),
     actionLabels: errandRestrictionActionLabels,
@@ -45,7 +46,12 @@ Page({
   onLoad(query: unknown = {}) {
     this.query = query;
   },
+  onToggleUiPanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel ?? '';
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.onHide();
     const runtime = getApp<WhaleuApp>().community;
     if (!runtime) {
@@ -56,7 +62,10 @@ Page({
       return;
     }
     this.controller = new ErrandRestrictionController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        ...(!view.loaded || view.access === 'denied' ? { uiPanel: '' } : {}),
+      }),
     );
     this.commands = new ErrandAdminCommandController(
       runtime,
@@ -122,12 +131,14 @@ Page({
       this.commands?.openRelease(restriction, authority);
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.commands?.dispose();
     this.commands = undefined;
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.setData({ uiPanel: '' });
     this.onHide();
     this.query = {};
   },

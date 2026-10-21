@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 // Actual emitted Page/API/decoder; synthetic HTTP here, real HTTP/PG in integration.
 export async function smokeExperienceRanking({ app, dist, mountPage, flush }) {
@@ -62,7 +63,17 @@ export async function smokeExperienceRanking({ app, dist, mountPage, flush }) {
     assert.equal(page.data.loaded, true);
     assert.deepEqual(page.data.items, items);
     response = { ...response, selectionStatus: 'scan_limited', items: [] };
-    page.onRefresh();
+    const bridge = createNativePressBridge({
+      page,
+      pageFile: path.join(dist, 'pages/experience-ranking/experience-ranking'),
+      dist,
+    });
+    const refresh = bridge.capture('onRefresh');
+    try {
+      refresh.press();
+    } finally {
+      refresh.detach();
+    }
     await flush();
     assert.equal(page.data.selectionStatus, 'scan_limited');
     assert.match(page.data.status, /未完整查看/);
@@ -78,7 +89,7 @@ export async function smokeExperienceRanking({ app, dist, mountPage, flush }) {
     assert.match(wxml, /历史覆盖不完整/);
     assert.match(wxml, /public-experience-display/);
     for (const handler of ['onRefresh', 'onCancel', 'onProfile'])
-      assert.match(wxml, new RegExp(`bindtap="${handler}"`));
+      assert.match(wxml, new RegExp(`bind:press="${handler}"`));
     assert.doesNotMatch(wxml, /\{\{index|<image|total_exp|accountId/);
   } finally {
     page?.onUnload();

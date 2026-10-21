@@ -31,7 +31,7 @@ const render = (patch: Record<string, unknown>) =>
   flatten(
     model.render(
       tree.children,
-      { ...initialCourseCommentsView(), ...patch },
+      { ...initialCourseCommentsView(), timeLabels: {}, ...patch },
       {},
     ),
   );
@@ -41,8 +41,8 @@ const button = (nodes: Node[], handler: string) =>
   nodes.find(
     (node) =>
       typeof node !== 'string' &&
-      node.tag === 'button' &&
-      node.attrs.bindtap === handler,
+      node.tag === 'wu-f7-button' &&
+      node.attrs['bind:press'] === handler,
   ) as Exclude<Node, string> | undefined;
 test('actual comments WXML displays only exact body, likes and time, with no author/persona/avatar controls', () => {
   const nodes = render({
@@ -53,7 +53,7 @@ test('actual comments WXML displays only exact body, likes and time, with no aut
     pageNumber: 1,
   });
   assert.ok(text(nodes).includes(body));
-  assert.match(text(nodes), /0 个赞/);
+  assert.match(text(nodes), /赞 0/);
   assert.equal(button(nodes, 'onConfirmLike')?.attrs['data-id'], commentId);
   assert.equal(
     nodes.some((node) => typeof node !== 'string' && node.tag === 'image'),
@@ -78,14 +78,14 @@ test('actual WXML separates exact publish preview and irreversible like confirma
   });
   assert.ok(text(publishing).includes(body));
   assert.ok(button(publishing, 'onSubmit'));
-  assert.match(text(publishing), /确认发表这份原文/);
+  assert.match(text(publishing), /确认发表/);
   const liking = render({
     hasSession: true,
     loaded: true,
     confirming: 'like',
     selectedComment: comment(),
   });
-  assert.match(text(liking), /确认不可撤销的点赞/);
+  assert.match(text(liking), /点赞后不能取消/);
   assert.ok(button(liking, 'onSubmit'));
   assert.ok(button(liking, 'onCloseConfirmation'));
 });
@@ -109,7 +109,7 @@ test('pending recovery stays visible without source authority and cancellation i
     confirming: 'cancel',
   });
   assert.ok(button(confirmation, 'onConfirmCancellation'));
-  assert.match(text(confirmation), /只有服务端确认取消后才能更换请求/);
+  assert.match(text(confirmation), /暂未查到结果，不代表已取消/);
   const hidden = render({});
   assert.equal(text(hidden).includes(body), false);
 });

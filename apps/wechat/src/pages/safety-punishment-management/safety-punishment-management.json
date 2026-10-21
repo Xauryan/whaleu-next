@@ -1,3 +1,8 @@
 {
-  "navigationBarTitleText": "账号处罚管理"
+  "navigationBarTitleText": "处罚管理",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon",
+    "wu-f7-button": "../../components/f7-button/f7-button",
+    "wu-f7-block": "../../components/f7-block/f7-block"
+  }
 }

@@ -1,0 +1,2476 @@
+{
+  "pages": {
+    "school-admin-management": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "id": "target-profile",
+          "value": "{{targetProfileId}}",
+          "maxlength": "36",
+          "disabled": "{{busy}}",
+          "bindinput": "onTargetInput"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{hasSession && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy || !targetProfileId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{hasSession && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onSelectRegion",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          },
+          {
+            "wx:for": "{{management.eligibility.regions}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{management.actions.appoint}}",
+          "data-action": "appoint",
+          "bindtap": "onRequest",
+          "disabled": "{{busy || !selectedRegionId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{management.actions.reassign}}",
+          "data-action": "reassign",
+          "bindtap": "onRequest",
+          "disabled": "{{busy || !selectedRegionId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{management.actions.revoke}}",
+          "data-action": "revoke",
+          "bindtap": "onRequest",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/profile/profile"
+        },
+        "ancestors": []
+      }
+    ],
+    "school-configuration": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/official-account-operations/official-account-operations"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{regionId}}",
+          "url": "/pages/school-posting-policy/school-posting-policy?regionId={{regionId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management !== 'none' && !busy && !pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/school-posting-policy/school-posting-policy",
+          "wx:else": ""
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management !== 'none' && !busy && !pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelPending",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onCampusQuery",
+          "maxlength": "100",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearchCampus",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChooseCampus",
+          "disabled": "{{busy || pending || !item.isActive}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "loading": "{{busy}}",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{entries}}",
+          "wx:key": "entryKey",
+          "data-key": "{{item.entryKey}}",
+          "bindtap": "onChooseEntry",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "checked": "{{form.enabled}}",
+          "data-field": "enabled",
+          "bindchange": "onField",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{form.name}}",
+          "data-field": "name",
+          "bindinput": "onField",
+          "maxlength": "100",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{form.kind !== 'admin'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{form.description}}",
+          "data-field": "description",
+          "bindinput": "onField",
+          "maxlength": "500",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{form.kind !== 'admin'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{form.joinUrl}}",
+          "data-field": "joinUrl",
+          "bindinput": "onField",
+          "maxlength": "1000",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{form.kind === 'group'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{form.qqGroupNumber}}",
+          "data-field": "qqGroupNumber",
+          "bindinput": "onField",
+          "maxlength": "32",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{form.kind === 'group'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{form.maxGroupNumber}}",
+          "data-field": "maxGroupNumber",
+          "bindinput": "onField",
+          "type": "number",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{form.kind === 'group'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{form.wechatId}}",
+          "data-field": "wechatId",
+          "bindinput": "onField",
+          "maxlength": "100",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{form.kind === 'admin'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPickQr",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecoverQr",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelQr",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPreviewQr",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseQr"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:if": "{{qrRead.status !== 'idle'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onKeepQr",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRemoveQr",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSave",
+          "loading": "{{busy}}",
+          "disabled": "{{busy || pending || qrUpload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      }
+    ],
+    "school-identity-management": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onStopWaiting"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{targetProfileId}}",
+          "maxlength": "36",
+          "bindinput": "onTargetInput",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{!frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy || !targetProfileId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{!frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onCampusQuery",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.actions.correctSchool}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearchCampuses",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.actions.correctSchool}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onSelectCampus",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.actions.correctSchool}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{campusPage > 1}}",
+          "bindtap": "onPreviousCampuses",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.actions.correctSchool}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{campusPage * 20 < campusTotal}}",
+          "bindtap": "onNextCampuses",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.actions.correctSchool}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{management.destination}}",
+          "data-action": "correct_school",
+          "bindtap": "onRequest",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          },
+          {
+            "wx:if": "{{management.actions.correctSchool}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{management.actions.completeUid}}",
+          "data-action": "complete_uid",
+          "bindtap": "onRequest",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSubmit",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel' && management && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/school-uid-lookup/school-uid-lookup"
+        },
+        "ancestors": []
+      }
+    ],
+    "school-posting-policy": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy || storageBlocked}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy || storageBlocked}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelPending",
+          "disabled": "{{busy || storageBlocked}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "maxlength": "100",
+          "value": "{{campusQuery}}",
+          "bindinput": "onCampusQuery",
+          "disabled": "{{busy || pending || storageBlocked}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearchCampus",
+          "disabled": "{{busy || pending || storageBlocked}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChooseCampus",
+          "disabled": "{{busy || pending || storageBlocked || !item.isActive}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "loading": "{{busy}}",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "checked": "{{form.relatedSyncEnabled}}",
+          "data-field": "relatedSyncEnabled",
+          "bindchange": "onSwitch",
+          "disabled": "{{busy || pending || storageBlocked || !editable}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "checked": "{{form.unverifiedPostEnabled}}",
+          "data-field": "unverifiedPostEnabled",
+          "bindchange": "onSwitch",
+          "disabled": "{{busy || pending || storageBlocked || !editable}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "checked": "{{form.unverifiedCommentEnabled}}",
+          "data-field": "unverifiedCommentEnabled",
+          "bindchange": "onSwitch",
+          "disabled": "{{busy || pending || storageBlocked || !editable}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "checkbox-group",
+        "attrs": {
+          "bindchange": "onCategories"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "checkbox",
+        "attrs": {
+          "value": "{{item.key}}",
+          "checked": "{{item.checked}}",
+          "disabled": "{{busy || pending || storageBlocked || !editable}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          },
+          {
+            "wx:for": "{{categories}}",
+            "wx:key": "key"
+          }
+        ]
+      },
+      {
+        "tag": "radio-group",
+        "attrs": {
+          "bindchange": "onExpiryKind"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "at",
+          "checked": "{{form.expiryKind === 'at'}}",
+          "disabled": "{{busy || pending || storageBlocked || !editable}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "radio",
+        "attrs": {
+          "value": "policy_exempt",
+          "checked": "{{form.expiryKind === 'policy_exempt'}}",
+          "disabled": "{{busy || pending || storageBlocked || !editable}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "wx:if": "{{form.expiryKind === 'at'}}",
+          "value": "{{form.validUntil}}",
+          "bindinput": "onValidUntil",
+          "maxlength": "40",
+          "disabled": "{{busy || pending || storageBlocked || !editable}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSave",
+          "loading": "{{busy}}",
+          "disabled": "{{busy || pending || storageBlocked || !editable}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{form}}"
+          }
+        ]
+      }
+    ],
+    "school-uid-lookup": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{campusQuery}}",
+          "bindinput": "onQuery",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{canLookup}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{canLookup}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onChoose",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{canLookup}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{campusPage > 1}}",
+          "bindtap": "onPrevious",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{canLookup}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{campusPage * 20 < campusTotal}}",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{canLookup}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{uid}}",
+          "maxlength": "19",
+          "bindinput": "onUid",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{canLookup}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onLookup",
+          "disabled": "{{busy || !schoolCode || !uid}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{canLookup}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/public-profile/public-profile?profileId={{result.target.profileId}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{result && result.status === 'found' && !busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/school-identity-management/school-identity-management"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/profile/profile"
+        },
+        "ancestors": []
+      }
+    ],
+    "official-account-operations": [
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{programInput}}",
+          "bindinput": "onProgram",
+          "maxlength": "36"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onLoadProgram",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancel",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{status && status.nextAction === 'resume_same_key'}}",
+          "bindtap": "onResume",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{author}}",
+          "bindinput": "onAuthor",
+          "maxlength": "64",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-purpose": "cover",
+          "data-action": "keep",
+          "bindtap": "onArtwork",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-purpose": "cover",
+          "data-action": "clear",
+          "bindtap": "onArtwork",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "data-purpose": "cover",
+          "value": "{{coverAppearanceId}}",
+          "bindinput": "onAppearance",
+          "maxlength": "36",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-purpose": "title",
+          "data-action": "keep",
+          "bindtap": "onArtwork",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-purpose": "title",
+          "data-action": "clear",
+          "bindtap": "onArtwork",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "data-purpose": "title",
+          "value": "{{titleAppearanceId}}",
+          "bindinput": "onAppearance",
+          "maxlength": "36",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSave",
+          "disabled": "{{busy || pending || !capabilities.canManage}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onPreview",
+          "disabled": "{{busy || pending || !capabilities.canPreview}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onTestPreview",
+          "disabled": "{{busy || pending || !capabilities.canTest}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{config}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{preview.kind === 'test'}}",
+          "bindtap": "onCreateTest",
+          "disabled": "{{busy || pending || !preview.actions.createDraft}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{preview}}"
+          }
+        ]
+      }
+    ],
+    "announcement-edit": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCancelOriginal",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-target": "{{item.announcementId}}",
+          "data-slot": "{{item.slot}}",
+          "data-revision": "{{item.revision}}",
+          "data-action": "recover",
+          "bindtap": "onPendingImage",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{pendingImages}}",
+            "wx:key": "index"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-target": "{{item.announcementId}}",
+          "data-slot": "{{item.slot}}",
+          "data-revision": "{{item.revision}}",
+          "data-action": "cancel",
+          "bindtap": "onPendingImage",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{pendingImages}}",
+            "wx:key": "index"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{state === 'draft' && management === 'none'}}",
+          "data-action": "cancel_draft",
+          "bindtap": "onCommand",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{form.versionLabel}}",
+          "data-field": "versionLabel",
+          "bindinput": "onField",
+          "maxlength": "-1",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{form.bodyText}}",
+          "data-field": "bodyText",
+          "bindinput": "onField",
+          "maxlength": "-1",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "picker",
+        "attrs": {
+          "mode": "date",
+          "value": "{{form.announcementDate}}",
+          "data-field": "announcementDate",
+          "bindchange": "onField",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "checked": "{{form.popupEnabled}}",
+          "data-field": "popupEnabled",
+          "bindchange": "onField",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "checked": "{{form.highlight}}",
+          "data-field": "highlight",
+          "bindchange": "onField",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onAll",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{search}}",
+          "bindinput": "onSearch"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onFindRegions",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{management === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onRegion",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{management === 'global'}}"
+          },
+          {
+            "wx:for": "{{regions}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!id}}",
+          "data-action": "create",
+          "bindtap": "onCommand",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onUpload",
+          "disabled": "{{busy || upload.status === 'working'}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{id}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.configured}}",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onRemove",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{id}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.configured && !item.changed}}",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onPreview",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{id}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{state === 'draft'}}",
+          "data-action": "save",
+          "bindtap": "onCommand",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{state === 'draft'}}",
+          "data-action": "publish",
+          "bindtap": "onCommand",
+          "disabled": "{{busy || dirty}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{state === 'draft'}}",
+          "data-action": "cancel_draft",
+          "bindtap": "onCommand",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{state === 'active' || state === 'inactive'}}",
+          "data-action": "update",
+          "bindtap": "onCommand",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{state === 'active'}}",
+          "data-action": "set_enabled",
+          "data-enabled": "false",
+          "bindtap": "onCommand",
+          "disabled": "{{busy || dirty}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{state === 'inactive'}}",
+          "data-action": "set_enabled",
+          "data-enabled": "true",
+          "bindtap": "onCommand",
+          "disabled": "{{busy || dirty}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded && management !== 'none' && !pending}}"
+          },
+          {
+            "wx:if": "{{id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      }
+    ],
+    "announcement-manage": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{management !== 'none'}}",
+          "bindtap": "onNew",
+          "disabled": "{{busy || pending}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{pending}}",
+          "bindtap": "onRecovery"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onEdit",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{more}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      }
+    ],
+    "errand-admin": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "disabled": "{{busy || adminCommand.busy}}",
+          "loading": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{access === 'global'}}",
+          "url": "/pages/errand-restrictions/errand-restrictions"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{regionInput}}",
+          "bindinput": "onRegion",
+          "bindconfirm": "onSelectRegion",
+          "maxlength": "36"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{access === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSelectRegion",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{access === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{keywordDraft}}",
+          "bindinput": "onKeyword",
+          "bindconfirm": "onSearch",
+          "maxlength": "200"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{(access === 'fixed' || access === 'global') && regionId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearch",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{(access === 'fixed' || access === 'global') && regionId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{statusOptions}}",
+          "wx:key": "value",
+          "data-value": "{{item.value}}",
+          "bindtap": "onStatus"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{(access === 'fixed' || access === 'global') && regionId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.relation === 'publisher'}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onOwnerOrder",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{!item.deletedAt}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onAdminDelete",
+          "disabled": "{{busy || adminCommand.busy || adminCommand.frozen}}",
+          "wx:else": ""
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{!item.deletedAt}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.accepter && (item.state === 'accepted' || item.state === 'completed')}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onAdminRestrictAccepter",
+          "disabled": "{{busy || adminCommand.busy || adminCommand.frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{!item.deletedAt}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canPrevious}}",
+          "bindtap": "onPrevious",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "bindtap": "onNext",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      }
+    ],
+    "errand-restrictions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onIssue",
+          "disabled": "{{busy || !loaded || adminCommand.busy || adminCommand.frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{access === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{profileDraft}}",
+          "bindinput": "onProfile",
+          "bindconfirm": "onSearch",
+          "maxlength": "36"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{access === 'global'}}"
+          },
+          {
+            "wx:if": "{{mode === 'list'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSearch",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{access === 'global'}}"
+          },
+          {
+            "wx:if": "{{mode === 'list'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-value": "",
+          "bindtap": "onActionFilter"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{access === 'global'}}"
+          },
+          {
+            "wx:if": "{{mode === 'list'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{actionOptions}}",
+          "wx:key": "value",
+          "data-value": "{{item.value}}",
+          "bindtap": "onActionFilter"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{access === 'global'}}"
+          },
+          {
+            "wx:if": "{{mode === 'list'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{stateOptions}}",
+          "wx:key": "value",
+          "data-value": "{{item.value}}",
+          "bindtap": "onState"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{access === 'global'}}"
+          },
+          {
+            "wx:if": "{{mode === 'list'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{mode === 'history'}}",
+          "bindtap": "onBackToList"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{access === 'global'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.restrictionId}}",
+          "bindtap": "onHistory",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{mode === 'list'}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "restrictionId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.state === 'active'}}",
+          "data-id": "{{item.restrictionId}}",
+          "bindtap": "onRelease",
+          "disabled": "{{busy || adminCommand.busy || adminCommand.frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{mode === 'list'}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "restrictionId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{restriction.state === 'active'}}",
+          "data-id": "{{restriction.restrictionId}}",
+          "bindtap": "onRelease",
+          "disabled": "{{busy || adminCommand.busy || adminCommand.frozen}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{mode === 'history' && restriction}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canPrevious}}",
+          "bindtap": "onPrevious",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "bindtap": "onNext",
+          "disabled": "{{busy || adminCommand.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      }
+    ]
+  },
+  "sharedTemplates": {
+    "errands/admin-command.wxml": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onAdminRecover",
+          "disabled": "{{command.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{command.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onAdminRetry",
+          "disabled": "{{command.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{command.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{command.busy}}",
+          "bindtap": "onAdminCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "checked": "{{command.publisherRestriction}}",
+          "bindchange": "onAdminPublisherRestriction",
+          "disabled": "{{command.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{command.modal}}"
+          },
+          {
+            "wx:if": "{{command.modal.operation === 'admin_delete'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{command.targetProfileId}}",
+          "bindinput": "onAdminTarget",
+          "maxlength": "36",
+          "disabled": "{{command.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{command.modal}}"
+          },
+          {
+            "wx:if": "{{command.modal.operation === 'issue'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{actionOptions}}",
+          "wx:key": "value",
+          "data-value": "{{item.value}}",
+          "bindtap": "onAdminAction",
+          "disabled": "{{command.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{command.modal}}"
+          },
+          {
+            "wx:if": "{{command.modal.operation === 'issue'}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{command.reason}}",
+          "bindinput": "onAdminReason",
+          "maxlength": "-1",
+          "disabled": "{{command.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{command.modal}}"
+          }
+        ]
+      },
+      {
+        "tag": "picker",
+        "attrs": {
+          "range": "{{durationLabels}}",
+          "value": "{{command.durationIndex === -1 ? 0 : command.durationIndex}}",
+          "bindchange": "onAdminDuration",
+          "disabled": "{{command.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{command.modal}}"
+          },
+          {
+            "wx:if": "{{command.modal.operation === 'issue' || command.modal.operation === 'restrict_accepter' || command.publisherRestriction}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onAdminConfirm",
+          "disabled": "{{command.busy || command.frozen}}",
+          "loading": "{{command.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{command.modal}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onAdminDismiss"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{command.modal}}"
+          }
+        ]
+      }
+    ]
+  },
+  "protectedHashes": {
+    "school-admin-management/contract.ts": "28bdc9369c2bd6a0aaf11e4faff353f46c09b9f0702228d2f0cce671f7d876a5",
+    "school-admin-management/controller.ts": "ee5ec368e4858d2982a4dfaf51afcb618093cdd61f72a598e06680bb3df166d8",
+    "school-admin-management/gateway.ts": "dd17f1605ecb1e05256092521c643391855adc68369008e5a09ea4bb4880349f",
+    "school-admin-management/pending.ts": "b330d17d7e9a1cd12565f3a746d36b52b0e8c67a5ad06674b5785c085a8cdbe4",
+    "school-configuration/admin-controller.ts": "4f8a44d648ff000531668bb6ab2420bc83d898a8ceb6e47d9a9c3ca79990493f",
+    "school-configuration/contract.ts": "21e304b1a8494c8d25c2fc5671e6ef7b87b4aae3d9ef0491462ee90584766a2b",
+    "school-configuration/gateway.ts": "40bf39861b7b0c5be3725098ed35e1e54aa92136b16f2226c9901c69e5189530",
+    "school-configuration/pending.ts": "c789b1226b1908e38cb10c5b6ba3be003ddde5186e807d59e548c0977b4b9d35",
+    "school-configuration/public-controller.ts": "4fbe1bcef00a1c4e8dde78c0fc43cdfe9935485fead88b91442391d18750d82d",
+    "school-configuration/qr-contract.ts": "a554ff19403efad9e9115b57e25beadd66fc197aeb2b9fa9e8c91fd1df908708",
+    "school-configuration/qr-download.ts": "e0b7e6b9934bfba42f10220cf9cf6c1f7c28cd9512ebfaa03780c12653af3f48",
+    "school-configuration/qr-gateway.ts": "fe932afcdcaa6c12a661c3c27191dbaeb600c19c6cabdfd9134986ba8a7369ff",
+    "school-configuration/qr-runtime.ts": "eb83da1df952d33f6ef88ea5a8105183a54674fa65081001c32499db52c53dd6",
+    "school-configuration/qr-upload.ts": "5c8a32e939c8af23c47fdb0bcf2deccd44832171558c1da573594398bb7f8635",
+    "school-identity/contract.ts": "a254c8c5a2d29388b70572ddf6908f83d8c94e8944fb7c8e4ecadbdabf302a7b",
+    "school-identity/controller.ts": "97f39765d5c6fe1c16c75cb68313472fb89fa178c526db1b8f1c0a49d6228deb",
+    "school-identity/gateway.ts": "18a938589926d0eb5db6c0d9970c4274263a22b699ed5edbb58363cf1536fca1",
+    "school-identity/pending.ts": "2ca14d500939bfaa479424592d2d791f9ed11b00b718958d6292e41c4ed9dd18",
+    "school-posting-policy/contract.ts": "b0bb2895cb99c4434df93ace1554abf2814e53db0d0f34e424ee7a5d1dd92502",
+    "school-posting-policy/controller.ts": "ff3e1c21e9b71cff1baec233bbfa3f8e8262b5da77df729984539b82708a6508",
+    "school-posting-policy/gateway.ts": "f878f35bfbc2846a48f8c0342b158b76b3db3cb8297adc1f22b0c4e0edbee113",
+    "school-posting-policy/pending.ts": "cca8b4f5667253b956ce9474b0034ac4051bf34fcf9f1f650b30e3770248d909",
+    "school-uid/contract.ts": "0a1f40b58cf626605cb73a29ab6277c7486f5a980848f6080abc7d419e819075",
+    "school-uid/controller.ts": "e57f47471d5a1a003d5378ba31b1cca64005e83a2b70e69205b290f66d7f0892",
+    "school-uid/gateway.ts": "a94f15e002d1540a9fb09567a7c21d11552ce4cf42486448f0f75337cd6934ff",
+    "official-account-operations/contracts.ts": "41d9dd21c2ec40974a95c186823155904e10304a200f549f88494c168346da0d",
+    "official-account-operations/controller.ts": "e61b1051644dadbdbabcb18453fec0d5701b22644ff32e19fcd2238a9d4b87b1",
+    "official-account-operations/gateway.ts": "39247fb796bd8c15a1f937de7e3606813179f0115555a4dc93e4999dfd8a0b1b",
+    "official-account-operations/journal.ts": "293e02657da6a579cef0bd5cf84da4fa7aecc02debdf980a41e305c4f59ecd4e",
+    "announcements/authoring/contract.ts": "6309db93d81e77f9716425d51813bc38ba0665646f61f3f8f53bbb1863ea79f2",
+    "announcements/authoring/controller.ts": "29e3a1b54f67668773f0342ef86a66b3bff1d5286077da7a3fe0998c37050db1",
+    "announcements/authoring/gateway.ts": "77b4c387d6f447aa243237a9599a30e9b6f76ab234540c047d3a034bc2060e4b",
+    "announcements/authoring/pending.ts": "1acd6dfa6c553143c0a3fd9d9f8b87e61c18e922b235333d98e798f0ba308369",
+    "errands/admin-authority.ts": "16344152866a1d304ab164c3d26b9974e1e2083350d6285ef5c937b7e9bffcfd",
+    "errands/admin-command-contract.ts": "9ae2446d6a1b2980d24afe6e4abfa5ba4979d50daaf23ffb0352cae656de01c6",
+    "errands/admin-command-controller.ts": "c105c88bedfc4add4d6add4b45b5c4bf6c2be16a9e6c294d9c554c69decda0ea",
+    "errands/admin-command-gateway.ts": "4793067723a675e1acb7758e1d4e44e8d2ef07638b4f616cb0b96c7173372e1c",
+    "errands/admin-command-page.ts": "db4e844ce7d5d95a8e3c831ccf487026268c239bed7f4f82d308e2468ed0584e",
+    "errands/admin-contract.ts": "007f3eaebd7613be1101245aa63797297e0079e180b115355b43629808eacc4e",
+    "errands/admin-controller.ts": "db59c0b7a41adda9af8bbf38dd2c9369d52b1e2f1202e92bcdb14d7b9e5a5af6",
+    "errands/admin-entry.ts": "96e205245aac4a2f642d94c16dc575d4607dad0fb77c2f638b6ab40ecffc2973",
+    "errands/admin-gateway.ts": "ec7883afc62a3762f4f618705d16d4fb6ff744e75a9e9bf8e2709d7a5f35fd54",
+    "errands/admin-notice-contract.ts": "b29d3b0dd6addb4b9bc66aad38fff9ddeb21004bbca297c67569af96bfaee907",
+    "errands/admin-pending.ts": "4fa5f8f1456edc463dfdfeef14802b377af3933ce0f415b5f72c735a7e6f751d",
+    "errands/admin-runtime.ts": "a6627205f66b7d220d965ce4a09f78152d487a3bf30733535b3217b57b75da3a",
+    "errands/admin-time.ts": "2aa4da0137d40037bdbcc1ed990ca5a9abde5a839ab81fb3aec2c2ee8238759f",
+    "errands/restriction-contract.ts": "52d58fd68982f3675bd491385a5d96ae8d4e53054d90a442cff1dda5cae27da0",
+    "errands/restriction-controller.ts": "b4886cf5a53416e3e70c77aabef371b5ecaeed2ffaedddf2be4ac221badd194f",
+    "errands/admin-command.wxml": "fef5a5d88bb6255b5a8bb58d9c253dfb4b27098ed8595a39afb36c91851b8a14"
+  },
+  "registrars": {
+    "school-admin-management": {
+      "before": "ed2de2b04335e04647a150241ed2aae1b144ae7ad472756fdca0f0387f818e7e",
+      "after": "7c64e744bf4b8ccbbb0c84c29dbe4d2b1a6b90ed3d31f8b0087032202ce8c71f",
+      "baselineTokens": "b9098b7bc824217c17a62614f0271c80ac9d6a50e6999687400902ff57242e68"
+    },
+    "school-configuration": {
+      "before": "85b6d0434a706c8ff0a82a7eaecdc4958547e68b2ee934da36f4b7d514fb372d",
+      "after": "aefdfecbb9dbb83b18dab2252cad92e4598dc632a3b3061156a5871a56b935ac",
+      "baselineTokens": "f90fa717d897fd0203db0682e06789dad3fa5332c09092c5560df842f267745c"
+    },
+    "school-identity-management": {
+      "before": "c700c47fc99b6aab55cf3457002c5ea307498b148094e10d70552a646916b5b7",
+      "after": "dedfee8cd5a6ceb57429cf5b5f4d90fc31fa2bb104ca84aecc92e004de8cc28e",
+      "baselineTokens": "2bcb517c0aabdc816d592a1646266d8303c5e69c31e1ea16a1d322891a9295a3"
+    },
+    "school-posting-policy": {
+      "before": "51aa43683911a03977d73cd24a211f7ca0e4e0f3983df3105bcd9079452719d6",
+      "after": "f9991d54d16fb1486a6bad5da2a860e5933b3bb40d5f3c6f946b28c3cf47ecd5",
+      "baselineTokens": "964f3171a75c09d065e9abf44363dae62a4dadacc8ca7b43400aaf0536c7092b"
+    },
+    "school-uid-lookup": {
+      "before": "8b457466705192f85107633556ef54826851a1cf070d737866fbdec6f1ffe49f",
+      "after": "62caca99289a6e6e3f509b7ce36ea596790e1d7a9951020688b643624e58a81f",
+      "baselineTokens": "458daee541c478714f8294414e9dd209a9bdba67bafcc6b916fd37f81250010b"
+    },
+    "official-account-operations": {
+      "before": "2ee50bddfd8e90c60d1f233abbc9a33c15e3e012a033056e3d19613fa5f5dce1",
+      "after": "5ae1b898ed5db51a2ee61aa64ad1acadcb468844d356f71d8c6759e5aeceaf02",
+      "baselineTokens": "e010440fb9b6b827d341a93017a887a4ec10885bdddf9bd7a36a028dcbaccbdc"
+    },
+    "announcement-edit": {
+      "before": "3bac06554962f1a894484132c4909d5e7df2740faec19c62caef7f13b2ae7b68",
+      "after": "a57a151e17bcde8e674f971e102ffd3e25315346a4d60b12ee3c065589c17a1f",
+      "baselineTokens": "5512dd86403ec680d945df5554d351f90ba6f6572b9c6afff86bf71e1dd8109c"
+    },
+    "announcement-manage": {
+      "before": "a9e5498fc0d389f9a5a4bbc0b9a259451e2d4b2c9ce6332669421652bcb3b1c3",
+      "after": "e32e2234a026190157c29b006ec647ef576b2dc22f9450a0b351731c8190495d",
+      "baselineTokens": "2b37ba46d27748129676aad2ac551a93bb01642a2333b00ae7a0ad55bb483d55"
+    },
+    "errand-admin": {
+      "before": "de81f9907a994cb86dd78c9f98489eeeb895d176dab4f5257f8c3ad63b476e15",
+      "after": "68c13ee4d9e5bfb17406c35285a2f441b2421acf198bc60c3cb9815547885be8",
+      "baselineTokens": "49909947969a265f88d37b047fc2ffb50bf40c7be728233723a1fe967d7215cf"
+    },
+    "errand-restrictions": {
+      "before": "dcf067c7592826faa13c29267f6c78b999b3fe3b6f56d9fcaf365e742dae1d63",
+      "after": "95f49538da0f668acc92f830db00dcefd23461812ac8b6634f0c4f09e4c9f884",
+      "baselineTokens": "70ebdad4e645e7ba5ee43817e5f557e0a785bbbcba591392dee66613552e3281"
+    }
+  }
+}

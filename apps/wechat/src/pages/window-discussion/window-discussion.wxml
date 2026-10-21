@@ -1,10 +1,57 @@
-<import src="../../window-discussion/common.wxml" />
-<view class="screen"><view class="eyebrow">WHALEU · 窗口讨论</view><view class="title">窗口讨论</view>
-<template is="discussion-status" data="{{status,error,receiptStatus,hasSession,busy,frozen,recoveryWindowId,recoveryOperation,recoveryCommentId,recoveryPhase,confirming}}" />
-<view class="actions"><button data-sort="likes" bindtap="onSort" disabled="{{busy}}">赞数优先 {{sort === 'likes' ? '✓' : ''}}</button><button data-sort="time" bindtap="onSort" disabled="{{busy}}">最新优先 {{sort === 'time' ? '✓' : ''}}</button></view>
-<block wx:if="{{loaded}}"><view class="meta">共 {{totalCount}} 条评论 · 第 {{pageNumber}} 页</view><template wx:for="{{items}}" wx:key="id" is="discussion-item" data="{{item,mode,busy,frozen,confirming,focusCommentId,imageBusy}}" /><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button></block>
-<template is="discussion-form" data="{{loaded,frozen,mode,busy,confirming,replyTarget,body,bodyBytes,canPublish,selectedComment,imageEnabled,imageCount,imageBusy,imageFrozen}}" />
-<navigator class="link" url="/pages/window-discussion-recovery/window-discussion-recovery">独立回执恢复与自己的点赞 →</navigator><navigator class="link" url="/pages/window-discussion-notices/window-discussion-notices">窗口回复 / 赞通知 →</navigator><view class="notice">使用公开昵称发表文字或最多 3 张图片。三图上限是本版本的新策略；匿名、删除、所属机构标签与奖励未开放。窗口创建者身份未确认，不发送根评论创建者通知。</view></view>
-
-<template is="discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" />
-<template is="discussion-gallery" data="{{galleryOpen,gallerySrc,galleryStatus,galleryIndex,galleryCount}}" />
+<!-- Native Framework7 v9.2.0 presentation; existing Page and controller ownership is unchanged. -->
+<import src="../../window-discussion/framework7-product.wxml" />
+<view class="screen discussion-product has-dock f7-ios-theme f7-discussions">
+  <view class="discussion-toolbar">
+    <view class="discussion-tabs">
+      <wu-f7-button class="{{sort === 'likes' ? 'selected' : ''}}" data-sort="likes" disabled="{{busy}}" bind:press="onSort" variant="{{sort === 'likes' ? 'tonal' : 'plain'}}">
+        热门
+      </wu-f7-button>
+      <wu-f7-button class="{{sort === 'time' ? 'selected' : ''}}" data-sort="time" disabled="{{busy}}" bind:press="onSort" variant="{{sort === 'time' ? 'tonal' : 'plain'}}">
+        最新
+      </wu-f7-button>
+    </view>
+    <wu-f7-button class="discussion-icon-button" aria-label="更多讨论选项" bind:press="onToggleTools" variant="plain">
+      <wu-icon name="more" size="24" />
+    </wu-f7-button>
+  </view>
+  <template is="product-discussion-status" data="{{status,error,receiptStatus,hasSession,busy,frozen,recoveryWindowId,recoveryOperation,recoveryCommentId,recoveryPhase,confirming,loaded,restartRequired,uiPanel}}" />
+  <view wx:if="{{uiPanel === 'tools'}}" class="discussion-tools">
+    <navigator class="discussion-tool" url="/pages/window-discussion-recovery/window-discussion-recovery">
+      <wu-icon name="refresh" size="20" />
+      操作记录与恢复
+      <wu-icon name="chevron-right" size="17" />
+    </navigator>
+    <navigator class="discussion-tool" url="/pages/window-discussion-notices/window-discussion-notices">
+      <wu-icon name="bell" size="20" />
+      回复与赞通知
+      <wu-icon name="chevron-right" size="17" />
+    </navigator>
+  </view>
+  <template wx:if="{{!((loaded &amp;&amp; !frozen &amp;&amp; uiPanel === 'compose' &amp;&amp; !confirming) || confirming === 'publish' || (confirming === 'like' &amp;&amp; selectedComment))}}" is="product-discussion-image-state" data="{{imageEnabled,imageStatus,imagePending,imageBusy,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm,busy}}" />
+  <block wx:if="{{loaded}}">
+    <view wx:if="{{totalCount !== null}}" class="discussion-list-count">
+      {{totalCount}} 个主题
+    </view>
+    <template wx:for="{{items}}" wx:key="id" is="product-discussion-item" data="{{item,mode,busy,frozen,confirming,focusCommentId,imageBusy,timeLabels}}" />
+    <wu-f7-block wx:if="{{totalCount === 0 &amp;&amp; items.length === 0}}" class="discussion-empty" spacing="compact">
+      <wu-icon name="message" size="36" />
+      <view class="discussion-section-title">
+        还没有主题
+      </view>
+      <view class="discussion-meta">
+        分享你的用餐体验，聊聊今天吃什么。
+      </view>
+    </wu-f7-block>
+    <wu-f7-button class="discussion-text-button discussion-next" wx:if="{{canNext}}" disabled="{{busy}}" bind:press="onNext" variant="plain">
+      下一页
+    </wu-f7-button>
+  </block>
+  <view wx:if="{{loaded &amp;&amp; !frozen}}" class="discussion-dock">
+    <wu-f7-button class="discussion-primary" disabled="{{busy || imageBusy || imageFrozen || confirming}}" bind:press="onOpenComposer" variant="fill" size="large">
+      <wu-icon name="edit" tone="inverse" size="20" />
+      发布主题
+    </wu-f7-button>
+  </view>
+  <template is="product-discussion-form" data="{{loaded,frozen,mode,busy,confirming,replyTarget,body,bodyBytes,canPublish,selectedComment,imageEnabled,imageCount,imageBusy,imageFrozen,uiPanel,imageStatus,imagePending,imageProgress,imageRequestId,imageRecoverable,imageCancelConfirm}}" />
+  <template is="product-discussion-gallery" data="{{galleryOpen,gallerySrc,galleryStatus,galleryIndex,galleryCount}}" />
+</view>

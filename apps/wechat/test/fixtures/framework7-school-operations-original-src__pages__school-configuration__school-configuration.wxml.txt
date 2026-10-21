@@ -1,0 +1,162 @@
+<view class="screen ops-page ops-school-configuration">
+  <view class="ops-context">
+    <view class="ops-context-icon">
+      <wu-icon name="settings" size="23" tone="accent" />
+    </view>
+    <view class="ops-context-title">
+      校园服务与联系
+    </view>
+  </view>
+  <view class="hint">
+    {{regionName || '管理范围由真实授权决定'}}
+  </view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">
+    {{error}}
+  </view>
+  <view wx:if="{{status}}" class="hint">
+    {{status}}
+  </view>
+  <view wx:if="{{pending}}" class="card ops-section ops-recovery">
+    <view class="card-title">
+      恢复原保存请求
+    </view>
+    <view class="hint">
+      关闭页面不会自动取消服务端保存。先查询原请求结果，再决定是否同键重试。
+    </view>
+    <button bindtap="onRecover" disabled="{{busy}}">
+      查询保存结果
+    </button>
+    <button bindtap="onRetry" disabled="{{busy}}">
+      查询并重试原请求
+    </button>
+    <button bindtap="onCancelPending" disabled="{{busy}}">
+      取消尚未提交的原请求
+    </button>
+  </view>
+  <view wx:if="{{management === 'global'}}" class="card ops-section">
+    <view class="card-title">
+      选择目标学校
+    </view>
+    <input placeholder="搜索学校名称" value="{{campusQuery}}" bindinput="onCampusQuery" maxlength="100" disabled="{{busy || pending || qrUpload.status === 'working'}}" />
+    <button bindtap="onSearchCampus" disabled="{{busy || pending || qrUpload.status === 'working'}}">
+      搜索可管理学校
+    </button>
+    <button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onChooseCampus" disabled="{{busy || pending || !item.isActive}}" class="ops-choice ops-search-result">
+      {{item.fullName}}
+    </button>
+  </view>
+  <button bindtap="onRefresh" loading="{{busy}}" disabled="{{busy || pending || qrUpload.status === 'working'}}" class="ops-quiet">
+    重新读取当前配置
+  </button>
+  <view wx:if="{{loaded}}" class="card ops-section">
+    <button wx:for="{{entries}}" wx:key="entryKey" data-key="{{item.entryKey}}" bindtap="onChooseEntry" disabled="{{busy || pending || qrUpload.status === 'working'}}" class="ops-choice ops-entry">
+      {{item.label}} · {{item.state === 'configured' ? '已配置' : item.state === 'disabled' ? '已停用' : item.state === 'partial' ? '待完善' : '未配置'}}
+    </button>
+  </view>
+  <view wx:if="{{form}}" class="card ops-section">
+    <view class="card-title">
+      {{selectedLabel}}
+    </view>
+    <view class="hint">
+      版本 {{revision}} · 保存时再次检查当前权限与版本
+    </view>
+    <view class="ops-switch-row">
+      启用
+      <switch checked="{{form.enabled}}" data-field="enabled" bindchange="onField" disabled="{{busy || pending || qrUpload.status === 'working'}}" />
+    </view>
+    <block wx:if="{{form.kind !== 'admin'}}">
+      <label>
+        名称
+      </label>
+      <input value="{{form.name}}" data-field="name" bindinput="onField" maxlength="100" disabled="{{busy || pending || qrUpload.status === 'working'}}" />
+      <label>
+        说明
+      </label>
+      <textarea value="{{form.description}}" data-field="description" bindinput="onField" maxlength="500" disabled="{{busy || pending || qrUpload.status === 'working'}}" />
+    </block>
+    <block wx:if="{{form.kind === 'group'}}">
+      <label>
+        官方入群链接
+      </label>
+      <input value="{{form.joinUrl}}" data-field="joinUrl" bindinput="onField" maxlength="1000" placeholder="HTTPS 微信 / QQ 官方链接" disabled="{{busy || pending || qrUpload.status === 'working'}}" />
+      <label>
+        QQ群号
+      </label>
+      <input value="{{form.qqGroupNumber}}" data-field="qqGroupNumber" bindinput="onField" maxlength="32" disabled="{{busy || pending || qrUpload.status === 'working'}}" />
+      <label>
+        群序号上限（选填，1–999）
+      </label>
+      <input value="{{form.maxGroupNumber}}" data-field="maxGroupNumber" bindinput="onField" type="number" disabled="{{busy || pending || qrUpload.status === 'working'}}" />
+    </block>
+    <block wx:if="{{form.kind === 'admin'}}">
+      <label>
+        管理员微信号
+      </label>
+      <input value="{{form.wechatId}}" data-field="wechatId" bindinput="onField" maxlength="100" disabled="{{busy || pending || qrUpload.status === 'working'}}" />
+    </block>
+    <button class="ops-disclosure" data-panel="qr" bindtap="onToggleUiPanel" aria-expanded="{{uiPanel === 'qr'}}">
+      <text>
+        二维码与上传
+      </text>
+      <wu-icon name="{{uiPanel === 'qr' ? 'chevron-up' : 'chevron-down'}}" size="17" tone="muted" />
+    </button>
+    <view wx:if="{{uiPanel === 'qr' || qrUpload.status !== 'idle' || qrRead.status !== 'idle'}}" class="ops-details">
+      <view class="hint">
+        {{qrStatus}}
+      </view>
+      <view class="hint">
+        {{qrUpload.message}}
+      </view>
+      <progress wx:if="{{qrUpload.status === 'working'}}" percent="{{qrUpload.progress}}" />
+      <button bindtap="onPickQr" disabled="{{busy || pending || qrUpload.status === 'working'}}">
+        选择并上传新二维码
+      </button>
+      <button bindtap="onRecoverQr" disabled="{{busy || pending || qrUpload.status === 'working'}}" class="ops-quiet">
+        恢复原二维码上传
+      </button>
+      <button bindtap="onCancelQr" disabled="{{busy || pending}}" class="ops-quiet">
+        清理或撤回原二维码上传
+      </button>
+      <button bindtap="onPreviewQr" disabled="{{busy || pending || qrUpload.status === 'working'}}">
+        预览已发布二维码
+      </button>
+      <view wx:if="{{qrRead.status !== 'idle'}}">
+        <view class="hint">
+          {{qrRead.message}}
+        </view>
+        <image wx:if="{{qrRead.src}}" src="{{qrRead.src}}" mode="widthFix" class="qr-image" />
+        <button bindtap="onCloseQr" class="ops-quiet">
+          关闭预览
+        </button>
+      </view>
+      <button bindtap="onKeepQr" disabled="{{busy || pending || qrUpload.status === 'working'}}" class="ops-quiet">
+        保留原二维码
+      </button>
+      <button bindtap="onRemoveQr" disabled="{{busy || pending || qrUpload.status === 'working'}}" class="ops-destructive">
+        清除二维码
+      </button>
+    </view>
+    <button class="primary ops-primary" bindtap="onSave" loading="{{busy}}" disabled="{{busy || pending || qrUpload.status === 'working'}}">
+      保存并发布这一项
+    </button>
+  </view>
+  <view class="footnote">
+    内部审核群不会出现在公开学校服务中。禁用后公开入口立即隐藏；公众号密钥、推送参数和真实消息投递不在此页配置。
+  </view>
+  <view class="ops-related">
+    <navigator url="/pages/official-account-operations/official-account-operations" class="ops-link">
+      公众号草稿配置与合成测试
+      <wu-icon name="chevron-right" size="17" tone="muted" />
+    </navigator>
+    <view wx:if="{{management !== 'none' &amp;&amp; !busy &amp;&amp; !pending}}">
+      <navigator wx:if="{{regionId}}" url="/pages/school-posting-policy/school-posting-policy?regionId={{regionId}}" class="ops-link">
+        管理学校发帖权限
+        <wu-icon name="chevron-right" size="17" tone="muted" />
+      </navigator>
+      <navigator url="/pages/school-posting-policy/school-posting-policy" wx:else class="ops-link">
+        管理学校发帖权限
+        <wu-icon name="chevron-right" size="17" tone="muted" />
+      </navigator>
+    </view>
+  </view>
+</view>

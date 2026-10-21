@@ -1,0 +1,339 @@
+{
+  "private-message-list": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/private-message-recovery/private-message-recovery"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReload",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      }
+    },
+    {
+      "tag": "view",
+      "attrs": {
+        "data-id": "{{item.conversation.id}}",
+        "bindlongpress": "onHideConversation"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/private-message-detail/private-message-detail?conversationId={{item.conversation.id}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.conversation.id}}",
+        "bindtap": "onHideConversation",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMore}}",
+        "bindtap": "onMore",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmHide",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismiss"
+      }
+    }
+  ],
+  "private-message-detail": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onOpen",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{conversation.peer.mode === 'named' &amp;&amp; conversation.peer.profileId}}",
+        "bindtap": "onProfile",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{conversation.source &amp;&amp; conversation.source.available}}",
+        "bindtap": "onSource",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-kind": "{{conversation.hidden ? 'reopen' : 'hide'}}",
+        "bindtap": "onAction",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!conversation.blockedByYou}}",
+        "data-kind": "block",
+        "bindtap": "onAction",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{!needsOpen}}",
+        "bindtap": "onReload",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{browsingOlder || hasNewMessages}}",
+        "bindtap": "onLatest",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canMore}}",
+        "bindtap": "onMore",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.state === 'image'}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onShowImage",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.state === 'text'}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onCopy",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{item.canRecall}}",
+        "data-kind": "recall",
+        "data-id": "{{item.id}}",
+        "bindtap": "onAction",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{text}}",
+        "maxlength": "-1",
+        "bindinput": "onText",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSend",
+        "disabled": "{{busy || pending || !canSend || !text}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onImageAlbum",
+        "disabled": "{{busy || pending || !canSend}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onImageCamera",
+        "disabled": "{{busy || pending || !canSend}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canReedit}}",
+        "bindtap": "onReedit",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirm",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismiss"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/private-message-recovery/private-message-recovery"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/private-message-list/private-message-list"
+      }
+    }
+  ],
+  "private-message-recovery": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReceipt",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canRetry}}",
+        "bindtap": "onRetry",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRequestCancel",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canReedit}}",
+        "bindtap": "onReedit",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{draftText}}",
+        "maxlength": "-1",
+        "bindinput": "onDraftText",
+        "disabled": "{{busy || pending}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSendDraft",
+        "disabled": "{{busy || pending || !draftText}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDiscardDraft",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmCancel",
+        "disabled": "{{busy}}"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onDismissCancel"
+      }
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancel"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{conversationId}}",
+        "url": "/pages/private-message-detail/private-message-detail?conversationId={{conversationId}}"
+      }
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/private-message-list/private-message-list"
+      }
+    }
+  ]
+}

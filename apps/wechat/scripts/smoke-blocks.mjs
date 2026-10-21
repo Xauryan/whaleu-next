@@ -1,3 +1,4 @@
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -294,13 +295,26 @@ export async function smokeNamedBlocks({
     rootCommentId: rootId,
   });
   const own = mountPage(route('community-blocks'), {});
+  const ownBridge = createNativePressBridge({
+    page: own,
+    pageFile: path.join(dist, 'pages/community-blocks/community-blocks'),
+    dist,
+  });
+  const ownPress = (handler, dataset = {}) => {
+    const control = ownBridge.capture(handler, dataset);
+    try {
+      return control.press();
+    } finally {
+      control.detach();
+    }
+  };
   await flush();
   assert.equal(feed.data.posts.length, 3);
   assert.equal(detail.data.comments.length, 1);
   assert.equal(thread.data.replies.length, 1);
   assert.equal(own.data.items.length, 1);
   assert.equal(own.data.canLoadMore, true);
-  own.onMore();
+  ownPress('onMore');
   await flush();
   assert.equal(own.data.items.length, 2);
   assert.equal(reads.at(-1).cursor, 'synthetic-next');
@@ -315,7 +329,7 @@ export async function smokeNamedBlocks({
   };
   await own.onPullDownRefresh();
   assert.equal(stoppedRefresh, 1);
-  own.onMore();
+  ownPress('onMore');
   await flush();
 
   // Menus resolve current page DTOs, never public profile IDs or private account IDs.
@@ -369,23 +383,24 @@ export async function smokeNamedBlocks({
   assert.equal(thread.data.block.frozen, false);
 
   // Owner cleanup works without loading the removed target's content or profile.
-  own.onMore();
+  ownPress('onMore');
   await flush();
   deferWrite = true;
-  own.onUnblock(tap(removedId));
-  own.onUnblock(tap(snapshotId));
+  ownPress('onUnblock', { id: removedId });
+  assert.equal(ownPress('onUnblock', { id: snapshotId }), false);
+  own.onUnblock(tap(snapshotId)); // Negative controller probe remains independent of the UI guard.
   await flush();
   assert.equal(writes.length, 2);
   assert.equal(own.data.block.activeRelationshipId, removedId);
   assert.equal(own.data.block.busy, true);
   assert.equal(writes[1].route, `/v1/me/safety/blocks/${removedId}`);
   assert.equal('source' in writes[1].body, false);
-  own.onBlockCancel();
+  ownPress('onBlockCancel');
   assert.equal(writeCancellation.isCancelled, true);
   assert.equal(own.data.block.frozen, true);
   assert.equal(own.data.block.receiptStatus, '');
   assert.equal(own.data.block.activeRelationshipId, removedId);
-  own.onBlockRetry();
+  ownPress('onBlockRetry');
   await flush();
   assert.equal(writes.length, 3);
   assert.deepEqual(
@@ -428,7 +443,7 @@ export async function smokeNamedBlocks({
   own.onShow();
   await flush();
   assert.equal(own.data.block.frozen, true);
-  own.onBlockReceipt();
+  ownPress('onBlockReceipt');
   await flush();
   assert.equal(app.community.pendingBlocks.load(accountId), null);
   assert.equal(own.data.block.current.blocked, true);
@@ -445,7 +460,7 @@ export async function smokeNamedBlocks({
 
   // An older list callback cannot populate the next account's page.
   deferList = true;
-  own.onReload();
+  ownPress('onReload');
   await flush();
   assert.equal(own.data.items.length, 0);
   app.identity.sessions.logout();
@@ -456,6 +471,7 @@ export async function smokeNamedBlocks({
   assert.equal(own.data.loaded, false);
   assert.deepEqual(own.data.items, []);
   assert.equal(own.data.block.current, null);
+  ownBridge.lifecycle('detach');
   for (const current of [feed, detail, thread, own]) {
     current.onUnload();
     assert.equal(current.blockMutations, undefined);
@@ -465,13 +481,14 @@ export async function smokeNamedBlocks({
     path.join(dist, 'community/block-recovery.wxml'),
     'utf8',
   );
-  assert.match(recovery, /匿名内容不会仅因/);
+  assert.match(recovery, /分身内容不会仅因/);
   assert.match(recovery, /任一方拉黑/);
   const ownTemplate = readFileSync(
     path.join(dist, 'pages/community-blocks/community-blocks.wxml'),
     'utf8',
   );
-  assert.match(ownTemplate, /公开个人主页的拉黑入口尚未接入/);
+  assert.match(ownTemplate, /仅管理你发起的拉黑/);
+  assert.match(ownTemplate, /解除不会改变对方的设置/);
   assert.match(
     ownTemplate,
     /block.activeRelationshipId === item.relationshipId/,

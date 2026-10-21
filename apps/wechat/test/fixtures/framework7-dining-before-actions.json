@@ -1,0 +1,1000 @@
+{
+  "src/pages/canteen-floor-scores/canteen-floor-scores.wxml": {
+    "sourceSha256": "9b03887da3394b639015dd4253036f55606ec9c5fe400d6a8a9a66924127e18e",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain",
+          "data-panel": "filter",
+          "bindtap": "onTogglePanel",
+          "aria-label": "筛选楼层"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && catalog}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{canteenOptions}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "class": "{{item.selected ? 'selected' : ''}}",
+          "bindtap": "onCanteen",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && catalog}}"
+          },
+          {
+            "wx:for": "{{canteenOptions}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "picker",
+        "attrs": {
+          "range": "{{floorLabels}}",
+          "value": "{{floorIndex}}",
+          "bindchange": "onFloor"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && catalog}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'filter'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{floorDraft}}",
+          "data-id": "{{floorDraft}}",
+          "bindtap": "onOpenFloor",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && catalog}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'filter'}}"
+          },
+          {
+            "wx:if": "{{floorDraft}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{floorOptions}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "bindtap": "onOpenFloor",
+          "disabled": "{{busy}}",
+          "class": "dp-open"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && catalog}}"
+          },
+          {
+            "wx:for": "{{floorOptions}}",
+            "wx:key": "id"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/canteen-floor-score-detail/canteen-floor-score-detail.wxml": {
+    "sourceSha256": "c3c10d7621fd3fa2ccda924734b55cabda06284348d9a52dd72e70ac0dee14c0",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain",
+          "data-panel": "info",
+          "bindtap": "onTogglePanel",
+          "aria-label": "楼层信息"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "data-panel": "score",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain",
+          "bindtap": "onClosePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "type": "digit",
+          "bindinput": "onScore",
+          "disabled": "{{busy || frozen || confirming}}",
+          "placeholder": "填写分数，如 4.75"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy || frozen || selectedScore === null}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'score' && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'score' && detail}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/window-ratings/window-ratings.wxml": {
+    "sourceSha256": "35dfabe4e815a10951d611a17367bb0cb8bf6549381bd707c6e5a269b4c770cd",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain",
+          "data-panel": "menu",
+          "bindtap": "onTogglePanel",
+          "aria-label": "更多"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/window-discussion-recovery/window-discussion-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'menu'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/window-dishes/window-dishes"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'menu'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-filter",
+          "data-panel": "filter",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{catalog}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{canteenOptions}}",
+          "wx:key": "id",
+          "data-id": "{{item.id}}",
+          "class": "{{item.selected ? 'score-selected' : ''}}",
+          "bindtap": "onCanteen",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{catalog}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'filter'}}"
+          },
+          {
+            "wx:for": "{{canteenOptions}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "picker",
+        "attrs": {
+          "range": "{{floorLabels}}",
+          "value": "{{floorIndex}}",
+          "bindchange": "onFloor",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{catalog}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'filter'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "class": "window-field",
+          "value": "{{minRatingDraft}}",
+          "maxlength": "8",
+          "placeholder": "最低均分（选填）",
+          "bindinput": "onMinimum",
+          "bindconfirm": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{catalog}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'filter'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSearch",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{catalog}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'filter'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onWindow",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "class": "dp-plain dp-next",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/window-rating-detail/window-rating-detail.wxml": {
+    "sourceSha256": "de0f5029ee75aa99af0d78a4c1b02c4fee683e759000df3d1f8adabe7f99c8f4",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain",
+          "data-panel": "info",
+          "bindtap": "onTogglePanel",
+          "aria-label": "评分说明"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "data-panel": "score",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain",
+          "bindtap": "onClosePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{scores}}",
+          "wx:key": "value",
+          "data-score": "{{item.value}}",
+          "class": "{{selectedScore === item.value ? 'score-selected' : ''}}",
+          "bindtap": "onScore",
+          "disabled": "{{busy || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          },
+          {
+            "wx:for": "{{scores}}",
+            "wx:key": "value"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy || selectedScore === null || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{canScore}}"
+          },
+          {
+            "wx:if": "{{uiPanel === 'score' && !confirming}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{confirming === 'score'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          },
+          {
+            "wx:if": "{{confirming === 'score'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onOpenDiscussion",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onOpenRecommendations",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link dp-footer",
+          "url": "/pages/window-ratings/window-ratings"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/window-dishes/window-dishes.wxml": {
+    "sourceSha256": "965ebd27f6ae4a3416c9480ae10560b4986fe288af3f997d1f92b2bd8d2315b9",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{recoveryWindowId && recoveryPhase !== 'cancel'}}",
+          "bindtap": "onRequestCancellation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{recoveryWindowId && recoveryPhase !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancellation",
+          "disabled": "{{busy || !receiptMissing}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-open",
+          "bindtap": "onDish",
+          "data-identity": "{{item.dishIdentity}}",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "dishIdentity"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "class": "dp-plain dp-next",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link",
+          "url": "/pages/window-ratings/window-ratings"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain",
+          "data-panel": "info",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "data-panel": "dish",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain",
+          "bindtap": "onClosePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'dish' && !confirming && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{nameDraft}}",
+          "bindinput": "onName",
+          "maxlength": "-1",
+          "disabled": "{{busy || frozen || confirming}}",
+          "placeholder": "输入菜名"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'dish' && !confirming && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onLookup",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'dish' && !confirming && !frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canRecommend}}",
+          "class": "primary",
+          "bindtap": "onRecommend",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'dish' && !confirming && !frozen}}"
+          },
+          {
+            "wx:if": "{{canRecommend}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canRetract}}",
+          "bindtap": "onRetract",
+          "disabled": "{{busy || frozen || confirming}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'dish' && !confirming && !frozen}}"
+          },
+          {
+            "wx:if": "{{canRetract}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'recommend' || confirming === 'retract'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'recommend' || confirming === 'retract'}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/canteen-floor-scores/product.wxml": {
+    "sourceSha256": "515166a877b7d4ebff1bc24e373838064f3830e2315f54731aa9e8a039fa6ae8",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{recoveryFloorId && recoveryPhase !== 'cancel'}}",
+          "bindtap": "onRequestCancellation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{recoveryFloorId && recoveryPhase !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancellation",
+          "disabled": "{{busy || !receiptMissing}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain dp-refresh",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/window-ratings/product.wxml": {
+    "sourceSha256": "228ad185350bd9da9a5886915863ccef1493ede8992a27963f815b75efe461dc",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "link",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{recoveryWindowId && recoveryPhase !== 'cancel'}}",
+          "bindtap": "onRequestCancellation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "wx:if": "{{recoveryWindowId && recoveryPhase !== 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onConfirmCancellation",
+          "disabled": "{{busy || !receiptMissing}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCloseConfirmation",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "dp-plain dp-refresh",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancelWait"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      }
+    ]
+  }
+}

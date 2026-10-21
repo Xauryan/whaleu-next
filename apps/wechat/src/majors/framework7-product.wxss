@@ -1,0 +1,62 @@
+/* Framework7 v9.2.0 native components own their isolated surfaces and targets.
+ * This page-family layer adapts host geometry only; original overlays and
+ * safe-area ownership stay with the unchanged Page presentation. */
+@import '../design/framework7-ios.wxss';
+
+.major-product.f7-discussions {
+  color: var(--f7-text-color);
+}
+.major-product.f7-discussions wu-f7-button,
+.major-product.f7-discussions wu-f7-input,
+.major-product.f7-discussions wu-f7-block,
+.major-product.f7-discussions wu-f7-list,
+.major-product.f7-discussions wu-f7-list-item {
+  display: block;
+  min-width: 0;
+}
+.major-product.f7-discussions wu-f7-button {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.major-product.f7-discussions .major-search wu-f7-input {
+  flex: 1;
+}
+.major-product.f7-discussions .major-tabs,
+.major-product.f7-discussions .major-inline-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.major-product.f7-discussions .major-dock wu-f7-button {
+  flex: 1;
+}
+.major-product.f7-discussions wu-f7-list-item.major-list-row {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.major-product.f7-discussions wu-f7-block.major-comment,
+.major-product.f7-discussions wu-f7-block.major-recovery,
+.major-product.f7-discussions wu-f7-block.major-empty,
+.major-product.f7-discussions wu-f7-block.major-identity {
+  padding: 0;
+  background: transparent;
+}
+.major-product.f7-discussions wu-f7-block.major-comment {
+  margin: 0;
+}
+.major-product.f7-discussions .major-sheet > wu-f7-button,
+.major-product.f7-discussions .major-recovery wu-f7-button + wu-f7-button {
+  margin-top: 8px;
+}
+.major-product.f7-discussions
+  .major-gallery
+  .major-inline-actions
+  wu-f7-button {
+  flex: 1;
+}
+.major-product.f7-discussions .major-images wu-f7-button {
+  min-width: 90px;
+}

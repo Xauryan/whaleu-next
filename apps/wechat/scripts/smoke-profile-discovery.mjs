@@ -1,7 +1,12 @@
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import {
+  parsePreviewWxml,
+  evaluatePreviewExpression,
+} from './preview-wxml.mjs';
 const require = createRequire(import.meta.url);
 const deferred = () => {
   let resolve;
@@ -21,6 +26,77 @@ export async function smokeProfileDiscovery({
   rootWire,
   replyWire,
 }) {
+  // Resolve the actual emitted native binding and dispatch through Component.
+  // Host datasets stay on the original Page boundary; no direct tap alias.
+  let buttonDefinition;
+  const previousComponent = globalThis.Component;
+  const buttonFile = path.join(dist, 'components/f7-button/f7-button.js');
+  globalThis.Component = (definition) => {
+    buttonDefinition = definition;
+  };
+  try {
+    delete require.cache[require.resolve(buttonFile)];
+    require(buttonFile);
+  } finally {
+    globalThis.Component = previousComponent;
+  }
+  assert.ok(buttonDefinition);
+  const flatten = (node) => [
+    node,
+    ...node.children.flatMap((child) =>
+      typeof child === 'string' ? [] : flatten(child),
+    ),
+  ];
+  const bindings = flatten(
+    parsePreviewWxml(
+      readFileSync(
+        path.join(dist, 'pages/community-liked/community-liked.wxml'),
+        'utf8',
+      ),
+    ),
+  );
+  const likedPress = (page, handler, patch = {}) => {
+    const node = bindings.find((item) => item.attrs['bind:press'] === handler);
+    assert.equal(node?.tag, 'wu-f7-button', handler);
+    const scope = { ...page.data, ...patch };
+    const evaluate = (value) =>
+      value?.startsWith('{{')
+        ? evaluatePreviewExpression(value.slice(2, -2), scope)
+        : value;
+    const dataset = Object.fromEntries(
+      Object.entries(node.attrs)
+        .filter(([key]) => key.startsWith('data-'))
+        .map(([key, value]) => [key.slice(5), evaluate(value)]),
+    );
+    let dispatched = 0;
+    const instance = {
+      properties: Object.fromEntries(
+        Object.entries(buttonDefinition.properties).map(([name, value]) => [
+          name,
+          structuredClone(value.value),
+        ]),
+      ),
+      data: structuredClone(buttonDefinition.data),
+      setData(patch) {
+        Object.assign(this.data, patch);
+      },
+      triggerEvent(name, detail, options) {
+        assert.equal(name, 'press');
+        assert.deepEqual(options, { bubbles: false, composed: false });
+        dispatched += 1;
+        page[handler]({ detail, currentTarget: { dataset } });
+      },
+    };
+    instance.properties.disabled = Boolean(evaluate(node.attrs.disabled));
+    instance.properties.loading = Boolean(evaluate(node.attrs.loading));
+    buttonDefinition.lifetimes?.attached?.call(instance);
+    buttonDefinition.methods.onPress.call(instance);
+    buttonDefinition.lifetimes?.detached?.call(instance);
+    assert.equal(
+      dispatched,
+      instance.properties.disabled || instance.properties.loading ? 0 : 1,
+    );
+  };
   const { ApiClient } = require(path.join(dist, 'api/client.js'));
   const { ClientError } = require(path.join(dist, 'api/errors.js'));
   const { HttpDiscoveryGateway } = require(
@@ -287,12 +363,32 @@ export async function smokeProfileDiscovery({
   app.community.newRequestId = async () =>
     `bcbcbcbc-bcbc-4cbc-8cbc-${String(sequence++).padStart(12, '0')}`;
   globalThis.wx.navigateTo = (options) => navigation.push(options);
+  const personalBridges = new Map();
+  const personalPress = (page, handler, dataset = {}) => {
+    const bridge = personalBridges.get(page);
+    if (!bridge.find(handler, dataset)) return false;
+    const control = bridge.capture(handler, dataset);
+    try {
+      return control.press();
+    } finally {
+      control.detach();
+    }
+  };
   const mount = (route, query) => {
     const page = mountPage(
       path.join(dist, `pages/${route}/${route}.js`),
       query,
     );
     pages.push(page);
+    if (route === 'public-profile')
+      personalBridges.set(
+        page,
+        createNativePressBridge({
+          page,
+          pageFile: path.join(dist, 'pages/public-profile/public-profile'),
+          dist,
+        }),
+      );
     return page;
   };
   try {
@@ -300,8 +396,8 @@ export async function smokeProfileDiscovery({
     await flush();
     assert.equal(page.data.profile.status, 'available');
     assert.equal(page.data.profile.bio, 'x\u0085y');
-    page.onMore();
-    page.onMore();
+    personalPress(page, 'onMore');
+    personalPress(page, 'onMore');
     await flush();
     assert.equal(page.data.pageNumber, 2);
     assert.deepEqual(
@@ -309,18 +405,19 @@ export async function smokeProfileDiscovery({
       [secondId],
     );
     hidden = true;
-    page.onPrevious();
+    personalPress(page, 'onPrevious');
     await flush();
     assert.equal(page.data.profile.postsHidden, true);
     assert.equal(page.data.profile.postCount, 0);
     assert.deepEqual(page.data.items, []);
     const count = requests.length;
-    page.onPrevious();
+    page.onPrevious(); // Hidden-post negative controller probe.
     assert.equal(requests.length, count);
     hidden = false;
-    page.onReload();
+    personalPress(page, 'onReload');
     await flush();
-    page.onBlockProfile();
+    page.onProfileDetails(); // aria-expanded disclosure remains a native control.
+    personalPress(page, 'onBlockProfile');
     assert.deepEqual(page.data.block.confirmSource, {
       kind: 'profile',
       id: profileId,
@@ -334,10 +431,10 @@ export async function smokeProfileDiscovery({
     const lostCount = requests.length;
     page.onReload();
     page.onMore();
-    page.onPrevious();
+    page.onPrevious(); // Deliberate negative controller probes while block recovery is frozen.
     await flush();
     assert.equal(requests.length, lostCount);
-    page.onBlockReceipt();
+    personalPress(page, 'onBlockReceipt');
     await flush();
     assert.equal(page.data.block.frozen, false);
     assert.equal(page.data.profile.status, 'blocked_by_you');
@@ -345,13 +442,13 @@ export async function smokeProfileDiscovery({
       JSON.stringify(page.data.profile).includes(author.displayName),
       false,
     );
-    page.onUnblockProfile();
+    personalPress(page, 'onUnblockProfile');
     await flush();
     assert.equal(page.data.profile.status, 'available');
     assert.equal(page.data.items.length, 1);
     listGate = deferred();
     const gate = listGate;
-    page.onMore();
+    personalPress(page, 'onMore');
     await flush();
     page.onHide();
     assert.equal(page.data.profile, null);
@@ -386,13 +483,16 @@ export async function smokeProfileDiscovery({
         before,
         'No automatic polling through hidden batches',
       );
-      scan.onMore();
-      scan.onMore();
+      if (route === 'community-liked') likedPress(scan, 'onMore');
+      else personalPress(scan, 'onMore');
+      if (route === 'community-liked') likedPress(scan, 'onMore');
+      else personalPress(scan, 'onMore');
       await flush();
       assert.equal(scan.data.pageNumber, 2);
       assert.equal(scan.data.continuation, 'scan_pending');
       assert.deepEqual(scan.data.items, []);
-      scan.onMore();
+      if (route === 'community-liked') likedPress(scan, 'onMore');
+      else personalPress(scan, 'onMore');
       await flush();
       assert.equal(scan.data.pageNumber, 3);
       assert.equal(scan.data.items.length, 1);
@@ -405,12 +505,14 @@ export async function smokeProfileDiscovery({
           scan.data.items[0].publishedAt,
           '2001-01-01T00:00:00.000Z',
         );
-      scan.onPrevious();
+      if (route === 'community-liked') likedPress(scan, 'onPrevious');
+      else personalPress(scan, 'onPrevious');
       await flush();
       assert.deepEqual(scan.data.items, []);
       assert.equal(scan.data.continuation, 'scan_pending');
       expireCursor = true;
-      scan.onMore();
+      if (route === 'community-liked') likedPress(scan, 'onMore');
+      else personalPress(scan, 'onMore');
       await flush();
       assert.equal(scan.data.loaded, false);
       assert.equal(scan.data.continuation, null);
@@ -418,7 +520,8 @@ export async function smokeProfileDiscovery({
       assert.match(scan.data.status, /分页已失效/);
       assert.deepEqual(scan.data.items, []);
       expireCursor = false;
-      scan.onReload();
+      if (route === 'community-liked') likedPress(scan, 'onReload');
+      else personalPress(scan, 'onReload');
       await flush();
       assert.equal(scan.data.pageNumber, 1);
       assert.equal(scan.data.continuation, 'scan_pending');
@@ -438,11 +541,11 @@ export async function smokeProfileDiscovery({
     const likes = mount('community-liked');
     await flush();
     assert.equal(likes.data.items.length, 1);
-    likes.onMore();
+    likedPress(likes, 'onMore');
     await flush();
     assert.equal(likes.data.items[0].likedAt, null);
     assert.equal(likes.data.pageNumber, 2);
-    likes.onPrevious();
+    likedPress(likes, 'onPrevious');
     await flush();
     assert.equal(likes.data.pageNumber, 1);
     assert.equal(likes.data.items.length, 1);

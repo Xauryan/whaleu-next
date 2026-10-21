@@ -1,3 +1,4 @@
+import { noticeRows, noticeStatus } from '../notifications/details';
 import {
   initialWindowDiscussionImageView,
   initialWindowDiscussionGalleryView,
@@ -9,6 +10,7 @@ import { decodeDiscussionV2Item, type DiscussionV2Notice } from './v2-contract';
 import type { WhaleuApp } from '../app';
 import { isRecord } from '../api/errors';
 import { DirectoryNavigator } from '../directory/navigation';
+import { ratingTimeLabels } from '../ratings/presentation';
 import { windowId } from '../window-ratings/contract';
 import {
   WindowDiscussionController,
@@ -33,6 +35,8 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
       ...initialWindowDiscussionGalleryView(),
       imageEnabled: false,
       imageCancelConfirm: false,
+      uiPanel: '',
+      timeLabels: {} as Record<string, string>,
       mode,
     },
     imageView: initialWindowDiscussionImageView() as WindowDiscussionImageView,
@@ -105,26 +109,44 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
           ) {
             owner = current;
             this.navigator?.dispose();
+            this.setData({ uiPanel: '' });
           }
         }),
         runtime.privateViews?.subscribe((account) => {
-          if (account === undefined) this.navigator?.dispose();
+          if (account === undefined) {
+            this.navigator?.dispose();
+            if (!runtime.windowDiscussionImages?.pickerActive)
+              this.setData({ uiPanel: '' });
+          }
         }),
         runtime.safetyChanges?.subscribe(() => {
           this.navigator?.dispose();
+          this.setData({ uiPanel: '' });
           this.images?.clear();
           this.gallery?.clear();
         }),
       ];
       this.unsubscribe = () => stops.forEach((stop) => stop?.());
       this.controller = new WindowDiscussionController(runtime, mode, (view) =>
-        this.setData({ ...view }),
+        this.setData({
+          ...view,
+          timeLabels: ratingTimeLabels([
+            ...(view.root ? [view.root] : []),
+            ...view.items,
+          ]),
+          ...(!view.hasSession || !view.loaded || view.frozen
+            ? { uiPanel: '' }
+            : {}),
+        }),
       );
       if (runtime.windowDiscussionImages) {
         this.setData({ imageEnabled: true });
         this.images = runtime.windowDiscussionImages.createComposer((view) => {
           this.imageView = view;
-          this.setData({ ...view });
+          this.setData({
+            ...view,
+            ...(view.imageFrozen && !view.imageBusy ? { uiPanel: '' } : {}),
+          });
           this.controller?.setImages(
             view.imageCount,
             view.imageFrozen || view.imageBusy,
@@ -157,6 +179,29 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
     onBody(e: { detail: { value: string } }) {
       this.controller?.setBody(e.detail.value);
     },
+    onToggleTools() {
+      if (this.data.confirming) return;
+      this.setData({
+        uiPanel: this.data.uiPanel === 'tools' ? '' : 'tools',
+      });
+    },
+    onOpenComposer() {
+      if (
+        mode === 'recovery' ||
+        !this.data.loaded ||
+        !this.data.hasSession ||
+        this.data.busy ||
+        this.data.frozen ||
+        this.data.confirming ||
+        this.imageView.imageBusy ||
+        this.imageView.imageFrozen
+      )
+        return;
+      this.setData({ uiPanel: 'compose' });
+    },
+    onClosePanel() {
+      this.setData({ uiPanel: '' });
+    },
     onConfirmPublish() {
       this.controller?.confirmPublish();
     },
@@ -165,6 +210,8 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
     },
     onReply(e: Tap) {
       this.controller?.chooseReply(e.currentTarget.dataset.id ?? null);
+      if (this.data.replyTarget?.id === e.currentTarget.dataset.id)
+        this.onOpenComposer();
     },
     onReplyRoot() {
       this.controller?.chooseReply(null);
@@ -283,6 +330,7 @@ export function registerWindowDiscussionPage(mode: DiscussionMode): void {
         this.pickerSuspended = true;
         return;
       }
+      this.setData({ uiPanel: '', timeLabels: {} });
       this.images?.dispose();
       this.images = undefined;
       this.gallery?.dispose();
@@ -357,7 +405,11 @@ export function registerWindowDiscussionNoticesPage(): void {
       ];
       this.unsubscribe = () => stops.forEach((stop) => stop?.());
       this.controller = new WindowDiscussionNoticesController(runtime, (view) =>
-        this.setData({ ...view }),
+        this.setData({
+          ...view,
+          items: noticeRows(view.items),
+          uiStatus: noticeStatus(view.status),
+        }),
       );
       this.gallery = runtime.windowDiscussionImages?.createGallery((view) =>
         this.setData({ ...view }),

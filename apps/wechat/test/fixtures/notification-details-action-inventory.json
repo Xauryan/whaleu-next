@@ -1,0 +1,676 @@
+{
+  "pages": {
+    "community-updates": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/major-discussion-notices/major-discussion-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/window-discussion-notices/window-discussion-notices"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/rating-updates/rating-updates"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-saved/community-saved"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-feed/community-feed"
+        },
+        "ancestors": []
+      }
+    ],
+    "rating-updates": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/rating-scoped/rating-scoped?mode=catalog&scope=global"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-category": "reply",
+          "bindtap": "onCategory"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-category": "like",
+          "bindtap": "onCategory"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-category": "subscription",
+          "bindtap": "onCategory"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/community-updates/community-updates"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/rating-catalog/rating-catalog"
+        },
+        "ancestors": []
+      }
+    ],
+    "window-discussion-notices": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancelWait"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.kind === 'reply' && item.preview.thumbnail}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onNoticeImage",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/window-discussion-recovery/window-discussion-recovery"
+        },
+        "ancestors": []
+      }
+    ],
+    "major-discussion-notices": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancelWait"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.kind === 'reply' && item.preview.thumbnail}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onNoticeImage",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          },
+          {
+            "wx:if": "{{item.status === 'available'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "data-id": "{{item.noticeId}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "noticeId"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{loaded}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+        },
+        "ancestors": []
+      }
+    ],
+    "social-notices": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/login/login"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:if": "{{error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onCoverage",
+          "aria-expanded": "{{showCoverage}}"
+        },
+        "ancestors": [
+          {
+            "wx:else": ""
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "data-id": "{{item.id}}",
+          "bindtap": "onOpen",
+          "disabled": "{{item.busy || !item.available}}"
+        },
+        "ancestors": [
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:for": "{{rows}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.unread}}",
+          "data-id": "{{item.id}}",
+          "bindtap": "onRead",
+          "disabled": "{{item.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:for": "{{rows}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.canMore}}",
+          "bindtap": "onMore",
+          "data-source": "{{item.key}}",
+          "disabled": "{{item.busy}}",
+          "loading": "{{item.busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:for": "{{sources}}",
+            "wx:key": "key"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": [
+          {
+            "wx:else": ""
+          }
+        ]
+      }
+    ],
+    "system-notices": [
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "url": "/pages/login/login"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.source === 'verification' || item.source === 'feedback' || item.kind === 'accepted' || item.kind === 'completed'}}",
+          "data-id": "{{item.key}}",
+          "bindtap": "onOpen",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:if": "{{item.source !== 'system'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/profile/profile"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:elif": "{{item.kind === 'profile_nickname_reset'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/account-status/account-status"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:elif": "{{item.kind === 'account_punishment_issued' || item.kind === 'account_punishment_released'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.appealId}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          },
+          {
+            "wx:elif": "{{item.kind === 'account_appeal_decided'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!item.readAt}}",
+          "data-id": "{{item.key}}",
+          "bindtap": "onRead",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "key"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onSources"
+        },
+        "ancestors": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "ancestors": []
+      }
+    ],
+    "notice-thread": []
+  },
+  "protectedHashes": {
+    "pages/community-updates/controller.ts": "e1d1eb0da395036cb6ba918c163d5b35c092aca96535c8fb21cc832633dd92ee",
+    "ratings/updates-controller.ts": "4d9650f4bde58b93c5cdc67ccb088fb1ea6534339a73143f8486b013bdf9a910",
+    "window-discussion/notices-controller.ts": "a3b65361006df453f1a0008dfef003cfa7a8fbecc2ec213b9464e1c9612f152a",
+    "major-discussion/notices-controller.ts": "803ce9f3c8690473f014589fe33f90790a86ca6dfb0deb5fc2a30cfb13081459",
+    "pages/social-notices/controller.ts": "87c2f441f64994bcda0e0cf19170bd8f591484f709c8d9febb9ffc1fd44c801e",
+    "pages/social-notices/contract.ts": "e48bfddc5b8e455f8cdc9f1b91bd5066d44b1a3b6aff183721b8e5ead7261230",
+    "notifications/system-timeline.ts": "acca24cc00eba445cb7697767aeabc4dc2c01f974aed458dab96f71d1d11c36f",
+    "pages/system-notices/controller.ts": "8683605ec5a1904555b9480bbd11ebe4355c14d911e5debe58a1826c19071399",
+    "pages/notice-thread/notice-thread.ts": "01c0d5fb6b4756a3df8f27cfb2eeb5afac5f27f7732b4ba2dad75607732d9d44",
+    "community/system-notices-gateway.ts": "61f2bca247bc53a406bf780a4e0e5ae1fa85cb668e0e372ef85e86ed0586f88f"
+  },
+  "registrars": {
+    "window-discussion/page.ts": {
+      "before": "ff8ee4fd2abea4fc3ddd3ee7a574243901b92a7d1110eb5ba34e4dbfc2a6741d",
+      "after": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "major-discussion/page.ts": {
+      "before": "7a21bf3b87215b34fec8fa5f4f52b30a78fc9f90e4f156241fc1af329ddcdcf4",
+      "after": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

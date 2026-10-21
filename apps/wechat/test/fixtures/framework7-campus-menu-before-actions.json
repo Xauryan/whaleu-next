@@ -1,0 +1,110 @@
+{
+  "campus-hub": {
+    "sha256": "df68134253e6403ceae2f620e547b78f9adf7a6795e2a7dd793a9d33bf10e582",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "campus-selector",
+          "url": "/pages/campus-tools/campus-tools"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{tools}}",
+          "wx:key": "kind",
+          "class": "tool-item",
+          "data-kind": "{{item.kind}}",
+          "bindtap": "onTool",
+          "disabled": "{{campus.busy}}",
+          "hover-class": "hub-pressed"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{tools}}",
+            "wx:key": "kind",
+            "disabled": "{{campus.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "url": "/pages/campus-tools/campus-tools",
+          "class": "notice-link"
+        },
+        "scopes": [
+          {
+            "wx:elif": "{{authRecovery}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "notice-link",
+          "bindtap": "onRetry"
+        },
+        "scopes": [
+          {
+            "wx:elif": "{{campus.error || navigationError}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:for": "{{learning}}",
+          "wx:key": "url",
+          "class": "hub-row",
+          "url": "{{item.url}}",
+          "hover-class": "hub-pressed"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{learning}}",
+            "wx:key": "url"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:for": "{{life}}",
+          "wx:key": "url",
+          "class": "hub-row",
+          "url": "{{item.url}}",
+          "hover-class": "hub-pressed"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{life}}",
+            "wx:key": "url"
+          }
+        ]
+      }
+    ]
+  },
+  "account-menu": {
+    "sha256": "acb15559985e70d0cab57c24941872d4d9a4ad8510f79796ad0deb415197d05d",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:for": "{{entries}}",
+          "wx:key": "url",
+          "class": "menu-entry",
+          "url": "{{item.url}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{entries}}",
+            "wx:key": "url"
+          }
+        ]
+      }
+    ]
+  }
+}

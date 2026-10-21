@@ -1,0 +1,38 @@
+<view class="management-page">
+  <view class="page-heading"><view class="section-label">按公开身份内容核验</view><button class="icon-button" bindtap="onReload" disabled="{{busy}}" aria-label="重新核验目标与原请求"><wu-icon name="refresh" tone="accent" size="22" /></button></view>
+  <view class="scope"><wu-icon name="shield" tone="muted" size="18" /><text>从当前可查看的公开身份帖子核验权限。分身身份不在此处理，头像与资料版本以本次服务端核验为准。</text></view>
+  <view class="status" aria-role="status">{{status}}</view>
+  <view wx:if="{{addressError || error}}" class="error" aria-role="alert">{{addressError || error}}</view>
+  <view wx:if="{{receiptStatus}}" class="notice" aria-role="status">{{receiptStatus}}</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <button wx:if="{{busy}}" class="quiet" bindtap="onStopWaiting">停止等待</button>
+  <view wx:if="{{management &amp;&amp; management.availability === 'unavailable'}}" class="section"><view class="section-title">当前只能查看</view><view class="notice">关联资料暂不能安全同步，当前不可执行管理操作。请重新核验后再试。</view></view>
+  <view wx:if="{{management &amp;&amp; !management.canClearCustomAvatar &amp;&amp; management.availability !== 'unavailable'}}" class="notice">当前没有可清除的自定义头像；未选择头像或目录头像不适用此操作。</view>
+  <view wx:if="{{management &amp;&amp; management.canClearCustomAvatar &amp;&amp; !frozen}}" class="section">
+    <view class="identity-row"><view class="identity-mark"><wu-icon name="person" tone="muted" size="25" /></view><view><view class="section-title">{{management.displayName}}</view><view class="meta">当前公开身份 · 资料版本 {{management.revision}}</view></view></view>
+    <button class="disclosure" bindtap="onToggleDetails" aria-expanded="{{detailsExpanded}}">来源与核验信息<wu-icon name="{{detailsExpanded ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="18" /></button><view wx:if="{{detailsExpanded}}" class="reference">来源类型：{{management.target.kind === 'post' ? '主题' : '回复'}}<view>内容编号：{{management.target.id}}</view><view>资料版本：{{management.revision}}</view></view>
+    <button class="primary" bindtap="onClearCustomAvatar" disabled="{{busy}}">继续核对头像清除</button>
+  </view>
+  <view wx:if="{{confirming === 'clear' &amp;&amp; management.canClearCustomAvatar &amp;&amp; !frozen}}" class="confirmation" aria-role="alert">
+    <view class="section-title">确认清除「{{management.displayName}}」的当前自定义头像？</view>
+    <view class="notice">将清除此账号的当前自定义头像，影响包括其他地区的非分身头像展示。清除后显示未选择头像，并向对方发送私有系统通知。分身保持不变。已下载或正在展示的图片不会即时从所有设备消失。头像或资料版本已变化时需要重新确认。</view>
+    <button class="primary destructive" bindtap="onSubmit" disabled="{{busy || frozen}}">确认清除头像并通知对方</button>
+    <button class="quiet" bindtap="onClose" disabled="{{busy}}">返回</button>
+  </view>
+  <view wx:if="{{frozen}}" class="recovery">
+    <view class="section-title">原头像管理请求待确认</view>
+    <view wx:if="{{pendingTarget}}" class="meta">{{pendingTarget.kind === 'post' ? '主题' : '回复'}} · {{pendingTarget.id}} · {{pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
+    <view class="notice">查询不到回执不代表原请求不会完成。确认结果或取消成功前不能创建新请求，请保留本机数据。</view>
+    <button class="primary" bindtap="onRecover" disabled="{{busy || !pendingRequestId}}">查询原头像管理回执</button>
+    <button class="secondary" bindtap="onRetry" disabled="{{busy || !pendingRequestId}}">重试原头像管理请求</button>
+    <button class="quiet" bindtap="onCancelRequest" disabled="{{busy || !pendingRequestId}}">取消原头像管理请求</button>
+  </view>
+  <view wx:if="{{confirming === 'cancel'}}" class="confirmation" aria-role="alert">
+    <view>确认取消原头像管理请求？已经完成的清除仍返回原结果，不会自动恢复旧头像。</view>
+    <button class="primary" bindtap="onConfirmCancel" disabled="{{busy}}">确认取消原请求</button>
+    <button class="quiet" bindtap="onClose" disabled="{{busy}}">返回</button>
+  </view>
+  <view wx:if="{{!target &amp;&amp; !frozen &amp;&amp; !busy}}" class="notice">没有待确认请求时，请从具体公开身份内容进入头像管理。</view>
+  <navigator class="link" url="/pages/community-mine/community-mine">我的发布与请求恢复<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <navigator class="link" url="/pages/profile/profile">查看我的当前资料<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+</view>

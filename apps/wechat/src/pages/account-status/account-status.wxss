@@ -1,1 +1,3 @@
-@import '../../community/forms.wxss';
+@import './support.wxss';
+
+@import './framework7-support.wxss';

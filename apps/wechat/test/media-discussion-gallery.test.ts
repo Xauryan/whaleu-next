@@ -18,6 +18,7 @@ import {
 } from '../src/media/read-controller';
 import { comment, post, reply } from './community-helpers';
 import { credentials, deferred, flush, signedIn } from './helpers';
+import { reviewedReferencePresentation } from './reviewed-reference-successor';
 import { attachment, ReadFiles } from './support/media-read-fixtures';
 
 const uuid = (n: number): string =>
@@ -446,9 +447,15 @@ test('detail/thread templates expose pure-image actions and bind only the shared
     assert.doesNotMatch(template, /src="\{\{(?:post|root|reply|item)\.images/);
     assert.match(template, /show-menu-by-longpress="\{\{false\}\}"/);
     if (page === 'community-detail')
+      // All gallery assertions above inspect live bytes. Preserve this original
+      // navigator check only after the exact reference renderer replacement,
+      // fallback icon, and ancestor gates pass the authenticated successor proof.
       assert.match(
-        template,
-        /\{\{reply\.text \|\| '查看图片回复'\}\} →<\/navigator>/,
+        reviewedReferencePresentation(
+          `src/pages/${page}/${page}.wxml`,
+          template,
+        ),
+        /\{\{reply\.text \|\| '查看图片回复'\}\} <wu-icon name="chevron-right" size="16" \/><\/navigator>/,
       );
   }
 });

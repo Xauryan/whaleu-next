@@ -1,3 +1,5 @@
+import { noticeRows, noticeStatus } from '../notifications/details';
+import { ratingTimeLabels } from '../ratings/presentation';
 import {
   initialMajorDiscussionImageView,
   initialMajorDiscussionGalleryView,
@@ -31,6 +33,8 @@ export function registerMajorDiscussionPage(mode: DiscussionMode): void {
       ...initialMajorDiscussionView(),
       ...initialMajorDiscussionImageView(),
       ...initialMajorDiscussionGalleryView(),
+      uiPanel: '',
+      timeLabels: {} as Record<string, string>,
       imageEnabled: false,
       imageCancelConfirm: false,
       mode,
@@ -75,9 +79,12 @@ export function registerMajorDiscussionPage(mode: DiscussionMode): void {
         : null;
     },
     onShow() {
+      this.setData({ uiPanel: '' });
       if (this.pickerSuspended && this.controller && this.images) {
         this.pickerSuspended = false;
         this.images.resumePicker();
+        if (this.data.loaded && this.data.hasSession && !this.data.frozen)
+          this.setData({ uiPanel: 'compose' });
         return;
       }
       this.onHide();
@@ -104,13 +111,18 @@ export function registerMajorDiscussionPage(mode: DiscussionMode): void {
             current.credentials?.accountId !== owner.credentials?.accountId
           ) {
             owner = current;
+            this.setData({ uiPanel: '' });
             this.navigator?.dispose();
           }
         }),
         runtime.privateViews?.subscribe((account) => {
-          if (account === undefined) this.navigator?.dispose();
+          if (account === undefined) {
+            this.setData({ uiPanel: '' });
+            this.navigator?.dispose();
+          }
         }),
         runtime.safetyChanges?.subscribe(() => {
+          this.setData({ uiPanel: '' });
           this.navigator?.dispose();
           this.images?.clear();
           this.gallery?.clear();
@@ -118,7 +130,16 @@ export function registerMajorDiscussionPage(mode: DiscussionMode): void {
       ];
       this.unsubscribe = () => stops.forEach((stop) => stop?.());
       this.controller = new MajorDiscussionController(runtime, mode, (view) =>
-        this.setData({ ...view }),
+        this.setData({
+          ...view,
+          timeLabels: ratingTimeLabels([
+            ...(view.root ? [view.root] : []),
+            ...view.items,
+          ]),
+          ...(!view.hasSession || !view.loaded || view.frozen
+            ? { uiPanel: '' }
+            : {}),
+        }),
       );
       if (runtime.majorDiscussionImages) {
         this.setData({ imageEnabled: true });
@@ -137,6 +158,24 @@ export function registerMajorDiscussionPage(mode: DiscussionMode): void {
         this.images.restore();
       }
       void this.controller.load(this.majorId, this.rootId, this.notice);
+    },
+    onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+      const panel = event.currentTarget.dataset.panel;
+      if (panel !== 'options' && panel !== 'compose') return;
+      if (
+        panel === 'compose' &&
+        (!this.data.loaded ||
+          this.data.frozen ||
+          this.data.busy ||
+          this.data.confirming ||
+          this.data.imageBusy ||
+          this.data.imageFrozen)
+      )
+        return;
+      this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+    },
+    onClosePanel() {
+      this.setData({ uiPanel: '' });
     },
     onRefresh() {
       this.images?.restore();
@@ -178,6 +217,8 @@ export function registerMajorDiscussionPage(mode: DiscussionMode): void {
     },
     onReply(e: Tap) {
       this.controller?.chooseReply(e.currentTarget.dataset.id ?? null);
+      if (this.data.replyTarget?.id === e.currentTarget.dataset.id)
+        this.setData({ uiPanel: 'compose' });
     },
     onReplyRoot() {
       this.controller?.chooseReply(null);
@@ -294,6 +335,7 @@ export function registerMajorDiscussionPage(mode: DiscussionMode): void {
       );
     },
     onHide() {
+      this.setData({ uiPanel: '' });
       this.gallery?.clear();
       if (this.images?.suspendPicker()) {
         this.pickerSuspended = true;
@@ -373,7 +415,11 @@ export function registerMajorDiscussionNoticesPage(): void {
       ];
       this.unsubscribe = () => stops.forEach((stop) => stop?.());
       this.controller = new MajorDiscussionNoticesController(runtime, (view) =>
-        this.setData({ ...view }),
+        this.setData({
+          ...view,
+          items: noticeRows(view.items),
+          uiStatus: noticeStatus(view.status),
+        }),
       );
       this.gallery = runtime.majorDiscussionImages?.createGallery((view) =>
         this.setData({ ...view }),

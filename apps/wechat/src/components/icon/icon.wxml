@@ -1,0 +1,7 @@
+<view class="wu-icon" style="width:{{size}}px;height:{{size}}px;" aria-hidden="true">
+  <block wx:if="{{tone === 'default' || tone === 'inverse'}}">
+    <image class="wu-icon-image wu-icon-light" src="/assets/icons/{{tone === 'inverse' ? 'dark' : 'light'}}/{{name}}.png" mode="aspectFit" />
+    <image class="wu-icon-image wu-icon-dark" src="/assets/icons/{{tone === 'inverse' ? 'light' : 'dark'}}/{{name}}.png" mode="aspectFit" />
+  </block>
+  <image wx:else class="wu-icon-image" src="/assets/icons/{{tone}}/{{name}}.png" mode="aspectFit" />
+</view>

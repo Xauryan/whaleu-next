@@ -1,3 +1,9 @@
 {
-  "navigationBarTitleText": "校园社区"
+  "navigationBarTitleText": "WhaleU",
+  "usingComponents": {
+    "wu-tab-bar": "../../components/tab-bar/tab-bar",
+    "wu-icon": "../../components/icon/icon",
+    "wu-safe-top": "../../components/safe-top/safe-top"
+  },
+  "navigationStyle": "custom"
 }

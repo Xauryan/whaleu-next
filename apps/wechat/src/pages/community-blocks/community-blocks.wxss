@@ -1,1 +1,121 @@
 @import '../../community/forms.wxss';
+page {
+  background: var(--wu-surface);
+}
+.blocks-page {
+  padding: 32rpx 32rpx calc(64rpx + env(safe-area-inset-bottom));
+}
+.blocks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+.blocks-page .blocks-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80rpx;
+  width: 80rpx;
+  padding: 0;
+  margin: 0 -12rpx 0 0;
+  background: transparent;
+}
+.blocks-note,
+.blocks-footnote {
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  line-height: 1.65;
+}
+.blocks-note {
+  margin: 14rpx 0 28rpx;
+}
+.blocks-footnote {
+  margin: 32rpx 0 4rpx;
+}
+.blocked-person {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+  align-items: center;
+  padding: 28rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.blocked-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 86rpx;
+  height: 86rpx;
+  border-radius: 50%;
+  background: var(--wu-bg);
+  flex-shrink: 0;
+}
+.blocked-information {
+  flex: 1;
+  min-width: 0;
+}
+.blocked-name {
+  font-size: 29rpx;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.blocked-snapshot,
+.blocked-date {
+  color: var(--wu-secondary);
+  font-size: 22rpx;
+  margin-top: 5rpx;
+  overflow-wrap: anywhere;
+}
+.blocks-page .blocked-unblock {
+  min-height: 72rpx;
+  padding: 0 20rpx;
+  margin: 0;
+  border-radius: 36rpx;
+  background: var(--wu-bg);
+  color: var(--wu-text);
+  font-size: 24rpx;
+  line-height: 72rpx;
+}
+.blocked-error {
+  width: 100%;
+}
+.blocks-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  padding: 112rpx 0;
+  color: var(--wu-secondary);
+  font-size: 28rpx;
+}
+.blocks-page .blocks-text-button {
+  margin: 20rpx 0;
+  padding: 0;
+  background: transparent;
+  color: var(--wu-accent);
+  font-size: 27rpx;
+}
+.blocks-login,
+.blocks-back {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  color: var(--wu-accent);
+  min-height: 88rpx;
+  font-size: 27rpx;
+}
+.blocks-page .card,
+.blocks-page .confirm {
+  border: 0;
+  border-radius: 20rpx;
+  background: var(--wu-bg);
+}
+.blocks-header .blocks-note {
+  margin: 0;
+}
+.blocks-header + .blocks-note {
+  margin-top: 0;
+}
+
+@import '../public-profile/framework7-personal.wxss';

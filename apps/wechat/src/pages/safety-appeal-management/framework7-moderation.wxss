@@ -1,0 +1,74 @@
+/* Framework7 v9.2.0 native management hosts. Existing components own their
+ * surfaces; original authorization, native fields and confirmation stay local. */
+@import '../../design/framework7-ios.wxss';
+.moderation-native {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 8px 0 calc(32px + env(safe-area-inset-bottom));
+  background: var(--f7-page-bg-color);
+  color: var(--f7-text-color);
+  font-family: var(--f7-font-family);
+}
+.moderation-native > view,
+.moderation-native > navigator,
+.moderation-native > wu-f7-button {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.moderation-native wu-f7-block {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.moderation-native wu-f7-button {
+  display: block;
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  line-height: normal;
+}
+.moderation-native wu-f7-button.primary,
+.moderation-native wu-f7-button.secondary {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+.moderation-native wu-f7-button.icon-button {
+  width: 44px;
+  flex: 0 0 44px;
+}
+.moderation-native .inline-actions > wu-f7-button {
+  flex: 1;
+  min-width: 0;
+}
+.moderation-native .section-title {
+  font-size: 17px;
+}
+.moderation-native .disclosure,
+.moderation-native .link,
+.moderation-native input,
+.moderation-native textarea {
+  min-height: 44px;
+}
+.moderation-native input,
+.moderation-native textarea {
+  border-radius: 8px;
+}
+.moderation-native .confirmation input,
+.moderation-native .confirmation textarea {
+  background: var(--f7-page-bg-color);
+}
+.moderation-native .queue-row {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.moderation-native .empty {
+  text-align: center;
+}

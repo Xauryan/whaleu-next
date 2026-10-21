@@ -1,4 +1,6 @@
 import { PendingRatingLinkStore } from './rating-link-pending';
+import { FollowingGateway } from '../following/gateway';
+import { PendingFollowStore } from '../following/pending';
 import {
   HttpAssistanceGateway,
   type AssistanceGateway,
@@ -275,6 +277,8 @@ import { HttpCommunityGateway, type CommunityGateway } from './gateway';
 import { DraftStore, PendingAttemptStore } from './pending-attempt';
 import { PendingBallotStore } from './poll-pending';
 export interface CommunityRuntime {
+  readonly following?: Pick<FollowingGateway, 'feed' | 'status' | 'set'>;
+  readonly pendingFollowing?: PendingFollowStore;
   readonly pendingRatingLinks?: PendingRatingLinkStore;
   readonly assistance?: AssistanceGateway;
   readonly pendingAssistance?: PendingAssistanceStore;
@@ -420,6 +424,8 @@ export function createCommunityRuntime(
   const browsingScopeChanges = new PrivateViewLifecycle();
   const runtime: CommunityRuntime = {
     sessions: identity.sessions,
+    pendingFollowing: new PendingFollowStore(storage, origin),
+    ...(identity.api ? { following: new FollowingGateway(identity.api) } : {}),
     pendingAssistance: new PendingAssistanceStore(storage, origin),
     pendingRatingLinks: new PendingRatingLinkStore(storage, origin),
     ...(identity.api

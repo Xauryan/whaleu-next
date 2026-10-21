@@ -261,7 +261,7 @@ process.once('message', async (input) => {
       assert.match(
         words,
         input.kind === 'comment'
-          ? /该根评论及其全部回复将不可访问/
+          ? /该根回复及其全部回复将不可访问/
           : /仅删除选中的这条回复/,
       );
       assert.match(words, /不会通知作者/);
@@ -315,18 +315,38 @@ process.once('message', async (input) => {
             ...(d.page.data.contextReplies ?? []),
             d.page.data.locatedReply,
           ].find((row) => row?.id === target.id);
+    const openSourceMenu = (d, target, surface) => {
+      const menu =
+        surface === 'detail'
+          ? 'located'
+          : target.kind === 'comment'
+            ? 'root'
+            : `reply:${target.id}`;
+      if (d.page.data.uiExpandedMenu !== menu)
+        d.tap(surface === 'detail' ? 'onToggleMenu' : 'onToggleThreadMenu', {
+          menu,
+        });
+      assert.equal(d.page.data.uiExpandedMenu, menu);
+    };
     const fromSource = async (target, authorMode, surface = 'detail') => {
       const d = await (surface === 'detail' ? detail(target) : thread(target));
       assert.equal(selected(d, target)?.author.kind, authorMode);
+      openSourceMenu(d, target, surface);
       assert.ok(
         d
           .nodes()
           .some(
             (node) =>
               typeof node !== 'string' &&
-              node.attrs.bindtap === 'onAdminDiscussionRemoval' &&
+              node.tag === 'wu-f7-button' &&
+              node.attrs['bind:press'] === 'onAdminDiscussionRemoval' &&
               node.attrs['data-kind'] === target.kind &&
-              node.attrs['data-id'] === target.id,
+              node.attrs['data-id'] === target.id &&
+              (surface !== 'detail' ||
+                node.attrs['data-surface'] ===
+                  (target.kind === 'comment'
+                    ? 'located-comment'
+                    : 'located-reply')),
           ),
       );
       if (target.id === input.targets.image.id) {
@@ -434,7 +454,11 @@ process.once('message', async (input) => {
     await settled(h);
     interruptedRead.release();
     await delay(30);
-    assert.match(h.page.data.receiptStatus, new RegExp('已确认删除评论/回复'));
+    assert.equal(h.page.data.applied, true);
+    assert.match(
+      h.page.data.receiptStatus,
+      /^已确认删除回复；不会通知作者，不禁言，没有恢复此内容的管理入口$/,
+    );
     assert.equal(
       commands.length,
       beforeDenial,
@@ -507,9 +531,10 @@ process.once('message', async (input) => {
     await settled(h);
     assert.match(
       h.page.data.receiptStatus,
-      /已确认删除评论\/回复/,
+      /^已确认删除回复；不会通知作者，不禁言，没有恢复此内容的管理入口$/,
       'Apply won: cancellation returns the immutable applied receipt',
     );
+    assert.equal(h.page.data.applied, true);
     assert.deepEqual(commands.at(-1).body, imageCommand);
     close(h);
     close(d);
@@ -518,19 +543,25 @@ process.once('message', async (input) => {
       ? detail(input.targets.own)
       : thread(input.targets.own));
     assert.equal(selected(d, input.targets.own).viewer.isSelf, true);
+    openSourceMenu(
+      d,
+      input.targets.own,
+      input.kind === 'comment' ? 'detail' : 'thread',
+    );
     assert.ok(
       !d
         .nodes()
         .some(
           (node) =>
             typeof node !== 'string' &&
-            node.attrs.bindtap === 'onAdminDiscussionRemoval' &&
+            node.tag === 'wu-f7-button' &&
+            node.attrs['bind:press'] === 'onAdminDiscussionRemoval' &&
             node.attrs['data-id'] === input.targets.own.id,
         ),
     );
     assert.ok(
       d.button(
-        'bindtap',
+        'bind:press',
         input.kind === 'comment' ? 'onDeleteComment' : 'onDeleteReply',
       ),
     );
@@ -618,7 +649,11 @@ process.once('message', async (input) => {
     h.tap('onSubmit');
     await settled(h);
     const stale = commands.at(-1).body;
-    assert.match(h.page.data.receiptStatus, /评论\/回复状态已变化/);
+    assert.equal(h.page.data.applied, false);
+    assert.match(
+      h.page.data.receiptStatus,
+      /^回复状态已变化，原请求未删除新状态，请重新加载并确认$/,
+    );
     assert.equal(h.page.data.confirming, null);
     close(h);
 
@@ -710,7 +745,11 @@ process.once('message', async (input) => {
       'known applied with local remove failure',
       h,
     );
-    assert.match(h.page.data.receiptStatus, /已确认评论\/回复删除/);
+    assert.equal(h.page.data.applied, true);
+    assert.match(
+      h.page.data.receiptStatus,
+      /^已确认回复删除；本机回执清理失败，请保留数据并继续查询原回执$/,
+    );
     assert.equal(h.page.data.management, null);
     failJournal = '';
     h.tap('onRecover');
@@ -720,15 +759,53 @@ process.once('message', async (input) => {
     let notices = [];
     for (const actor of [input.subject, input.admin, input.stranger]) {
       login(actor);
-      h = mount('system-notices');
-      await until(
-        () => h.page.data.loaded && !h.page.data.busy,
-        'unchanged system notices',
-        h,
-      );
+      const systemResponses = [];
+      const previousCheckResponse = transport.checkResponse;
+      transport.checkResponse = (path, status, body) => {
+        previousCheckResponse?.call(transport, path, status, body);
+        if (path === '/v1/me/system-notices')
+          systemResponses.push({ status, body });
+      };
+      try {
+        h = mount('system-notices');
+        await until(
+          () => h.page.data.loaded && !h.page.data.busy,
+          'unchanged system notices',
+          h,
+        );
+      } finally {
+        transport.checkResponse = previousCheckResponse;
+      }
       notices = h.page.data.items;
       assert.deepEqual(notices, []);
-      assert.equal(h.page.data.unreadCount, 0);
+      // The timeline has no combined count; prove this owner source is empty.
+      assert.equal(h.page.data.unreadCount, null);
+      assert.equal(h.page.data.hasUnread, false);
+      assert.deepEqual(
+        h.page.data.sources.map((source) => source.source).sort(),
+        ['errand', 'feedback', 'system', 'verification'],
+        'No timeline source may silently disappear',
+      );
+      const system = h.page.data.sources.find(
+        (source) => source.source === 'system',
+      );
+      assert.equal(system.loaded, true);
+      assert.equal(system.busy, false);
+      assert.equal(system.hasSession, true);
+      assert.equal(system.error, '');
+      assert.deepEqual(system.items, []);
+      assert.equal(system.hasUnread, false);
+      assert.equal(system.canMore, false);
+      assert.deepEqual(
+        systemResponses,
+        [
+          {
+            status: 200,
+            body: { items: [], nextCursor: null, unreadCount: 0 },
+          },
+        ],
+        'The real owner-only list proves zero notices and zero unread, not a missing or failed source',
+      );
       close(h);
     }
     assert.ok(!calls.some((call) => call.path.includes('/identity-view')));

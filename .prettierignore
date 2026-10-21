@@ -5,3 +5,7 @@ coverage
 
 # Offline metadata-emitting OpenAPI tooling build.
 .openapi-build
+
+# Generated visual previews and transformed native release output.
+apps/wechat/preview
+apps/wechat/release

@@ -156,9 +156,9 @@ test('native registration, explicit feed link and plain result rendering contain
   assert.match(page, /继续查找/);
   assert.match(page, /effectiveTypes\[0\] === 'post'/);
   assert.match(page, /本次仅搜索帖子/);
-  assert.match(page, /data-scope="all" bindtap="onAggregateScope"/);
-  assert.match(page, /data-scope="regional" bindtap="onAggregateScope"/);
-  assert.match(page, /data-scope="global" bindtap="onAggregateScope"/);
+  assert.match(page, /data-scope="all" bind:press="onAggregateScope"/);
+  assert.match(page, /data-scope="regional" bind:press="onAggregateScope"/);
+  assert.match(page, /data-scope="global" bind:press="onAggregateScope"/);
   assert.match(page, /选择下方分类会切换到跨校园分类搜索/);
   assert.match(page, /普通、急出和已完成/);
   assert.match(
@@ -166,7 +166,7 @@ test('native registration, explicit feed link and plain result rendering contain
     /wx:if="\{\{selectedScope === 'all' \|\| selectedScope === 'regional' \|\| selectedScope === 'explicit'/,
   );
   assert.doesNotMatch(page, /每次只搜索|跨校园聚合及/);
-  assert.match(page, /bindtap="onHit"/);
+  assert.match(page, /bind:press="onHit"/);
   assert.match(
     read('community/search-contract.ts'),
     /community-thread\/community-thread\?postId=/,

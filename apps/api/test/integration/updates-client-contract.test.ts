@@ -56,6 +56,32 @@ import {
 } from '../support/community-fixtures.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
 
+// Page projection may add a display label, but must preserve every API field.
+function assertNoticePageRows(
+  actual: readonly NoticeView[],
+  expected: readonly NoticeView[],
+) {
+  const raw = actual.map((item) => {
+    const { timeLabel, ...dto } = item as NoticeView & { timeLabel: unknown };
+    assert.equal(typeof timeLabel, 'string');
+    assert.match(
+      timeLabel as string,
+      /^(?:\d{4}年)?\d{1,2}月\d{1,2}日 \d{2}:\d{2}$/,
+    );
+    const date = new Date(item.createdAt);
+    const prefix =
+      date.getFullYear() === new Date().getFullYear()
+        ? ''
+        : `${date.getFullYear()}年`;
+    assert.equal(
+      timeLabel,
+      `${prefix}${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+    );
+    return dto;
+  });
+  assert.deepEqual(raw, expected);
+}
+
 // Real native gateway, decoder, Page registration and controller code. Only the
 // WeChat platform I/O and fail-closed community authority ports use fixtures.
 // The notification repository/materializer/facade are NEVER replaced by fakes.
@@ -1090,7 +1116,7 @@ test(
             'Updates Page load',
           );
           assert.equal(current.data.unreadCount, before.unreadCount);
-          assert.deepEqual(current.data.items, before.items);
+          assertNoticePageRows(current.data.items, before.items);
           const badgeViews: { unreadCount: number; loaded: boolean }[] = [];
           const badge = new UpdatesBadgeController(
             author.runtime,
@@ -1268,7 +1294,7 @@ test(
             assert.equal(current.data.loaded, false);
             assert.equal(current.data.unreadCount, 0);
             await current.controller!.load();
-            assert.deepEqual(current.data.items, (await list(saver)).items);
+            assertNoticePageRows(current.data.items, (await list(saver)).items);
             assert.equal(
               current.data.unreadCount,
               (await list(saver)).unreadCount,
@@ -1622,7 +1648,7 @@ test(
             current.data.identityOverlay.items[anonymous]!.accountId,
             writer.credentials.accountId,
           );
-          assert.deepEqual(current.data.items, [ordinary]);
+          assertNoticePageRows(current.data.items, [ordinary]);
           assert.deepEqual(
             await findNotice(developer, anonymous),
             ordinary,

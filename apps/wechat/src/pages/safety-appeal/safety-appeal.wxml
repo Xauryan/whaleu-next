@@ -1,2 +1,199 @@
-<import src="../../account-moderation/screen.wxml" />
-<template is="account-moderation" data="{{mode,status,error,receiptStatus,hasSession,busy,frozen,accountStatus,punishments,appeals,nextCursor,selectedPunishment,text,reason,canRelease,selectedAppeal,canDecide,history,historyCursor,confirming,decision,pendingAction,pendingPhase,pendingRequestId,pendingCommand,recordedReceipt}}" />
+<import src="../account-status/recovery.wxml" />
+<view class="support-page appeal-page support-native f7-ios-theme">
+  <view class="privacy-line"
+    ><wu-icon name="lock" size="18" tone="muted" /><text
+      >仅你和当前有权的超级管理员可见</text
+    ></view
+  >
+  <view class="disclosure"
+    >不会发布到公开反馈。申诉绑定具体处罚，提交不会自动解除处罚。</view
+  >
+  <view wx:if="{{!loaded || busy}}" class="status" aria-role="status"
+    >{{status}}</view
+  >
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{receiptStatus}}" class="status" aria-role="status"
+    >{{receiptStatus}}</view
+  >
+  <navigator wx:if="{{!hasSession}}" class="primary" url="/pages/login/login"
+    >登录后继续</navigator
+  >
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" wx:if="{{selectedPunishment}}" class="case-section">
+    <view class="section-heading"
+      ><view class="section-title"
+        >{{selectedPunishment.kind === 'interaction_mute' ? '禁言' :
+        '封号'}}申诉</view
+      ><view class="state-label"
+        >{{selectedPunishment.state === 'active' ? '处罚生效中' :
+        selectedPunishment.state === 'expired' ? '处罚已到期' :
+        selectedPunishment.state === 'released' ? '处罚已解除' :
+        '处罚已被替代'}}</view
+      ></view
+    >
+    <view class="body-copy" selectable="true"
+      >{{selectedPunishment.reason}}</view
+    >
+    <view class="time-row"
+      ><text>开始（UTC）</text
+      ><text>{{selectedPunishment.startsAt}}</text></view
+    ><view class="time-row"
+      ><text>结束（UTC）</text
+      ><text>{{selectedPunishment.endsAt || '永久'}}</text></view
+    >
+    <view
+      wx:if="{{mode === 'appeal' &amp;&amp; selectedPunishment.canAppeal}}"
+      class="appeal-form"
+    >
+      <view class="field-label">申诉说明</view>
+      <textarea
+        value="{{text}}"
+        maxlength="4000"
+        bindinput="onText"
+        disabled="{{busy || frozen}}"
+        placeholder="说明你希望复核的情况，以及相关依据"
+      />
+      <view class="input-limit">{{text.length}} / 4000</view>
+      <wu-f7-button variant="fill"
+        class="primary"
+        bind:press="onRequestAppeal"
+        disabled="{{busy || frozen || !text}}"
+      >
+        继续，核对申诉
+      </wu-f7-button>
+    </view>
+    <view
+      wx:if="{{!selectedPunishment.canAppeal &amp;&amp; !selectedPunishment.openAppealId}}"
+      class="disclosure"
+      >此项处罚当前不能发起新申诉，请重新核验状态。</view
+    >
+    <navigator
+      wx:if="{{selectedPunishment.openAppealId}}"
+      class="link-row"
+      url="/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}"
+      ><text>查看已有申诉</text
+      ><wu-icon name="chevron-right" size="16" tone="accent"
+    /></navigator>
+    <view class="reference" selectable="true"
+      >处罚编号：{{selectedPunishment.punishmentId}} · 版本
+      {{selectedPunishment.revision}}</view
+    >
+  </wu-f7-block>
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" wx:if="{{selectedAppeal}}" class="case-section">
+    <view class="section-heading"
+      ><view class="section-title"
+        >{{selectedAppeal.state === 'pending' ? '申诉待处理' :
+        '申诉已处理'}}</view
+      ><wu-icon
+        name="{{selectedAppeal.state === 'pending' ? 'clock' : 'post'}}"
+        size="24"
+        tone="accent"
+    /></view>
+    <view class="timeline-item"
+      ><view class="timeline-dot"></view
+      ><view class="field-label">已提交申诉</view
+      ><view class="meta">{{selectedAppeal.submittedAt}}</view
+      ><view class="body-copy" selectable="true"
+        >{{selectedAppeal.text}}</view
+      ></view
+    >
+    <view wx:if="{{selectedAppeal.decision}}" class="timeline-item"
+      ><view class="timeline-dot"></view
+      ><view class="field-label"
+        >{{selectedAppeal.decision.outcome === 'released' ?
+        '已解除申诉绑定的处罚' : selectedAppeal.decision.outcome === 'upheld' ?
+        '维持原处罚' : '原处罚已不再生效，结案'}}</view
+      ><view class="meta">{{selectedAppeal.decision.recordedAt}}</view
+      ><view class="body-copy">{{selectedAppeal.decision.reason}}</view></view
+    >
+    <view class="related-penalty"
+      ><view class="field-label"
+        >关联处罚：{{selectedAppeal.punishment.kind === 'interaction_mute' ?
+        '禁言' : '封号'}} · {{selectedAppeal.punishment.state === 'active' ?
+        '生效中' : selectedAppeal.punishment.state === 'expired' ? '已到期' :
+        selectedAppeal.punishment.state === 'released' ? '已解除' :
+        '已被替代'}}</view
+      ><view class="body-copy">{{selectedAppeal.punishment.reason}}</view
+      ><view class="meta"
+        >{{selectedAppeal.punishment.startsAt}} 至
+        {{selectedAppeal.punishment.endsAt || '永久'}}</view
+      ></view
+    >
+  </wu-f7-block>
+  <view
+    wx:if="{{confirming &amp;&amp; confirming !== 'cancel'}}"
+    class="confirmation"
+    aria-role="alert"
+  >
+    <view class="section-title">确认提交私人申诉？</view>
+    <view wx:if="{{selectedPunishment}}" class="reference"
+      >{{selectedPunishment.kind === 'interaction_mute' ? '禁言' : '封号'}} ·
+      {{selectedPunishment.punishmentId}} · 版本
+      {{selectedPunishment.revision}}</view
+    >
+    <view class="body-copy" selectable="true">{{text}}</view>
+    <view class="disclosure"
+      >仅提交对以上处罚的申诉，不会自动解除处罚。禁言与封号分别生效。原请求结果未确认前，不会生成新请求。</view
+    >
+    <wu-f7-button variant="fill" class="primary" bind:press="onSubmit" disabled="{{busy || frozen}}">
+      确认提交</wu-f7-button
+    ><wu-f7-button variant="plain" class="quiet" bind:press="onClose" disabled="{{busy}}">
+      返回修改
+    </wu-f7-button>
+  </view>
+  <template
+    is="support-recovery"
+    data="{{recordedReceipt,frozen,pendingAction,pendingPhase,pendingRequestId,pendingCommand,busy,confirming}}"
+  />
+  <view wx:if="{{appeals.length}}" class="list-heading">我的申诉</view>
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}" wx:for="{{appeals}}" wx:key="appealId" class="appeal-list-row"
+    ><view class="section-heading"
+      ><view class="field-label"
+        >{{item.punishment.kind === 'interaction_mute' ? '禁言申诉' :
+        '封号申诉'}}</view
+      ><text class="state-label"
+        >{{item.state === 'pending' ? '待处理' : '已处理'}}</text
+      ></view
+    ><view class="meta">{{item.submittedAt}}</view
+    ><wu-f7-button variant="plain"
+      class="row-button"
+      data-id="{{item.appealId}}"
+      bind:press="onSelectAppeal"
+      disabled="{{busy || frozen}}"
+    >
+      <text>查看详情与结果</text
+      ><wu-icon name="chevron-right" size="16" tone="accent" /></wu-f7-button
+  ></wu-f7-block>
+  <wu-f7-block spacing="compact" strong="{{true}}" inset="{{true}}"
+    wx:if="{{loaded &amp;&amp; !appeals.length &amp;&amp; !selectedPunishment &amp;&amp; !selectedAppeal &amp;&amp; !frozen}}"
+    class="empty"
+    ><wu-icon name="post" size="32" tone="muted" /><view class="section-title"
+      >暂无私人申诉</view
+    ><view class="hint">如需申诉，可从账号状态选择具体处罚。</view></wu-f7-block
+  >
+  <wu-f7-button variant="plain"
+    wx:if="{{nextCursor}}"
+    class="quiet"
+    bind:press="onMore"
+    disabled="{{busy || frozen}}"
+  >
+    查看更多申诉
+  </wu-f7-button>
+  <wu-f7-button variant="plain"
+    class="quiet"
+    bind:press="onReload"
+    disabled="{{busy}}"
+    loading="{{busy}}"
+  >
+    重新核验当前状态</wu-f7-button
+  ><wu-f7-button variant="plain" wx:if="{{busy}}" class="quiet" bind:press="onStopWaiting">
+    停止等待
+  </wu-f7-button>
+  <wu-f7-list spacing="compact" strong="{{true}}" inset="{{true}}" class="service-links"
+    ><navigator class="link-row" url="/pages/account-status/account-status"
+      ><text>账号状态</text
+      ><wu-icon name="chevron-right" size="16" tone="muted" /></navigator
+    ><navigator class="link-row" url="/pages/system-notices/system-notices"
+      ><text>我的系统通知</text
+      ><wu-icon name="chevron-right" size="16" tone="muted" /></navigator
+  ></wu-f7-list>
+</view>

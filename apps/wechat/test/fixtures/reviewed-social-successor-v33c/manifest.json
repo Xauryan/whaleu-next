@@ -1,0 +1,24 @@
+{
+  "baselineManifest": "28f996f090a8335506f37cda778692e60cdfb4205bb37e50654f585893084527",
+  "reviewedNativeManifest": "f822d3376e70485e7e6d9040d41fd6de24f7475c64af8bb03ac25e64a82745f4",
+  "sources": {
+    "src/ratings/discussion-controller.ts": {
+      "before": "10ef6d1187d652037e0accbbf8a70a391f3ef573b326bb276030c4dc0c8baeaa",
+      "after": "233d8a4227e204585b6e1e1c51d029c88cc31e0b2179763663aa94cbcef40bff",
+      "evidence": "test/fixtures/reviewed-social-successor-v33c/src/ratings/discussion-controller.ts.txt",
+      "reason": "merged-rating-navigation-explicit-read-with-owner-proof"
+    },
+    "src/pages/social-notices/controller.ts": {
+      "before": "87c2f441f64994bcda0e0cf19170bd8f591484f709c8d9febb9ffc1fd44c801e",
+      "after": "8d9d7821dee05f9c3fd7416e1264c62a97caacef63614bed334ac6bd3c3e327f",
+      "evidence": "test/fixtures/reviewed-social-successor-v33c/src/pages/social-notices/controller.ts.txt",
+      "reason": "real-social-readers-with-owner-lifecycle-and-partial-coverage"
+    },
+    "src/pages/social-notices/social-notices.ts": {
+      "before": "0d45a96ae31b25f0aa411cc6a9167dc0f3e003c59d7f2e90201c4fb41c73925d",
+      "after": "a471fa1646e5494f9388cd781b8fe95179219b417b36cc146c177a59de2db99e",
+      "evidence": "test/fixtures/reviewed-social-successor-v33c/src/pages/social-notices/social-notices.ts.txt",
+      "reason": "same-session-social-api-injection-only"
+    }
+  }
+}

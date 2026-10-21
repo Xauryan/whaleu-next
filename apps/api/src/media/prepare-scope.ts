@@ -1,3 +1,9 @@
+import { prepareProfileCoverMediaSchema } from './contracts-profile-cover.js';
+import type { PrepareProfileCoverMediaInput } from './contracts-profile-cover.js';
+import type {
+  AuthorizedProfileCoverMediaEdit,
+  ProfileCoverMediaDraftOwnerPort,
+} from './profile-cover-prepare-scope.js';
 import {
   prepareMajorDiscussionMediaSchema,
   majorDiscussionMediaRequestHash,
@@ -186,6 +192,7 @@ export class MediaPrepareScopes {
         | PrepareMediaV3Input
         | PrepareMediaV4Input
         | PrepareProfileMediaInput
+        | PrepareProfileCoverMediaInput
         | PrepareRatingsMediaInput
         | PrepareWindowDiscussionMediaInput
         | PrepareMajorDiscussionMediaInput
@@ -201,6 +208,7 @@ export class MediaPrepareScopes {
       scope:
         | AuthorizedMediaDraft
         | AuthorizedProfileMediaEdit
+        | AuthorizedProfileCoverMediaEdit
         | AuthorizedRatingsMediaEdit
         | AuthorizedWindowDiscussionMediaEdit
         | AuthorizedMajorDiscussionMediaEdit
@@ -230,6 +238,7 @@ export class MediaPrepareScopes {
     private readonly privateMessageOwner?: PrivateMessageMediaDraftOwnerPort,
     private readonly windowDiscussionOwner?: WindowDiscussionMediaDraftOwnerPort,
     private readonly majorDiscussionOwner?: MajorDiscussionMediaDraftOwnerPort,
+    private readonly profileCoverOwner?: ProfileCoverMediaDraftOwnerPort,
   ) {}
   async authorizeRatingsDiscussionBatch(
     actor: string,
@@ -833,6 +842,51 @@ export class MediaPrepareScopes {
     });
     return capability;
   }
+  async authorizeProfileCover(
+    actorAccountId: string,
+    raw: unknown,
+    tx: PoolClient,
+  ): Promise<MediaPrepareScope> {
+    const input = prepareProfileCoverMediaSchema.parse(raw);
+    const actor = mediaIdSchema.parse(actorAccountId);
+    const epoch = transactionReadEpoch(tx);
+    if (!epoch || !this.profileCoverOwner)
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    const scope = await this.profileCoverOwner.authorizePrepare(
+      actor,
+      input,
+      tx,
+    );
+    if (
+      scope.actorAccountId !== actor ||
+      scope.ownerKind !== 'profile' ||
+      scope.resourceKind !== 'cover' ||
+      scope.targetKind !== 'edit' ||
+      scope.contentVersion !== 1 ||
+      scope.audience !== 'profile-public' ||
+      scope.purpose !== 'profile-cover-image' ||
+      scope.slot !== 'cover' ||
+      scope.ordinal !== 0 ||
+      scope.scopeRevision !== String(input.expectedRevision) ||
+      !mediaIdSchema.safeParse(scope.serverScopeId).success ||
+      !Number.isSafeInteger(scope.expiresAt) ||
+      transactionReadEpoch(tx) !== epoch
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    registerTransactionDeadline(tx, scope.expiresAt, 'MEDIA_UNAVAILABLE');
+    Object.freeze(input.declaration);
+    Object.freeze(input);
+    const capability: MediaPrepareScope = Object.freeze({
+      [brand]: true as const,
+    });
+    this.issued.set(capability, {
+      tx,
+      epoch,
+      input,
+      scope: Object.freeze({ ...scope }),
+    });
+    return capability;
+  }
   async resolvedDiscussionPostId(
     actor: string,
     scopeId: string,
@@ -948,6 +1002,7 @@ export class MediaPrepareScopes {
       | PrepareMediaV3Input
       | PrepareMediaV4Input
       | PrepareProfileMediaInput
+      | PrepareProfileCoverMediaInput
       | PrepareRatingsMediaInput
       | PrepareWindowDiscussionMediaInput
       | PrepareMajorDiscussionMediaInput
@@ -963,6 +1018,7 @@ export class MediaPrepareScopes {
     scope:
       | AuthorizedMediaDraft
       | AuthorizedProfileMediaEdit
+      | AuthorizedProfileCoverMediaEdit
       | AuthorizedRatingsMediaEdit
       | AuthorizedWindowDiscussionMediaEdit
       | AuthorizedMajorDiscussionMediaEdit

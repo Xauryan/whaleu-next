@@ -1798,6 +1798,57 @@
     ]
   },
   {
+    "handler": "ContentReferenceController.capability",
+    "method": "GET",
+    "path": "/v1/community/content-references/capability",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/content-references/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ContentReferenceService",
+        "method": "capability",
+        "file": "apps/api/src/community/content-references/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ContentReferenceController.lookup",
+    "method": "POST",
+    "path": "/v1/community/content-references/lookup",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/content-references/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ContentReferenceService",
+        "method": "lookup",
+        "file": "apps/api/src/community/content-references/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ContentReferenceController.resolve",
+    "method": "POST",
+    "path": "/v1/community/content-references/resolve",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/content-references/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ContentReferenceService",
+        "method": "resolve",
+        "file": "apps/api/src/community/content-references/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
     "handler": "CourseCommentsController.cancel",
     "method": "POST",
     "path": "/v1/ratings/courses/comment-requests/:requestId/cancel",
@@ -3491,6 +3542,78 @@
         "method": "summary",
         "file": "apps/api/src/ratings/canteen-floors/service.ts",
         "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "FollowingController.feed",
+    "method": "GET",
+    "path": "/v1/community/following/posts",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/following/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "FeedService",
+        "method": "feed",
+        "file": "apps/api/src/community/feed.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "FollowingController.follow",
+    "method": "POST",
+    "path": "/v1/profiles/:profileId/follow",
+    "action": "interaction",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/community/following/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "FollowingService",
+        "method": "set",
+        "file": "apps/api/src/community/following/service.ts",
+        "policy": [
+          "AccountPolicyFor(\n    (args) =>\n      booleanAccountPolicy(args[2], 'interaction', 'protective_cleanup'),\n    'owner_after_recovery',\n  )"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "FollowingController.status",
+    "method": "GET",
+    "path": "/v1/profiles/:profileId/follow",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/following/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "FollowingService",
+        "method": "status",
+        "file": "apps/api/src/community/following/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "FollowingController.unfollow",
+    "method": "DELETE",
+    "path": "/v1/profiles/:profileId/follow",
+    "action": "protective_cleanup",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/community/following/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "FollowingService",
+        "method": "set",
+        "file": "apps/api/src/community/following/service.ts",
+        "policy": [
+          "AccountPolicyFor(\n    (args) =>\n      booleanAccountPolicy(args[2], 'interaction', 'protective_cleanup'),\n    'owner_after_recovery',\n  )"
+        ],
         "resolution": "concrete"
       }
     ]
@@ -6755,6 +6878,93 @@
     ]
   },
   {
+    "handler": "PersonalTimetableController.cancel",
+    "method": "POST",
+    "path": "/v1/me/timetable/requests/:requestId/cancel",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/personal-timetable/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "PersonalTimetableService",
+        "method": "cancel",
+        "file": "apps/api/src/personal-timetable/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "PersonalTimetableController.detail",
+    "method": "GET",
+    "path": "/v1/me/timetable/terms/:termId",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/personal-timetable/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "PersonalTimetableService",
+        "method": "detail",
+        "file": "apps/api/src/personal-timetable/service.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "PersonalTimetableController.execute",
+    "method": "POST",
+    "path": "/v1/me/timetable/commands",
+    "action": "private_self_service",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/personal-timetable/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "PersonalTimetableService",
+        "method": "execute",
+        "file": "apps/api/src/personal-timetable/service.ts",
+        "policy": [
+          "AccountPolicy('private_self_service', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "PersonalTimetableController.list",
+    "method": "GET",
+    "path": "/v1/me/timetable/terms",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/personal-timetable/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "PersonalTimetableService",
+        "method": "list",
+        "file": "apps/api/src/personal-timetable/service.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "PersonalTimetableController.recover",
+    "method": "GET",
+    "path": "/v1/me/timetable/requests/:requestId",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/personal-timetable/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "PersonalTimetableService",
+        "method": "recover",
+        "file": "apps/api/src/personal-timetable/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
     "handler": "PhoneBindingController.authorize",
     "method": "POST",
     "path": "/v1/me/phone-binding/requests/:requestId/authorize",
@@ -7621,6 +7831,303 @@
     ]
   },
   {
+    "handler": "ProfileCoverOwnedController.cancel",
+    "method": "POST",
+    "path": "/v1/me/profile/cover-edit-requests/:id/cancel",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverUploadApplication",
+        "method": "cancelRequest",
+        "file": "apps/api/src/profile/cover/upload-application.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.capabilities",
+    "method": "GET",
+    "path": "/v1/me/profile/cover-capabilities",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverService",
+        "method": "capabilities",
+        "file": "apps/api/src/profile/cover/service.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.command",
+    "method": "POST",
+    "path": "/v1/me/profile/cover-commands",
+    "action": "private_self_service",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverService",
+        "method": "command",
+        "file": "apps/api/src/profile/cover/service.ts",
+        "policy": [
+          "AccountPolicy('private_self_service', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.commandCancel",
+    "method": "POST",
+    "path": "/v1/me/profile/cover-command-requests/:id/cancel",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverService",
+        "method": "cancelCommand",
+        "file": "apps/api/src/profile/cover/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.commandRecovery",
+    "method": "GET",
+    "path": "/v1/me/profile/cover-command-requests/:id",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverService",
+        "method": "recoverCommand",
+        "file": "apps/api/src/profile/cover/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.current",
+    "method": "GET",
+    "path": "/v1/me/profile/cover",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverService",
+        "method": "ownCurrent",
+        "file": "apps/api/src/profile/cover/service.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.finalize",
+    "method": "POST",
+    "path": "/v1/me/profile/cover-edits/:id/finalize",
+    "action": "private_self_service",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverUploadApplication",
+        "method": "finalize",
+        "file": "apps/api/src/profile/cover/upload-application.ts",
+        "policy": [
+          "AccountPolicy('private_self_service', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.grant",
+    "method": "POST",
+    "path": "/v1/me/profile/cover-edits/:id/grant",
+    "action": "private_self_service",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverUploadApplication",
+        "method": "grant",
+        "file": "apps/api/src/profile/cover/upload-application.ts",
+        "policy": [
+          "AccountPolicy('private_self_service', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.observed",
+    "method": "POST",
+    "path": "/v1/me/profile/cover-edits/:id/uploads/:grantId",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverUploadApplication",
+        "method": "observed",
+        "file": "apps/api/src/profile/cover/upload-application.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.prepare",
+    "method": "POST",
+    "path": "/v1/me/profile/cover-edits",
+    "action": "private_self_service",
+    "phase": "owner_after_recovery",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverUploadApplication",
+        "method": "prepare",
+        "file": "apps/api/src/profile/cover/upload-application.ts",
+        "policy": [
+          "AccountPolicy('private_self_service', 'owner_after_recovery')"
+        ],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.recover",
+    "method": "GET",
+    "path": "/v1/me/profile/cover-edit-requests/:id",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverUploadApplication",
+        "method": "recover",
+        "file": "apps/api/src/profile/cover/upload-application.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverOwnedController.status",
+    "method": "GET",
+    "path": "/v1/me/profile/cover-edits/:id",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverUploadApplication",
+        "method": "status",
+        "file": "apps/api/src/profile/cover/upload-application.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverPublicController.current",
+    "method": "GET",
+    "path": "/v1/profiles/:id/cover",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverService",
+        "method": "publicCurrent",
+        "file": "apps/api/src/profile/cover/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileCoverPublicController.open",
+    "method": "GET",
+    "path": "/v1/profiles/:id/cover/:appearanceId/:variant",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile/cover/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileCoverDelivery",
+        "method": "open",
+        "file": "apps/api/src/profile/cover/delivery.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileDetailsController.own",
+    "method": "GET",
+    "path": "/v1/me/profile-details",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile-details/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileDetailsService",
+        "method": "own",
+        "file": "apps/api/src/profile-details/service.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileDetailsController.public",
+    "method": "GET",
+    "path": "/v1/profiles/:profileId/details",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile-details/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileDetailsService",
+        "method": "public",
+        "file": "apps/api/src/profile-details/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileDetailsController.update",
+    "method": "PATCH",
+    "path": "/v1/me/profile-details",
+    "action": "private_self_service",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile-details/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileDetailsService",
+        "method": "update",
+        "file": "apps/api/src/profile-details/service.ts",
+        "policy": ["AccountPolicy('private_self_service', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
     "handler": "ProfileModerationController.cancel",
     "method": "POST",
     "path": "/v1/community/profile-moderation/commands/cancel",
@@ -7688,6 +8195,40 @@
         "method": "recovery",
         "file": "apps/api/src/profile/moderation/service.ts",
         "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ProfileStatsController.own",
+    "method": "GET",
+    "path": "/v1/me/profile-stats",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/profile-details/stats.controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "ProfileStatsService",
+        "method": "own",
+        "file": "apps/api/src/profile-details/stats.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "PublicationHistoryController.list",
+    "method": "GET",
+    "path": "/v1/me/community/publications",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/publications/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "PublicationHistoryService",
+        "method": "list",
+        "file": "apps/api/src/community/publications/service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
         "resolution": "concrete"
       }
     ]
@@ -12153,6 +12694,74 @@
         "owner": "SemanticSearchRuntime",
         "method": "search",
         "file": "apps/api/src/community/search/semantic/runtime.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "SocialUpdatesController.count",
+    "method": "GET",
+    "path": "/v1/me/social-updates/unread-count",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/notifications/social/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SocialUpdatesReadService",
+        "method": "unreadCount",
+        "file": "apps/api/src/notifications/social/read.service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "SocialUpdatesController.list",
+    "method": "GET",
+    "path": "/v1/me/social-updates",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/notifications/social/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SocialUpdatesReadService",
+        "method": "list",
+        "file": "apps/api/src/notifications/social/read.service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "SocialUpdatesController.read",
+    "method": "PUT",
+    "path": "/v1/me/social-updates/:noticeId/read",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/notifications/social/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SocialUpdatesReadService",
+        "method": "markRead",
+        "file": "apps/api/src/notifications/social/read.service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "SocialUpdatesController.target",
+    "method": "GET",
+    "path": "/v1/me/social-updates/:noticeId/target",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/notifications/social/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "SocialUpdatesReadService",
+        "method": "target",
+        "file": "apps/api/src/notifications/social/read.service.ts",
         "policy": ["AccountPolicy('browse', 'entry')"],
         "resolution": "concrete"
       }

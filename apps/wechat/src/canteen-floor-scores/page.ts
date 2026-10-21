@@ -13,6 +13,7 @@ type Tap = {
 export function registerFloorRatingPage(mode: FloorMode): void {
   Page({
     data: {
+      uiPanel: '',
       ...initialFloorRatingView(),
       floorLabels: ['请选择楼层'],
       floorIndex: 0,
@@ -43,6 +44,7 @@ export function registerFloorRatingPage(mode: FloorMode): void {
           current.credentials?.accountId !== owner.credentials?.accountId
         ) {
           owner = current;
+          this.setData({ uiPanel: '' });
           this.navigator?.dispose();
           if (this.controller)
             this.navigator = new DirectoryNavigator(wx, () =>
@@ -55,6 +57,7 @@ export function registerFloorRatingPage(mode: FloorMode): void {
       });
     },
     onShow() {
+      this.setData({ uiPanel: '' });
       this.controller?.dispose();
       this.navigator?.dispose();
       this.controller = undefined;
@@ -75,6 +78,7 @@ export function registerFloorRatingPage(mode: FloorMode): void {
       this.controller = new FloorRatingController(runtime, mode, (view) =>
         this.setData({
           ...view,
+          ...(!view.hasSession || !view.loaded ? { uiPanel: '' } : {}),
           floorLabels: [
             '请选择楼层',
             ...view.floorOptions.map((item) => item.label),
@@ -87,6 +91,14 @@ export function registerFloorRatingPage(mode: FloorMode): void {
         }),
       );
       void this.controller.load(this.floorId);
+    },
+    onTogglePanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+      const panel = event.currentTarget.dataset.panel;
+      if (typeof panel === 'string' && /^[a-zA-Z0-9:_-]{1,100}$/.test(panel))
+        this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+    },
+    onClosePanel() {
+      this.setData({ uiPanel: '' });
     },
     onRefresh() {
       void this.controller?.reload();
@@ -142,6 +154,7 @@ export function registerFloorRatingPage(mode: FloorMode): void {
       void this.controller?.submit();
     },
     onHide() {
+      this.setData({ uiPanel: '' });
       this.navigator?.dispose();
       this.controller?.dispose();
       this.navigator = undefined;

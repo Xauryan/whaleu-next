@@ -1,0 +1,12 @@
+/* Framework7 v9.2.0 iOS list composition; MIT, see docs/vendor. */
+@import '../../design/framework7-ios.wxss';
+.account-menu {
+  min-height: 100vh;
+  padding: 8px 0 calc(24px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: var(--f7-page-bg-color);
+}
+.menu-entry {
+  display: block;
+  min-height: 44px;
+}

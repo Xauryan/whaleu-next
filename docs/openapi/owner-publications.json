@@ -1,0 +1,506 @@
+{
+  "openapi": "3.0.3",
+  "paths": {
+    "/v1/me/community/publications": {
+      "get": {
+        "operationId": "PublicationHistoryController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "identity",
+            "required": true,
+            "in": "query",
+            "schema": { "enum": ["named", "anonymous"], "type": "string" }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "query",
+            "schema": { "enum": ["topic", "reply"], "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["post", "comment", "reply"]
+                          },
+                          "targetId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "postId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "rootCommentId": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "preview": {
+                            "type": "object",
+                            "properties": {
+                              "text": { "type": "string" },
+                              "images": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "version": {
+                                      "type": "number",
+                                      "enum": [1]
+                                    },
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["authenticated-media"]
+                                    },
+                                    "assetId": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                    },
+                                    "bindingId": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "exclusiveMinimum": true,
+                                      "maximum": 2048
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "exclusiveMinimum": true,
+                                      "maximum": 2048
+                                    },
+                                    "variants": {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": ["thumb-v1"]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": ["display-v1"]
+                                          }
+                                        ]
+                                      },
+                                      "minItems": 2,
+                                      "maxItems": 2
+                                    }
+                                  },
+                                  "required": [
+                                    "version",
+                                    "kind",
+                                    "assetId",
+                                    "bindingId",
+                                    "width",
+                                    "height",
+                                    "variants"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "author": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": ["named"]
+                                      },
+                                      "profileId": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                      },
+                                      "displayName": { "type": "string" },
+                                      "avatar": {
+                                        "nullable": true,
+                                        "type": "object",
+                                        "properties": {
+                                          "version": {
+                                            "type": "number",
+                                            "enum": [1]
+                                          },
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": ["authenticated-media"]
+                                          },
+                                          "assetId": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          },
+                                          "bindingId": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          },
+                                          "width": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "exclusiveMinimum": true,
+                                            "maximum": 2048
+                                          },
+                                          "height": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "exclusiveMinimum": true,
+                                            "maximum": 2048
+                                          },
+                                          "variants": {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "enum": ["thumb-v1"]
+                                                },
+                                                {
+                                                  "type": "string",
+                                                  "enum": ["display-v1"]
+                                                }
+                                              ]
+                                            },
+                                            "minItems": 2,
+                                            "maxItems": 2
+                                          }
+                                        },
+                                        "required": [
+                                          "version",
+                                          "kind",
+                                          "assetId",
+                                          "bindingId",
+                                          "width",
+                                          "height",
+                                          "variants"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "experienceDisplay": {
+                                        "type": "object",
+                                        "properties": {
+                                          "title": {
+                                            "oneOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "status": {
+                                                    "type": "string",
+                                                    "enum": ["known"]
+                                                  },
+                                                  "value": {
+                                                    "nullable": true,
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "key": {
+                                                        "type": "string"
+                                                      },
+                                                      "name": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": ["key", "name"],
+                                                    "additionalProperties": false
+                                                  }
+                                                },
+                                                "required": ["status", "value"],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "status": {
+                                                    "type": "string",
+                                                    "enum": ["unavailable"]
+                                                  },
+                                                  "value": {
+                                                    "type": "string",
+                                                    "nullable": true,
+                                                    "enum": [null]
+                                                  }
+                                                },
+                                                "required": ["status", "value"],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          },
+                                          "color": {
+                                            "oneOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "status": {
+                                                    "type": "string",
+                                                    "enum": ["known"]
+                                                  },
+                                                  "value": {
+                                                    "nullable": true,
+                                                    "type": "integer",
+                                                    "minimum": -9007199254740991,
+                                                    "maximum": 9007199254740991
+                                                  }
+                                                },
+                                                "required": ["status", "value"],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "status": {
+                                                    "type": "string",
+                                                    "enum": ["unavailable"]
+                                                  },
+                                                  "value": {
+                                                    "type": "string",
+                                                    "nullable": true,
+                                                    "enum": [null]
+                                                  }
+                                                },
+                                                "required": ["status", "value"],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          },
+                                          "level": {
+                                            "oneOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "status": {
+                                                    "type": "string",
+                                                    "enum": ["known"]
+                                                  },
+                                                  "value": {
+                                                    "type": "integer",
+                                                    "minimum": -9007199254740991,
+                                                    "maximum": 9007199254740991
+                                                  }
+                                                },
+                                                "required": ["status", "value"],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "status": {
+                                                    "type": "string",
+                                                    "enum": ["unavailable"]
+                                                  },
+                                                  "value": {
+                                                    "type": "string",
+                                                    "nullable": true,
+                                                    "enum": [null]
+                                                  }
+                                                },
+                                                "required": ["status", "value"],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": ["title", "color", "level"],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "profileId",
+                                      "displayName",
+                                      "avatar",
+                                      "experienceDisplay"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": ["anonymous"]
+                                      },
+                                      "personaId": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                      },
+                                      "displayName": { "type": "string" },
+                                      "avatar": {
+                                        "nullable": true,
+                                        "type": "object",
+                                        "properties": {
+                                          "version": {
+                                            "type": "number",
+                                            "enum": [1]
+                                          },
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": ["authenticated-media"]
+                                          },
+                                          "assetId": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          },
+                                          "bindingId": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                          },
+                                          "width": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "exclusiveMinimum": true,
+                                            "maximum": 2048
+                                          },
+                                          "height": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "exclusiveMinimum": true,
+                                            "maximum": 2048
+                                          },
+                                          "variants": {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "enum": ["thumb-v1"]
+                                                },
+                                                {
+                                                  "type": "string",
+                                                  "enum": ["display-v1"]
+                                                }
+                                              ]
+                                            },
+                                            "minItems": 2,
+                                            "maxItems": 2
+                                          }
+                                        },
+                                        "required": [
+                                          "version",
+                                          "kind",
+                                          "assetId",
+                                          "bindingId",
+                                          "width",
+                                          "height",
+                                          "variants"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "isPostAuthor": { "type": "boolean" }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "personaId",
+                                      "displayName",
+                                      "avatar",
+                                      "isPostAuthor"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "isSelf": { "type": "boolean", "enum": [true] }
+                            },
+                            "required": [
+                              "text",
+                              "images",
+                              "author",
+                              "createdAt",
+                              "isSelf"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "targetId",
+                          "postId",
+                          "rootCommentId",
+                          "createdAt",
+                          "preview"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "continuation": {
+                      "type": "string",
+                      "enum": ["more", "scan_pending", "end"]
+                    },
+                    "nextCursor": { "nullable": true, "type": "string" }
+                  },
+                  "required": ["items", "continuation", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [{ "accessToken": [] }],
+        "tags": ["PublicationHistory"]
+      }
+    }
+  },
+  "info": {
+    "title": "Private owner publication history",
+    "description": "",
+    "version": "1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "accessToken": {
+        "scheme": "bearer",
+        "bearerFormat": "opaque",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

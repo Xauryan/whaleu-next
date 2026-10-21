@@ -45,8 +45,16 @@ test('real native manage/editor registrations bind every rendered action and all
   };
   const old = { Page: globals.Page, getApp: globals.getApp, wx: globals.wx };
   let page: NativePage | undefined;
+  const pageWxml = path.resolve(
+    __dirname,
+    '../src/pages/rating-category-editor/rating-category-editor.wxml',
+  );
+  const include = /<include src="([^"{}]+)"\s*\/>/.exec(
+    readFileSync(pageWxml, 'utf8'),
+  );
+  assert.ok(include, 'Actual category editor static include');
   const wxml = readFileSync(
-    path.resolve(__dirname, '../src/ratings/category-scoped.wxml'),
+    path.resolve(path.dirname(pageWxml), include[1]!),
     'utf8',
   );
   const app = JSON.parse(
@@ -76,7 +84,9 @@ test('real native manage/editor registrations bind every rendered action and all
       registerRatingCategoryScopedPage(true);
       assert.ok(page);
       const native = page as NativePage;
-      for (const match of wxml.matchAll(/bind(?:tap|input)="([A-Za-z]+)"/g))
+      for (const match of wxml.matchAll(
+        /bind(?::press|:input|tap|input)="([A-Za-z]+)"/g,
+      ))
         assert.equal(
           typeof native[match[1]!],
           'function',

@@ -1,0 +1,621 @@
+{
+  "campus-tools": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onContinueGuest"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onChooseCampus",
+        "disabled": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "input",
+      "attrs": {
+        "value": "{{query}}",
+        "placeholder": "搜索校园名称",
+        "maxlength": "100",
+        "bindinput": "onQuery"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{choosing}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSearch",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{choosing}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{campuses}}",
+        "wx:key": "id",
+        "data-id": "{{item.id}}",
+        "bindtap": "onSelectCampus",
+        "disabled": "{{busy || !item.isActive}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{choosing}}"
+        },
+        {
+          "wx:for": "{{campuses}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onPrevious",
+        "disabled": "{{busy || !hasPrevious}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{choosing}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onNext",
+        "disabled": "{{busy || !hasNext}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{choosing}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onOpen",
+        "disabled": "{{busy || item.state !== 'enabled'}}"
+      },
+      "scopes": [
+        {
+          "wx:for": "{{entries}}",
+          "wx:key": "id"
+        }
+      ]
+    }
+  ],
+  "campus-tools-map": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onContinueGuest"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "map",
+      "attrs": {
+        "id": "campus-tools-map",
+        "latitude": "{{center.latitude}}",
+        "longitude": "{{center.longitude}}",
+        "scale": "{{zoom}}",
+        "markers": "{{markers}}",
+        "show-location": "{{located}}",
+        "bindmarkertap": "onMarker"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onLocate",
+        "disabled": "{{!locateEnabled || locating}}",
+        "loading": "{{locating}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onReset"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onMarker"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+        },
+        {
+          "wx:for": "{{entry.markers}}",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseMarker"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{entry && entry.state === 'enabled' && center}}"
+        },
+        {
+          "wx:if": "{{marker}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onBack"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/campus-tools/campus-tools",
+        "open-type": "reLaunch"
+      },
+      "scopes": []
+    }
+  ],
+  "campus-tools-shuttle": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onContinueGuest"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{group.id}}",
+        "bindtap": "onToggleGroup"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{entry && entry.state === 'enabled'}}"
+        },
+        {
+          "wx:for": "{{entry.groups}}",
+          "wx:for-item": "group",
+          "wx:key": "id"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{group.slots}}",
+        "wx:for-item": "slot",
+        "wx:key": "bindingId",
+        "data-binding": "{{slot.bindingId}}",
+        "bindtap": "onPreview"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{entry && entry.state === 'enabled'}}"
+        },
+        {
+          "wx:for": "{{entry.groups}}",
+          "wx:for-item": "group",
+          "wx:key": "id"
+        },
+        {
+          "wx:if": "{{expandedGroups[group.id]}}"
+        },
+        {
+          "wx:for": "{{group.slots}}",
+          "wx:for-item": "slot",
+          "wx:key": "bindingId"
+        }
+      ]
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "wx:if": "{{image.src}}",
+        "src": "{{image.src}}",
+        "mode": "aspectFit",
+        "data-source": "{{image.src}}",
+        "data-view-id": "{{image.viewId}}",
+        "binderror": "onImageError"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        },
+        {
+          "wx:if": "{{image.src}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{image.status === 'unavailable'}}",
+        "bindtap": "onImageRetry"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        },
+        {
+          "wx:if": "{{image.status === 'unavailable'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onImagePrevious",
+        "disabled": "{{image.selected === 0}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onImageNext",
+        "disabled": "{{image.selected + 1 >= image.total}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseImage"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onBack"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/campus-tools/campus-tools",
+        "open-type": "reLaunch"
+      },
+      "scopes": []
+    }
+  ],
+  "campus-tools-research": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onContinueGuest"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{entry.image}}",
+        "data-binding": "{{entry.image.bindingId}}",
+        "bindtap": "onPreview"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{entry && entry.state === 'enabled'}}"
+        },
+        {
+          "wx:if": "{{entry.image}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{entry.link}}",
+        "bindtap": "onCopy",
+        "disabled": "{{busy}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{entry && entry.state === 'enabled'}}"
+        },
+        {
+          "wx:if": "{{entry.link}}"
+        }
+      ]
+    },
+    {
+      "tag": "image",
+      "attrs": {
+        "wx:if": "{{image.src}}",
+        "src": "{{image.src}}",
+        "mode": "aspectFit",
+        "data-source": "{{image.src}}",
+        "data-view-id": "{{image.viewId}}",
+        "binderror": "onImageError"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        },
+        {
+          "wx:if": "{{image.src}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{image.status === 'unavailable'}}",
+        "bindtap": "onImageRetry"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        },
+        {
+          "wx:if": "{{image.status === 'unavailable'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onImagePrevious",
+        "disabled": "{{image.selected === 0}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onImageNext",
+        "disabled": "{{image.selected + 1 >= image.total}}"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseImage"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{image.expanded}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onBack"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/campus-tools/campus-tools",
+        "open-type": "reLaunch"
+      },
+      "scopes": []
+    }
+  ],
+  "campus-tools-webview": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/login/login"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onContinueGuest"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{authRecovery}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}",
+        "loading": "{{busy}}"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "web-view",
+      "attrs": {
+        "wx:if": "{{webviewSrc}}",
+        "src": "{{webviewSrc}}",
+        "data-source": "{{webviewSrc}}",
+        "data-view-id": "{{webviewViewId}}",
+        "bindload": "onWebviewLoad",
+        "binderror": "onWebviewError",
+        "bindmessage": "onWebviewMessage"
+      },
+      "scopes": [
+        {
+          "wx:if": "{{webviewSrc}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onBack"
+      },
+      "scopes": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/campus-tools/campus-tools",
+        "open-type": "reLaunch"
+      },
+      "scopes": []
+    }
+  ]
+}

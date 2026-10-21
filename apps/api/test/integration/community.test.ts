@@ -1066,7 +1066,7 @@ test(
       );
 
       await t.test(
-        'read scan and visible-comment counting budgets fail safely instead of unbounded locking',
+        'mandatory feed eligibility scan fails safely; unavailable comment counts preserve post detail',
         async () => {
           await pool.query(
             'INSERT INTO whaleu_community_test.blocks(viewer,author) VALUES ($1,$2)',
@@ -1088,10 +1088,24 @@ test(
           SELECT gen_random_uuid(),$1,$2,'budget comment','named' FROM generate_series(1,1025)`,
             [post.resourceId, second.accountId],
           );
-          await assert.rejects(
-            feeds.detail(first.accessToken, post.resourceId),
-            codeIs('COMMUNITY_UNAVAILABLE'),
+          const detail = await feeds.detail(first.accessToken, post.resourceId);
+          assert.equal(detail.id, post.resourceId);
+          assert.equal(detail.space.id, spaceId);
+          assert.equal(detail.category, 'discussion');
+          assert.equal(detail.text, 'comment count budget');
+          // Legacy content adapters and raw children supply no canonical review
+          // bindings. Optional counts are unknown, not zero or a partial prefix.
+          assert.deepEqual(
+            [detail.commentCount, detail.replyCount, detail.discussionCount],
+            [null, null, null],
           );
+          for (const key of [
+            'countReason',
+            'countStatus',
+            'rawCount',
+            'scannedCount',
+          ])
+            assert.equal(Object.hasOwn(detail, key), false);
           await pool.query(
             "UPDATE whaleu_community.posts SET visibility='hidden' WHERE id=$1",
             [post.resourceId],

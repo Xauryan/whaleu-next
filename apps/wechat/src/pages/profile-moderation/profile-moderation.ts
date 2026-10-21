@@ -8,7 +8,14 @@ import {
   initialProfileModerationView,
 } from '../../profile-moderation/controller';
 Page({
-  data: { ...initialProfileModerationView(), addressError: '' },
+  onToggleDetails() {
+    this.setData({ detailsExpanded: !this.data.detailsExpanded });
+  },
+  data: {
+    ...initialProfileModerationView(),
+    addressError: '',
+    detailsExpanded: false,
+  },
   target: null as ProfileModerationTarget | null,
   controller: undefined as ProfileModerationController | undefined,
   onLoad(query: { kind?: string; id?: string } = {}) {

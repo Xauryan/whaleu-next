@@ -8,12 +8,21 @@ import {
 import { HttpOfficialGateway } from '../../official-account-operations/gateway';
 import { OfficialCommandJournal } from '../../official-account-operations/journal';
 Page({
-  data: { ...initialOfficialView(), programInput: '' },
+  data: {
+    uiPanel: '',
+    ...initialOfficialView(),
+    programInput: '',
+  },
   controller: undefined as OfficialController | undefined,
   onLoad(options: { programId?: string }) {
     this.setData({ programInput: options.programId ?? '' });
   },
+  onToggleUiPanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel ?? '';
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     const app = getApp<WhaleuApp>();
     if (!app.identity?.api || !app.community) {
@@ -28,7 +37,8 @@ Page({
         clientConfiguration.apiOrigin,
       ),
       app.community.newRequestId,
-      (view) => this.setData({ ...view }),
+      (view) =>
+        this.setData({ ...view, ...(!view.config ? { uiPanel: '' } : {}) }),
     );
     void this.controller.load(this.data.programInput);
   },
@@ -88,9 +98,11 @@ Page({
     void this.controller?.recover('resume');
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.controller?.hide();
   },
   onUnload() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
   },
 });

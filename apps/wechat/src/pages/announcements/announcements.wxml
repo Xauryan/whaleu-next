@@ -1,26 +1,104 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 公告</view>
-  <view class="title">{{source === 'native' ? '新发布公告' : '历史公告'}}</view>
-  <view class="actions"><button data-source="native" bindtap="onSource" disabled="{{busy}}">新发布公告</button><button data-source="accepted" bindtap="onSource" disabled="{{busy}}">历史公告</button></view>
-  <view class="meta">两个来源分别展示；历史资料不可用不代表没有历史公告。</view>
-  <button wx:if="{{hasSession}}" bindtap="onManage">公告管理</button>
-  <view class="scope">{{scopeLabel}}</view>
-  <view wx:if="{{campusId}}" class="meta">浏览校区编号：{{campusId}}</view>
-  <view class="meta">浏览范围不代表身份认证。查看公告不会记录弹窗确认。</view>
-  <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-  <button class="secondary" bindtap="onRefresh" disabled="{{busy}}">{{restartRequired ? '重新开始浏览' : '重新加载'}}</button>
-  <button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
-  <view wx:if="{{loaded &amp;&amp; changesNotice}}" class="notice">{{changesNotice}}</view>
-  <view wx:if="{{changes}}" class="meta">统计起点：{{changes.since}} · 核验时间：{{changes.checkedAt}}</view>
-  <view wx:for="{{items}}" wx:key="id" class="card {{item.highlight ? 'announcement-highlight' : ''}}">
-    <view wx:if="{{item.isLatest}}" class="badge">最新</view>
-    <text class="announcement-title" selectable="true">{{item.title}}</text>
-    <text wx:if="{{item.versionLabel}}" class="meta" selectable="true">版本：{{item.versionLabel}}</text>
-    <view class="meta">公告日期：{{item.announcementDate === null ? '时间未知' : item.announcementDate}}</view>
-    <button class="secondary" data-id="{{item.id}}" bindtap="onAnnouncement" disabled="{{busy}}">查看完整公告</button>
+<view class="information-screen f7-ios-theme f7-information-screen">
+  <wu-f7-block spacing="compact" class="f7-information-header">
+    <view class="tabs">
+      <wu-f7-button class="tab {{source === 'native' ? 'active' : ''}}" data-source="native" disabled="{{busy}}" bind:press="onSource" variant="{{source === 'native' ? 'tonal' : 'plain'}}">
+        新发布
+      </wu-f7-button>
+      <wu-f7-button class="tab {{source === 'accepted' ? 'active' : ''}}" data-source="accepted" disabled="{{busy}}" bind:press="onSource" variant="{{source === 'accepted' ? 'tonal' : 'plain'}}">
+        历史公告
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{hasSession}}" class="text-button manage-button" bind:press="onManage">
+        管理
+      </wu-f7-button>
+    </view>
+    <view class="toolbar">
+      <view class="scope-caption">
+        <wu-icon name="location" size="16" />
+        <text>
+          {{scopeLabel}}
+        </text>
+      </view>
+      <wu-f7-button class="icon-button" aria-label="{{restartRequired ? '重新开始浏览' : '刷新公告'}}" disabled="{{busy}}" loading="{{busy}}" bind:press="onRefresh">
+        <wu-icon name="refresh" size="19" />
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{busy || !loaded}}" class="status" aria-role="status">
+      {{status}}
+    </view>
+    <view wx:if="{{error}}" class="error" aria-role="alert">
+      {{error}}
+    </view>
+    <wu-f7-button wx:if="{{busy}}" class="quiet-button" bind:press="onCancel">
+      停止读取
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-list spacing="compact" strong="{{true}}">
+    <view wx:for="{{items}}" wx:key="id" class="announcement-row {{item.highlight ? 'announcement-highlight' : ''}}">
+      <wu-f7-list-item class="announcement-open" data-id="{{item.id}}" disabled="{{busy}}" bind:press="onAnnouncement" link="{{true}}" title-slot="{{true}}" aria-label="{{item.title}}">
+        <view slot="title" class="f7-information-row-label">
+          <view class="announcement-meta">
+            <text>
+              {{item.announcementDate === null ? '日期未知' : item.announcementDate}}
+            </text>
+            <text wx:if="{{item.isLatest}}" class="latest-label">
+              最新
+            </text>
+          </view>
+          <view class="announcement-heading">
+            <text class="announcement-title">
+              {{item.title}}
+            </text>
+            <wu-icon name="chevron-right" size="14" />
+          </view>
+          <text wx:if="{{item.versionLabel}}" class="version-label">
+            {{item.versionLabel}}
+          </text>
+        </view>
+      </wu-f7-list-item>
+    </view>
+  </wu-f7-list>
+  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">
+    <wu-icon name="bell" size="40" />
+    <view class="empty-title">
+      当前范围暂无公告
+    </view>
   </view>
-  <view wx:if="{{loaded &amp;&amp; !items.length}}" class="empty">当前浏览范围暂无公告。</view>
-  <view wx:if="{{pageNumber}}" class="meta">第 {{pageNumber}} 页</view>
-  <view class="actions"><button wx:if="{{canPrevious}}" bindtap="onPrevious" disabled="{{busy}}">上一页</button><button wx:if="{{canNext}}" bindtap="onNext" disabled="{{busy}}">下一页</button></view>
+  <view class="pagination">
+    <wu-f7-button wx:if="{{canPrevious}}" class="text-button" disabled="{{busy}}" bind:press="onPrevious">
+      上一页
+    </wu-f7-button>
+    <text wx:if="{{pageNumber}}">
+      {{pageNumber}}
+    </text>
+    <wu-f7-button wx:if="{{canNext}}" class="text-button" disabled="{{busy}}" bind:press="onNext">
+      下一页
+    </wu-f7-button>
+  </view>
+  <wu-f7-list class="reading-notes" spacing="compact" strong="{{true}}">
+    <wu-f7-list-item class="disclosure" bind:press="onToggleInfo" link="{{true}}" title-slot="{{true}}" aria-label="公告来源与浏览范围">
+      <view slot="title" class="f7-information-row-label">
+        <text>
+          公告来源与浏览范围
+        </text>
+        <wu-icon name="{{showInfo ? 'chevron-up' : 'chevron-down'}}" size="14" />
+      </view>
+    </wu-f7-list-item>
+    <view wx:if="{{showInfo}}">
+      <view>
+        新发布与历史公告分别展示。历史资料不可用，不代表没有历史公告。
+      </view>
+      <view>
+        浏览范围不代表身份认证，查看公告不会记录弹窗确认。
+      </view>
+      <view wx:if="{{campusId}}" class="meta">
+        浏览校区编号：{{campusId}}
+      </view>
+      <view wx:if="{{loaded &amp;&amp; changesNotice}}" class="notice">
+        {{changesNotice}}
+      </view>
+      <view wx:if="{{changes}}" class="meta">
+        统计起点：{{changes.since}} · 核验时间：{{changes.checkedAt}}
+      </view>
+    </view>
+  </wu-f7-list>
 </view>

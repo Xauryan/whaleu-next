@@ -1,1 +1,5 @@
 @import '../../window-ratings/window-ratings.wxss';
+
+@import '../../dining/product.wxss';
+
+@import '../../dining/framework7-product.wxss';

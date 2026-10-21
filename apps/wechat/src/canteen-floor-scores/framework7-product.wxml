@@ -1,0 +1,83 @@
+<template name="floor-status">
+  <view wx:if="{{!loaded || busy}}" class="meta">
+    {{status}}
+  </view>
+  <view wx:if="{{error}}" class="error">
+    {{error}}
+  </view>
+  <view wx:if="{{receiptStatus}}" class="notice">
+    {{receiptStatus}}
+  </view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">
+    登录后查看楼层评分
+  </navigator>
+  <view wx:if="{{frozen}}" class="dp-recovery">
+    <view class="section-title">
+      原楼层评分待确认
+    </view>
+    <view wx:if="{{recoveryFloorId}}" class="body">
+      楼层编号：{{recoveryFloorId}}
+    </view>
+    <view wx:if="{{recoveryScore !== null}}" class="body">
+      原请求分数：{{recoveryScore}}
+    </view>
+    <view class="notice">
+      {{recoveryPhase === 'cancel' ?
+      '已保存取消决定；恢复时只查询回执或重试取消，不会重新提交评分。' :
+      '未查到回执不等于失败。保留原账号、来源、编号、版本与分数，不能创建替代请求。'}}
+    </view>
+    <wu-f7-button disabled="{{busy}}" bind:press="onRecover" variant="tonal">
+      查询原回执
+    </wu-f7-button>
+    <wu-f7-button disabled="{{busy}}" bind:press="onRetry" variant="tonal">
+      {{recoveryPhase === 'cancel' ? '查询后重试原取消' : '查询后重试原评分'}}
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{recoveryFloorId && recoveryPhase !== 'cancel'}}" disabled="{{busy}}" bind:press="onRequestCancellation" variant="tonal">
+      查询后申请取消原请求
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{confirming === 'cancel'}}" class="dp-recovery">
+    <view class="section-title">
+      确认取消原评分请求
+    </view>
+    <view class="notice">
+      只有取得服务端取消回执才算取消。若原请求已完成，将返回其真实回执；取消不会删除已经写入的评分。
+    </view>
+    <wu-f7-button disabled="{{busy || !receiptMissing}}" bind:press="onConfirmCancellation" variant="tonal">
+      确认取消这个原请求
+    </wu-f7-button>
+    <wu-f7-button disabled="{{busy}}" bind:press="onCloseConfirmation" variant="tonal">
+      返回
+    </wu-f7-button>
+  </view>
+  <wu-f7-button class="dp-plain dp-refresh" disabled="{{busy}}" bind:press="onRefresh" variant="plain">
+    <wu-icon name="refresh" size="18" />
+    刷新
+  </wu-f7-button>
+  <wu-f7-button wx:if="{{busy}}" bind:press="onCancelWait" variant="tonal">
+    停止等待
+  </wu-f7-button>
+</template>
+<template name="floor-summary">
+  <view wx:if="{{summary.kind === 'unavailable'}}" class="notice">
+    历史评分暂不能确认
+  </view>
+  <block wx:elif="{{summary.ratingCount === 0}}">
+    <view class="dp-score-empty">
+      暂无评分
+    </view>
+    <view class="meta">
+      还没有评分记录
+    </view>
+  </block>
+  <block wx:else="">
+    <view class="dp-score">
+      <text class="dp-score-value">
+        {{summary.mean}}
+      </text>
+      <view class="meta">
+        {{summary.ratingCount}} 条评分
+      </view>
+    </view>
+  </block>
+</template>

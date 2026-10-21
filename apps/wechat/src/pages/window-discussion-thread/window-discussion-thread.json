@@ -1,1 +1,8 @@
-{ "navigationBarTitleText": "窗口讨论回复" }
+{
+  "navigationBarTitleText": "主题回复",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon",
+    "wu-f7-button": "../../components/f7-button/f7-button",
+    "wu-f7-block": "../../components/f7-block/f7-block"
+  }
+}

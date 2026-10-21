@@ -1,0 +1,327 @@
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import test from 'node:test';
+import type { WhaleuApp } from '../src/app';
+import { ApiClient } from '../src/api/client';
+import { SessionStore } from '../src/auth/session';
+import {
+  ToolHubController,
+  type ToolHubView,
+} from '../src/campus-tools/controller';
+import { ToolBrowseScope } from '../src/campus-tools/scope';
+import { toolEntryPath, toolHubPath } from '../src/campus-tools/navigation';
+import type { ListView } from '../src/messaging/list-controller';
+import type { ProfileView } from '../src/pages/profile/controller';
+import type { WxApi } from '../src/platform/wechat';
+import { campusId, entry, gateway, hub, route } from './campus-tools-fixtures';
+import {
+  deferred,
+  FakeClock,
+  flush,
+  response,
+  ScriptedTransport,
+} from './helpers';
+import { wireCredentials } from './identity-helpers';
+import { harness as messagingHarness } from './messaging-helpers';
+import { campus, FakeProfileGateway, ownProfile } from './profile-helpers';
+
+type PageName = 'campus-hub' | 'inbox' | 'me';
+interface HubPage<D> {
+  data: D;
+  setData(patch: Record<string, unknown>): void;
+  onShow(): void;
+  onHide(): void;
+  onUnload(): void;
+  onPullDownRefresh(): Promise<void>;
+  onReload(): void;
+  onTool(event: { currentTarget: { dataset: { kind: string } } }): void;
+}
+const definitions = new Map<PageName, unknown>();
+const nativeGlobal = globalThis as typeof globalThis & { wx: WxApi };
+async function pageDefinition<D>(name: PageName): Promise<HubPage<D>> {
+  if (!definitions.has(name)) {
+    const previous = globalThis.Page;
+    globalThis.Page = ((value: object) => {
+      definitions.set(name, value);
+    }) as typeof Page;
+    try {
+      if (name === 'campus-hub')
+        await import('../src/pages/campus-hub/campus-hub.js');
+      else if (name === 'inbox') await import('../src/pages/inbox/inbox.js');
+      else await import('../src/pages/me/me.js');
+    } finally {
+      globalThis.Page = previous;
+    }
+  }
+  const definition = definitions.get(name) as HubPage<D>;
+  assert.ok(definition);
+  const page: HubPage<D> = {
+    ...definition,
+    data: { ...definition.data },
+    setData(patch) {
+      this.data = { ...this.data, ...patch };
+    },
+  };
+  return page;
+}
+const root = path.join(__dirname, '../src');
+const source = (relative: string) =>
+  readFileSync(path.join(root, relative), 'utf8');
+const { createNativePressBridge } = createRequire(__filename)(
+  './native-press-emitted-harness.mjs',
+) as {
+  createNativePressBridge(options: {
+    page: object;
+    pageFile: string;
+    dist: string;
+    extension: 'ts';
+  }): {
+    capture(
+      handler: string,
+      dataset: Record<string, string>,
+    ): { press(): boolean; detach(): void };
+  };
+};
+
+test('Apple hubs link real destinations, expose no admin shortcuts, and keep unavailable academic services inert', () => {
+  const selections = { 'campus-hub': 'campus', inbox: 'messages', me: 'me' };
+  for (const [page, selected] of Object.entries(selections)) {
+    const script = source(`pages/${page}/${page}.ts`);
+    const template = source(`pages/${page}/${page}.wxml`);
+    const config = JSON.parse(source(`pages/${page}/${page}.json`));
+    assert.equal(
+      config.usingComponents['wu-tab-bar'],
+      '../../components/tab-bar/tab-bar',
+    );
+    assert.equal(config.enablePullDownRefresh, true);
+    assert.match(template, new RegExp(`<wu-tab-bar selected="${selected}"`));
+    for (const match of (script + template).matchAll(
+      /\/pages\/([a-z-]+)\/\1/g,
+    )) {
+      assert.equal(
+        existsSync(path.join(root, `${match[0]}.ts`)),
+        true,
+        match[0],
+      );
+    }
+    assert.doesNotMatch(
+      script + template,
+      /school-admin-management|safety-punishment-management|school-uid-lookup|profile-moderation/,
+    );
+    assert.doesNotMatch(
+      script,
+      /setStorage|saveProfile\(|savePreferences\(|acknowledge\(/,
+    );
+    assert.match(script, /controller\?\.dispose\(\)/);
+  }
+  const campusTemplate = source('pages/campus-hub/campus-hub.wxml');
+  assert.match(campusTemplate, /手动课表，仅当前账户可见/);
+  assert.match(
+    campusTemplate,
+    /<navigator[^>]+url="\/pages\/personal-timetable\/personal-timetable"/,
+  );
+  assert.match(campusTemplate, /成绩查询，暂未接入教务服务/);
+  assert.doesNotMatch(campusTemplate, /navigator[^>]+grade/);
+  assert.match(source('pages/inbox/inbox.wxml'), /list\.coverage === 'local'/);
+  assert.match(source('pages/inbox/inbox.ts'), /new MessagingListController/);
+});
+
+test('campus hub uses authoritative tool routes, coalesces taps, clears stale state and never guesses campus names', async () => {
+  const previous = { getApp: globalThis.getApp, wx: nativeGlobal.wx };
+  const sessions = new SessionStore();
+  const scope = new ToolBrowseScope();
+  scope.select(campusId);
+  const remote = gateway();
+  const clock = new FakeClock();
+  let recovery = false;
+  let creates = 0;
+  const app = {
+    campusTools: {
+      needsRecovery: () => recovery,
+      createHub: (render: (view: ToolHubView) => void) => {
+        creates++;
+        return new ToolHubController(
+          sessions,
+          remote,
+          new FakeProfileGateway(),
+          scope,
+          clock,
+          render,
+        );
+      },
+    },
+  } as WhaleuApp;
+  globalThis.getApp = (() => app) as typeof getApp;
+  const routes: Parameters<NonNullable<WxApi['navigateTo']>>[0][] = [];
+  let refreshStops = 0;
+  nativeGlobal.wx = {
+    navigateTo: (options) => {
+      routes.push(options);
+    },
+    stopPullDownRefresh: () => {
+      refreshStops++;
+    },
+  } as WxApi;
+  const page = await pageDefinition<{
+    campus: ToolHubView;
+    campusLabel: string;
+    authRecovery: boolean;
+    navigationError: string;
+  }>('campus-hub');
+  const mapTap = { currentTarget: { dataset: { kind: 'map' } } };
+  try {
+    page.onShow();
+    await flush();
+    assert.equal(page.data.campus.state, 'ready');
+    assert.equal(page.data.campusLabel, '当前浏览校园');
+    const bridge = createNativePressBridge({
+      page,
+      pageFile: path.join(root, 'pages/campus-hub/campus-hub'),
+      dist: root,
+      extension: 'ts',
+    });
+    const mapControl = bridge.capture('onTool', { kind: 'map' });
+    assert.equal(mapControl.press(), true);
+    assert.equal(mapControl.press(), true);
+    mapControl.detach();
+    assert.equal(routes.length, 1);
+    assert.equal(routes[0]!.url, toolEntryPath(route, entry()));
+    routes[0]!.success();
+    const shuttleControl = bridge.capture('onTool', { kind: 'shuttle' });
+    shuttleControl.press();
+    shuttleControl.detach();
+    assert.equal(routes[1]!.url, toolHubPath);
+    page.onHide();
+    routes[1]!.fail(new Error('Late navigation failure'));
+    assert.equal(page.data.navigationError, '');
+    assert.deepEqual(page.data.campus.entries, []);
+    const late = deferred<ReturnType<typeof hub>>();
+    remote.hub = async () => late.promise;
+    page.onShow();
+    await flush();
+    assert.equal(page.data.campus.busy, true);
+    const busyControl = bridge.capture('onTool', { kind: 'map' });
+    assert.equal(busyControl.press(), false);
+    busyControl.detach();
+    page.onTool(mapTap);
+    assert.equal(routes.length, 2);
+    page.onHide();
+    late.resolve(hub());
+    await flush();
+    assert.deepEqual(page.data.campus.entries, []);
+    recovery = true;
+    const priorCreates = creates;
+    page.onShow();
+    assert.equal(creates, priorCreates);
+    assert.equal(page.data.authRecovery, true);
+    await page.onPullDownRefresh();
+    assert.equal(refreshStops, 1);
+    recovery = false;
+    remote.hub = async () => {
+      throw new Error('Synthetic transient catalog failure');
+    };
+    page.onShow();
+    await flush();
+    assert.ok(page.data.campus.error);
+    const retryControl = bridge.capture('onRetry', {});
+    remote.hub = async () => hub();
+    assert.equal(retryControl.press(), true);
+    retryControl.detach();
+    await flush();
+    assert.equal(page.data.campus.state, 'ready');
+    assert.equal(page.data.campus.error, '');
+  } finally {
+    page.onUnload();
+    globalThis.getApp = previous.getApp;
+    nativeGlobal.wx = previous.wx;
+  }
+});
+
+test('inbox shows actual scoped unread counts without mutations and clears counts and polling across hide and logout', async () => {
+  const previous = { getApp: globalThis.getApp, wx: nativeGlobal.wx };
+  const fixture = messagingHarness();
+  globalThis.getApp = (() =>
+    ({
+      community: { messaging: fixture.runtime },
+    }) as WhaleuApp) as typeof getApp;
+  let refreshStops = 0;
+  nativeGlobal.wx = {
+    stopPullDownRefresh: () => {
+      refreshStops++;
+    },
+  } as WxApi;
+  const page = await pageDefinition<{ list: ListView }>('inbox');
+  try {
+    page.onShow();
+    await flush();
+    assert.equal(page.data.list.unread, 1);
+    assert.equal(page.data.list.coverage, 'local');
+    assert.equal(fixture.applied.length, 0);
+    assert.equal(fixture.clock.timers, 1);
+    page.onHide();
+    assert.equal(page.data.list.unread, null);
+    assert.equal(fixture.clock.timers, 0);
+    const late = deferred<{ count: number; coverage: 'local' }>();
+    fixture.gateway.unread = async () => late.promise;
+    page.onShow();
+    await flush();
+    fixture.sessions.logout();
+    late.resolve({ count: 42, coverage: 'local' });
+    await flush();
+    assert.equal(page.data.list.unread, null);
+    assert.equal(fixture.clock.timers, 0);
+    await page.onPullDownRefresh();
+    assert.equal(refreshStops, 1);
+    assert.equal(fixture.applied.length, 0);
+  } finally {
+    page.onUnload();
+    globalThis.getApp = previous.getApp;
+    nativeGlobal.wx = previous.wx;
+  }
+});
+
+test('Me reads only the current own profile, clears private display on account changes and ignores hidden late responses', async () => {
+  const previous = { getApp: globalThis.getApp, wx: nativeGlobal.wx };
+  const sessions = new SessionStore();
+  sessions.completeLogin(sessions.beginLogin(), wireCredentials());
+  const transport = new ScriptedTransport();
+  const api = new ApiClient('https://api.example.test', transport, sessions, {
+    refresh: async () => sessions.snapshot(),
+  });
+  globalThis.getApp = (() =>
+    ({ identity: { sessions, api } }) as WhaleuApp) as typeof getApp;
+  nativeGlobal.wx = {} as WxApi;
+  const page = await pageDefinition<{ profile: ProfileView }>('me');
+  try {
+    transport.reply(
+      ownProfile({ nickname: '合成用户', selectedCampus: campus() }),
+    );
+    page.onShow();
+    await flush();
+    assert.equal(page.data.profile.nickname, '合成用户');
+    assert.equal(page.data.profile.selectedCampusName, '测试大学主校区');
+    assert.ok(transport.requests.every((request) => request.method === 'GET'));
+    const late = deferred<ReturnType<typeof response>>();
+    transport.steps.push(async () => late.promise);
+    page.onReload();
+    await flush();
+    page.onHide();
+    assert.equal(page.data.profile.nickname, '');
+    late.resolve(response(ownProfile({ nickname: '不应显示的旧资料' })));
+    await flush();
+    assert.equal(page.data.profile.nickname, '');
+    transport.reply(ownProfile({ nickname: '合成用户' }));
+    page.onShow();
+    await flush();
+    sessions.logout();
+    assert.equal(page.data.profile.nickname, '');
+    assert.equal(page.data.profile.hasSession, false);
+    assert.ok(transport.requests.every((request) => request.method === 'GET'));
+  } finally {
+    page.onUnload();
+    globalThis.getApp = previous.getApp;
+    nativeGlobal.wx = previous.wx;
+  }
+});

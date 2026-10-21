@@ -1,3 +1,7 @@
+import {
+  pressRecoveryControl,
+  readRecoveryDependency,
+} from '../test/framework7-rating-recovery-native-harness.mjs';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -239,13 +243,15 @@ export async function smokeRatingCategoryScoped({ app, dist }) {
     runtime.ratingCategoryScoped instanceof HttpRatingCategoryScopedGateway,
   );
   const localApp = { ...app, community: runtime };
-  const source = readFileSync(
-    path.join(dist, 'ratings/category-scoped.wxml'),
-    'utf8',
+  const source = readRecoveryDependency(
+    path.join(dist, 'pages/rating-category-editor/rating-category-editor'),
+    dist,
+    'include',
   );
   const drain = async () => {
     for (let n = 0; n < 150; n++) await Promise.resolve();
   };
+  const pageNames = new WeakMap();
   const mount = (name, query) => {
     let native;
     globalThis.Page = (definition) => {
@@ -259,20 +265,32 @@ export async function smokeRatingCategoryScoped({ app, dist }) {
       native.data = { ...native.data, ...patch };
     };
     for (const [, handler] of source.matchAll(
-      /bind(?:tap|input)="([A-Za-z]+)"/g,
+      /bind(?::press|:input|tap|input)="([A-Za-z]+)"/g,
     ))
       assert.equal(
         typeof native[handler],
         'function',
         `Emitted handler ${handler}`,
       );
+    pageNames.set(native, name);
     pages.push(native);
     native.onLoad(query);
     native.onShow();
     return native;
   };
   const tap = (native, handler, dataset = {}) =>
-    native[handler]({ currentTarget: { dataset }, detail: { value: '' } });
+    pressRecoveryControl(
+      {
+        page: native,
+        dist,
+        pageFile: path.join(
+          dist,
+          `pages/${pageNames.get(native)}/${pageNames.get(native)}`,
+        ),
+      },
+      handler,
+      dataset,
+    );
   const text = (native, value) =>
     native.onText({
       currentTarget: { dataset: { field: 'description' } },

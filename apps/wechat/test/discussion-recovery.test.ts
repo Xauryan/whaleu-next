@@ -74,7 +74,7 @@ const applied: DiscussionReceipt = {
 test('reply publication freezes original root/target/text before dispatch and survives not-found and reopen', async () => {
   const s = compose();
   await s.controller.load();
-  assert.equal(s.view().replyTargetName, '合成匿名鲸鱼');
+  assert.equal(s.view().replyTargetName, '合成分身鲸鱼');
   s.controller.setText(' 原\r\n文字 ');
   s.gateway.publishReplyImpl = async (root, payload) => {
     assert.equal(root, commentId);

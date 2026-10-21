@@ -53,6 +53,15 @@ import {
 } from '../support/verification-fixtures.js';
 import { observeExactQueries } from '../support/exact-discovery-counts.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
+import {
+  assertPostCounts,
+  assertReplyCount,
+  countSourceSavepoint,
+  isCountCapacityRead,
+  namedReadCountGuard,
+  namedRelationshipScalar,
+  namedRelationshipFinalRows,
+} from '../support/named-read-count-contract.js';
 
 type Result = Pick<Response, 'status' | 'body'>;
 type Actor = Awaited<ReturnType<typeof createRuntimeActor>> & {
@@ -69,13 +78,19 @@ interface ReadCase {
   run: () => Promise<Result>;
   expect: readonly string[];
   identity?: boolean;
+  verifyCounts?: (body: Result['body']) => void;
 }
-const scalar = 'SELECT EXISTS(SELECT 1 FROM whaleu_safety.blocks';
-const finalRows = 'WITH ORDINALITY AS r(viewer,author,bilateral,ordinality)';
+const scalar = namedRelationshipScalar;
+const finalRows = namedRelationshipFinalRows;
 const fence = 'LOCK TABLE whaleu_safety.blocks IN SHARE MODE NOWAIT';
 const serialized = (value: unknown) => JSON.stringify(value);
-function success(result: Result, expected: readonly string[]) {
+function success(
+  result: Result,
+  expected: readonly string[],
+  verifyCounts?: ReadCase['verifyCounts'],
+) {
   assert.equal(result.status, 200, serialized(result.body));
+  verifyCounts?.(result.body);
   const body = serialized(result.body);
   for (const value of expected)
     assert.ok(
@@ -590,7 +605,11 @@ test(
               target: child,
               bilateral: false,
               run: get(actor, '/v1/me/community/trading'),
-              expect: [own.id, '"commentCount":1', '"isSelf":true'],
+              expect: [own.id, '"isSelf":true'],
+              verifyCounts: (body) => {
+                assert.equal(body.items.length, 1);
+                assertPostCounts(body.items[0], { comments: 1, replies: 0 });
+              },
             };
           }
           case 'DiscussionReadService.comments':
@@ -603,7 +622,10 @@ test(
             return {
               ...base,
               run: get(actor, `/v1/community/comments/${root.id}`),
-              expect: [root.body.text, child.nickname, '"replyCount":2'],
+              expect: [root.body.text, child.nickname],
+              verifyCounts: (body) => {
+                assertReplyCount(body, 2);
+              },
             };
           case 'DiscussionReadService.reply':
             return {
@@ -740,7 +762,6 @@ test(
         'FeedService.detail',
         'FeedService.commentCapabilities',
         'FeedService.comments',
-        'FeedService.ownTrading',
         'DiscussionReadService.comments',
         'DiscussionReadService.comment',
         'DiscussionReadService.reply',
@@ -762,32 +783,107 @@ test(
         read: ReadCase,
         direction: 'outgoing' | 'incoming',
         relation?: string,
+        failOptionalSource = false,
       ) => {
         const blocker = direction === 'outgoing' ? read.actor : read.target,
           blocked = direction === 'outgoing' ? read.target : read.actor;
+        // Assertions stay sticky outside production error recovery: an
+        // unavailable response must never hide a bad observer invariant.
+        const trackCounts = () => {
+          const guard = namedReadCountGuard();
+          const failed = new Set<object>(),
+            rolledBack = new Set<object>();
+          let injected = 0,
+            rollbacks = 0,
+            releases = 0,
+            earlyFinal = false;
+          return {
+            observe(event: { sql: string }, tx: object) {
+              const phase = guard.observe(event.sql, tx);
+              if (
+                event.sql === `ROLLBACK TO SAVEPOINT ${countSourceSavepoint}` &&
+                failed.has(tx)
+              ) {
+                rolledBack.add(tx);
+                rollbacks++;
+              }
+              if (
+                event.sql === `RELEASE SAVEPOINT ${countSourceSavepoint}` &&
+                failed.has(tx)
+              ) {
+                if (!rolledBack.delete(tx)) earlyFinal = true;
+                failed.delete(tx);
+                releases++;
+              }
+              if (
+                event.sql.includes(finalRows) &&
+                failOptionalSource &&
+                (injected === 0 || failed.size > 0 || injected !== releases)
+              )
+                earlyFinal = true;
+              if (failOptionalSource && isCountCapacityRead(event.sql)) {
+                injected++;
+                failed.add(tx);
+                // Only the declared recoverable optional source failure is
+                // injected, after the real capacity query has executed.
+                throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+              }
+              return phase;
+            },
+            assertHealthy() {
+              guard.assertHealthy();
+              if (!failOptionalSource) return;
+              assert.ok(
+                injected > 0,
+                'The optional source failure must actually execute',
+              );
+              assert.equal(
+                rollbacks,
+                injected,
+                'Every failed optional source rolls back',
+              );
+              assert.equal(
+                releases,
+                injected,
+                'Every failed optional source releases',
+              );
+              assert.equal(
+                earlyFinal,
+                false,
+                'Optional source recovery precedes mandatory final proof',
+              );
+              assert.equal(failed.size, 0);
+              assert.equal(rolledBack.size, 0);
+            },
+          };
+        };
+        const baselineCounts = trackCounts();
         let baselineAllows = 0;
-        observer!.setHook(async (event) => {
+        observer!.setHook(async (event, tx) => {
+          baselineCounts.observe(event, tx);
           if (
             event.sql.startsWith(scalar) &&
             event.values[0] === read.actor.accountId &&
             event.values[1] === read.target.accountId
           )
             baselineAllows++;
-          assert.equal(
-            /writer_capacity|count_epochs|count_writer/.test(event.sql),
-            false,
-          );
         });
         const baseline = await observer!.measure(
           `${read.owner} baseline`,
           read.run,
         );
         observer!.setHook(null);
+        baselineCounts.assertHealthy();
+        if (failOptionalSource)
+          assert.equal(
+            assertPostCounts(baseline.value.body, { comments: 0, replies: 0 }),
+            'unavailable',
+          );
         assert.ok(
           baselineAllows > 0,
           'Baseline must actually authorize this pair',
         );
-        success(baseline.value, read.expect);
+        success(baseline.value, read.expect, read.verifyCounts);
         assert.deepEqual(
           baseline.measurement.begins,
           read.entryPolicy === false
@@ -800,12 +896,10 @@ test(
           fact = false,
           disclosed = false,
           observedAllows = 0;
-        observer!.setHook(async (event) => {
-          assert.equal(
-            /writer_capacity|count_epochs|count_writer/.test(event.sql),
-            false,
-            'Mandatory named reads have no optional count-capacity/epoch dependency',
-          );
+        const raceCounts = trackCounts();
+        let finalBeforeBlock = false;
+        observer!.setHook(async (event, tx) => {
+          raceCounts.observe(event, tx);
           if (
             event.sql.startsWith(scalar) &&
             event.values[0] === read.actor.accountId &&
@@ -816,7 +910,10 @@ test(
             fired = true;
             relation = await writeBlock(blocker, blocked, true, relation);
           }
-          if (event.sql.includes(finalRows)) fact = true;
+          if (event.sql.includes(finalRows)) {
+            if (!fired) finalBeforeBlock = true;
+            fact = true;
+          }
           if (
             event.sql.includes(
               'INSERT INTO whaleu_authorization.identity_view_audit',
@@ -827,6 +924,12 @@ test(
         });
         try {
           const result = await read.run();
+          raceCounts.assertHealthy();
+          assert.equal(
+            finalBeforeBlock,
+            false,
+            'Mandatory final reread follows the actual scalar race',
+          );
           assert.equal(
             fired,
             true,
@@ -853,7 +956,7 @@ test(
                 'Final proof failure rolls back disclosed audit rows',
               );
             }
-          } else success(result, read.expect);
+          } else success(result, read.expect, read.verifyCounts);
         } finally {
           observer!.setHook(null);
           if (relation) await writeBlock(blocker, blocked, false, relation);
@@ -869,10 +972,107 @@ test(
               const read = await makeCase(owner, await makeActor());
               const relation = await race(read, direction);
               await race(read, direction, relation);
-              success(await read.run(), read.expect); // A failure cannot poison pooled proof lifetime.
+              success(await read.run(), read.expect, read.verifyCounts); // A failure cannot poison pooled proof lifetime.
             },
           );
         }
+
+      // Own trading emits self-authored posts, not the authors behind its
+      // optional discussion totals. Keep these races, without inventing a
+      // mandatory named disclosure that the current DTO does not contain.
+      for (const direction of ['outgoing', 'incoming'] as const) {
+        await t.test(
+          `FeedService.ownTrading: count-only raw INSERT then reactivation ${direction}`,
+          async () => {
+            const read = await makeCase(
+              'FeedService.ownTrading',
+              await makeActor(),
+            );
+            success(await read.run(), read.expect, read.verifyCounts);
+            let relation: string | undefined;
+            for (const transition of ['insert', 'reactivate'] as const) {
+              const guard = namedReadCountGuard();
+              let crossed = false,
+                scalarPairs = 0,
+                finalPairs = 0;
+              observer!.setHook(async (event, tx) => {
+                guard.observe(event.sql, tx);
+                if (event.sql.startsWith(scalar)) scalarPairs++;
+                if (event.sql.includes(finalRows)) finalPairs++;
+                if (
+                  !crossed &&
+                  event.sql === `RELEASE SAVEPOINT ${countSourceSavepoint}`
+                ) {
+                  crossed = true;
+                  relation = await writeBlock(
+                    direction === 'outgoing' ? read.actor : read.target,
+                    direction === 'outgoing' ? read.target : read.actor,
+                    true,
+                    relation,
+                  );
+                }
+              });
+              try {
+                const result = await read.run();
+                guard.assertHealthy();
+                assert.equal(
+                  crossed,
+                  true,
+                  `${transition} must cross a completed bounded count source`,
+                );
+                success(result, read.expect);
+                assert.equal(result.body.items.length, 1);
+                assertPostCounts(result.body.items[0], {
+                  comments: direction === 'outgoing' ? 0 : 1,
+                  replies: 0,
+                });
+                assert.equal(
+                  scalarPairs,
+                  0,
+                  'Count-only child authors never enroll scalar named disclosure',
+                );
+                assert.equal(
+                  finalPairs,
+                  0,
+                  'Self-only emitted posts have no named relationship facts',
+                );
+                for (const privateValue of [
+                  read.target.accountId,
+                  read.target.profileId,
+                  read.target.nickname,
+                ])
+                  assert.equal(
+                    serialized(result.body).includes(privateValue),
+                    false,
+                  );
+              } finally {
+                observer!.setHook(null);
+                if (relation)
+                  await writeBlock(
+                    direction === 'outgoing' ? read.actor : read.target,
+                    direction === 'outgoing' ? read.target : read.actor,
+                    false,
+                    relation,
+                  );
+              }
+              assert.ok(relation);
+              success(await read.run(), read.expect, read.verifyCounts);
+            }
+          },
+        );
+        await t.test(
+          `optional source failure preserves mandatory named finalization ${direction}`,
+          async () => {
+            const read = await makeCase(
+              'FeedService.detail',
+              await makeActor(),
+            );
+            const relation = await race(read, direction, undefined, true);
+            await race(read, direction, relation, true);
+            success(await read.run(), read.expect, read.verifyCounts);
+          },
+        );
+      }
 
       await t.test(
         'child, preview target and formation-member proofs stay outgoing-only',
@@ -1037,7 +1237,10 @@ test(
             target: targetAuthor,
             bilateral: false,
             run: get(actor, `/v1/community/comments/${anonymousRoot.id}`),
-            expect: [namedReply.id, targetAuthor.nickname, '"replyCount":1'],
+            expect: [namedReply.id, targetAuthor.nickname],
+            verifyCounts: (body) => {
+              assertReplyCount(body, 1);
+            },
           };
           const first = await race(preview, 'outgoing');
           await race(preview, 'outgoing', first);
@@ -1075,7 +1278,7 @@ test(
         async () => {
           const actor = await makeActor(),
             read = await makeCase('TradingService.contacts', actor);
-          success(await read.run(), read.expect);
+          success(await read.run(), read.expect, read.verifyCounts);
           const writer = await pool.connect();
           let started = false;
           observer!.setHook(async (event) => {
@@ -1106,7 +1309,7 @@ test(
             await writer.query('ROLLBACK');
             writer.release();
           }
-          success(await read.run(), read.expect);
+          success(await read.run(), read.expect, read.verifyCounts);
         },
       );
 
@@ -1115,7 +1318,7 @@ test(
         async () => {
           const actor = await makeActor(),
             read = await makeCase('TradingService.contacts', actor);
-          success(await read.run(), read.expect);
+          success(await read.run(), read.expect, read.verifyCounts);
           const maintenance = await pool.connect();
           let fenceRejected = false;
           observer!.setFailureHook(async (event) => {
@@ -1145,7 +1348,7 @@ test(
             await maintenance.query('ROLLBACK');
             maintenance.release();
           }
-          success(await read.run(), read.expect);
+          success(await read.run(), read.expect, read.verifyCounts);
         },
       );
 
@@ -1185,7 +1388,7 @@ test(
             if (event.sql === 'COMMIT') committedAt = performance.now();
           });
           try {
-            success(await read.run(), read.expect);
+            success(await read.run(), read.expect, read.verifyCounts);
             assert.ok(pending);
             relation = await pending;
             assert.ok(committedAt >= acquiredAt && acquiredAt > 0);
@@ -1205,7 +1408,7 @@ test(
             writer.release();
             if (relation) await writeBlock(actor, author, false, relation);
           }
-          success(await read.run(), read.expect);
+          success(await read.run(), read.expect, read.verifyCounts);
         },
       );
 
@@ -1312,7 +1515,7 @@ test(
             'TradingService.contacts',
             await makeActor(),
           );
-          success(await fresh.run(), fresh.expect);
+          success(await fresh.run(), fresh.expect, fresh.verifyCounts);
         },
       );
 

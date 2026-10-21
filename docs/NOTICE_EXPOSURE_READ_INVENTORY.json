@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "scope": "Native social-notices and system-notices exposure-read only",
+  "policy": {
+    "thresholdIntersectionRatio": 0.5,
+    "continuousDwellMs": 1000,
+    "nativeEvidence": "Committed exact row ID plus actual native IntersectionObserver callback; never fetch, navigation or shell scroll",
+    "missingObserver": "Explicit manual acknowledgment only",
+    "unknownOutcome": "No optimistic readAt/count and no exposure retry within the page observer lifetime",
+    "ownBusyException": "Exact serialized source row snapshot unchanged, still loaded/current, no intervening external clear; disabled/busy-only echoes do not revoke their own qualifying receipt",
+    "limits": "Local product threshold, not Tencent/device-certified attention or visibility. Oversized rows that cannot reach 50% require manual read. No native geometry/device/rendering proof."
+  },
+  "changed": {
+    "src/notifications/social-updates/controller.ts": {
+      "before": "e0ac1a27cd5bb239ca38ecff8067bea88c3638ff23f81d3c15b7100d709d34cb",
+      "evidence": "test/fixtures/notice-exposure-before/src/notifications/social-updates/controller.ts.txt",
+      "after": "85f8f0203be16a3e628b4e4e3f5cf2e6cb0fbfc76fd2d06d5236f95175000f7b"
+    },
+    "src/pages/community-updates/controller.ts": {
+      "before": "e1d1eb0da395036cb6ba918c163d5b35c092aca96535c8fb21cc832633dd92ee",
+      "evidence": "test/fixtures/notice-exposure-before/src/pages/community-updates/controller.ts.txt",
+      "after": "cbdbae416c8effb8f2b10b2766a243614daf115f1ab8683e53feaa86bb67b776"
+    },
+    "src/ratings/updates-controller.ts": {
+      "before": "eabd0cf50d3b51cd113cc11492bb2765752b281f5adaa32046ed2fae5ecec5be",
+      "evidence": "test/fixtures/notice-exposure-before/src/ratings/updates-controller.ts.txt",
+      "after": "76ab47693bd9b9289242bc7f10607e66d4416b86b17e17676143e2b64ad5b25c"
+    },
+    "src/window-discussion/notices-controller.ts": {
+      "before": "a3b65361006df453f1a0008dfef003cfa7a8fbecc2ec213b9464e1c9612f152a",
+      "evidence": "test/fixtures/notice-exposure-before/src/window-discussion/notices-controller.ts.txt",
+      "after": "b00ac75d9e433f03ec0807ddfb425335d8ef3401452aabd3c97f606769ace889"
+    },
+    "src/major-discussion/notices-controller.ts": {
+      "before": "803ce9f3c8690473f014589fe33f90790a86ca6dfb0deb5fc2a30cfb13081459",
+      "evidence": "test/fixtures/notice-exposure-before/src/major-discussion/notices-controller.ts.txt",
+      "after": "5b15c791356c4a633e06d514865a15f2f160cf4b9de438f886db711c1de4d986"
+    },
+    "src/pages/system-notices/controller.ts": {
+      "before": "8683605ec5a1904555b9480bbd11ebe4355c14d911e5debe58a1826c19071399",
+      "evidence": "test/fixtures/notice-exposure-before/src/pages/system-notices/controller.ts.txt",
+      "after": "207ccb4d6b09791016047254a1b24862d44e6a8ff036e5862ef7a0ac31d481fb"
+    },
+    "src/errands/notices.ts": {
+      "before": "c2024572cdf52f1dff577e53cbeb01a7b256c724e8bb07834526c7a27adc5c69",
+      "evidence": "test/fixtures/notice-exposure-before/src/errands/notices.ts.txt",
+      "after": "35b04abea9bd0d8ce1724b5f151194ce2dad85ee6f8c531acf124fe1e52bb86d"
+    },
+    "src/pages/feedback-notices/controller.ts": {
+      "before": "63d87d9f682e5345567f4e5f61961168a14ce3b23ac02f50747334142529890f",
+      "evidence": "test/fixtures/notice-exposure-before/src/pages/feedback-notices/controller.ts.txt",
+      "after": "21a42ff850fa34b8aa08f1198a39c2564a4c74d6760613cc908e6941d2f94176"
+    },
+    "src/notifications/student-notices.ts": {
+      "before": "616ff28856219d1e0a2554ebc61070a1100df8fd7c2a2dc1f21482396c849108",
+      "evidence": "test/fixtures/notice-exposure-before/src/notifications/student-notices.ts.txt",
+      "after": "de64274661f9796c79388c60832033198c1d70421abe7dab4889c8b76f14c36f"
+    },
+    "src/pages/social-notices/controller.ts": {
+      "before": "8d9d7821dee05f9c3fd7416e1264c62a97caacef63614bed334ac6bd3c3e327f",
+      "evidence": "test/fixtures/notice-exposure-before/src/pages/social-notices/controller.ts.txt",
+      "after": "32182d33f493520f36e3808c7e61326f930dfe072106074809518e81dcf4366e"
+    },
+    "src/notifications/system-timeline.ts": {
+      "before": "acca24cc00eba445cb7697767aeabc4dc2c01f974aed458dab96f71d1d11c36f",
+      "evidence": "test/fixtures/notice-exposure-before/src/notifications/system-timeline.ts.txt",
+      "after": "58fd366de7d7cb031cc8730019f0e98e592302ebe914b053a266ab430d0fe3e6"
+    },
+    "src/pages/social-notices/social-notices.ts": {
+      "before": "a471fa1646e5494f9388cd781b8fe95179219b417b36cc146c177a59de2db99e",
+      "after": "5d537a4f4290200f83ccc716b80dd39bd521399235f93372caedfc1cda1961fe",
+      "evidence": "test/fixtures/notice-exposure-before/social-notices.ts.txt"
+    },
+    "src/pages/social-notices/social-notices.wxml": {
+      "before": "d94bccfb333086e543ddbb9059bc058783a5e9a5b4b87d8bfc2d2afe6779e471",
+      "after": "d978a7cc21d89670b12bcfecd5638c8c4b1fb6f45722e561d0f19cd6c2dbb80c",
+      "evidence": "test/fixtures/notice-exposure-before/social-notices.wxml.txt"
+    },
+    "src/pages/system-notices/system-notices.ts": {
+      "before": "b52d426259457a6eaef36ec188bf88ddd5e172af2c78608060cd434245e3cf67",
+      "after": "dfb00b4666197a6f16467562434bbf092759c8b6d50a265fe5326bbc2f04d31f",
+      "evidence": "test/fixtures/notice-exposure-before/system-notices.ts.txt"
+    },
+    "src/pages/system-notices/system-notices.wxml": {
+      "before": "d98ab86e99b52fc8e84ef9dc059e2e22e01a733261c5a48878d0f2f96b9af3c2",
+      "after": "2650c6981054fc5c3314793849cfa04869eb7a9518fbcf708efaad77457b70a9",
+      "evidence": "test/fixtures/notice-exposure-before/system-notices.wxml.txt"
+    }
+  },
+  "added": {
+    "src/notifications/notice-exposure.ts": "4988c3ba3d0349bcc3619b7874b1155a4f721760bedd934af6edff6bf19986df",
+    "src/notifications/notice-read-guard.ts": "857f9c6abfb7ef960a73d2fbff69d9f1a641ea17d4557a99a150d8a13fc4d8c2"
+  },
+  "permissions": {
+    "before": "Current explicitly selected source-owned notice acknowledgment only",
+    "after": "Same source-owned exact-row mutation additionally allowed after committed viewport dwell and final current-generation/session guard",
+    "unchanged": [
+      "Manual fallback and source-owned receipt/readAt/count decoders",
+      "Source endpoint, method, category, authority gates and no broad mark-all",
+      "No new API/backend/provider/storage credentials or permissions",
+      "No main inbox or Home/Messages/Me layout changes",
+      "No unrelated observer/API client/platform/global component changes"
+    ]
+  }
+}

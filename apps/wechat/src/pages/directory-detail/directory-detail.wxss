@@ -1,1 +1,26 @@
-@import '../../directory/directory.wxss';
+@import '../community-search/framework7-forms.wxss';
+.directory-detail-screen .directory-symbol {
+  margin-bottom: 12px;
+}
+.directory-detail-screen .directory-name {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.directory-detail-screen .entry-labels {
+  margin-top: 8px;
+}
+.directory-detail-screen .badge {
+  margin-left: 8px;
+  color: var(--f7-theme-color);
+}
+.directory-detail-screen .directory-text {
+  font-size: var(--f7-list-font-size);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.directory-detail-screen .contact-row {
+  padding: 4px 0;
+}

@@ -1,0 +1,14 @@
+.category-workspace .management-scope-choice wu-f7-button {
+  display: inline-flex;
+  margin-right: 12rpx;
+  padding-left: 28rpx;
+  padding-right: 28rpx;
+}
+.category-workspace .management-preview .body {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.category-workspace .order-row wu-f7-button {
+  display: inline-flex;
+  margin-right: 12rpx;
+}

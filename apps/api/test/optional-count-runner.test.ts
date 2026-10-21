@@ -123,3 +123,66 @@ test('shared pool/config scope caps mixed-domain admission and releases capacity
     clearTransactionDeadlines(b.tx);
   }
 });
+
+test('tuple result policy preserves component equality, rejects invalid values and shares fallback deadline', async () => {
+  const f = client();
+  try {
+    const runner = new OptionalCountRunner(2);
+    let value = { comments: 2, replies: 3 };
+    const count = await runner.attempt(
+      f.tx,
+      async () => ({ value, candidates: 5 }),
+      2000,
+      async () => null,
+      async () => {},
+      {
+        valid: (v) =>
+          Number.isSafeInteger(v.comments) &&
+          v.comments >= 0 &&
+          Number.isSafeInteger(v.replies) &&
+          v.replies >= 0,
+        equal: (a, b) => a.comments === b.comments && a.replies === b.replies,
+      },
+    );
+    assert.equal(count.status, 'known');
+    value = { comments: 3, replies: 2 };
+    if (count.status === 'known')
+      assert.equal(
+        await count.proof!(),
+        false,
+        'Same sum is not the same tuple',
+      );
+    const unavailable = await runner.attempt(
+      f.tx,
+      async () => ({ value: { comments: -1, replies: 0 }, candidates: 1 }),
+      2000,
+      async () => null,
+      async () => {},
+      {
+        valid: (v) => v.comments >= 0 && v.replies >= 0,
+        equal: () => true,
+      },
+    );
+    assert.equal(unavailable.status, 'unavailable');
+    let fenced = false;
+    const noBudget = await runner.attempt(
+      f.tx,
+      async () => ({ value: 1, candidates: 1 }),
+      2000,
+      async () => null,
+      async () => {
+        fenced = true;
+      },
+      {
+        valid: Number.isSafeInteger,
+        equal: (a, b) => a === b,
+        proofBudgetMs: () => 0,
+      },
+    );
+    if (noBudget.status === 'known')
+      assert.equal(await noBudget.proof!(), false);
+    assert.equal(fenced, false);
+  } finally {
+    clearTransactionDeadlines(f.tx);
+  }
+});

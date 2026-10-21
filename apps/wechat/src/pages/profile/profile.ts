@@ -11,6 +11,15 @@ import {
   initialAvatarReadView,
   type AvatarReadController,
 } from '../../profile/avatar-read-controller';
+import {
+  initialCoverEditView,
+  type ProfileCoverController,
+} from '../../profile/cover-controller';
+import { createNativeProfileCoverEditor } from '../../profile/cover-editor-runtime';
+import {
+  initialCoverReadView,
+  type CoverReadController,
+} from '../../profile/cover-read-controller';
 import { messagingRuntime } from '../../messaging/entry';
 import {
   MessagingUnreadController,
@@ -19,7 +28,14 @@ import {
 import type { WhaleuApp } from '../../app';
 import type { PreferenceKey } from '../../profile/contract';
 import { HttpProfileGateway } from '../../profile/gateway';
+import {
+  initialProfileDetailsView,
+  ProfileDetailsController,
+} from '../../profile/details-controller';
+import { HttpProfileDetailsGateway } from '../../profile/details-gateway';
 import { initialProfileView, ProfileController } from './controller';
+declare const getCurrentPages: (() => readonly unknown[]) | undefined;
+
 Page({
   data: {
     ...initialProfileView(),
@@ -27,6 +43,17 @@ Page({
     privateMessages: initialUnreadView(),
     avatar: initialAvatarEditView(),
     avatarRead: initialAvatarReadView(),
+    details: initialProfileDetailsView(),
+    detailGenderLabels: ['私密', '女', '男'],
+    showAvatarTools: false,
+    showMoreTools: false,
+    showCoverTools: false,
+    showDetailsVisibility: false,
+    showPreferences: false,
+    cover: initialCoverEditView(),
+    coverRead: initialCoverReadView(),
+    coverConfigured: false,
+    canGoBack: false,
   },
   avatarPageGeneration: 0,
   avatarTicket: null as SessionTicket | null,
@@ -35,7 +62,104 @@ Page({
   messagingUnread: undefined as MessagingUnreadController | undefined,
   controller: undefined as ProfileController | undefined,
   schoolUidController: undefined as OwnSchoolUidController | undefined,
+  detailsController: undefined as ProfileDetailsController | undefined,
+  coverController: undefined as ProfileCoverController | undefined,
+  coverReader: undefined as CoverReadController | undefined,
+  onToggleEditorPanel(event: {
+    currentTarget: { dataset: { panel: string } };
+  }) {
+    if (event.currentTarget.dataset.panel === 'visibility')
+      this.setData({ showDetailsVisibility: !this.data.showDetailsVisibility });
+    else if (event.currentTarget.dataset.panel === 'preferences')
+      this.setData({ showPreferences: !this.data.showPreferences });
+  },
+  onToggleCoverTools() {
+    this.setData({ showCoverTools: !this.data.showCoverTools });
+  },
+  activateCoverEditor() {
+    const app = getApp<WhaleuApp>();
+    this.setData({ coverConfigured: !!app.profileCover });
+    this.coverReader?.dispose();
+    this.coverReader = undefined;
+    if (!app.identity?.sessions.snapshot().credentials) {
+      this.coverController?.dispose();
+      this.coverController = undefined;
+      return;
+    }
+    this.coverReader = app.profileCover?.createReader((coverRead) =>
+      this.setData({ coverRead }),
+    );
+    void this.coverReader?.load(null, true);
+    if (this.coverController?.isNativePickerPending()) {
+      this.coverController.resume();
+      return;
+    }
+    this.coverController?.dispose();
+    this.coverController = app.profileCover
+      ? createNativeProfileCoverEditor(
+          app.profileCover,
+          (cover) => this.setData({ cover }),
+          () => void this.coverReader?.load(null, true),
+        )
+      : undefined;
+    void this.coverController?.load();
+  },
+  onChooseCover() {
+    void this.coverController?.chooseCustomCover();
+  },
+  onClearCover() {
+    void this.coverController?.selectClear();
+  },
+  async onSaveCover() {
+    await this.coverController?.save();
+    if (this.data.cover.needsReload) await this.coverController?.load();
+  },
+  onReloadCover() {
+    void this.coverController?.load();
+    void this.coverReader?.load(null, true);
+  },
+  onRecoverCover() {
+    void this.coverController?.recover();
+  },
+  onRetryCover() {
+    void this.coverController?.recover(true);
+  },
+  onCancelCoverCommand() {
+    void this.coverController?.cancelPendingCommand();
+  },
+  onCancelCoverEdit() {
+    void this.coverController?.cancelPendingEdit();
+  },
+  onStopCover() {
+    this.coverController?.cancelOperation();
+  },
+  onCoverImageError() {
+    this.coverReader?.imageFailed();
+  },
+  onToggleAvatarTools() {
+    this.setData({ showAvatarTools: !this.data.showAvatarTools });
+  },
+  onToggleMoreTools() {
+    this.setData({ showMoreTools: !this.data.showMoreTools });
+  },
   onShow() {
+    this.setData({
+      canGoBack:
+        typeof getCurrentPages === 'function' && getCurrentPages().length > 1,
+    });
+    this.activateCoverEditor();
+    this.detailsController?.dispose();
+    const app = getApp<WhaleuApp>();
+    if (app.community) {
+      this.detailsController = new ProfileDetailsController(
+        app.community,
+        app.identity?.api
+          ? new HttpProfileDetailsGateway(app.identity.api)
+          : undefined,
+        (details) => this.setData({ details }),
+      );
+      void this.detailsController.load();
+    }
     this.schoolUidController?.dispose();
     const schoolUidRuntime = getApp<WhaleuApp>().community;
     if (schoolUidRuntime) {
@@ -47,7 +171,12 @@ Page({
     }
     const generation = ++this.avatarPageGeneration;
     this.deactivateAvatar();
-    this.setData({ ...initialProfileView() });
+    this.setData({
+      ...initialProfileView(),
+      showDetailsVisibility: false,
+      showPreferences: false,
+      showMoreTools: false,
+    });
     this.messagingUnread?.dispose();
     const messaging = messagingRuntime(getApp<WhaleuApp>().community);
     if (messaging) {
@@ -251,8 +380,37 @@ Page({
     await this.controller?.savePreferences();
   },
   onReload() {
+    void this.detailsController?.load();
     void this.schoolUidController?.load();
     void this.controller?.load();
+  },
+  onDetailsRegion(event: { detail: { value: string } }) {
+    this.detailsController?.setRegion(event.detail.value);
+  },
+  onDetailsAge(event: { detail: { value: string } }) {
+    this.detailsController?.setAge(event.detail.value);
+  },
+  onDetailsGender(event: { detail: { value: string } }) {
+    const value = ['', 'female', 'male'][Number(event.detail.value)];
+    if (value !== undefined) this.detailsController?.setGender(value);
+  },
+  onDetailsVisibility(event: {
+    currentTarget: { dataset: { key: string } };
+    detail: { value: boolean };
+  }) {
+    this.detailsController?.setVisibility(
+      event.currentTarget.dataset.key,
+      event.detail.value,
+    );
+  },
+  onSaveDetails() {
+    void this.detailsController?.save();
+  },
+  onReloadDetails() {
+    void this.detailsController?.load();
+  },
+  onCancelDetails() {
+    this.detailsController?.cancelEdits();
   },
   onCancelEdits() {
     this.controller?.cancelEdits();
@@ -261,22 +419,48 @@ Page({
     this.controller?.cancelOperation();
   },
   onHide() {
+    this.coverReader?.dispose();
+    this.coverReader = undefined;
+    if (this.coverController?.isNativePickerPending())
+      this.coverController.hide();
+    else {
+      this.coverController?.dispose();
+      this.coverController = undefined;
+    }
+    this.detailsController?.dispose();
+    this.detailsController = undefined;
     this.schoolUidController?.dispose();
     this.schoolUidController = undefined;
     this.avatarPageGeneration++;
     this.deactivateAvatar();
-    this.setData({ ...initialProfileView() });
+    this.setData({
+      ...initialProfileView(),
+      showDetailsVisibility: false,
+      showPreferences: false,
+      showMoreTools: false,
+    });
     this.messagingUnread?.dispose();
     this.messagingUnread = undefined;
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.coverReader?.dispose();
+    this.coverReader = undefined;
+    this.coverController?.dispose();
+    this.coverController = undefined;
+    this.detailsController?.dispose();
+    this.detailsController = undefined;
     this.schoolUidController?.dispose();
     this.schoolUidController = undefined;
     this.avatarPageGeneration++;
     this.deactivateAvatar();
-    this.setData({ ...initialProfileView() });
+    this.setData({
+      ...initialProfileView(),
+      showDetailsVisibility: false,
+      showPreferences: false,
+      showMoreTools: false,
+    });
     this.messagingUnread?.dispose();
     this.messagingUnread = undefined;
     this.controller?.dispose();

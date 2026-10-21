@@ -1,37 +1,188 @@
-<view class="screen">
-  <view wx:if="{{schoolUidView.error}}" class="notice">校内 UID 查询未完成：{{schoolUidView.error}}</view>
-  <view wx:if="{{schoolUidView.loaded}}" class="card">
-    <view class="card-title">当前校内 UID</view>
-    <view wx:if="{{schoolUidView.schoolUid.status === 'assigned'}}">{{schoolUidView.schoolUid.school.name}} · {{schoolUidView.schoolUid.formattedUid}}</view>
-    <view wx:elif="{{schoolUidView.schoolUid.status === 'unassigned'}}">当前没有校内 UID</view>
-    <view wx:else>校内 UID 暂不可用，请以独立的认证结果确认学校归属状态</view>
-  </view>
-
-  <view class="eyebrow">WHALEU · 我的认证</view>
-  <view class="title">分别确认，安心使用</view>
-  <view class="intro">仅查询当前登录账号的认证状态。本页不展示学号、手机号、真实姓名或证明材料，也不在设备中保存认证结果。</view>
-  <view class="status-panel">
-    <view class="status" aria-role="status">{{status}}</view>
-    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-    <view wx:if="{{requestId}}" class="request-id" selectable="true">问题编号：{{requestId}}</view>
-    <button wx:if="{{loading}}" class="secondary" bindtap="onCancel">取消查询</button>
-    <button wx:else class="secondary" bindtap="onReload" disabled="{{!hasSession || !configured}}">{{loaded ? '重新查询当前状态' : '查询认证状态'}}</button>
-    <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login" open-type="reLaunch">前往登录</navigator>
-  </view>
-  <block wx:if="{{loaded}}">
-    <view wx:for="{{rows}}" wx:key="key" class="card">
-      <view class="card-title">{{item.label}}</view>
-      <view class="verification-value">{{item.value}}</view>
-      <view class="detail">{{item.detail}}</view>
+<view class="account-page f7-ios-theme f7-identity-screen">
+  <wu-f7-block spacing="compact">
+    <view
+      wx:if="{{!loaded || error || loading}}"
+      class="status-line"
+      aria-role="status"
+    >
+      {{status}}
     </view>
-    <view class="footnote">以上是本次查询结果。认证状态不代表操作权限，实际操作仍由服务端实时校验。选择浏览校园、账号编号或管理角色均不构成学生认证。</view>
+    <view wx:if="{{error}}" class="error" aria-role="alert"> {{error}} </view>
+    <view wx:if="{{requestId}}" class="request-id" selectable="true">
+      问题编号：{{requestId}}
+    </view>
+    <navigator
+      wx:if="{{!hasSession}}"
+      class="text-link"
+      url="/pages/login/login"
+      open-type="reLaunch"
+    >
+      前往登录
+    </navigator>
+  </wu-f7-block>
+  <block wx:if="{{loaded}}">
+    <view class="verification-list">
+      <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+        <wu-f7-list-item
+          wx:for="{{rows}}"
+          wx:key="key"
+          class="summary-row"
+          title="{{item.label}}"
+          footer-slot="{{true}}"
+        >
+          <view class="summary-value"> {{item.value}} </view>
+          <view slot="footer" class="summary-detail"> {{item.detail}} </view>
+        </wu-f7-list-item>
+      </wu-f7-list>
+    </view>
+    <wu-f7-block spacing="compact">
+      <view class="privacy-note"> 各项独立确认，未知不等于未验证。 </view>
+    </wu-f7-block>
   </block>
-  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/institutional-verification/institutional-verification">学校授权认证与原请求恢复 →</navigator>
-  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/student-verification/student-verification">办理学生归属申请与查看结果 →</navigator>
-  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/student-verification-review/student-verification-review">校方学生申请审核 →</navigator>
-  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/student-verification-notices/student-verification-notices">认证站内消息 →</navigator>
-  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/phone-binding/phone-binding">前往手机号授权验证 →</navigator>
-  <navigator wx:if="{{hasSession}}" class="text-link" url="/pages/identity-campus/identity-campus">查看身份校区状态与可选校区 →</navigator>
-  <navigator class="text-link" url="/pages/profile/profile">查看我的资料</navigator>
-  <navigator class="text-link" url="/pages/login/login" open-type="reLaunch">返回登录与会话管理</navigator>
+  <wu-f7-block spacing="compact">
+    <wu-f7-button
+      wx:if="{{loading}}"
+      class="quiet"
+      bind:press="onCancel"
+      variant="plain"
+      size="normal"
+    >
+      取消查询
+    </wu-f7-button>
+    <wu-f7-button
+      class="quiet"
+      disabled="{{!hasSession || !configured}}"
+      bind:press="onReload"
+      variant="plain"
+      size="normal"
+      wx:else
+    >
+      {{loaded ? '刷新认证状态' : '查询认证状态'}}
+    </wu-f7-button>
+    <view wx:if="{{schoolUidView.error}}" class="status-line">
+      校内 UID 查询未完成：{{schoolUidView.error}}
+    </view>
+    <view wx:if="{{schoolUidView.loaded}}" class="uid-summary">
+      <view class="caption"> 校内 UID </view>
+      <view
+        wx:if="{{schoolUidView.schoolUid.status === 'assigned'}}"
+        class="uid-value"
+      >
+        {{schoolUidView.schoolUid.school.name}} ·
+        {{schoolUidView.schoolUid.formattedUid}}
+      </view>
+      <view
+        wx:elif="{{schoolUidView.schoolUid.status === 'unassigned'}}"
+        class="body-copy"
+      >
+        当前没有校内 UID
+      </view>
+      <view class="body-copy" wx:else>
+        校内 UID 暂不可用，学校归属以独立认证结果为准。
+      </view>
+    </view>
+    <view class="section-label"> 认证服务 </view>
+  </wu-f7-block>
+  <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+    <navigator
+      wx:if="{{hasSession}}"
+      class="link-row"
+      url="/pages/student-verification/student-verification"
+    >
+      <wu-f7-list-item
+        title-slot="{{true}}"
+        after-slot="{{true}}"
+        media="{{true}}"
+      >
+        <wu-icon name="graduation" size="22" tone="accent" slot="media" />
+        <text class="link-label" slot="title"> 学生认证申请 </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+    <navigator
+      wx:if="{{hasSession}}"
+      class="link-row"
+      url="/pages/institutional-verification/institutional-verification"
+    >
+      <wu-f7-list-item
+        title-slot="{{true}}"
+        after-slot="{{true}}"
+        media="{{true}}"
+      >
+        <wu-icon name="campus" size="22" tone="accent" slot="media" />
+        <text class="link-label" slot="title"> 学校授权认证 </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+    <navigator
+      wx:if="{{hasSession}}"
+      class="link-row"
+      url="/pages/phone-binding/phone-binding"
+    >
+      <wu-f7-list-item
+        title-slot="{{true}}"
+        after-slot="{{true}}"
+        media="{{true}}"
+      >
+        <wu-icon name="shield" size="22" tone="accent" slot="media" />
+        <text class="link-label" slot="title"> 手机号授权验证 </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+    <navigator
+      wx:if="{{hasSession}}"
+      class="link-row"
+      url="/pages/identity-campus/identity-campus"
+    >
+      <wu-f7-list-item
+        title-slot="{{true}}"
+        after-slot="{{true}}"
+        media="{{true}}"
+      >
+        <wu-icon name="location" size="22" tone="accent" slot="media" />
+        <text class="link-label" slot="title"> 身份校区 </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+    <navigator
+      wx:if="{{hasSession}}"
+      class="link-row"
+      url="/pages/student-verification-notices/student-verification-notices"
+    >
+      <wu-f7-list-item
+        title-slot="{{true}}"
+        after-slot="{{true}}"
+        media="{{true}}"
+      >
+        <wu-icon name="bell" size="22" tone="accent" slot="media" />
+        <text class="link-label" slot="title"> 认证消息 </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact">
+    <view class="privacy-note">
+      仅查询本人，不展示或保存学号、手机号、姓名和材料。状态不代表操作权限，浏览校园或管理角色也不构成学生认证。
+    </view>
+  </wu-f7-block>
+  <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+    <navigator
+      wx:if="{{hasSession}}"
+      class="link-row"
+      url="/pages/student-verification-review/student-verification-review"
+    >
+      <wu-f7-list-item title-slot="{{true}}" after-slot="{{true}}">
+        <text class="link-label" slot="title"> 校方审核入口 </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact">
+    <navigator class="text-link" url="/pages/profile/profile">
+      我的资料
+    </navigator>
+    <navigator class="text-link" url="/pages/login/login" open-type="reLaunch">
+      登录与会话管理
+    </navigator>
+  </wu-f7-block>
 </view>

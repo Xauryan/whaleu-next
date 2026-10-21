@@ -1,0 +1,20 @@
+<template name="major-status">
+  <view wx:if="{{status &amp;&amp; (!loaded || busy)}}" class="major-status">{{status}}</view>
+  <view wx:if="{{error}}" class="major-error">{{error}}</view>
+  <navigator wx:if="{{!hasSession}}" class="major-link" url="/pages/login/login">登录后继续<wu-icon name="chevron-right" size="16" /></navigator>
+  <view wx:if="{{uiPanel === 'options' || !loaded || error}}" class="major-inline-actions"><button class="major-quiet" bindtap="onRefresh" disabled="{{busy}}"><wu-icon name="refresh" size="18" />重新加载</button></view>
+  <button wx:if="{{busy}}" class="major-quiet" bindtap="onCancelWait">停止等待</button>
+</template>
+<template name="major-summary">
+  <block wx:if="{{summary.kind === 'known'}}">
+    <view class="major-meta">{{summary.rootCount}} 个主题</view>
+    <view wx:if="{{summary.hotComment}}" class="major-highlight"><view class="major-meta">热门主题 · {{summary.hotComment.likes}} 个赞</view><view class="major-body">{{summary.hotComment.body}}</view></view>
+  </block>
+  <view wx:else class="major-meta">讨论摘要暂不可用</view>
+</template>
+<template name="major-item">
+  <button class="major-list-row" data-id="{{item.id}}" bindtap="onDetail" disabled="{{busy}}">
+    <view class="major-row-content"><view class="major-name">{{item.majorName}}</view><view class="major-meta">{{item.collegeName}} · {{item.departmentId}}系</view><template is="major-summary" data="{{summary:item.summary}}" /></view>
+    <wu-icon name="chevron-right" size="18" tone="muted" />
+  </button>
+</template>

@@ -1,0 +1,926 @@
+{
+  "private-message-list": {
+    "sourceSha256": "36c6ff6d266e104775ecfd8afc4dd18667ff2a20d1daec8c25084e65c58f5e0f",
+    "typescriptSha256": "27862d58670ed4bdf499950f0ca30c6c3bce76ab4530b43b45930b26ca4b802c",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onToggleMenu",
+          "aria-label": "私信选项",
+          "aria-expanded": "{{uiMenu}}"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiMenu}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "menu-link",
+          "url": "/pages/private-message-recovery/private-message-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiMenu}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{pending}}",
+          "class": "pending-row",
+          "url": "/pages/private-message-recovery/private-message-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          },
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "login-entry",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "view",
+        "attrs": {
+          "wx:for": "{{uiItems}}",
+          "wx:key": "id",
+          "class": "conversation-item",
+          "data-id": "{{item.conversation.id}}",
+          "bindlongpress": "onHideConversation"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiItems}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "conversation-link",
+          "url": "/pages/private-message-detail/private-message-detail?conversationId={{item.conversation.id}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiItems}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "row-more",
+          "data-id": "{{item.conversation.id}}",
+          "bindtap": "onToggleRow",
+          "aria-label": "会话选项"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiItems}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "size": "mini",
+          "data-id": "{{item.conversation.id}}",
+          "bindtap": "onHideConversation",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiItems}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiRowMenu === item.id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMore}}",
+          "class": "more-link",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canMore}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action danger",
+          "bindtap": "onConfirmHide",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmHide}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action",
+          "bindtap": "onDismiss"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmHide}}"
+          }
+        ]
+      }
+    ]
+  },
+  "private-message-detail": {
+    "sourceSha256": "4dd6d22f8ab69b22bfb2e2fd9d32f825187e8c26551f42dbd15c9bfad653bf19",
+    "typescriptSha256": "ca6f419b659b73ce7f6e603fb131c24e67d017b2c7a9e34b5cd65b1e364ab567",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "data-panel": "conversation",
+          "bindtap": "onTogglePanel",
+          "aria-label": "会话选项",
+          "aria-expanded": "{{uiPanel === 'conversation'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!needsOpen}}",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{error}}"
+          },
+          {
+            "wx:if": "{{!needsOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          },
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{pending}}",
+          "class": "chat-notice pending",
+          "url": "/pages/private-message-recovery/private-message-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "empty-state",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary-button",
+          "bindtap": "onOpen",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{needsOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canMore}}",
+          "class": "history-more",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canMore}}"
+          }
+        ]
+      },
+      {
+        "tag": "view",
+        "attrs": {
+          "wx:if": "{{item.state === 'recalled' || item.state === 'unavailable'}}",
+          "class": "message-system-text",
+          "data-id": "{{item.id}}",
+          "bindlongpress": "onMessageMenu"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiMessages}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{item.state === 'recalled' || item.state === 'unavailable'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.canRecall}}",
+          "class": "system-more",
+          "data-id": "{{item.id}}",
+          "bindtap": "onMessageMenu"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiMessages}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{item.state === 'recalled' || item.state === 'unavailable'}}"
+          },
+          {
+            "wx:if": "{{item.canRecall}}"
+          }
+        ]
+      },
+      {
+        "tag": "view",
+        "attrs": {
+          "class": "message-content",
+          "data-id": "{{item.id}}",
+          "bindlongpress": "onMessageMenu",
+          "wx:else": ""
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiMessages}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:else": ""
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.state === 'image'}}",
+          "class": "image-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onShowImage",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiMessages}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:if": "{{item.state === 'image'}}"
+          },
+          {
+            "wx:if": "{{item.state === 'image'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.state === 'text'}}",
+          "size": "mini",
+          "data-id": "{{item.id}}",
+          "bindtap": "onCopy",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiMessages}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiMessageMenu === item.id}}"
+          },
+          {
+            "wx:if": "{{item.state === 'text'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.canRecall}}",
+          "size": "mini",
+          "data-kind": "recall",
+          "data-id": "{{item.id}}",
+          "bindtap": "onAction",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiMessages}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiMessageMenu === item.id}}"
+          },
+          {
+            "wx:if": "{{item.canRecall}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "menu-dismiss",
+          "bindtap": "onCloseMenus"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{uiMessages}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{uiMessageMenu === item.id}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{browsingOlder || hasNewMessages}}",
+          "class": "latest-button",
+          "bindtap": "onLatest",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{browsingOlder || hasNewMessages}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canReedit}}",
+          "class": "reedit-link",
+          "bindtap": "onReedit",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation}}"
+          },
+          {
+            "wx:if": "{{canReedit}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "composer-attachment",
+          "data-panel": "media",
+          "bindtap": "onTogglePanel",
+          "disabled": "{{busy || pending || !canSend}}",
+          "aria-label": "发送图片",
+          "aria-expanded": "{{uiPanel === 'media'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "class": "composer-input",
+          "value": "{{text}}",
+          "maxlength": "-1",
+          "bindinput": "onText",
+          "bindkeyboardheightchange": "onKeyboardHeight",
+          "auto-height": "true",
+          "adjust-position": "false",
+          "show-confirm-bar": "false",
+          "cursor-spacing": "16",
+          "disabled": "{{busy || pending}}",
+          "placeholder": "发消息…"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "send-button",
+          "bindtap": "onSend",
+          "disabled": "{{busy || pending || !canSend || !text}}",
+          "aria-label": "发送文字"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action",
+          "bindtap": "onImageAlbum",
+          "disabled": "{{busy || pending || !canSend}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'media'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action",
+          "bindtap": "onImageCamera",
+          "disabled": "{{busy || pending || !canSend}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'media'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action secondary",
+          "bindtap": "onCloseMenus"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanel === 'media'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{conversation.peer.mode === 'named' && conversation.peer.profileId}}",
+          "class": "sheet-action",
+          "bindtap": "onProfile",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation && uiPanel === 'conversation'}}"
+          },
+          {
+            "wx:if": "{{conversation.peer.mode === 'named' && conversation.peer.profileId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{conversation.source && conversation.source.available}}",
+          "class": "sheet-action",
+          "bindtap": "onSource",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation && uiPanel === 'conversation'}}"
+          },
+          {
+            "wx:if": "{{conversation.source && conversation.source.available}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!needsOpen}}",
+          "class": "sheet-action",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation && uiPanel === 'conversation'}}"
+          },
+          {
+            "wx:if": "{{!needsOpen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action",
+          "data-kind": "{{conversation.hidden ? 'reopen' : 'hide'}}",
+          "bindtap": "onAction",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation && uiPanel === 'conversation'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!conversation.blockedByYou}}",
+          "class": "sheet-action danger",
+          "data-kind": "block",
+          "bindtap": "onAction",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation && uiPanel === 'conversation'}}"
+          },
+          {
+            "wx:if": "{{!conversation.blockedByYou}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "sheet-action",
+          "url": "/pages/private-message-recovery/private-message-recovery"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation && uiPanel === 'conversation'}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "sheet-action",
+          "url": "/pages/private-message-list/private-message-list"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation && uiPanel === 'conversation'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action secondary",
+          "bindtap": "onCloseMenus"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversation && uiPanel === 'conversation'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action danger",
+          "bindtap": "onConfirm",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirm}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action",
+          "bindtap": "onDismiss"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirm}}"
+          }
+        ]
+      }
+    ]
+  },
+  "private-message-recovery": {
+    "sourceSha256": "4318c906cbeb13066db7adfd3e5a5c01a420b7fa1c431c83de155a59983a27f5",
+    "typescriptSha256": "2b9d28f3c5ff1b9bddc0b80314d908363464582edd386b678e8b6e23af257914",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "login-entry",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary-button",
+          "bindtap": "onReceipt",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary-link",
+          "bindtap": "onToggleActions",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "detail-toggle",
+          "bindtap": "onToggleDetails",
+          "aria-expanded": "{{uiDetails}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canReedit}}",
+          "class": "primary-button",
+          "bindtap": "onReedit",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canReedit || editing}}"
+          },
+          {
+            "wx:if": "{{canReedit}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "class": "draft-input",
+          "value": "{{draftText}}",
+          "maxlength": "-1",
+          "bindinput": "onDraftText",
+          "disabled": "{{busy || pending}}",
+          "placeholder": "重新编辑消息",
+          "show-confirm-bar": "false",
+          "cursor-spacing": "80"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canReedit || editing}}"
+          },
+          {
+            "wx:if": "{{editing}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary-button",
+          "bindtap": "onSendDraft",
+          "disabled": "{{busy || pending || !draftText}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canReedit || editing}}"
+          },
+          {
+            "wx:if": "{{editing}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary-link danger",
+          "bindtap": "onDiscardDraft",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canReedit || editing}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          },
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{conversationId}}",
+          "class": "navigation-row",
+          "url": "/pages/private-message-detail/private-message-detail?conversationId={{conversationId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{conversationId}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "navigation-row",
+          "url": "/pages/private-message-list/private-message-list"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canRetry}}",
+          "class": "sheet-action",
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiActions}}"
+          },
+          {
+            "wx:if": "{{canRetry}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action danger",
+          "bindtap": "onRequestCancel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiActions}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action",
+          "bindtap": "onCloseActions"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiActions}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action danger",
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmCancel}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "sheet-action",
+          "bindtap": "onDismissCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirmCancel}}"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,664 @@
+{
+  "pages/major-directory/major-directory.wxml": [
+    {
+      "tag": "navigator",
+      "template": "",
+      "attrs": {
+        "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "navigator",
+      "template": "",
+      "attrs": {
+        "url": "/pages/major-discussion-notices/major-discussion-notices"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "picker",
+      "template": "",
+      "attrs": {
+        "range": "{{departmentNames}}",
+        "value": "{{departmentIndex}}",
+        "bindchange": "onDepartment",
+        "disabled": "{{busy || !departments}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "input",
+      "template": "",
+      "attrs": {
+        "value": "{{searchDraft}}",
+        "maxlength": "100",
+        "bindinput": "onSearchInput",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "",
+      "attrs": {
+        "bindtap": "onSearch",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "",
+      "attrs": {
+        "wx:if": "{{canNext}}",
+        "bindtap": "onNext",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded}}"
+        }
+      ]
+    }
+  ],
+  "pages/major-detail/major-detail.wxml": [
+    {
+      "tag": "navigator",
+      "template": "",
+      "attrs": {
+        "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "",
+      "attrs": {
+        "bindtap": "onOpenDiscussion",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "",
+      "attrs": {
+        "bindtap": "onRelatedRefresh",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && detail}}"
+        }
+      ]
+    }
+  ],
+  "pages/major-discussion/major-discussion.wxml": [
+    {
+      "tag": "button",
+      "template": "",
+      "attrs": {
+        "data-sort": "likes",
+        "bindtap": "onSort",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "",
+      "attrs": {
+        "data-sort": "time",
+        "bindtap": "onSort",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "",
+      "attrs": {
+        "wx:if": "{{canNext}}",
+        "bindtap": "onNext",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "template": "",
+      "attrs": {
+        "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "navigator",
+      "template": "",
+      "attrs": {
+        "url": "/pages/major-discussion-notices/major-discussion-notices"
+      },
+      "ancestors": []
+    }
+  ],
+  "pages/major-discussion-thread/major-discussion-thread.wxml": [
+    {
+      "tag": "button",
+      "template": "",
+      "attrs": {
+        "wx:if": "{{canNext}}",
+        "bindtap": "onNext",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "template": "",
+      "attrs": {
+        "url": "/pages/major-discussion-recovery/major-discussion-recovery"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "navigator",
+      "template": "",
+      "attrs": {
+        "url": "/pages/major-discussion-notices/major-discussion-notices"
+      },
+      "ancestors": []
+    }
+  ],
+  "majors/common.wxml": [
+    {
+      "tag": "navigator",
+      "template": "major-status",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "major-status",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "major-status",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancelWait"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "major-item",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onDetail",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    }
+  ],
+  "major-discussion/common.wxml": [
+    {
+      "tag": "navigator",
+      "template": "discussion-status",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "discussion-status",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "discussion-status",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancelWait"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "discussion-status",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-status",
+      "attrs": {
+        "bindtap": "onRetry",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-status",
+      "attrs": {
+        "wx:if": "{{recoveryPhase === 'submit'}}",
+        "bindtap": "onRequestCancellation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-status",
+      "attrs": {
+        "bindtap": "onConfirmCancellation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        },
+        {
+          "wx:if": "{{confirming === 'cancel'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-status",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        },
+        {
+          "wx:if": "{{confirming === 'cancel'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-item",
+      "attrs": {
+        "wx:for": "{{item.images}}",
+        "wx:for-item": "image",
+        "wx:key": "bindingId",
+        "data-id": "{{item.id}}",
+        "data-index": "{{image.ordinal}}",
+        "bindtap": "onImage",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{item.images && item.images.length}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-item",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onLike",
+        "disabled": "{{busy || frozen || confirming}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "discussion-item",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onDeleteMenu",
+        "disabled": "{{busy || frozen || confirming}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "discussion-item",
+      "attrs": {
+        "wx:if": "{{deleteTarget && deleteTarget.commentId === item.id}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onDelete",
+        "disabled": "{{busy || frozen || confirming}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "discussion-item",
+      "attrs": {
+        "wx:if": "{{mode === 'roots'}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onThread",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "discussion-item",
+      "attrs": {
+        "wx:elif": "{{item.rootId}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onReply",
+        "disabled": "{{busy || frozen || confirming}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "bindtap": "onSubmit",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'delete' && deleteTarget}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'delete' && deleteTarget}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "wx:if": "{{replyTarget}}",
+        "bindtap": "onReplyRoot",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        },
+        {
+          "wx:if": "{{mode === 'thread'}}"
+        }
+      ]
+    },
+    {
+      "tag": "textarea",
+      "template": "discussion-form",
+      "attrs": {
+        "value": "{{body}}",
+        "maxlength": "-1",
+        "bindinput": "onBody",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "data-source": "album",
+        "bindtap": "onPickImage",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        },
+        {
+          "wx:if": "{{imageEnabled}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "data-source": "camera",
+        "bindtap": "onPickImage",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        },
+        {
+          "wx:if": "{{imageEnabled}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "bindtap": "onConfirmPublish",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming || !canPublish}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "bindtap": "onSubmit",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'publish'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'publish'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "bindtap": "onSubmit",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'like' && selectedComment}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-form",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'like' && selectedComment}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-image-state",
+      "attrs": {
+        "wx:if": "{{imageRecoverable}}",
+        "bindtap": "onRecoverImages",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-image-state",
+      "attrs": {
+        "wx:if": "{{imageRecoverable}}",
+        "bindtap": "onRequestImageCancel",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-image-state",
+      "attrs": {
+        "bindtap": "onConfirmImageCancel",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        },
+        {
+          "wx:if": "{{imageCancelConfirm}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-image-state",
+      "attrs": {
+        "bindtap": "onCloseImageCancel",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        },
+        {
+          "wx:if": "{{imageCancelConfirm}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-image-state",
+      "attrs": {
+        "wx:if": "{{imageBusy}}",
+        "bindtap": "onCancelWait"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-gallery",
+      "attrs": {
+        "bindtap": "onCloseGallery"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{galleryOpen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-gallery",
+      "attrs": {
+        "bindtap": "onImagePrevious",
+        "disabled": "{{galleryIndex === 0}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{galleryOpen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "template": "discussion-gallery",
+      "attrs": {
+        "bindtap": "onImageNext",
+        "disabled": "{{galleryIndex + 1 >= galleryCount}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{galleryOpen}}"
+        }
+      ]
+    }
+  ]
+}

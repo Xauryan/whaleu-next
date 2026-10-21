@@ -1,0 +1,318 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "WhaleU permanent community references",
+    "version": "1",
+    "description": "Additive opaque numeric references. Existing UUID routes and publication receipts remain unchanged. No production import or activation. No allocation during read. Aliases and canonical codes share one permanent namespace; code width never chooses target kind."
+  },
+  "paths": {
+    "/v1/community/content-references/capability": {
+      "get": {
+        "operationId": "communityContentReferenceCapability",
+        "security": [{ "accessToken": [] }],
+        "description": "Authentication required. Inactive or incomplete initialized policy returns available:false; source faults remain unavailable.",
+        "responses": {
+          "200": {
+            "description": "ContentReferenceCapability",
+            "headers": {
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Vary": {
+                "schema": { "type": "string" },
+                "description": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentReferenceCapability"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Strict input rejected. Whole ASCII code or typed UUID targets only."
+          },
+          "401": {
+            "description": "Current account and presented session required at completion."
+          },
+          "403": {
+            "description": "Current ordinary account safety policy denied the read."
+          },
+          "503": {
+            "description": "Uninitialized capability or mandatory current authority dependency unavailable. Not a false absence."
+          }
+        }
+      }
+    },
+    "/v1/community/content-references/resolve": {
+      "post": {
+        "operationId": "communityContentReferenceResolve",
+        "security": [{ "accessToken": [] }],
+        "description": "Current ordinary read authority and stored ancestry, no manager bypass. Optional selected view scope is reauthorized. A navigation hint is not an access grant; destination detail rechecks authority. Aliases do not reveal canonical identity. At most 60 attempts per viewer/minute; unknown or unreadable attempts count.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentReferenceResolve"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ContentReferenceDestination",
+            "headers": {
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Vary": {
+                "schema": { "type": "string" },
+                "description": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentReferenceDestination"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Strict input rejected. Whole ASCII code or typed UUID targets only."
+          },
+          "401": {
+            "description": "Current account and presented session required at completion."
+          },
+          "403": {
+            "description": "Current ordinary account safety policy denied the read."
+          },
+          "404": {
+            "description": "REFERENCE_NOT_FOUND for all missing, removed or currently unreadable mappings. No mapped IDs in errors."
+          },
+          "429": { "description": "REFERENCE_RATE_LIMITED" },
+          "503": {
+            "description": "Uninitialized capability or mandatory current authority dependency unavailable. Not a false absence."
+          }
+        }
+      }
+    },
+    "/v1/community/content-references/lookup": {
+      "post": {
+        "operationId": "communityContentReferenceLookup",
+        "security": [{ "accessToken": [] }],
+        "description": "1–30 typed targets, deduplicated and deterministically ordered. Returns only existing canonical codes with current read permission. No aliases, missing placeholders or allocation. At most 120 requests per viewer/minute.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentReferenceLookup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ContentReferenceLookupResult",
+            "headers": {
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Vary": {
+                "schema": { "type": "string" },
+                "description": "Authorization"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentReferenceLookupResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Strict input rejected. Whole ASCII code or typed UUID targets only."
+          },
+          "401": {
+            "description": "Current account and presented session required at completion."
+          },
+          "403": {
+            "description": "Current ordinary account safety policy denied the read."
+          },
+          "429": { "description": "REFERENCE_RATE_LIMITED" },
+          "503": {
+            "description": "Uninitialized capability or mandatory current authority dependency unavailable. Not a false absence."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "accessToken": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "ContentReferenceCapability": {
+        "type": "object",
+        "properties": { "available": { "type": "boolean" } },
+        "required": ["available"],
+        "additionalProperties": false
+      },
+      "ContentReferenceResolve": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string", "pattern": "^[1-9][0-9]{6,8}$" },
+          "viewSpaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["code"],
+        "additionalProperties": false
+      },
+      "ContentReferenceDestination": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string", "enum": ["post"] },
+              "postId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "viewSpaceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "required": ["kind", "postId"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string", "enum": ["comment"] },
+              "postId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "rootCommentId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "viewSpaceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "required": ["kind", "postId", "rootCommentId"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string", "enum": ["reply"] },
+              "postId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "rootCommentId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "replyId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "viewSpaceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "required": ["kind", "postId", "rootCommentId", "replyId"],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ContentReferenceLookup": {
+        "type": "object",
+        "properties": {
+          "targets": {
+            "minItems": 1,
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["post", "comment", "reply"]
+                },
+                "targetId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "required": ["kind", "targetId"],
+              "additionalProperties": false
+            }
+          },
+          "viewSpaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["targets"],
+        "additionalProperties": false
+      },
+      "ContentReferenceLookupResult": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["post", "comment", "reply"]
+                },
+                "targetId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "code": { "type": "string", "pattern": "^[1-9][0-9]{6,8}$" }
+              },
+              "required": ["kind", "targetId", "code"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["items"],
+        "additionalProperties": false
+      }
+    }
+  }
+}

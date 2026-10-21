@@ -1,0 +1,52 @@
+/* Shared native adaptation; Framework7 v9.2.0 (MIT).
+ * Copyright (c) 2014 Vladimir Kharlampidi.
+ * See docs/vendor/framework7-v9.2.0/LICENSE.
+ * Opaque readable surface is NOT source glass/backdrop blur equivalence.
+ * Owner locks the underlying page scroll/read observers. Only mask and fixed
+ * chrome consume touchmove; never catch it on the scrolling content ancestor.
+ */
+.f7-overlay-layer {
+  --wu-f7-overlay-native-surface: #fff;
+  position: fixed;
+  inset: 0;
+  z-index: 12500;
+  font-family: var(--f7-font-family);
+  color: var(--f7-text-color);
+}
+.f7-overlay-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 300ms;
+}
+.f7-overlay-mask-visible {
+  opacity: 1;
+}
+.f7-overlay-mask-clear {
+  background: transparent;
+}
+.f7-overlay-position {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+  overflow: hidden;
+}
+.f7-overlay-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@media (prefers-color-scheme: dark) {
+  .f7-overlay-layer {
+    --wu-f7-overlay-native-surface: #323232;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .f7-overlay-mask {
+    transition: none;
+  }
+}

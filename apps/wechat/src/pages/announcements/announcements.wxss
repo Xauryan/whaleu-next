@@ -1,1 +1,60 @@
-@import '../../announcements/announcements.wxss';
+@import '../organizations/information-presentation.wxss';
+@import '../organizations/framework7-information.wxss';
+.tabs .manage-button {
+  margin-left: auto;
+  font-size: 26rpx;
+}
+.announcement-row {
+  border-bottom: 1rpx solid var(--wu-separator);
+}
+.information-screen .announcement-open {
+  width: 100%;
+  padding: 28rpx 0 30rpx;
+  border-radius: 0;
+  text-align: left;
+}
+.announcement-meta {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  font-size: 24rpx;
+  color: var(--wu-secondary);
+  line-height: 1.5;
+}
+.latest-label {
+  color: var(--wu-text);
+}
+.latest-label::before {
+  content: '';
+  display: inline-block;
+  width: 9rpx;
+  height: 9rpx;
+  border-radius: 50%;
+  margin-right: 10rpx;
+  vertical-align: middle;
+  background: var(--wu-accent);
+}
+.announcement-heading {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  margin-top: 13rpx;
+}
+.announcement-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 34rpx;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.version-label {
+  display: block;
+  font-size: 23rpx;
+  color: var(--wu-secondary);
+  margin-top: 10rpx;
+}
+.reading-notes view {
+  margin-bottom: 14rpx;
+}

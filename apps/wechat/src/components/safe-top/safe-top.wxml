@@ -1,0 +1,1 @@
+<view class="safe-top" style="{{height !== null ? 'height:' + height + 'px' : ''}}" aria-hidden="true" />

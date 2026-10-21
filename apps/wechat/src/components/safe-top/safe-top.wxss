@@ -1,0 +1,5 @@
+.safe-top {
+  height: calc(env(safe-area-inset-top) + 44px);
+  width: 100%;
+  pointer-events: none;
+}

@@ -1,0 +1,444 @@
+/** Source Page + real client/decoder/transport-spy evidence only; not Tencent/device proof. */
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import test from 'node:test';
+import { ApiClient } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/api/client';
+import { ClientError } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/api/errors';
+import { HttpSystemNoticesGateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/community/system-notices-gateway';
+import { systemClock } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/platform/clock';
+import type { HttpRequest, HttpResponse } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/platform/contracts';
+import type { NoticeExposureObserver } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/notifications/notice-exposure';
+import type { SocialNoticesView } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/pages/social-notices/controller';
+import type { SystemTimelineView } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/notifications/system-timeline';
+import { FakeClock, flush, response, deferred } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/helpers';
+import { systemNoticesSetup, systemNotices } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/system-notices-helpers';
+import {
+  noticeId,
+  socialPage,
+  socialRead,
+  socialResolution,
+} from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/social-updates-helpers';
+import type { SocialUpdateCategory } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/notifications/social-updates/contract';
+import { nativeObservation } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/notice-exposure-helpers';
+import { HttpCommunityGateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/community/gateway';
+import { HttpFeedbackNoticesGateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/community/feedback-notices-gateway';
+import { HttpErrandNoticesGateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/errands/notices';
+import { HttpRatingUpdatesGateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/ratings/updates-gateway';
+import { HttpRatingLikeUpdatesGateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/ratings/like-updates-gateway';
+import { HttpRatingSubscriptionUpdatesGateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/ratings/subscription-updates-gateway';
+import { HttpWindowDiscussionGateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/window-discussion/gateway';
+import { HttpMajorDiscussionGateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/major-discussion/gateway';
+import { HttpWindowDiscussionV2Gateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/window-discussion/v2-gateway';
+import { HttpMajorDiscussionV2Gateway } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/major-discussion/v2-gateway';
+import { WINDOW_DISCUSSION_V2 } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/window-discussion/v2-contract';
+import { MAJOR_DISCUSSION_V2 } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/major-discussion/v2-contract';
+import { SafetyChanges } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/community/safety-changes';
+import { PrivateViewLifecycle } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/identity-privacy/overlay';
+import { updates } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/updates-helpers';
+import { notice as ratingNotice } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/ratings-r2a-helpers';
+import { likeNotice } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/ratings-r2b-helpers';
+import { subscriptionNotice } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/ratings-r2c-helpers';
+import { notice as windowNotice } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/window-discussion-helpers';
+import { notice as majorNotice } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/major-discussion-helpers';
+import type { SocialNoticeKind } from '/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/src/pages/social-notices/contract';
+
+type PageName = 'social-notices' | 'system-notices';
+interface PageInstance {
+  data: SocialNoticesView &
+    SystemTimelineView & { showCoverage: boolean; showSources: boolean };
+  onLoad?(query: unknown): void;
+  onShow(): void | Promise<void>;
+  onHide(): void;
+  onUnload(): void;
+  onCoverage(): void;
+  onSources(): void;
+  onOpen(event: unknown): void;
+  onRead(event: unknown): void;
+  onMore(event: unknown): void;
+  onCancel(): void;
+  renderNotices(view: unknown): void;
+  noticeExposure: NoticeExposureObserver;
+  controller: { snapshot(): unknown };
+}
+const requireNative = createRequire('/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test/notice-exposure-pages.test.ts');
+function fixture(
+  name: PageName,
+  observerAvailable = true,
+  options: { kind?: SocialNoticeKind; allSources?: boolean; v2?: boolean } = {},
+) {
+  const h = systemNoticesSetup();
+  const native = nativeObservation();
+  const clock = new FakeClock();
+  const requests: HttpRequest[] = [];
+  let failRead = false;
+  let expiredRead = false;
+  let verificationRead = false;
+  const discussionReads = new Set<string>();
+  let refreshes = 0;
+  let refreshWait: ReturnType<typeof deferred<void>> | undefined;
+  let refreshed = false;
+  const kind = options.kind ?? 'likes';
+  const receipt = {
+    noticeId,
+    readAt: '2026-10-20T10:05:00.123Z',
+    unreadCount: 6,
+  };
+  const list = (items: unknown[]) => ({
+    items,
+    nextCursor: null,
+    unreadCount: 7,
+  });
+  let deferredRead: ReturnType<typeof deferred<HttpResponse>> | undefined;
+  let transportQueued: (() => void) | undefined;
+  const api = new ApiClient(
+    'https://fictional-native-exposure.example',
+    {
+      async send(request) {
+        requests.push(request);
+        const url = new URL(request.url);
+        const category = url.searchParams.get(
+          'category',
+        ) as SocialUpdateCategory;
+        if (request.method !== 'GET') {
+          if (deferredRead) return deferredRead.promise;
+          if (expiredRead) {
+            expiredRead = false;
+            return response({ error: { code: 'ACCESS_TOKEN_EXPIRED' } }, 401);
+          }
+          if (failRead)
+            throw new ClientError('network', 'Unknown synthetic outcome');
+          if (url.pathname.includes('/student-verification/')) {
+            verificationRead = true;
+            return response({ status: 'unavailable', target: null });
+          }
+          if (/\/(window|major)-discussion\//.test(url.pathname)) {
+            discussionReads.add(
+              url.pathname.slice(0, url.pathname.lastIndexOf(`/${noticeId}`)),
+            );
+            return response({ noticeId, readAt: receipt.readAt });
+          }
+          return response(
+            url.pathname.includes('/social-updates/') ? socialRead() : receipt,
+          );
+        }
+        if (url.pathname === '/v1/me/student-verification/notices')
+          return response({
+            items: options.allSources
+              ? [
+                  {
+                    id: noticeId,
+                    kind: 'auth_result',
+                    outcome: 'approved',
+                    createdAt: '2026-10-01T00:00:00.000Z',
+                    read: verificationRead,
+                    available: false,
+                  },
+                ]
+              : [],
+            page: 1,
+            hasNext: false,
+          });
+        if (url.pathname === '/v1/me/errand-notices')
+          return response(
+            list([
+              {
+                noticeId,
+                kind: 'completed',
+                orderId: noticeId,
+                createdAt: '2026-10-01T00:00:00.000Z',
+                readAt: null,
+              },
+            ]),
+          );
+        if (url.pathname === '/v1/me/feedback-notices')
+          return response(
+            list([
+              {
+                noticeId,
+                kind: 'feedback_created',
+                createdAt: '2026-10-01T00:00:00.000Z',
+                readAt: null,
+              },
+            ]),
+          );
+        if (url.pathname === '/v1/me/community/updates')
+          return response(updates());
+        if (url.pathname === '/v1/me/ratings/updates')
+          return response(list([ratingNotice({ noticeId })]));
+        if (url.pathname === '/v1/me/ratings/like-updates')
+          return response(list([likeNotice({ noticeId })]));
+        if (url.pathname === '/v1/me/ratings/subscription-updates')
+          return response(list([subscriptionNotice({ noticeId })]));
+        if (
+          /^\/v[12]\/me\/(window|major)-discussion\/notices$/.test(url.pathname)
+        ) {
+          const isWindow = url.pathname.includes('window');
+          const item = isWindow ? windowNotice() : majorNotice();
+          assert.equal(item.status, 'available');
+          if (item.status !== 'available')
+            throw Error('Fixture requires available notice');
+          const rows = [
+            {
+              ...item,
+              noticeId,
+              readAt: discussionReads.has(url.pathname) ? receipt.readAt : null,
+              kind: kind === 'likes' ? 'like' : 'reply',
+              preview: {
+                ...item.preview,
+                ...(options.v2 ? { thumbnail: null } : {}),
+              },
+            },
+          ];
+          return response({
+            ...list(rows),
+            ...(options.v2
+              ? {
+                  protocol: isWindow
+                    ? WINDOW_DISCUSSION_V2
+                    : MAJOR_DISCUSSION_V2,
+                }
+              : {}),
+          });
+        }
+        if (url.pathname === '/v1/me/system-notices')
+          return response(systemNotices());
+        if (url.pathname.endsWith('/target'))
+          return response(socialResolution(category));
+        assert.equal(url.pathname, '/v1/me/social-updates');
+        return response(socialPage(category));
+      },
+    },
+    h.sessions,
+    {
+      async refresh(ticket) {
+        refreshes++;
+        assert.ok(refreshWait, 'No unconfigured credential acquisition');
+        await refreshWait.promise;
+        const result = h.sessions.rotate(ticket, {
+          ...ticket.credentials!,
+          accessToken: 'synthetic-refreshed',
+        });
+        refreshed = true;
+        return result;
+      },
+    },
+  );
+  const originalRequest = api.request.bind(api);
+  api.request = ((endpoint, options) => {
+    const pending = originalRequest(endpoint, options);
+    if (endpoint.method !== 'GET') transportQueued?.();
+    return pending;
+  }) as ApiClient['request'];
+  const runtime = {
+    ...h.runtime,
+    systemNotices: new HttpSystemNoticesGateway(api),
+    safetyChanges: new SafetyChanges(),
+    browsingScopeChanges: new PrivateViewLifecycle(),
+    directoryScopeChanges: new PrivateViewLifecycle(),
+    ...(options.allSources
+      ? {
+          gateway: new HttpCommunityGateway(api),
+          feedbackNotices: new HttpFeedbackNoticesGateway(api),
+          errandNotices: new HttpErrandNoticesGateway(api),
+          ratingUpdates: new HttpRatingUpdatesGateway(api),
+          ratingLikeUpdates: new HttpRatingLikeUpdatesGateway(api),
+          ratingSubscriptionUpdates: new HttpRatingSubscriptionUpdatesGateway(
+            api,
+          ),
+          windowDiscussion: new HttpWindowDiscussionGateway(api),
+          majorDiscussion: new HttpMajorDiscussionGateway(api),
+          ...(options.v2
+            ? {
+                windowDiscussionV2: new HttpWindowDiscussionV2Gateway(api),
+                majorDiscussionV2: new HttpMajorDiscussionV2Gateway(api),
+              }
+            : {}),
+        }
+      : {}),
+  };
+  const previous = {
+    wx: Reflect.get(globalThis, 'wx'),
+    Page: Reflect.get(globalThis, 'Page'),
+    getApp: Reflect.get(globalThis, 'getApp'),
+    now: systemClock.now,
+    schedule: systemClock.schedule,
+  };
+  Object.assign(systemClock, {
+    now: () => clock.now(),
+    schedule: clock.schedule.bind(clock),
+  });
+  let definition: object | undefined;
+  Object.assign(globalThis, {
+    wx: {
+      ...(observerAvailable ? native.wx : {}),
+      navigateTo: (options: { success(): void }) => options.success(),
+      stopPullDownRefresh() {},
+    },
+    Page: (value: object) => {
+      definition = value;
+    },
+    getApp: () => ({
+      community: runtime,
+      identity: { sessions: h.sessions, api },
+    }),
+  });
+  const file = path.resolve('/workspace/scratch/8fe388fb34d2/whaleu-apple/apps/wechat/test', `../src/pages/${name}/${name}.ts`);
+  delete requireNative.cache[requireNative.resolve(file)];
+  requireNative(file);
+  assert.ok(definition);
+  const page = {
+    ...definition,
+    setData(this: PageInstance, patch: object, callback?: () => void) {
+      Object.assign(this.data, structuredClone(patch));
+      callback?.();
+    },
+  } as unknown as PageInstance;
+  page.data = structuredClone(page.data);
+  page.onLoad?.({ kind });
+  const shown = page.onShow();
+  const idle = async () => {
+    await shown;
+    for (let i = 0; i < 8; i++) await flush();
+    native.tick();
+  };
+  const writes = () => requests.filter((r) => r.method !== 'GET');
+  const target = (source: string) =>
+    native.observers
+      .filter(
+        (o) => !o.disconnected && o.selector.includes(`-${source}-${noticeId}`),
+      )
+      .at(-1)!;
+  return {
+    ...h,
+    runtime,
+    api,
+    page,
+    native,
+    clock,
+    requests,
+    writes,
+    idle,
+    target,
+    failRead(value: boolean) {
+      failRead = value;
+    },
+    queueHook(value: () => void) {
+      transportQueued = value;
+    },
+    expireRead() {
+      expiredRead = true;
+      refreshWait = deferred<void>();
+      return refreshWait;
+    },
+    refreshes: () => refreshes,
+    refreshed: () => refreshed,
+    deferRead() {
+      deferredRead = deferred<HttpResponse>();
+      return deferredRead;
+    },
+    close() {
+      page.onUnload();
+      Object.assign(systemClock, {
+        now: previous.now,
+        schedule: previous.schedule,
+      });
+      for (const key of ['wx', 'Page', 'getApp'] as const) {
+        if (previous[key] === undefined)
+          Reflect.deleteProperty(globalThis, key);
+        else Reflect.set(globalThis, key, previous[key]);
+      }
+    },
+  };
+}
+
+const sourceCases: readonly {
+  source: string;
+  name: PageName;
+  kind?: SocialNoticeKind;
+  base: string;
+  category?: SocialUpdateCategory;
+  v2?: boolean;
+}[] = [
+  {
+    source: 'community-like',
+    name: 'social-notices',
+    kind: 'likes',
+    base: '/v1/me/social-updates',
+    category: 'likes',
+  },
+  {
+    source: 'community-save',
+    name: 'social-notices',
+    kind: 'likes',
+    base: '/v1/me/social-updates',
+    category: 'saves',
+  },
+  {
+    source: 'follower',
+    name: 'social-notices',
+    kind: 'followers',
+    base: '/v1/me/social-updates',
+    category: 'followers',
+  },
+  {
+    source: 'community',
+    name: 'social-notices',
+    kind: 'comments',
+    base: '/v1/me/community/updates',
+  },
+  {
+    source: 'rating-like',
+    name: 'social-notices',
+    kind: 'likes',
+    base: '/v1/me/ratings/like-updates',
+  },
+  {
+    source: 'rating-reply',
+    name: 'social-notices',
+    kind: 'comments',
+    base: '/v1/me/ratings/updates',
+  },
+  {
+    source: 'rating-subscription',
+    name: 'social-notices',
+    kind: 'comments',
+    base: '/v1/me/ratings/subscription-updates',
+  },
+  ...(['likes', 'comments'] as const).flatMap((kind) =>
+    ([false, true] as const).flatMap((v2) =>
+      (['window', 'major'] as const).map((source) => ({
+        source,
+        name: 'social-notices' as const,
+        kind,
+        v2,
+        base: `/v${v2 ? 2 : 1}/me/${source}-discussion/notices`,
+      })),
+    ),
+  ),
+  { source: 'system', name: 'system-notices', base: '/v1/me/system-notices' },
+  { source: 'errand', name: 'system-notices', base: '/v1/me/errand-notices' },
+  {
+    source: 'feedback',
+    name: 'system-notices',
+    base: '/v1/me/feedback-notices',
+  },
+  {
+    source: 'verification',
+    name: 'system-notices',
+    base: '/v1/me/student-verification/notices',
+  },
+];
+
+for (const item of sourceCases) test(`review unknown outcome ${item.source}/${item.kind}/${item.v2}`, async () => {
+ const h = fixture(item.name, true, {allSources: true, kind:item.kind, v2:item.v2});
+ try {
+  await h.idle();
+  const before = item.name === 'social-notices' ? h.page.data.rows : h.page.data.items;
+  assert.ok(before.find(r => r.source === item.source));
+  h.failRead(true); h.target(item.source).emit(1); h.clock.advance(1000); await h.idle();
+  assert.equal(h.writes().length, 1);
+  const after = item.name === 'social-notices' ? h.page.data.rows : h.page.data.items;
+  assert.ok(after.find(r => r.source === item.source), 'unknown read must retain manual fallback row');
+ } finally {h.close();}
+});

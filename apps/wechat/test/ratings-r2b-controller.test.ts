@@ -411,13 +411,12 @@ test('R2B reply and like update categories use isolated DTOs, counters and navig
 });
 
 for (const replyIdOrNull of [null, replyId])
-  test(`R2B receiving ${replyIdOrNull ? 'reply' : 'root'} like notice resolves, reads current content, then marks only like route read`, async () => {
+  test(`R2B receiving ${replyIdOrNull ? 'reply' : 'root'} like notice resolves current content without reading any notice`, async () => {
     const s = r2bHarness();
     s.ratingLikeUpdates.targetImpl = async () =>
       likeNoticeTarget({ target: likeLocator({ replyId: replyIdOrNull }) });
     s.ratingLikeUpdates.markReadImpl = async () => {
-      assert.equal(s.view().loaded, true);
-      return readReceipt();
+      assert.fail('Loading liked content must not acknowledge the notice');
     };
     await s.controller.load({
       ...route,
@@ -427,7 +426,15 @@ for (const replyIdOrNull of [null, replyId])
     assert.equal(s.view().loaded, true);
     assert.deepEqual(
       s.ratingLikeUpdates.calls.map((c) => c.method),
-      ['target', 'markRead'],
+      ['target'],
+    );
+    await s.controller.reload();
+    s.controller.collapse();
+    await s.controller.expand();
+    assert.equal(s.view().loaded, true);
+    assert.equal(
+      s.ratingLikeUpdates.calls.filter((c) => c.method === 'markRead').length,
+      0,
     );
     assert.equal(s.ratingUpdates.calls.length, 0);
     assert.ok(

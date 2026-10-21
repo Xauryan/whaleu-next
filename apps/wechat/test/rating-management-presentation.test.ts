@@ -1,0 +1,330 @@
+import { assertReviewedNoticeExposureSuccessor } from './reviewed-notice-exposure-successor';
+import { assertReviewedNoticeReadSuccessor } from './reviewed-notice-read-successor';
+import { assertReviewedSocialSuccessor } from './reviewed-social-successor';
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import test from 'node:test';
+import { normalizeFramework7ActionNode } from './framework7-action-parity';
+interface Node {
+  tag: string;
+  attrs: Record<string, string>;
+  children: (Node | string)[];
+}
+interface Action {
+  tag: string;
+  attrs: Record<string, string>;
+  ancestors: Record<string, string>[];
+}
+interface Fixture {
+  id: string;
+  page: string;
+  title: string;
+  patch: Record<string, unknown>;
+  expectedText: string[];
+}
+const requireNative = createRequire(__filename);
+const { parsePreviewWxml: parse, evaluatePreviewExpression: evaluate } =
+  requireNative('../scripts/preview-wxml.mjs') as {
+    parsePreviewWxml(source: string): Node;
+    evaluatePreviewExpression(
+      source: string,
+      scope: Record<string, unknown>,
+    ): unknown;
+  };
+const { default: fixtures } = requireNative(
+  '../scripts/fixtures/rating-management-preview.mjs',
+) as { default: Fixture[] };
+const root = path.join(__dirname, '../src');
+const read = (file: string) => readFileSync(path.join(root, file), 'utf8');
+const source = (page: string, ext = 'wxml') =>
+  read(`pages/${page}/${page}.${ext}`);
+const inventory = JSON.parse(
+  readFileSync(
+    path.join(__dirname, 'fixtures/rating-management-action-inventory.json'),
+    'utf8',
+  ),
+) as {
+  pages: string[];
+  files: Record<string, Action[]>;
+  protectedHashes: Record<string, string>;
+};
+function actions(
+  node: Node | string,
+  ancestors: Record<string, string>[] = [],
+): Action[] {
+  if (typeof node === 'string') return [];
+  node = normalizeFramework7ActionNode(node);
+  const guards = Object.fromEntries(
+    Object.entries(node.attrs).filter(([key]) =>
+      [
+        'wx:if',
+        'wx:elif',
+        'wx:else',
+        'wx:for',
+        'wx:for-item',
+        'wx:for-index',
+        'wx:key',
+      ].includes(key),
+    ),
+  );
+  const attrs = Object.fromEntries(
+    Object.entries(node.attrs).filter(
+      ([key]) =>
+        /^(bind|catch|data-)/.test(key) ||
+        [
+          'url',
+          'disabled',
+          'loading',
+          'wx:if',
+          'wx:elif',
+          'wx:else',
+          'maxlength',
+          'value',
+        ].includes(key),
+    ),
+  );
+  return [
+    ...(node.tag === 'navigator' ||
+    Object.keys(node.attrs).some((key) => /^(bind|catch)/.test(key))
+      ? [{ tag: node.tag, attrs, ancestors }]
+      : []),
+    ...node.children.flatMap((child) =>
+      actions(
+        child,
+        Object.keys(guards).length ? [...ancestors, guards] : ancestors,
+      ),
+    ),
+  ];
+}
+for (const [file, before] of Object.entries(inventory.files)) {
+  test(`${file}: every original action preserves target, input contract, disabled and ancestor guards`, () => {
+    const migrated: Record<string, string> = {
+      'ratings/category-scoped.wxml':
+        'ratings/framework7-recovery-category.wxml',
+      'ratings/common.wxml': 'ratings/framework7-recovery-common.wxml',
+      'major-discussion/common.wxml':
+        'major-discussion/framework7-recovery-common.wxml',
+      'window-discussion/common.wxml':
+        'window-discussion/framework7-recovery-common.wxml',
+    };
+    const current = actions(parse(read(migrated[file] ?? file)));
+    for (const old of before) {
+      const index = current.findIndex(
+        (candidate) =>
+          candidate.tag === old.tag &&
+          Object.entries(old.attrs).every(
+            ([key, value]) => candidate.attrs[key] === value,
+          ) &&
+          old.ancestors.every((guard) =>
+            candidate.ancestors.some((ancestor) =>
+              Object.entries(guard).every(
+                ([key, value]) => ancestor[key] === value,
+              ),
+            ),
+          ),
+      );
+      assert.notEqual(
+        index,
+        -1,
+        `Missing or weakened action: ${JSON.stringify(old)}`,
+      );
+      current.splice(index, 1);
+    }
+  });
+}
+test('all protected sources match the recorded baseline, including the separately tested pure formatter extraction', () => {
+  for (const [file, hash] of Object.entries(inventory.protectedHashes).filter(
+    ([file, expected]) =>
+      !assertReviewedNoticeExposureSuccessor(file, expected) &&
+      !assertReviewedNoticeReadSuccessor(file, expected) &&
+      !assertReviewedSocialSuccessor(file, expected),
+  ))
+    assert.equal(
+      createHash('sha256').update(read(file)).digest('hex'),
+      hash,
+      file,
+    );
+});
+function expanded(
+  file: string,
+  templates: Record<string, (Node | string)[]> = {},
+): { nodes: (Node | string)[]; templates: Record<string, (Node | string)[]> } {
+  const tree = parse(read(file));
+  const nodes: (Node | string)[] = [];
+  for (const node of tree.children) {
+    if (typeof node === 'string') {
+      nodes.push(node);
+      continue;
+    }
+    if (node.tag === 'import' || node.tag === 'include') {
+      const nested = expanded(
+        path.join(path.dirname(file), node.attrs.src!),
+        templates,
+      );
+      if (node.tag === 'include') nodes.push(...nested.nodes);
+    } else if (node.tag === 'template' && node.attrs.name)
+      templates[node.attrs.name] = node.children;
+    else nodes.push(node);
+  }
+  return { nodes, templates };
+}
+const interpolate = (text: string, scope: Record<string, unknown>) =>
+  text.replace(/{{([\s\S]*?)}}/g, (_, value: string) =>
+    String(evaluate(value, scope) ?? ''),
+  );
+function render(
+  nodes: (Node | string)[],
+  scope: Record<string, unknown>,
+  templates: Record<string, (Node | string)[]>,
+): string {
+  let text = '';
+  let matched = false;
+  for (const node of nodes) {
+    if (typeof node === 'string') {
+      text += interpolate(node, scope);
+      continue;
+    }
+    const attrs = node.attrs;
+    if (attrs['wx:for']) {
+      const { ['wx:for']: loop, ...rest } = attrs;
+      const items = evaluate(loop.slice(2, -2), scope) as unknown[] | undefined;
+      text += (items ?? [])
+        .map((item, index) =>
+          render(
+            [{ ...node, attrs: rest }],
+            {
+              ...scope,
+              [attrs['wx:for-item'] ?? 'item']: item,
+              [attrs['wx:for-index'] ?? 'index']: index,
+            },
+            templates,
+          ),
+        )
+        .join(' ');
+      continue;
+    }
+    if ('wx:if' in attrs) matched = false;
+    const condition = attrs['wx:if'] ?? attrs['wx:elif'];
+    if ('wx:elif' in attrs && matched) continue;
+    if (condition !== undefined) {
+      if (!evaluate(condition.slice(2, -2), scope)) continue;
+      matched = true;
+    } else if ('wx:else' in attrs) {
+      if (matched) continue;
+      matched = true;
+    } else matched = false;
+    if (node.tag === 'wu-icon') continue;
+    if (node.tag === 'template') {
+      const data = attrs.data
+        ? (evaluate(`({${attrs.data.slice(2, -2)}})`, scope) as Record<
+            string,
+            unknown
+          >)
+        : scope;
+      text += render(templates[attrs.is!] ?? [], data ?? scope, templates);
+    } else text += ` ${render(node.children, scope, templates)} `;
+  }
+  return text.replace(/\s+/g, ' ').trim();
+}
+test('29 synthetic normal, denied, confirmation and recovery fixtures render actual source without private data or WXML leakage', () => {
+  const pages = new Set<string>();
+  const ids = new Set<string>();
+  for (const fixture of fixtures) {
+    pages.add(fixture.page);
+    assert.ok(!ids.has(fixture.id));
+    ids.add(fixture.id);
+    const { nodes, templates } = expanded(
+      `pages/${fixture.page}/${fixture.page}.wxml`,
+    );
+    const visible = render(nodes, fixture.patch, templates);
+    assert.ok(fixture.expectedText.length);
+    for (const marker of fixture.expectedText)
+      assert.ok(
+        marker.trim() && visible.includes(marker),
+        `${fixture.id}: missing ${marker}\n${visible}`,
+      );
+    assert.doesNotMatch(
+      visible,
+      /undefined|\[object Object\]|{{|wx:|bindtap|<view|https?:\/\//,
+    );
+    assert.doesNotMatch(
+      JSON.stringify(fixture),
+      /https?:\/\/|assetId|\/tmp\/|\/workspace\/|cloud:\/\//,
+    );
+  }
+  assert.deepEqual([...pages].sort(), [...inventory.pages].sort());
+  assert.ok(fixtures.length >= 29);
+  for (const state of ['normal', 'denied', 'confirm', 'recovery'])
+    assert.ok(fixtures.some((fixture) => fixture.id.includes(state)));
+});
+test('all ten pages use isolated semantic Apple surfaces, original icons and full-size controls', () => {
+  for (const page of inventory.pages) {
+    const { nodes } = expanded(`pages/${page}/${page}.wxml`);
+    assert.ok(
+      nodes.some(
+        (node) =>
+          typeof node !== 'string' &&
+          node.attrs.class?.includes('management-page'),
+      ),
+      page,
+    );
+    const config = JSON.parse(source(page, 'json')) as {
+      usingComponents: Record<string, string>;
+    };
+    assert.equal(
+      config.usingComponents['wu-icon'],
+      '../../components/icon/icon',
+    );
+    assert.match(source(page, 'wxss'), /ratings\/management\.wxss/);
+    assert.doesNotMatch(
+      source(page),
+      /WHALEU|Unicode|class="hero"|匿名|https?:\/\/|data:image/,
+    );
+  }
+  const css = read('ratings/management.wxss');
+  for (const token of [
+    '--wu-text',
+    '--wu-secondary',
+    '--wu-surface',
+    '--wu-separator',
+    '--wu-accent',
+    '--wu-danger',
+    '--wu-elevated',
+  ])
+    assert.ok(css.includes(`var(${token})`));
+  assert.match(css, /min-height: 88rpx/);
+  assert.match(css, /prefers-color-scheme: dark/);
+  assert.match(css, /safe-area-inset-bottom/);
+  assert.doesNotMatch(read('ratings/ratings.wxss'), /management-page/);
+});
+test('normal editing leads with current scope and preserves precise confirmation, expiry and media boundaries', () => {
+  const category = read('ratings/framework7-recovery-category.wxml');
+  assert.ok(
+    category.indexOf('{{loaded &amp;&amp; !frozen &amp;&amp; !pickerOpen}}') <
+      category.indexOf('恢复原分类图标清理'),
+  );
+  for (const marker of [
+    'preview.validUntil',
+    '确认绑定完整预览摘要',
+    '版本、授权、来源或审核变更会整体拒绝',
+    '清理排队或引用退役都不等于文件已物理删除',
+    'disabled="{{busy || !item.allowed}}"',
+    '本校园明确无图',
+  ])
+    assert.ok(category.includes(marker), marker);
+  const deletion = source('target-owner-delete');
+  assert.match(deletion, /删除后无法恢复/);
+  assert.match(deletion, /不会恢复对象/);
+  assert.match(source('target-owner-edit'), /原输入与编号被冻结/);
+  assert.match(
+    source('rating-discussion-media'),
+    /已经发布的内容不会被伪装为取消/,
+  );
+  assert.match(
+    source('rating-discussion-media'),
+    /disabled="{{busy \|\| editor.frozen \|\| !authorMode \|\| \(!text &amp;&amp; !editor.selected.length\)}}"/,
+  );
+});

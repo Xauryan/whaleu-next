@@ -1,0 +1,442 @@
+{
+  "pages/window-discussion/window-discussion.wxml": [
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "likes",
+        "bindtap": "onSort",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-sort": "time",
+        "bindtap": "onSort",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canNext}}",
+        "bindtap": "onNext",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/window-discussion-recovery/window-discussion-recovery"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/window-discussion-notices/window-discussion-notices"
+      },
+      "ancestors": []
+    }
+  ],
+  "pages/window-discussion-thread/window-discussion-thread.wxml": [
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{canNext}}",
+        "bindtap": "onNext",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded}}"
+        }
+      ]
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/window-discussion-recovery/window-discussion-recovery"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "navigator",
+      "attrs": {
+        "url": "/pages/window-discussion-notices/window-discussion-notices"
+      },
+      "ancestors": []
+    }
+  ],
+  "window-discussion/common.wxml": [
+    {
+      "tag": "navigator",
+      "attrs": {
+        "wx:if": "{{!hasSession}}",
+        "url": "/pages/login/login"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRefresh",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{busy}}",
+        "bindtap": "onCancelWait"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRecover",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onRetry",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{recoveryPhase === 'submit'}}",
+        "bindtap": "onRequestCancellation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmCancellation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        },
+        {
+          "wx:if": "{{confirming === 'cancel'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{frozen}}"
+        },
+        {
+          "wx:if": "{{confirming === 'cancel'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:for": "{{item.images}}",
+        "wx:for-item": "image",
+        "wx:key": "bindingId",
+        "data-id": "{{item.id}}",
+        "data-index": "{{image.ordinal}}",
+        "bindtap": "onImage",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{item.images && item.images.length}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-id": "{{item.id}}",
+        "bindtap": "onLike",
+        "disabled": "{{busy || frozen || confirming}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{mode === 'roots'}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onThread",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:elif": "{{item.rootId}}",
+        "data-id": "{{item.id}}",
+        "bindtap": "onReply",
+        "disabled": "{{busy || frozen || confirming}}"
+      },
+      "ancestors": []
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{replyTarget}}",
+        "bindtap": "onReplyRoot",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        },
+        {
+          "wx:if": "{{mode === 'thread'}}"
+        }
+      ]
+    },
+    {
+      "tag": "textarea",
+      "attrs": {
+        "value": "{{body}}",
+        "maxlength": "-1",
+        "bindinput": "onBody",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-source": "album",
+        "bindtap": "onPickImage",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        },
+        {
+          "wx:if": "{{imageEnabled}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "data-source": "camera",
+        "bindtap": "onPickImage",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming || imageCount >= 3}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        },
+        {
+          "wx:if": "{{imageEnabled}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmPublish",
+        "disabled": "{{busy || imageBusy || imageFrozen || confirming || !canPublish}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{loaded && !frozen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSubmit",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'publish'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'publish'}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onSubmit",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'like' && selectedComment}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseConfirmation",
+        "disabled": "{{busy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{confirming === 'like' && selectedComment}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{imageRecoverable}}",
+        "bindtap": "onRecoverImages",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{imageRecoverable}}",
+        "bindtap": "onRequestImageCancel",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onConfirmImageCancel",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        },
+        {
+          "wx:if": "{{imageCancelConfirm}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseImageCancel",
+        "disabled": "{{busy || imageBusy}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        },
+        {
+          "wx:if": "{{imageCancelConfirm}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "wx:if": "{{imageBusy}}",
+        "bindtap": "onCancelWait"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{imageEnabled && (imageStatus || imagePending || imageBusy)}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onCloseGallery"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{galleryOpen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onImagePrevious",
+        "disabled": "{{galleryIndex === 0}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{galleryOpen}}"
+        }
+      ]
+    },
+    {
+      "tag": "button",
+      "attrs": {
+        "bindtap": "onImageNext",
+        "disabled": "{{galleryIndex + 1 >= galleryCount}}"
+      },
+      "ancestors": [
+        {
+          "wx:if": "{{galleryOpen}}"
+        }
+      ]
+    }
+  ]
+}

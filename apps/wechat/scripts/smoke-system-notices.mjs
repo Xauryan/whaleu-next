@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { parse, render } from './smoke-ratings.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -19,12 +20,25 @@ export async function smokeSystemNotices({ app, dist, mountPage, flush }) {
     gateway: app.community.gateway,
     notices: app.community.systemNotices,
     privacy: app.community.identityPrivacy,
+    errands: app.community.errandNotices,
+    feedback: app.community.feedbackNotices,
+    api: app.identity.api,
+    navigateTo: globalThis.wx.navigateTo,
     credentials: app.identity.sessions.snapshot().credentials,
   };
   assert.ok(
     original.credentials,
     'System notice smoke needs the synthetic login',
   );
+  // Isolate this source's real transport assertions from other timeline owners.
+  app.community.errandNotices = undefined;
+  app.community.feedbackNotices = undefined;
+  app.identity.api = undefined;
+  const navigation = [];
+  globalThis.wx.navigateTo = (options) => {
+    navigation.push(options.url);
+    options.success?.();
+  };
   const accountId = original.credentials.accountId;
   const noticeId = 'abababab-abab-4bab-8bab-abababababab';
   const secondNoticeId = 'acacacac-acac-4cac-8cac-acacacacacac';
@@ -168,41 +182,109 @@ export async function smokeSystemNotices({ app, dist, mountPage, flush }) {
   let current;
   let badge;
   let badgeView;
+  const systemState = () =>
+    current.data.sources.find((source) => source.source === 'system');
+  const assertCount = (expected) => {
+    assert.equal(
+      current.data.unreadCount,
+      null,
+      'Partial sources never manufacture an aggregate total',
+    );
+    assert.equal(
+      systemState()?.unreadCount,
+      expected,
+      'The system owner retains its exact server count',
+    );
+  };
+  const assertCleared = () => {
+    assert.deepEqual(current.data.items, []);
+    assert.equal(current.data.unreadCount, null);
+    assert.equal(current.data.hasUnread, false);
+    assert.ok(systemState() === undefined || systemState().unreadCount === 0);
+  };
   try {
     current = mountPage(module, {});
     await flush();
     assert.equal(current.data.loaded, true);
     assert.equal(current.data.items.length, 1);
-    assert.equal(current.data.unreadCount, 9);
+    assertCount(9);
     assert.equal(
       requests.filter((request) => request.method === 'PUT').length,
       0,
     );
+    assert.equal(typeof current.onOpen, 'function');
+    const beforeOpen = requests.length;
+    current.onOpen({
+      currentTarget: { dataset: { id: `system:${noticeId}` } },
+    });
+    current.onOpen({ currentTarget: { dataset: { id: noticeId } } });
+    current.onRead({ currentTarget: { dataset: { id: noticeId } } });
+    await flush();
     assert.equal(
-      current.onOpen,
-      undefined,
-      'No source navigation handler exists',
+      requests.length,
+      beforeOpen,
+      'System moderation rows and raw IDs cannot resolve an arbitrary source',
     );
+    assert.deepEqual(navigation, []);
     assert.equal(
       current.identityOverlay,
       undefined,
       'No identity overlay exists',
     );
-    for (const row of current.data.items)
-      assert.deepEqual(Object.keys(row).sort(), [
-        'createdAt',
-        'keepVotes',
-        'kind',
-        'noticeId',
-        'readAt',
-        'removeVotes',
-      ]);
+    for (const row of current.data.items) {
+      assert.match(
+        row.observationId,
+        new RegExp(`^notice-[0-9]+-system-${row.noticeId}$`),
+        'Only the exact row-scoped local observation selector is added',
+      );
+      for (const key of [
+        'timeLabel',
+        'startTimeLabel',
+        'endTimeLabel',
+        'releaseTimeLabel',
+        'punishmentStartTimeLabel',
+        'punishmentEndTimeLabel',
+      ])
+        assert.equal(typeof row[key], 'string');
+      assert.deepEqual(
+        Object.keys(row)
+          .filter(
+            (key) =>
+              ![
+                'timeLabel',
+                'startTimeLabel',
+                'endTimeLabel',
+                'releaseTimeLabel',
+                'punishmentStartTimeLabel',
+                'punishmentEndTimeLabel',
+              ].includes(key),
+          )
+          .sort(),
+        [
+          'createdAt',
+          'keepVotes',
+          'key',
+          'kind',
+          'noticeId',
+          'observationId',
+          'readAt',
+          'removeVotes',
+          'source',
+          'summary',
+        ],
+      );
+    }
+    const loadedData = structuredClone(current.data);
     current.onMore();
     await flush();
     assert.equal(current.data.items.length, 2);
     assert.equal(current.data.canLoadMore, false);
-    current.onRead({ currentTarget: { dataset: { id: noticeId } } });
-    current.onRead({ currentTarget: { dataset: { id: noticeId } } });
+    current.onRead({
+      currentTarget: { dataset: { id: `system:${noticeId}` } },
+    });
+    current.onRead({
+      currentTarget: { dataset: { id: `system:${noticeId}` } },
+    });
     await flush();
     assert.equal(
       requests.filter((request) => request.method === 'PUT').length,
@@ -218,17 +300,25 @@ export async function smokeSystemNotices({ app, dist, mountPage, flush }) {
       null,
       'No invented local read success',
     );
-    assert.equal(current.data.unreadCount, 9);
-    assert.match(current.data.status, /尚未确认/);
-    current.onRead({ currentTarget: { dataset: { id: noticeId } } });
+    assertCount(9);
+    assert.match(systemState().status, /尚未确认/);
+    assert.ok(
+      current.data.error,
+      'A lost read response remains visible after a duplicate tap',
+    );
+    current.onRead({
+      currentTarget: { dataset: { id: `system:${noticeId}` } },
+    });
     await flush();
     assert.equal(current.data.items[0].readAt, readAt);
     assert.equal(current.data.items[1].readAt, null);
-    assert.equal(current.data.unreadCount, 8);
+    assertCount(8);
     assert.equal(records.size, 1, 'Retry does not decrement twice');
     const writes = requests.filter((request) => request.method === 'PUT');
     assert.equal(writes[0].url, writes[1].url);
-    current.onRead({ currentTarget: { dataset: { id: noticeId } } });
+    current.onRead({
+      currentTarget: { dataset: { id: `system:${noticeId}` } },
+    });
     await flush();
     assert.equal(
       requests.filter((request) => request.method === 'PUT').length,
@@ -241,30 +331,32 @@ export async function smokeSystemNotices({ app, dist, mountPage, flush }) {
     await badge.load();
     assert.equal(badgeView.unreadCount, 8);
     waitForRead = true;
-    current.onRead({ currentTarget: { dataset: { id: secondNoticeId } } });
+    current.onRead({
+      currentTarget: { dataset: { id: `system:${secondNoticeId}` } },
+    });
     await flush();
     app.onHide();
     assert.equal(readCancellation.isCancelled, true);
     assert.deepEqual(current.data.items, []);
-    assert.equal(current.data.unreadCount, 0);
+    assertCleared();
     assert.equal(badgeView.loaded, false);
     assert.equal(badgeView.unreadCount, 0);
     finishRead();
     await flush();
     assert.deepEqual(current.data.items, []);
-    assert.equal(current.data.unreadCount, 0);
+    assertCleared();
     waitForRead = false;
     current.onShow();
     await flush();
     current.onMore();
     await flush();
     assert.equal(current.data.items[1].readAt, readAt);
-    assert.equal(current.data.unreadCount, 7);
+    assertCount(7);
 
     waitForList = true;
     current.onReload();
     assert.deepEqual(current.data.items, []);
-    assert.equal(current.data.unreadCount, 0);
+    assertCleared();
     await flush();
     current.onCancel();
     assert.equal(listCancellation.isCancelled, true);
@@ -288,18 +380,18 @@ export async function smokeSystemNotices({ app, dist, mountPage, flush }) {
     waitForList = false;
     current.onReload();
     await flush();
-    assert.equal(current.data.unreadCount, 4);
+    assertCount(4);
     oldFinish();
     await flush();
     assert.equal(
-      current.data.unreadCount,
+      systemState().unreadCount,
       4,
       'Old owner callback cannot replace current count',
     );
     current.onHide();
     assert.equal(current.controller, undefined);
     assert.deepEqual(current.data.items, []);
-    assert.equal(current.data.unreadCount, 0);
+    assertCleared();
     current.onShow();
     await flush();
     assert.equal(current.data.loaded, true);
@@ -308,24 +400,41 @@ export async function smokeSystemNotices({ app, dist, mountPage, flush }) {
     await flush();
     assert.equal(current.data.loaded, false);
     assert.deepEqual(current.data.items, []);
-    assert.equal(current.data.unreadCount, 0);
-    assert.match(current.data.error, /格式异常/);
+    assertCleared();
+    assert.match(systemState().error, /格式异常/);
+    current.onSources();
+    assert.equal(current.data.showSources, true);
     assert.equal(sourceRequests, 0);
     const template = readFileSync(
       path.join(dist, 'pages/system-notices/system-notices.wxml'),
       'utf8',
     );
-    assert.match(template, /标记此条已读/);
-    assert.match(template, /陪审团移除结果/);
-    assert.match(template, /独立于社区更新/);
-    assert.match(template, /外部推送尚未接入/);
+    assert.match(template, /标为已读/);
+    assert.match(template, /item.kind === 'post_jury_removed'/);
+    assert.match(template, /帖子已被陪审团移除/);
+    assert.match(template, /仅加载列表或打开详情不会确认已读/);
+    assert.match(template, /消息在屏幕内持续显示后会确认已读，也可手动标记/);
+    assert.match(template, /id="{{item\.observationId}}"/);
     assert.equal(
-      /postId|preview|target|authorId|jurorId|reporterId|identityOverlay|bindtap="onOpen"|requestSubscribeMessage/.test(
+      /postId|preview|target|authorId|jurorId|reporterId|identityOverlay|requestSubscribeMessage/.test(
         template,
       ),
       false,
     );
-    for (const match of template.matchAll(/(?:bindtap|catchtap)="([^"]+)"/g))
+    const visibleSystem = JSON.stringify(
+      render(parse(template).children, loadedData, {}),
+    );
+    assert.equal(
+      visibleSystem.includes('onOpen'),
+      false,
+      'The rendered moderation notice exposes no content-navigation control',
+    );
+    assert.ok(
+      visibleSystem.includes(`system:${noticeId}`),
+      'Rendered receipts carry their source namespace',
+    );
+    assert.equal(visibleSystem.includes('postId'), false);
+    for (const match of template.matchAll(/(?:bind|catch):?(?:tap|press)="([^"]+)"/g))
       assert.equal(typeof current[match[1]], 'function');
   } finally {
     current?.onUnload();
@@ -333,6 +442,10 @@ export async function smokeSystemNotices({ app, dist, mountPage, flush }) {
     app.community.gateway = original.gateway;
     app.community.systemNotices = original.notices;
     app.community.identityPrivacy = original.privacy;
+    app.community.errandNotices = original.errands;
+    app.community.feedbackNotices = original.feedback;
+    app.identity.api = original.api;
+    globalThis.wx.navigateTo = original.navigateTo;
     app.identity.sessions.completeLogin(
       app.identity.sessions.beginLogin(),
       original.credentials,

@@ -6,6 +6,7 @@ import {
   parseErrandWxml as parse,
   renderErrandWxml as render,
 } from './smoke-errands.mjs';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 const deferred = () => {
   let resolve;
@@ -312,14 +313,25 @@ export async function smokeErrandAdminMutations({ app, dist, flush }) {
     success?.({});
     return {};
   };
-  const common = parse(
-    readFileSync(path.join(dist, 'errands/admin-command.wxml'), 'utf8'),
-  );
-  const templates = Object.fromEntries(
-    common.children
-      .filter((node) => typeof node !== 'string' && node.attrs?.name)
-      .map((node) => [node.attrs.name, node]),
-  );
+  const templatesFor = (pageFile) => {
+    const templates = {},
+      visited = new Set();
+    const load = (file) => {
+      if (visited.has(file)) return;
+      visited.add(file);
+      const tree = parse(readFileSync(file, 'utf8'));
+      for (const node of tree.children) {
+        if (typeof node === 'string') continue;
+        if (node.tag === 'import')
+          load(path.resolve(path.dirname(file), node.attrs.src));
+        if (node.tag === 'template' && node.attrs.name)
+          templates[node.attrs.name] = node;
+      }
+    };
+    load(pageFile);
+    return templates;
+  };
+  const bridges = new WeakMap();
   const mount = (name, query = {}) => {
     let page;
     const previous = globalThis.Page;
@@ -333,6 +345,14 @@ export async function smokeErrandAdminMutations({ app, dist, flush }) {
     page.setData = (data) => {
       page.data = { ...page.data, ...data };
     };
+    bridges.set(
+      page,
+      createNativePressBridge({
+        page,
+        dist,
+        pageFile: path.join(dist, `pages/${name}/${name}`),
+      }),
+    );
     page.onLoad(query);
     page.onShow();
     return page;
@@ -344,11 +364,14 @@ export async function smokeErrandAdminMutations({ app, dist, flush }) {
           readFileSync(path.join(dist, `pages/${name}/${name}.wxml`), 'utf8'),
         ).children,
         page.data,
-        templates,
+        templatesFor(path.join(dist, `pages/${name}/${name}.wxml`)),
       ),
     );
-  const tap = (page, name, id) =>
-    page[name]({ currentTarget: { dataset: { id } } });
+  const tap = (page, name, id) => {
+    const captured = bridges.get(page).capture(name, { id });
+    assert.equal(captured.press(), true, name);
+    captured.detach();
+  };
   const input = (page, name, value) => page[name]({ detail: { value } });
   const cleared = (page) => {
     assert.equal(page.data.loaded, false);
@@ -405,6 +428,9 @@ export async function smokeErrandAdminMutations({ app, dist, flush }) {
   await flush();
   assert.equal(stored.size, 0);
   await flush();
+  page.onToggleUiPanel({
+    currentTarget: { dataset: { panel: `order:${page.data.items[0].id}` } },
+  });
   assert.ok(shown(page, 'errand-admin').includes('可独立读取的删除原因'));
   assert.equal(sent.length, 1);
   page.onUnload();
@@ -507,6 +533,9 @@ export async function smokeErrandAdminMutations({ app, dist, flush }) {
   ];
   page = mount('errand-restrictions');
   await flush();
+  page.onToggleUiPanel({
+    currentTarget: { dataset: { panel: `restriction:${restrictionId}` } },
+  });
   text = shown(page, 'errand-restrictions');
   assert.ok(text.includes('基线已知解除时间'));
   assert.ok(text.includes('原操作人与解除原因未知'));

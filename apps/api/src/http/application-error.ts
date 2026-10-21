@@ -3,6 +3,50 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  REFERENCE_NOT_FOUND: {
+    status: 404,
+    message: 'Content reference is unavailable.',
+  },
+  REFERENCE_RATE_LIMITED: {
+    status: 429,
+    message: 'Content reference request budget is temporarily exhausted.',
+  },
+  TIMETABLE_REVISION_CONFLICT: {
+    status: 409,
+    message: 'The timetable changed. Reload before editing.',
+  },
+  TIMETABLE_ID_REUSED: {
+    status: 409,
+    message: 'The timetable identifier was already used.',
+  },
+  TIMETABLE_TERM_LIMIT: {
+    status: 409,
+    message: 'The private timetable term limit was reached.',
+  },
+  TIMETABLE_ENTRY_LIMIT: {
+    status: 409,
+    message: 'The private timetable entry limit was reached.',
+  },
+  TIMETABLE_WEEKS_OUT_OF_RANGE: {
+    status: 409,
+    message: 'Timetable entry weeks exceed the term range.',
+  },
+  TIMETABLE_NOT_FOUND: {
+    status: 404,
+    message: 'Timetable item is unavailable.',
+  },
+  TIMETABLE_REQUEST_CONFLICT: {
+    status: 409,
+    message: 'The original timetable request conflicts.',
+  },
+  TIMETABLE_UNAVAILABLE: {
+    status: 503,
+    message: 'Private timetable is temporarily unavailable.',
+  },
+  PROFILE_DETAILS_REVISION_CONFLICT: {
+    status: 409,
+    message: 'Profile details changed. Reload before editing.',
+  },
   INSTITUTIONAL_SSO_UNAVAILABLE: {
     status: 503,
     message: 'Institutional verification is unavailable.',

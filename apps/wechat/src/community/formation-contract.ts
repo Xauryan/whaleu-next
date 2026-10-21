@@ -79,7 +79,7 @@ export interface FormationContactView {
   }[];
 }
 export const formationContactDisclosure =
-  '你填写的联系方式将分享给当前有权查看本帖的组队成员。公开名单中发起者可保持匿名，但联系方式可能让成员识别你的身份；加入者使用公开个人资料。联系方式不是认证信息。';
+  '你填写的联系方式将分享给当前有权查看本帖的组队成员。公开名单中发起者可使用分身，但联系方式可能让成员识别你的身份；加入者使用公开个人资料。联系方式不是认证信息。';
 const integer = (value: unknown, min: number, max: number): value is number =>
   typeof value === 'number' &&
   Number.isInteger(value) &&

@@ -1,3 +1,4 @@
+import { extendLiveFixture } from './live-fixture.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
@@ -176,14 +177,13 @@ export async function schoolUidFixture(
         return id;
       });
     const adminGrant = await grant();
-    const http = f.app.getHttpServer();
     const auth = (a: SessionCredentials) => `Bearer ${a.accessToken}`;
     const profile = async (actor: SessionCredentials) => {
-      const before = await request(http)
+      const before = await request(f.app.getHttpServer())
         .get('/v1/me/profile')
         .set('Authorization', auth(actor));
       ok(before);
-      const response = await request(http)
+      const response = await request(f.app.getHttpServer())
         .patch('/v1/me/profile')
         .set('Authorization', auth(actor))
         .send({
@@ -191,7 +191,7 @@ export async function schoolUidFixture(
           nickname: 'UID测试用户',
         });
       ok(response);
-      const r = await request(http)
+      const r = await request(f.app.getHttpServer())
         .get('/v1/me/public-profile-ref')
         .set('Authorization', auth(actor));
       ok(r);
@@ -202,7 +202,7 @@ export async function schoolUidFixture(
       actor: SessionCredentials,
       location: UidSchool = home,
     ) => {
-      const reserved = await request(http)
+      const reserved = await request(f.app.getHttpServer())
         .post('/v1/me/student-verification/applications')
         .set('Authorization', auth(actor))
         .send({ clientRequestId: randomUUID(), campusId: location.campusId });
@@ -217,7 +217,7 @@ export async function schoolUidFixture(
       assert.equal(media.status.status, 'ready_unbound');
       if (media.status.status !== 'ready_unbound')
         throw Error('Missing evidence');
-      const sent = await request(http)
+      const sent = await request(f.app.getHttpServer())
         .post(
           `/v1/me/student-verification/applications/${reserved.body.applicationId}/submit`,
         )
@@ -251,7 +251,7 @@ export async function schoolUidFixture(
           ? { reason: 'Synthetic rejected test' }
           : {}),
       };
-      const response = await request(http)
+      const response = await request(f.app.getHttpServer())
         .post(
           `/v1/student-verification-review/regions/${application.location.regionId}/applications/${application.id}/decision`,
         )
@@ -265,7 +265,7 @@ export async function schoolUidFixture(
       targetProfileId: string,
       campus?: string,
     ) => {
-      const response = await request(http)
+      const response = await request(f.app.getHttpServer())
         .get('/v1/admin/school-identities/management')
         .set('Authorization', auth(actor))
         .query({
@@ -280,7 +280,7 @@ export async function schoolUidFixture(
       command: SchoolIdentityCommand,
       cancel = false,
     ) =>
-      request(http)
+      request(f.app.getHttpServer())
         .post(
           '/v1/admin/school-identities/commands' + (cancel ? '/cancel' : ''),
         )
@@ -310,14 +310,13 @@ export async function schoolUidFixture(
       };
     };
     const own = async (actor: SessionCredentials) => {
-      const response = await request(http)
+      const response = await request(f.app.getHttpServer())
         .get('/v1/me/school-uid')
         .set('Authorization', auth(actor));
       ok(response);
       return schoolUidSchema.parse(response.body);
     };
-    return {
-      ...f,
+    return extendLiveFixture(f, {
       png,
       admin,
       adminGrant,
@@ -333,7 +332,7 @@ export async function schoolUidFixture(
       send,
       correct,
       own,
-    };
+    });
   } catch (error) {
     await f.close();
     throw error;

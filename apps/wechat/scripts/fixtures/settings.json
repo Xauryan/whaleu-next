@@ -1,0 +1,68 @@
+[
+  {
+    "key": "showOfficialAccountTip",
+    "label": "公众号提示",
+    "hint": "显示校园公众号入口提示",
+    "checked": true
+  },
+  {
+    "key": "showHotTopic",
+    "label": "每日热榜",
+    "hint": "显示每日热门话题",
+    "checked": true
+  },
+  {
+    "key": "showGroupNotice",
+    "label": "校园群提示",
+    "hint": "显示校园交流群提示",
+    "checked": false
+  },
+  {
+    "key": "showTradingGroupNotice",
+    "label": "交易群提示",
+    "hint": "显示二手物品快速交易群提示",
+    "checked": false
+  },
+  {
+    "key": "showErrandGroupNotice",
+    "label": "跑腿群提示",
+    "hint": "显示跑腿接单群提示",
+    "checked": false
+  },
+  {
+    "key": "defaultAnonymousEnabled",
+    "label": "默认分身发布",
+    "hint": "新建内容时默认使用分身",
+    "checked": false
+  },
+  {
+    "key": "defaultCommentAnonymousEnabled",
+    "label": "回复默认使用分身",
+    "hint": "与「回复默认不使用分身」互斥",
+    "checked": false
+  },
+  {
+    "key": "defaultCommentNonAnonymousEnabled",
+    "label": "回复默认不使用分身",
+    "hint": "两项均关闭时不强制回复身份",
+    "checked": false
+  },
+  {
+    "key": "defaultAllowAnonymousDm",
+    "label": "默认允许分身私信",
+    "hint": "作为后续发布功能的默认偏好",
+    "checked": false
+  },
+  {
+    "key": "hideProfilePosts",
+    "label": "隐藏个人主页帖子",
+    "hint": "对其他人隐藏主页帖子、交易与对应数量；不会删除内容",
+    "checked": false
+  },
+  {
+    "key": "activitySubscribed",
+    "label": "活动提醒",
+    "hint": "保存活动提醒偏好，消息投递待接入",
+    "checked": false
+  }
+]

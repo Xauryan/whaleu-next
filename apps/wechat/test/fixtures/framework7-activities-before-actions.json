@@ -1,0 +1,968 @@
+{
+  "src/pages/activity-list/activity-list.wxml": {
+    "sourceSha256": "849062d59ea477e964f3ecd1749de92ae6ee8dfd9c013b220511fb041862146a",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button",
+          "bindtap": "onNative"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-icon-button",
+          "bindtap": "onMine",
+          "aria-label": "我的发布"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-icon-button",
+          "data-field": "preferences",
+          "bindtap": "onTogglePanel",
+          "aria-label": "活动提醒设置"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-icon-button activity-accent",
+          "bindtap": "onPublish",
+          "aria-label": "发布活动"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{window !== 'all'}}",
+          "class": "activity-text-button",
+          "bindtap": "onAll",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{window !== 'all'}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-icon-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}",
+          "aria-label": "{{restartRequired ? '重新开始浏览' : '刷新活动'}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}",
+            "loading": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "activity-text-button",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "activity-text-button activity-muted",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-event-open",
+          "data-id": "{{item.id}}",
+          "bindtap": "onActivity",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canPrevious}}",
+          "class": "activity-text-button",
+          "bindtap": "onPrevious",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canPrevious}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canNext}}",
+          "class": "activity-text-button",
+          "bindtap": "onNext",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded}}"
+          },
+          {
+            "wx:if": "{{canNext}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{visit.pending}}",
+          "class": "activity-text-button",
+          "bindtap": "onVisitRetry",
+          "disabled": "{{visit.busy}}",
+          "loading": "{{visit.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{visit.pending || visit.error}}"
+          },
+          {
+            "wx:if": "{{visit.pending}}",
+            "disabled": "{{visit.busy}}",
+            "loading": "{{visit.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-disclosure",
+          "data-field": "information",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "activity-text-button",
+          "url": "/pages/identity-campus/identity-campus"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.information}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "wx:if": "{{preference.loaded}}",
+          "checked": "{{preference.checked}}",
+          "disabled": "{{preference.busy || preference.needsReload}}",
+          "bindchange": "onPreference"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.preferences || preference.dirty || preference.needsReload || preference.error}}"
+          },
+          {
+            "wx:if": "{{preference.loaded}}",
+            "disabled": "{{preference.busy || preference.needsReload}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{preference.dirty && !preference.needsReload}}",
+          "class": "activity-text-button",
+          "bindtap": "onPreferenceSave",
+          "disabled": "{{preference.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.preferences || preference.dirty || preference.needsReload || preference.error}}"
+          },
+          {
+            "wx:if": "{{preference.dirty && !preference.needsReload}}",
+            "disabled": "{{preference.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button activity-muted",
+          "bindtap": "onPreferenceReload",
+          "disabled": "{{preference.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{uiPanels.preferences || preference.dirty || preference.needsReload || preference.error}}"
+          },
+          {
+            "disabled": "{{preference.busy}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/activity-detail/activity-detail.wxml": {
+    "sourceSha256": "2762452db86f7ce9776a45d39d429238986a43218115b3f5317c14c8bd4d16a1",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-icon-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}",
+          "aria-label": "刷新活动详情"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}",
+            "loading": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "activity-text-button",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "activity-text-button activity-muted",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-disclosure",
+          "data-field": "information",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{loaded && detail}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/activity-native/activity-native.wxml": {
+    "sourceSha256": "5e72eab4438d08a238f7adf7e528a58c18a1b127e65ec7cc2188c055b1c11670",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button activity-muted",
+          "bindtap": "onLegacy"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-icon-button",
+          "bindtap": "onMine",
+          "aria-label": "我的发布"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-icon-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "aria-label": "刷新活动"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-compact-primary",
+          "bindtap": "onPublish"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "view",
+        "attrs": {
+          "wx:for": "{{items}}",
+          "wx:key": "id",
+          "class": "activity-event activity-native-event",
+          "data-id": "{{item.id}}",
+          "bindtap": "onDetail",
+          "aria-role": "button",
+          "aria-label": "{{item.content.title}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{items}}",
+            "wx:key": "id"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{more}}",
+          "class": "activity-load-more",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{more}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/activity-native-detail/activity-native-detail.wxml": {
+    "sourceSha256": "f4b9d6cd68f8f44eee18133ec94e2cb82fe59baf826e7fce29a8e9cc28d13558",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{error}}",
+          "class": "activity-text-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{error}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{slots}}",
+          "wx:key": "slot",
+          "class": "activity-media-choice {{selectedSlot === item.slot ? 'selected' : ''}}",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onImage"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{activity}}"
+          },
+          {
+            "wx:if": "{{slots.length}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-disclosure",
+          "data-field": "information",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{activity}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-primary",
+          "bindtap": "onQr"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{activity}}"
+          },
+          {
+            "wx:if": "{{activity.organizerQr.status === 'available'}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/activity-publish/activity-publish.wxml": {
+    "sourceSha256": "e340efd6de3396ecd8650ef4a887c1f26a30c78d27b2fb1790fbceca6f45829a",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button activity-muted",
+          "bindtap": "onCatalog"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button activity-muted",
+          "bindtap": "onMine"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button",
+          "bindtap": "onRetry",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button activity-muted",
+          "bindtap": "onCancelOriginal",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{pending}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:for": "{{organizers}}",
+          "wx:key": "organizationId",
+          "class": "activity-organizer-option {{selected && selected.organizationId === item.organizationId ? 'selected' : ''}}",
+          "data-id": "{{item.organizationId}}",
+          "bindtap": "onOrganizer",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!id}}"
+          },
+          {
+            "wx:for": "{{organizers}}",
+            "wx:key": "organizationId",
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{moreOrganizers}}",
+          "class": "activity-text-button",
+          "bindtap": "onMoreOrganizers",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!id}}"
+          },
+          {
+            "wx:if": "{{moreOrganizers}}",
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "class": "activity-title-input",
+          "value": "{{form.title}}",
+          "maxlength": "50",
+          "data-field": "title",
+          "bindinput": "onField",
+          "disabled": "{{busy || pending}}",
+          "placeholder": "给活动起一个名字",
+          "aria-label": "活动标题，最多50字"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "class": "activity-description-input",
+          "value": "{{form.description}}",
+          "maxlength": "1000",
+          "data-field": "description",
+          "bindinput": "onField",
+          "disabled": "{{busy || pending}}",
+          "placeholder": "介绍活动内容、参与方式和需要准备的物品…",
+          "aria-label": "活动介绍，最多1000字",
+          "auto-height": "true"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-choice {{typeSelected.online ? 'selected' : ''}}",
+          "data-type": "online",
+          "bindtap": "onType",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-choice {{typeSelected.offline ? 'selected' : ''}}",
+          "data-type": "offline",
+          "bindtap": "onType",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-choice {{typeSelected.reward ? 'selected' : ''}}",
+          "data-type": "reward",
+          "bindtap": "onType",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{form.activityTime}}",
+          "maxlength": "200",
+          "data-field": "activityTime",
+          "bindinput": "onField",
+          "disabled": "{{busy || pending}}",
+          "placeholder": "例如：周六 14:00—16:00"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "value": "{{form.activityLocation}}",
+          "maxlength": "200",
+          "data-field": "activityLocation",
+          "bindinput": "onField",
+          "disabled": "{{busy || pending}}",
+          "placeholder": "填写集合地点或线上参与地点"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-disclosure",
+          "data-field": "options",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "attrs": {
+          "class": "activity-option-input",
+          "value": "{{endAtInput}}",
+          "placeholder": "2026-12-01T18:00:00+08:00",
+          "data-field": "endAt",
+          "bindinput": "onField",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "wx:if": "{{uiPanels.options}}"
+          },
+          {
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "switch",
+        "attrs": {
+          "checked": "{{form.showOrganizerQr}}",
+          "bindchange": "onQr",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "wx:if": "{{uiPanels.options}}"
+          },
+          {
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{!id}}",
+          "class": "activity-primary",
+          "bindtap": "onCreate",
+          "disabled": "{{busy || pending || !selected}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!draft || draft.state !== 'published'}}"
+          },
+          {
+            "wx:if": "{{!id}}"
+          },
+          {
+            "wx:if": "{{!id}}",
+            "disabled": "{{busy || pending || !selected}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onUpload",
+          "disabled": "{{busy || pending || upload.status === 'working'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'draft'}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{item.slot === 'cover' || uiPanels.gallery || item.configured || item.changed}}"
+          },
+          {
+            "disabled": "{{busy || pending || upload.status === 'working'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.configured}}",
+          "class": "activity-text-button activity-muted",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onPreview",
+          "disabled": "{{busy || pending || !item.configured || item.changed}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'draft'}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{item.slot === 'cover' || uiPanels.gallery || item.configured || item.changed}}"
+          },
+          {
+            "wx:if": "{{item.configured}}",
+            "disabled": "{{busy || pending || !item.configured || item.changed}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{item.configured || item.changed}}",
+          "class": "activity-text-button activity-muted",
+          "data-slot": "{{item.slot}}",
+          "bindtap": "onRemove",
+          "disabled": "{{busy || pending}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'draft'}}"
+          },
+          {
+            "wx:for": "{{slots}}",
+            "wx:key": "slot"
+          },
+          {
+            "wx:if": "{{item.slot === 'cover' || uiPanels.gallery || item.configured || item.changed}}"
+          },
+          {
+            "wx:if": "{{item.configured || item.changed}}",
+            "disabled": "{{busy || pending}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-disclosure",
+          "data-field": "gallery",
+          "bindtap": "onTogglePanel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'draft'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button",
+          "data-slot": "{{item.slot}}",
+          "data-revision": "{{item.revision}}",
+          "data-action": "recover",
+          "bindtap": "onPendingImage",
+          "disabled": "{{busy || pending || upload.status === 'working'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'draft'}}"
+          },
+          {
+            "wx:for": "{{pendingImages}}",
+            "wx:key": "slot"
+          },
+          {
+            "disabled": "{{busy || pending || upload.status === 'working'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button activity-muted",
+          "data-slot": "{{item.slot}}",
+          "data-revision": "{{item.revision}}",
+          "data-action": "cancel",
+          "bindtap": "onPendingImage",
+          "disabled": "{{busy || pending || upload.status === 'working'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'draft'}}"
+          },
+          {
+            "wx:for": "{{pendingImages}}",
+            "wx:key": "slot"
+          },
+          {
+            "disabled": "{{busy || pending || upload.status === 'working'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{dirty ? 'activity-primary' : 'activity-secondary'}}",
+          "bindtap": "onSave",
+          "disabled": "{{busy || pending || upload.status === 'working'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'draft'}}"
+          },
+          {
+            "disabled": "{{busy || pending || upload.status === 'working'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{dirty ? 'activity-secondary' : 'activity-primary'}}",
+          "bindtap": "onPublish",
+          "disabled": "{{busy || pending || dirty || upload.status === 'working'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'draft'}}"
+          },
+          {
+            "disabled": "{{busy || pending || dirty || upload.status === 'working'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "activity-text-button activity-danger",
+          "bindtap": "onDiscardDraft",
+          "disabled": "{{busy || pending || upload.status === 'working'}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'draft'}}"
+          },
+          {
+            "wx:if": "{{uiPanels.options}}"
+          },
+          {
+            "disabled": "{{busy || pending || upload.status === 'working'}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{draft && draft.state === 'published'}}",
+          "class": "activity-primary",
+          "bindtap": "onPublished"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{draft && draft.state === 'published'}}"
+          }
+        ]
+      }
+    ]
+  }
+}

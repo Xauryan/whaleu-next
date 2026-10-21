@@ -1,0 +1,51 @@
+<view class="screen ops-page ops-announcement-manage">
+  <view class="ops-context">
+    <view class="ops-context-icon">
+      <wu-icon name="bell" size="23" tone="accent" />
+    </view>
+    <view class="ops-context-title">
+      已保存的公告
+    </view>
+  </view>
+  <view class="meta">
+    {{management === 'fixed' ? regionName : management === 'global' ? '全局超级管理员' : '正在核验管理权限'}}
+  </view>
+  <view class="status" wx:if="{{status}}">
+    {{status}}
+  </view>
+  <view class="error" wx:if="{{error}}">
+    {{error}}
+  </view>
+  <button bindtap="onRefresh" disabled="{{busy}}" class="ops-quiet">
+    重新读取
+  </button>
+  <button wx:if="{{management !== 'none'}}" bindtap="onNew" disabled="{{busy || pending}}" class="ops-primary">
+    新建公告
+  </button>
+  <button wx:if="{{pending}}" bindtap="onRecovery" class="ops-recovery">
+    恢复原公告操作
+  </button>
+  <view wx:for="{{items}}" wx:key="id" class="card ops-section ops-announcement-row">
+    <text class="announcement-title">
+      {{item.content.title}}
+    </text>
+    <text class="meta">
+      版本 {{item.content.versionLabel}} · {{item.state === 'draft' ? '私有上传准备' : item.state === 'active' ? '已启用' : '已停用'}}
+    </text>
+    <button data-id="{{item.id}}" bindtap="onEdit" disabled="{{busy}}">
+      编辑 / 停用启用
+    </button>
+  </view>
+  <button wx:if="{{more}}" bindtap="onMore" disabled="{{busy}}">
+    加载更多
+  </button>
+  <view wx:if="{{loaded &amp;&amp; management !== 'none' &amp;&amp; !items.length &amp;&amp; !busy}}" class="ops-empty">
+    <wu-icon name="bell" size="30" tone="muted" />
+    <view class="section-title">
+      还没有公告
+    </view>
+    <view class="meta">
+      新建公告，准备好内容后再发布。
+    </view>
+  </view>
+</view>

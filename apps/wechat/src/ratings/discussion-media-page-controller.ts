@@ -13,6 +13,9 @@ import { ClientError, isRecord } from '../api/errors';
 import { Cancellation, type Clock } from '../platform/contracts';
 import { systemClock } from '../platform/clock';
 import { invalidRating, ratingId } from './contract';
+import { decodeRatingNoticeRead } from './updates-contract';
+import { decodeRatingLikeNoticeRead } from './like-updates-contract';
+import { decodeRatingSubscriptionNoticeRead } from './subscription-updates-contract';
 import {
   decodeRatingNavigationSelector,
   type RatingNavigationSelector,
@@ -156,6 +159,24 @@ interface Row {
   readonly reply: boolean;
   readonly canReply: boolean;
 }
+interface NoticeOwner {
+  readonly id: string;
+  readonly kind: NonNullable<DiscussionMediaRoute['notice']>['kind'];
+  readonly selector: RatingNavigationSelector;
+  readonly accountId: string;
+  readonly sessionId: string;
+  readonly epoch: number;
+  readonly generation: number;
+  readonly interactionKey: string;
+}
+interface NoticeReadView {
+  readonly interactionKey: string;
+  readonly status: 'ready' | 'pending' | 'read' | 'unknown' | 'unavailable';
+  readonly canAcknowledge: boolean;
+  readonly readAt: string | null;
+  readonly unreadCount: number | null;
+}
+let noticePageSequence = 0;
 export interface DiscussionMediaPageView {
   readonly busy: boolean;
   readonly error: string;
@@ -173,6 +194,7 @@ export interface DiscussionMediaPageView {
   readonly maximum: number;
   readonly likes: Readonly<Record<string, RatingLikeState>>;
   readonly subscription: RatingSubscriptionState;
+  readonly noticeRead: NoticeReadView | null;
   readonly noticePreview: {
     readonly body: string;
     readonly author: string;
@@ -196,6 +218,7 @@ export const initialDiscussionMediaPage = (): DiscussionMediaPageView => ({
   maximum: 9,
   likes: {},
   subscription: { status: 'unavailable' },
+  noticeRead: null,
   noticePreview: null,
 });
 export class RatingDiscussionMediaPageController {
@@ -204,6 +227,12 @@ export class RatingDiscussionMediaPageController {
   private cancel = new Cancellation();
   private generation = 0;
   private disposed = false;
+  private readonly noticePageId = ++noticePageSequence;
+  // Only original notice bookkeeping identity survives locator replacement.
+  // Preview fields, context tokens and content grants are never stored here.
+  private noticeOwner: NoticeOwner | null = null;
+  private noticeReadStatus: 'ready' | 'pending' | 'read' | 'unknown' = 'ready';
+  private noticeReceipt: { readAt: string; unreadCount: number } | null = null;
   private read: RatingDiscussionMediaContext | null = null;
   private rows: readonly (DiscussionRoot | DiscussionReply)[] = [];
   private cursor: string | null = null;
@@ -262,8 +291,113 @@ export class RatingDiscussionMediaPageController {
     ].filter((stop): stop is () => void => !!stop);
   }
   private update(patch: Partial<DiscussionMediaPageView>) {
-    this.view = Object.freeze({ ...this.view, ...patch });
+    const next = { ...this.view, ...patch };
+    this.view = Object.freeze({ ...next, noticeRead: this.noticeView(next) });
     this.render(this.view);
+  }
+  private noticeGateway(owner: NoticeOwner) {
+    return owner.kind === 'updates'
+      ? this.runtime.ratingUpdates
+      : owner.kind === 'like-updates'
+        ? this.runtime.ratingLikeUpdates
+        : this.runtime.ratingSubscriptionUpdates;
+  }
+  private currentNoticeOwner(owner: NoticeOwner): boolean {
+    const session = this.runtime.sessions.snapshot();
+    if (
+      this.disposed ||
+      this.noticeOwner !== owner ||
+      owner.generation !== this.generation ||
+      owner.epoch !== session.epoch ||
+      owner.accountId !== session.credentials?.accountId ||
+      owner.sessionId !== session.credentials?.sessionId ||
+      !this.read ||
+      !this.route ||
+      canonicalRatingScopedJson(owner.selector) !==
+        canonicalRatingScopedJson(this.route.selector)
+    )
+      return false;
+    try {
+      const context = this.readLease.current();
+      return (
+        context.actorId === owner.accountId &&
+        canonicalRatingScopedJson(context.selector) ===
+          canonicalRatingScopedJson(owner.selector)
+      );
+    } catch {
+      return false;
+    }
+  }
+  private noticeView(view: DiscussionMediaPageView): NoticeReadView | null {
+    const owner = this.noticeOwner;
+    if (!owner) return null;
+    const available =
+      !!this.noticeGateway(owner) && this.currentNoticeOwner(owner);
+    return Object.freeze({
+      interactionKey: owner.interactionKey,
+      status: available ? this.noticeReadStatus : 'unavailable',
+      canAcknowledge:
+        available &&
+        !view.busy &&
+        !view.composerOpen &&
+        !view.gallery.open &&
+        !view.cancelConfirmation &&
+        !view.recovery &&
+        !view.editor.frozen &&
+        !view.editor.upload.active &&
+        view.editor.selected.length === 0 &&
+        (this.noticeReadStatus === 'ready' ||
+          this.noticeReadStatus === 'unknown'),
+      readAt: this.noticeReceipt?.readAt ?? null,
+      unreadCount: this.noticeReceipt?.unreadCount ?? null,
+    });
+  }
+  async acknowledgeNotice(interactionKey: string): Promise<void> {
+    const owner = this.noticeOwner;
+    if (
+      !owner ||
+      owner.interactionKey !== interactionKey ||
+      !this.noticeView(this.view)?.canAcknowledge
+    )
+      return;
+    await this.work(async (generation, cancel) => {
+      const gateway = this.noticeGateway(owner);
+      if (!gateway || !this.currentNoticeOwner(owner)) return;
+      this.noticeReadStatus = 'pending';
+      this.update({});
+      try {
+        this.current(generation);
+        if (!this.currentNoticeOwner(owner)) return;
+        const raw = await gateway.markRead(owner.id, cancel);
+        this.current(generation);
+        if (!this.currentNoticeOwner(owner))
+          throw new ClientError('cancelled', 'Notice context changed');
+        const receipt =
+          owner.kind === 'updates'
+            ? decodeRatingNoticeRead(raw)
+            : owner.kind === 'like-updates'
+              ? decodeRatingLikeNoticeRead(raw)
+              : decodeRatingSubscriptionNoticeRead(raw);
+        if (receipt.noticeId !== owner.id) invalidRating();
+        this.noticeReceipt = {
+          readAt: receipt.readAt,
+          unreadCount: receipt.unreadCount,
+        };
+        this.noticeReadStatus = 'read';
+      } catch {
+        if (
+          this.noticeOwner !== owner ||
+          generation !== this.generation ||
+          cancel.isCancelled
+        )
+          return;
+        // A lost or malformed response is not proof of unread or read state.
+        // An explicit retry keeps exactly the same notice owner and ID.
+        this.noticeReadStatus = 'unknown';
+        this.noticeReceipt = null;
+      }
+      if (this.currentNoticeOwner(owner)) this.update({});
+    }, false);
   }
   private current(generation: number) {
     if (
@@ -275,11 +409,12 @@ export class RatingDiscussionMediaPageController {
   }
   private async work(
     task: (generation: number, cancel: Cancellation) => Promise<void>,
+    clearError = true,
   ) {
     if (this.view.busy || this.disposed) return;
     const generation = this.generation,
       cancel = this.cancel;
-    this.update({ busy: true, error: '' });
+    this.update({ busy: true, ...(clearError ? { error: '' } : {}) });
     try {
       await task(generation, cancel);
       this.current(generation);
@@ -294,16 +429,33 @@ export class RatingDiscussionMediaPageController {
   }
   async load(raw: unknown): Promise<void> {
     this.hide();
+    this.route = null;
     try {
       this.route = decodeDiscussionMediaRoute(raw);
     } catch {
       this.update({ error: '评分讨论路径无效' });
       return;
     }
+    const session = this.runtime.sessions.snapshot();
+    if (this.route.notice && session.credentials) {
+      const selector = Object.freeze({ ...this.route.selector });
+      this.noticeOwner = Object.freeze({
+        ...this.route.notice,
+        selector,
+        accountId: session.credentials.accountId,
+        sessionId: session.credentials.sessionId,
+        epoch: session.epoch,
+        generation: this.generation,
+        interactionKey: `media-notice:${this.noticePageId}:${this.generation}:${session.epoch}:${this.route.notice.kind}:${this.route.notice.id}:${selector.kind}${selector.kind === 'campus' ? `:${selector.campusId}` : ''}`,
+      });
+      this.update({});
+    }
     await this.reload();
   }
   async reload(): Promise<void> {
     await this.work(async (generation, cancel) => {
+      this.read = null;
+      this.readLease.clear();
       const gateway = this.runtime.ratingDiscussionMedia,
         pending = this.runtime.pendingRatingDiscussionMedia,
         actor = this.runtime.sessions.snapshot().credentials?.accountId;
@@ -362,13 +514,6 @@ export class RatingDiscussionMediaPageController {
             imageCount: notice.preview.imageCount,
           },
         });
-        const legacy =
-          this.route.notice.kind === 'updates'
-            ? this.runtime.ratingUpdates
-            : this.route.notice.kind === 'like-updates'
-              ? this.runtime.ratingLikeUpdates
-              : this.runtime.ratingSubscriptionUpdates;
-        if (legacy) await legacy.markRead(this.route.notice.id, cancel);
         this.current(generation);
         this.route = {
           selector: notice.target.selector,
@@ -821,6 +966,9 @@ export class RatingDiscussionMediaPageController {
   }
   hide() {
     ++this.generation;
+    this.noticeOwner = null;
+    this.noticeReceipt = null;
+    this.noticeReadStatus = 'ready';
     this.cancel.cancel();
     this.cancel = new Cancellation();
     this.read = null;

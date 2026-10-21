@@ -1,0 +1,281 @@
+{
+  "version": "9.2.0",
+  "commit": "7668f883c29f69dd2ad7bd8ac3b35b9124082b0b",
+  "files": [
+    {
+      "path": "LICENSE",
+      "sha": "1e18fd4120c4d07e15c493718de345b0b85faa49",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/LICENSE"
+    },
+    {
+      "path": "src/core/components/button/button-vars.less",
+      "sha": "8d2218eae098d015ec66b3dc1218d7a5cefdef09",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/button/button-vars.less"
+    },
+    {
+      "path": "src/core/components/button/button.less",
+      "sha": "c33d8035516cd06232bf82706cb6742a6f529633",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/button/button.less"
+    },
+    {
+      "path": "src/core/components/button/button-ios.less",
+      "sha": "44ddc82fce0abae4fe8743ed52ecb1fffe6c7d3a",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/button/button-ios.less"
+    },
+    {
+      "path": "src/core/components/list/list-vars.less",
+      "sha": "e0a19bb967ee2e2a5705a8c1a466f706ad17b6e3",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/list/list-vars.less"
+    },
+    {
+      "path": "src/core/components/list/list.less",
+      "sha": "6afa7e4a53ce0ac7a1596354b8221bc78ebcba12",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/list/list.less"
+    },
+    {
+      "path": "src/core/components/list/list-ios.less",
+      "sha": "747cf945744197b89e67c03d7f49489084b8a632",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/list/list-ios.less"
+    },
+    {
+      "path": "src/core/components/block/block-vars.less",
+      "sha": "b200361815a1fb32576543a04546fc0dd1bbbf0e",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/block/block-vars.less"
+    },
+    {
+      "path": "src/core/components/block/block.less",
+      "sha": "093ba50382c078d58b295f725409b996a1417a57",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/block/block.less"
+    },
+    {
+      "path": "src/core/components/block/block-ios.less",
+      "sha": "4f010d93e36ac15d1e1c4c5dece6e3db6f550346",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/block/block-ios.less"
+    },
+    {
+      "path": "src/core/components/app/app-vars.less",
+      "sha": "4131a5c6b82cbf0d34eef42d5f8ae2611dc8ccea",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/app/app-vars.less"
+    },
+    {
+      "path": "src/core/components/app/app.less",
+      "sha": "9fb17311ea671ae7b5b6b3ada51a701b2e085096",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/app/app.less"
+    },
+    {
+      "path": "src/core/components/app/app-ios.less",
+      "sha": "8d329370f6e833631f62bba2220625f630ec012e",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/app/app-ios.less"
+    },
+    {
+      "path": "src/core/less/mixins.less",
+      "sha": "6237a2147b3c4d3bf306e7d2e17edf4457cc0ab8",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/less/mixins.less"
+    },
+    {
+      "path": "src/core/less/vars.less",
+      "sha": "bf27684728ce2db5b817760e6b30ae32f40bcde0",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/less/vars.less"
+    },
+    {
+      "path": "src/core/components/app/app-class.js",
+      "sha": "0d55cada485f1da6db3910dbf79e8d2bc3346dd4",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/app/app-class.js"
+    },
+    {
+      "path": "src/core/components/page/page-vars.less",
+      "sha": "3abb46a7c421298af9627b5e971892f0c56e4bce",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/page/page-vars.less"
+    },
+    {
+      "path": "src/core/shared/utils.js",
+      "sha": "9fd539deef3859e2e3c4f2206ae42de6102fee9d",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/shared/utils.js"
+    },
+    {
+      "path": "src/core/components/preloader/preloader-vars.less",
+      "sha": "88732128c41d534e756d4412ae8d028c5b36768b",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/preloader/preloader-vars.less"
+    },
+    {
+      "path": "src/core/components/preloader/preloader.less",
+      "sha": "6ed6a0a17836b01f1a96118ac42f827adfcca560",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/preloader/preloader.less"
+    },
+    {
+      "path": "src/core/components/preloader/preloader-ios.less",
+      "sha": "65962c204a8acf8dad4f70fbc4bb682832112bf8",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/preloader/preloader-ios.less"
+    },
+    {
+      "path": "src/core/components/actions/actions-class.js",
+      "sha": "6340eeb05eca0114f92f9c992ccdcf79f7504527",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/actions/actions-class.js"
+    },
+    {
+      "path": "src/core/components/actions/actions-ios.less",
+      "sha": "fbe86563fc56d7fe450e598d50f6807d8f0b1b8d",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/actions/actions-ios.less"
+    },
+    {
+      "path": "src/core/components/actions/actions-vars.less",
+      "sha": "270fcaf93dcead27e3622f1c0eb64bc9b0f1d23c",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/actions/actions-vars.less"
+    },
+    {
+      "path": "src/core/components/actions/actions.js",
+      "sha": "ec5306164b7292f7ade5a0b82ef71472d5ff76ea",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/actions/actions.js"
+    },
+    {
+      "path": "src/core/components/actions/actions.less",
+      "sha": "bd3d2f97b0fafdfe0689e795d8fa797383862721",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/actions/actions.less"
+    },
+    {
+      "path": "src/core/components/dialog/dialog-class.js",
+      "sha": "989e950edc3d81a9e573d9d1b1634792d4423c5f",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/dialog/dialog-class.js"
+    },
+    {
+      "path": "src/core/components/dialog/dialog-ios.less",
+      "sha": "ff26a4e813719e8a627a901a7028a23c2794a1c4",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/dialog/dialog-ios.less"
+    },
+    {
+      "path": "src/core/components/dialog/dialog-vars.less",
+      "sha": "161c70c33897afbea5d5fe612911fa43fd5a08ee",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/dialog/dialog-vars.less"
+    },
+    {
+      "path": "src/core/components/dialog/dialog.js",
+      "sha": "be302cc3dc1258985e45bebe9917aba0a8ddb74a",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/dialog/dialog.js"
+    },
+    {
+      "path": "src/core/components/dialog/dialog.less",
+      "sha": "adfefc2373c4696d807f701e944a61282a736f12",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/dialog/dialog.less"
+    },
+    {
+      "path": "src/core/components/input/input-ios.less",
+      "sha": "f95b90ae28d74f285ba8e7be401079ee77b4a28b",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/input/input-ios.less"
+    },
+    {
+      "path": "src/core/components/input/input-vars.less",
+      "sha": "891267ef57cf1adfd6bffb852d831df8b352c7ad",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/input/input-vars.less"
+    },
+    {
+      "path": "src/core/components/input/input.js",
+      "sha": "e1982825ff100ecd850add9b2d939a999cc827e3",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/input/input.js"
+    },
+    {
+      "path": "src/core/components/input/input.less",
+      "sha": "4023be6a6d29701376d1263e374a2b37afe4c705",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/input/input.less"
+    },
+    {
+      "path": "src/core/components/modal/custom-modal-class.js",
+      "sha": "652afd51b8f9d857df17351128d752a006e6e1fe",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/modal/custom-modal-class.js"
+    },
+    {
+      "path": "src/core/components/modal/modal-class.js",
+      "sha": "be27d0f0663c5141f0df0442653f2cada56e7038",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/modal/modal-class.js"
+    },
+    {
+      "path": "src/core/components/modal/modal.js",
+      "sha": "dd010b6651e2d62bc9f815fd6e68684f2a3c1982",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/modal/modal.js"
+    },
+    {
+      "path": "src/core/components/modal/modal.less",
+      "sha": "94d75ae0123ebca1960b37aaa201bdc27dd65be3",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/modal/modal.less"
+    },
+    {
+      "path": "src/core/components/searchbar/remove-diacritics.js",
+      "sha": "70fb306367ff4f404f236a5905a8422d638f4379",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/searchbar/remove-diacritics.js"
+    },
+    {
+      "path": "src/core/components/searchbar/searchbar-class.js",
+      "sha": "1bd8f025aeced73e2d80028c3b0afc5151591761",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/searchbar/searchbar-class.js"
+    },
+    {
+      "path": "src/core/components/searchbar/searchbar-ios.less",
+      "sha": "acdeac98b73d8b3476881bedb3f607cef4717261",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/searchbar/searchbar-ios.less"
+    },
+    {
+      "path": "src/core/components/searchbar/searchbar-vars.less",
+      "sha": "85ae2c61a2c0c3aa11bfae50bd14e15f1ac991f7",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/searchbar/searchbar-vars.less"
+    },
+    {
+      "path": "src/core/components/searchbar/searchbar.js",
+      "sha": "c9cb770c49864e51c54e0266cc9077e3cc7452ca",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/searchbar/searchbar.js"
+    },
+    {
+      "path": "src/core/components/searchbar/searchbar.less",
+      "sha": "7b5e8f95bdcaf94377a8b3de80a4fb1e90bbd663",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/searchbar/searchbar.less"
+    },
+    {
+      "path": "src/core/components/sheet/sheet-class.js",
+      "sha": "0bd5af5a81c1c859b0a1361bdd224586373ba9c6",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/sheet/sheet-class.js"
+    },
+    {
+      "path": "src/core/components/sheet/sheet-ios.less",
+      "sha": "157bfd25a19d59798b3ec29893d20dd9d518518f",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/sheet/sheet-ios.less"
+    },
+    {
+      "path": "src/core/components/sheet/sheet-vars.less",
+      "sha": "7bdce88f81529e2740aef428244e7e1ca70b43ec",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/sheet/sheet-vars.less"
+    },
+    {
+      "path": "src/core/components/sheet/sheet.js",
+      "sha": "778828fbc5fb148f376766ef8ec5242b741a4a49",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/sheet/sheet.js"
+    },
+    {
+      "path": "src/core/components/sheet/sheet.less",
+      "sha": "85e1b18a37d6f3880436c2e52a6ae903462577b5",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/sheet/sheet.less"
+    },
+    {
+      "path": "src/core/components/toggle/toggle-class.js",
+      "sha": "c4b87e4238917824a392b8922dfa0b75e8ebb1ec",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/toggle/toggle-class.js"
+    },
+    {
+      "path": "src/core/components/toggle/toggle-ios.less",
+      "sha": "58b3881b054f1c74a9fbaf12285c6b574a47c41d",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/toggle/toggle-ios.less"
+    },
+    {
+      "path": "src/core/components/toggle/toggle-vars.less",
+      "sha": "7230f9bbdc9647315ff3618791a0f27e7c80e286",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/toggle/toggle-vars.less"
+    },
+    {
+      "path": "src/core/components/toggle/toggle.js",
+      "sha": "807f8e7887471637cf07a1585e12daacd1c8fc28",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/toggle/toggle.js"
+    },
+    {
+      "path": "src/core/components/toggle/toggle.less",
+      "sha": "24e3e3c5d4a3bbfc6359b4305ae3750fc496f69d",
+      "url": "https://github.com/framework7io/framework7/blob/7668f883c29f69dd2ad7bd8ac3b35b9124082b0b/src/core/components/toggle/toggle.less"
+    }
+  ]
+}

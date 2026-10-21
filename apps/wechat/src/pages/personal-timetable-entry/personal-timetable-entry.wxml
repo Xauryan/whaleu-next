@@ -1,0 +1,37 @@
+<import src="../../personal-timetable/recovery.wxml" />
+<view class="tt-page f7-ios-theme">
+  <view class="tt-heading">{{duplicate ? '复制课程' : editing ? '编辑课程' : '添加课程'}}</view>
+  <view class="tt-subtitle">{{term.name || '个人课表'}} · 仅当前账户可见</view>
+  <template is="timetable-status" data="{{error,message,busy,pending,cancelPending,requestId,blocked,mode,authenticated}}" />
+  <wu-f7-block wx:if="{{ready &amp;&amp; !pending}}" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <wu-f7-input label="课程名称" data-field="name" value="{{entryForm.name}}" bind:input="onEntry" maxlength="120" disabled="{{busy || blocked}}" />
+    <wu-f7-input label="教师（选填）" data-field="teacher" value="{{entryForm.teacher}}" bind:input="onEntry" maxlength="100" disabled="{{busy || blocked}}" />
+    <wu-f7-input label="地点（选填）" data-field="location" value="{{entryForm.location}}" bind:input="onEntry" maxlength="100" disabled="{{busy || blocked}}" />
+    <view class="tt-label">上课日</view>
+    <picker mode="selector" range="{{daysOfWeek}}" value="{{entryForm.dayOfWeek - 1}}" bindchange="onDay" disabled="{{busy || blocked}}"><view class="tt-picker">{{daysOfWeek[entryForm.dayOfWeek - 1]}} <wu-icon name="chevron-right" size="16" tone="muted" /></view></picker>
+    <view class="tt-time-grid">
+      <picker mode="time" value="{{entryForm.startTime}}" bindchange="onStart" disabled="{{busy || blocked}}"><view class="tt-picker">开始 {{entryForm.startTime}}</view></picker>
+      <picker mode="time" value="{{entryForm.endTime === '24:00' ? '23:59' : entryForm.endTime}}" bindchange="onEnd" disabled="{{busy || blocked}}"><view class="tt-picker">结束 {{entryForm.endTime}}</view></picker>
+    </view>
+    <wu-f7-button bind:press="onMidnight" disabled="{{busy || blocked}}" variant="plain">结束设为当天 24:00</wu-f7-button>
+    <view class="tt-muted">结束时间须晚于开始时间，不跨天。</view>
+    <wu-f7-input label="上课周次" data-field="weeksText" value="{{entryForm.weeksText}}" bind:input="onEntry" maxlength="100" placeholder="例如：1-4,6,8" disabled="{{busy || blocked}}" />
+    <view class="tt-actions">
+      <wu-f7-button data-kind="all" bind:press="onWeeks" disabled="{{busy || blocked}}" variant="tonal">全部周</wu-f7-button>
+      <wu-f7-button data-kind="odd" bind:press="onWeeks" disabled="{{busy || blocked}}" variant="tonal">单周</wu-f7-button>
+      <wu-f7-button data-kind="even" bind:press="onWeeks" disabled="{{busy || blocked}}" variant="tonal">双周</wu-f7-button>
+    </view>
+    <view class="tt-label">课程颜色</view>
+    <picker mode="selector" range="{{colorLabels}}" bindchange="onColor" disabled="{{busy || blocked}}"><view class="tt-picker tt-color-{{entryForm.color}}">{{entryForm.color === 'blue' ? '蓝色' : entryForm.color === 'teal' ? '青色' : entryForm.color === 'green' ? '绿色' : entryForm.color === 'orange' ? '橙色' : entryForm.color === 'red' ? '红色' : '紫色'}} <wu-icon name="chevron-right" size="16" tone="muted" /></view></picker>
+    <view class="tt-label">备注（选填）</view>
+    <textarea class="tt-textarea" value="{{entryForm.note}}" data-field="note" bindinput="onEntry" maxlength="500" disabled="{{busy || blocked}}" auto-height="{{true}}" aria-label="课程备注" />
+    <view wx:if="{{conflictWarning}}" class="tt-warning">{{conflictWarning}}</view>
+    <wu-f7-button bind:press="onSave" disabled="{{busy || blocked}}" loading="{{busy}}" variant="fill" size="large">{{duplicate ? '保存为新课程' : '保存课程'}}</wu-f7-button>
+    <wu-f7-button wx:if="{{editing &amp;&amp; !deletePrompt}}" bind:press="onDelete" disabled="{{busy || blocked}}" tone="danger">删除课程</wu-f7-button>
+    <view wx:if="{{deletePrompt}}" class="tt-confirm">
+      <view>删除这条课程安排？</view>
+      <wu-f7-button bind:press="onConfirmDelete" disabled="{{busy || blocked}}" tone="danger" variant="fill">确认删除课程</wu-f7-button>
+      <wu-f7-button bind:press="onCancelConfirmation" disabled="{{busy}}">保留课程</wu-f7-button>
+    </view>
+  </wu-f7-block>
+</view>

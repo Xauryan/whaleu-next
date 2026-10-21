@@ -1,3 +1,4 @@
+import { noticeRows, noticeStatus } from '../../notifications/details';
 import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
 import {
   IdentityOverlayController,
@@ -40,7 +41,11 @@ Page({
     this.controller = new UpdatesController(
       runtime,
       (view) => {
-        this.setData({ ...view });
+        this.setData({
+          ...view,
+          items: noticeRows(view.items),
+          uiStatus: noticeStatus(view.status),
+        });
         const targets: DisplayTarget[] = [
           ...new Map(
             view.items

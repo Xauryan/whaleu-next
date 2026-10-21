@@ -1,0 +1,8 @@
+<view class="wallet-page f7-ios-theme personal-native">
+  <wu-f7-block class="wallet-empty" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="wallet-icon">
+      <wu-icon name="wallet" tone="muted" size="46" />
+    </view>
+    <view class="wallet-status" aria-role="status">{{error}}</view>
+  </wu-f7-block>
+</view>

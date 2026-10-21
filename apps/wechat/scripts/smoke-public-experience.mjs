@@ -1,3 +1,4 @@
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -196,9 +197,19 @@ export async function smokePublicExperience({
       markup,
       /<import src="\.\.\/\.\.\/experience\/public-display\.wxml"\s*\/>/,
     );
-    assert.match(
-      readFileSync(path.join(dist, `${asset}.wxss`), 'utf8'),
-      /@import ["']\.\.\/\.\.\/experience\/public-display\.wxss["']/,
+    const importedStyles = new Set();
+    const visitStyle = (file) => {
+      if (importedStyles.has(file)) return;
+      assert.ok(file.startsWith(path.resolve(dist) + path.sep));
+      importedStyles.add(file);
+      const css = readFileSync(file, 'utf8');
+      for (const match of css.matchAll(/@import\s+["']([^"']+)["']/g))
+        visitStyle(path.resolve(path.dirname(file), match[1]));
+    };
+    visitStyle(path.resolve(dist, `${asset}.wxss`));
+    assert.ok(
+      importedStyles.has(path.resolve(dist, 'experience/public-display.wxss')),
+      `${route} must retain experience styles through its actual import closure`,
     );
     const tree = parseTemplate(markup);
     const visit = (node, ancestors = []) => {
@@ -239,7 +250,7 @@ export async function smokePublicExperience({
     path.join(dist, 'pages/public-profile/public-profile.wxml'),
     'utf8',
   );
-  assert.match(profileMarkup, /获赞与码住：暂不可用/);
+  assert.match(profileMarkup, /获赞与收藏总数暂不可用/);
   assert.doesNotMatch(profileMarkup, /头衔、等级|外校同学|displayAvailability/);
 
   const profileId = 'abababab-abab-4bab-8bab-abababababab';
@@ -368,6 +379,19 @@ export async function smokePublicExperience({
       { profileId },
     );
     pages.push(page);
+    const bridge = createNativePressBridge({
+      page,
+      pageFile: path.join(dist, 'pages/public-profile/public-profile'),
+      dist,
+    });
+    const press = (handler) => {
+      const control = bridge.capture(handler);
+      try {
+        return control.press();
+      } finally {
+        control.detach();
+      }
+    };
     await flush();
     assert.deepEqual(page.data.profile.experienceDisplay, selected());
     assert.equal(page.data.items[1].author.experienceDisplay.color.value, 0);
@@ -381,15 +405,15 @@ export async function smokePublicExperience({
       'profileId',
     ]);
     display = { title: known(null), color: known(0), level: unavailable() };
-    page.onReload();
+    press('onReload');
     await flush();
     assert.deepEqual(page.data.profile.experienceDisplay, display);
     display = absent();
-    page.onReload();
+    press('onReload');
     await flush();
     assert.deepEqual(page.data.profile.experienceDisplay, absent());
     status = 'unavailable';
-    page.onReload();
+    press('onReload');
     await flush();
     assert.deepEqual(page.data.profile, { status: 'unavailable', profileId });
     assert.deepEqual(page.data.items, []);
@@ -399,16 +423,16 @@ export async function smokePublicExperience({
     delayed = new Promise((resolve) => {
       release = resolve;
     });
-    page.onReload();
+    press('onReload');
     await flush();
     assert.equal(page.data.profile, null);
-    page.onCancel();
+    press('onCancel');
     release();
     await flush();
     assert.equal(page.data.profile, null);
     assert.deepEqual(page.data.items, []);
     delayed = undefined;
-    page.onReload();
+    press('onReload');
     await flush();
     assert.deepEqual(page.data.profile.experienceDisplay, selected());
     page.onHide();

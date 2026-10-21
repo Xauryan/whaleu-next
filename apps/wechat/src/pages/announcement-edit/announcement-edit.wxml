@@ -1,1 +1,165 @@
-<view class="screen"><view class="title">{{id ? '编辑公告' : '新建公告'}}</view><view class="meta">{{management === 'fixed' ? regionName + ' · 自动覆盖辖区全部实体校区' : management === 'global' ? '全局超级管理员 · 请确认发布范围' : '未获当前发布权限；可恢复或取消本人原请求'}}</view><view class="status">{{status}}</view><view class="error">{{error}}</view><view wx:if="{{pending}}"><view>原请求 {{pendingId}} 结果尚未确认</view><button bindtap="onRecover" disabled="{{busy}}">查询原回执</button><button bindtap="onRetry" disabled="{{busy}}">重试原请求</button><button bindtap="onCancelOriginal" disabled="{{busy}}">取消原请求</button></view><view wx:for="{{pendingImages}}" wx:key="index"><text>原上传 {{item.announcementId}} · {{item.slot}}</text><button data-target="{{item.announcementId}}" data-slot="{{item.slot}}" data-revision="{{item.revision}}" data-action="recover" bindtap="onPendingImage" disabled="{{busy}}">查询原图片</button><button data-target="{{item.announcementId}}" data-slot="{{item.slot}}" data-revision="{{item.revision}}" data-action="cancel" bindtap="onPendingImage" disabled="{{busy}}">取消原图片上传</button></view><button wx:if="{{state === 'draft' &amp;&amp; management === 'none'}}" data-action="cancel_draft" bindtap="onCommand" disabled="{{busy || pending}}">取消自己的上传草稿</button><view wx:if="{{loaded &amp;&amp; management !== 'none' &amp;&amp; !pending}}"><view class="meta">版本</view><input value="{{form.versionLabel}}" data-field="versionLabel" bindinput="onField" maxlength="-1" disabled="{{busy}}"/><view class="meta">正文（每行保留）</view><view class="meta">新协议每段最多10000字符；完整请求最多60000字节，含同步弹窗正文。超限会提示缩短，不截断。</view><textarea value="{{form.bodyText}}" data-field="bodyText" bindinput="onField" maxlength="-1" disabled="{{busy}}"/><view class="meta">公告日期，仅作展示</view><picker mode="date" value="{{form.announcementDate}}" data-field="announcementDate" bindchange="onField" disabled="{{busy}}"><view>{{form.announcementDate || '选择日期'}}</view></picker><label>弹窗提醒<switch checked="{{form.popupEnabled}}" data-field="popupEnabled" bindchange="onField" disabled="{{busy}}"/></label><label>高亮<switch checked="{{form.highlight}}" data-field="highlight" bindchange="onField" disabled="{{busy}}"/></label><view wx:if="{{management === 'global'}}"><button bindtap="onAll" disabled="{{busy}}">全体浏览者</button><view>当前范围：{{audienceKind === 'all' ? '全体浏览者' : '所选地区全部校区'}}</view><input value="{{search}}" bindinput="onSearch" placeholder="搜索地区 / 学校"/><button bindtap="onFindRegions" disabled="{{busy}}">查找地区</button><view wx:for="{{regions}}" wx:key="id"><button data-id="{{item.id}}" bindtap="onRegion" disabled="{{busy}}">{{item.name}}</button></view><view class="meta">已选择地区编号：{{selectedRegions}}</view><view wx:if="{{moreRegions}}">请缩小搜索词查看其他地区</view></view><button wx:if="{{!id}}" data-action="create" bindtap="onCommand" disabled="{{busy}}">建立私有上传准备</button><view wx:if="{{id}}"><view class="meta">0–9 张图片。只有发布后才对相应浏览者可见。</view><view wx:for="{{slots}}" wx:key="slot"><view>图片 {{index + 1}} · {{item.changed ? '待保存' : item.configured ? '已配置' : '无'}}</view><button data-slot="{{item.slot}}" bindtap="onUpload" disabled="{{busy || upload.status === 'working'}}">选择 / 替换</button><button wx:if="{{item.configured}}" data-slot="{{item.slot}}" bindtap="onRemove" disabled="{{busy}}">移除</button><button wx:if="{{item.configured &amp;&amp; !item.changed}}" data-slot="{{item.slot}}" bindtap="onPreview" disabled="{{busy}}">查看当前图片</button></view><view>{{upload.message}}</view><view>{{image.message}}</view><image wx:if="{{image.src}}" src="{{image.src}}" mode="widthFix"/><button wx:if="{{state === 'draft'}}" data-action="save" bindtap="onCommand" disabled="{{busy}}">保存上传准备</button><button wx:if="{{state === 'draft'}}" data-action="publish" bindtap="onCommand" disabled="{{busy || dirty}}">发布公告</button><button wx:if="{{state === 'draft'}}" data-action="cancel_draft" bindtap="onCommand" disabled="{{busy}}">取消上传草稿</button><button wx:if="{{state === 'active' || state === 'inactive'}}" data-action="update" bindtap="onCommand" disabled="{{busy}}">保存公告修改</button><button wx:if="{{state === 'active'}}" data-action="set_enabled" data-enabled="false" bindtap="onCommand" disabled="{{busy || dirty}}">停用公告</button><button wx:if="{{state === 'inactive'}}" data-action="set_enabled" data-enabled="true" bindtap="onCommand" disabled="{{busy || dirty}}">启用公告</button></view></view><button bindtap="onRefresh" disabled="{{busy}}">重新读取</button></view>
+<view class="screen ops-page ops-announcement-edit f7-ios-theme ops-native">
+  <view class="ops-context">
+    <view class="ops-context-icon">
+      <wu-icon name="edit" size="23" tone="accent" />
+    </view>
+    <view class="ops-context-title">
+      {{id ? '修改这条公告' : '写一条校园公告'}}
+    </view>
+  </view>
+  <view class="meta">
+    {{management === 'fixed' ? regionName + ' · 自动覆盖辖区全部实体校区' : management === 'global' ? '全局超级管理员 · 请确认发布范围' : '未获当前发布权限；可恢复或取消本人原请求'}}
+  </view>
+  <view class="status" wx:if="{{status}}">
+    {{status}}
+  </view>
+  <view class="error" wx:if="{{error}}">
+    {{error}}
+  </view>
+  <wu-f7-block wx:if="{{pending}}" class="ops-recovery" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view>
+      原请求 {{pendingId}} 结果尚未确认
+    </view>
+    <wu-f7-button bind:press="onRecover" disabled="{{busy}}" variant="tonal">
+      查询原回执
+    </wu-f7-button>
+    <wu-f7-button bind:press="onRetry" disabled="{{busy}}" variant="tonal">
+      重试原请求
+    </wu-f7-button>
+    <wu-f7-button bind:press="onCancelOriginal" disabled="{{busy}}" variant="tonal">
+      取消原请求
+    </wu-f7-button>
+  </wu-f7-block>
+  <view wx:for="{{pendingImages}}" wx:key="index">
+    <text>
+      原上传 {{item.announcementId}} · {{item.slot}}
+    </text>
+    <wu-f7-button data-target="{{item.announcementId}}" data-slot="{{item.slot}}" data-revision="{{item.revision}}" data-action="recover" bind:press="onPendingImage" disabled="{{busy}}" variant="tonal">
+      查询原图片
+    </wu-f7-button>
+    <wu-f7-button data-target="{{item.announcementId}}" data-slot="{{item.slot}}" data-revision="{{item.revision}}" data-action="cancel" bind:press="onPendingImage" disabled="{{busy}}" variant="tonal">
+      取消原图片上传
+    </wu-f7-button>
+  </view>
+  <wu-f7-button wx:if="{{state === 'draft' &amp;&amp; management === 'none'}}" data-action="cancel_draft" bind:press="onCommand" disabled="{{busy || pending}}" class="ops-destructive" tone="danger" variant="tonal">
+    取消自己的上传草稿
+  </wu-f7-button>
+  <wu-f7-block wx:if="{{loaded &amp;&amp; management !== 'none' &amp;&amp; !pending}}" class="ops-editor" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="meta">
+      版本
+    </view>
+    <input value="{{form.versionLabel}}" data-field="versionLabel" bindinput="onField" maxlength="-1" disabled="{{busy}}" />
+    <view class="meta">
+      正文（每行保留）
+    </view>
+    <view class="meta">
+      每段最多 10,000 字符；含弹窗的完整内容最多 60,000 字节。超限会提示缩短，不会截断。
+    </view>
+    <textarea value="{{form.bodyText}}" data-field="bodyText" bindinput="onField" maxlength="-1" disabled="{{busy}}" class="ops-announcement-body" />
+    <view class="meta ops-field-label">
+      公告日期，仅作展示
+    </view>
+    <picker mode="date" value="{{form.announcementDate}}" data-field="announcementDate" bindchange="onField" disabled="{{busy}}">
+      <view>
+        {{form.announcementDate || '选择日期'}}
+      </view>
+    </picker>
+    <label class="ops-switch-row">
+      弹窗提醒
+      <switch checked="{{form.popupEnabled}}" data-field="popupEnabled" bindchange="onField" disabled="{{busy}}" />
+    </label>
+    <label class="ops-switch-row">
+      高亮
+      <switch checked="{{form.highlight}}" data-field="highlight" bindchange="onField" disabled="{{busy}}" />
+    </label>
+    <view wx:if="{{management === 'global'}}" class="ops-audience">
+      <view>
+        当前范围：{{audienceKind === 'all' ? '全体浏览者' : '所选地区全部校区'}}
+      </view>
+      <view class="meta">
+        已选择地区编号：{{selectedRegions}}
+      </view>
+      <wu-f7-button class="ops-disclosure" data-panel="audience" bind:press="onToggleUiPanel" aria-expanded="{{uiPanel === 'audience'}}" variant="plain">
+        <text>
+          选择发布范围
+        </text>
+        <wu-icon name="{{uiPanel === 'audience' ? 'chevron-up' : 'chevron-down'}}" size="17" tone="muted" />
+      </wu-f7-button>
+      <view wx:if="{{uiPanel === 'audience'}}" class="ops-details">
+        <wu-f7-button bind:press="onAll" disabled="{{busy}}" variant="tonal">
+          全体浏览者
+        </wu-f7-button>
+        <input value="{{search}}" bindinput="onSearch" placeholder="搜索地区 / 学校" />
+        <wu-f7-button bind:press="onFindRegions" disabled="{{busy}}" variant="tonal">
+          查找地区
+        </wu-f7-button>
+        <view wx:for="{{regions}}" wx:key="id">
+          <wu-f7-button data-id="{{item.id}}" bind:press="onRegion" disabled="{{busy}}" variant="tonal">
+            {{item.name}}
+          </wu-f7-button>
+        </view>
+        <view wx:if="{{moreRegions}}">
+          请缩小搜索词查看其他地区
+        </view>
+      </view>
+    </view>
+    <wu-f7-button wx:if="{{!id}}" data-action="create" bind:press="onCommand" disabled="{{busy}}" class="ops-primary" variant="fill" size="large">
+      建立私有上传准备
+    </wu-f7-button>
+    <view wx:if="{{id}}">
+      <wu-f7-button class="ops-disclosure" data-panel="images" bind:press="onToggleUiPanel" aria-expanded="{{uiPanel === 'images'}}" variant="plain">
+        <text>
+          管理公告图片
+        </text>
+        <wu-icon name="{{uiPanel === 'images' ? 'chevron-up' : 'chevron-down'}}" size="17" tone="muted" />
+      </wu-f7-button>
+      <view wx:if="{{uiPanel === 'images' || upload.status !== 'idle' || image.status !== 'idle'}}" class="ops-details">
+        <view class="meta">
+          0–9 张图片。只有发布后才对相应浏览者可见。
+        </view>
+        <view wx:for="{{slots}}" wx:key="slot" class="ops-image-slot">
+          <view>
+            图片 {{index + 1}} · {{item.changed ? '待保存' : item.configured ? '已配置' : '无'}}
+          </view>
+          <wu-f7-button data-slot="{{item.slot}}" bind:press="onUpload" disabled="{{busy || upload.status === 'working'}}" variant="tonal">
+            选择 / 替换
+          </wu-f7-button>
+          <wu-f7-button wx:if="{{item.configured}}" data-slot="{{item.slot}}" bind:press="onRemove" disabled="{{busy}}" variant="tonal">
+            移除
+          </wu-f7-button>
+          <wu-f7-button wx:if="{{item.configured &amp;&amp; !item.changed}}" data-slot="{{item.slot}}" bind:press="onPreview" disabled="{{busy}}" variant="tonal">
+            查看当前图片
+          </wu-f7-button>
+        </view>
+        <view>
+          {{upload.message}}
+        </view>
+        <view>
+          {{image.message}}
+        </view>
+        <image wx:if="{{image.src}}" src="{{image.src}}" mode="widthFix" />
+      </view>
+      <wu-f7-button wx:if="{{state === 'draft'}}" data-action="save" bind:press="onCommand" disabled="{{busy}}" class="ops-primary" variant="fill" size="large">
+        保存上传准备
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{state === 'draft'}}" data-action="publish" bind:press="onCommand" disabled="{{busy || dirty}}" class="ops-primary" variant="fill" size="large">
+        发布公告
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{state === 'draft'}}" data-action="cancel_draft" bind:press="onCommand" disabled="{{busy}}" class="ops-destructive" tone="danger" variant="tonal">
+        取消上传草稿
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{state === 'active' || state === 'inactive'}}" data-action="update" bind:press="onCommand" disabled="{{busy}}" class="ops-primary" variant="fill" size="large">
+        保存公告修改
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{state === 'active'}}" data-action="set_enabled" data-enabled="false" bind:press="onCommand" disabled="{{busy || dirty}}" variant="tonal">
+        停用公告
+      </wu-f7-button>
+      <wu-f7-button wx:if="{{state === 'inactive'}}" data-action="set_enabled" data-enabled="true" bind:press="onCommand" disabled="{{busy || dirty}}" variant="tonal">
+        启用公告
+      </wu-f7-button>
+    </view>
+  </wu-f7-block>
+  <wu-f7-button bind:press="onRefresh" disabled="{{busy}}" class="ops-quiet" variant="plain">
+    重新读取
+  </wu-f7-button>
+</view>

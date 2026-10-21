@@ -1,3 +1,4 @@
+import { FollowingService, followingRevision } from './following/service.js';
 import type { RelatedCampusDisplay } from './related-sync/contracts.js';
 import { CommunityDistributionService } from './related-sync/service.js';
 import { distributionCursorScope } from './cursor.js';
@@ -63,6 +64,9 @@ export class FeedService {
     @Optional()
     @Inject(CommunityDistributionService)
     private readonly distribution?: CommunityDistributionService,
+    @Optional()
+    @Inject(FollowingService)
+    private readonly follows?: FollowingService,
   ) {}
   @AccountPolicy('browse', 'entry')
   spaces(campusId: string) {
@@ -180,12 +184,21 @@ export class FeedService {
     });
   }
   @AccountPolicy('browse', 'entry')
-  feed(token: string | null, query: FeedQuery): Promise<FeedPage> {
+  feed(
+    token: string | null,
+    query: FeedQuery,
+    followingOnly = false,
+  ): Promise<FeedPage> {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
         await lockSafetyPolicy(tx);
         const actor = token ? await this.access.actor(token, tx) : null;
+        if (followingOnly && (!actor || !this.follows))
+          throw new ApplicationError('AUTHENTICATION_REQUIRED');
+        const followEpoch = followingOnly
+          ? await followingRevision(actor!, tx)
+          : null;
         const space = await this.repository.space(query.spaceId, tx);
         if (query.category === 'feedback')
           await requireFeedbackSpace(space, tx);
@@ -204,7 +217,7 @@ export class FeedService {
         }
         const scope = await currentCategoryCursorScope(
           distributionCursorScope(
-            `feed:${space.id}:${query.category ?? '*'}` +
+            `feed:${space.id}:${query.category ?? '*'}${followingOnly ? `:following:${followEpoch}` : ''}` +
               (query.tradingSubtype ? `:trading:${query.tradingSubtype}` : ''),
             distribution,
             token,
@@ -238,8 +251,11 @@ export class FeedService {
             distribution && this.distribution
               ? 'true'
               : 'classified.space_id=$1';
+          const followingSql = followingOnly
+            ? ` AND p.author_mode='named' AND EXISTS(SELECT 1 FROM whaleu_community.user_follows f WHERE f.follower_id=$${parameters.push(actor)}::uuid AND f.followed_id=p.account_id) AND EXISTS(SELECT 1 FROM whaleu_profile.profiles profile WHERE profile.account_id=p.account_id AND profile.preferences->>'hideProfilePosts'='false')`
+            : '';
           const rows = await tx.query<StoredPost>(
-            `SELECT p.* FROM whaleu_community.posts p JOIN ${classifiedSource} classified ON classified.id=p.id WHERE $1::uuid IS NOT NULL AND ${eligibility} AND ($2::text IS NULL OR classified.current_category=$2) AND p.deleted_at IS NULL AND p.visibility='approved' AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5)) AND ($2::text IS NOT NULL OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent')) AND ($3::timestamptz IS NULL OR (classified.published_at,classified.id)<($3::timestamptz,$4::uuid)) ORDER BY classified.published_at DESC,classified.id DESC LIMIT 32 FOR SHARE OF p`,
+            `SELECT p.* FROM whaleu_community.posts p JOIN ${classifiedSource} classified ON classified.id=p.id WHERE $1::uuid IS NOT NULL AND ${eligibility}${followingSql} AND ($2::text IS NULL OR classified.current_category=$2) AND p.deleted_at IS NULL AND p.visibility='approved' AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5)) AND ($2::text IS NOT NULL OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent')) AND ($3::timestamptz IS NULL OR (classified.published_at,classified.id)<($3::timestamptz,$4::uuid)) ORDER BY classified.published_at DESC,classified.id DESC LIMIT 32 FOR SHARE OF p`,
             parameters,
           );
           scanned += rows.rows.length;
@@ -272,6 +288,13 @@ export class FeedService {
             if (projection?.kind === 'unavailable')
               throw new ApplicationError('COMMUNITY_UNAVAILABLE');
             if (
+              (!followingOnly ||
+                (post.author_mode === 'named' &&
+                  (await this.follows!.eligibleFeedAuthor(
+                    actor!,
+                    post.account_id,
+                    tx,
+                  )))) &&
               (await this.access.visible(actor, post, tx, 'list_projection')) &&
               currentCategory !== null &&
               projection?.kind !== 'deny' &&
@@ -527,7 +550,10 @@ export class FeedService {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
-        const actor = await this.access.actor(token, tx);
+        const { accountId: actor, sessionId } = await this.access.mediaSession(
+          token,
+          tx,
+        );
         const { post, space } = await this.access.accessiblePost(id, actor, tx);
         const authority = await this.access.advisory(actor, space, tx);
         const scope = `comments:${id}`;
@@ -563,6 +589,9 @@ export class FeedService {
                   actor,
                   authority,
                   tx,
+                  2,
+                  undefined,
+                  sessionId,
                 ),
               );
             if (items.length > query.limit) break;
@@ -572,6 +601,7 @@ export class FeedService {
         const hasMore = items.length > query.limit;
         const page = items.slice(0, query.limit);
         const last = page.at(-1);
+        await this.serializer.flushDiscussionCursors(tx);
         return {
           items: page,
           nextCursor:

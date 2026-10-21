@@ -1,0 +1,75 @@
+@import '../../design/framework7-ios.wxss';
+.history-screen {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 1px 0 calc(24px + env(safe-area-inset-bottom));
+  background: var(--f7-page-bg-color, var(--wu-surface));
+}
+.history-toolbar,
+.history-toolbar-actions,
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.history-toolbar {
+  justify-content: space-between;
+  gap: 12px;
+}
+.history-scope,
+.history-note,
+.history-status {
+  color: var(--f7-block-footer-text-color, var(--wu-secondary));
+  font-size: var(--f7-block-footer-font-size);
+  line-height: 1.5;
+}
+.history-scope {
+  flex: 1;
+  min-width: 0;
+}
+.history-note,
+.history-status {
+  margin-top: 8px;
+}
+.history-actions {
+  justify-content: center;
+  gap: 16px;
+}
+.history-summary {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 0;
+  text-align: center;
+  color: var(--f7-block-footer-text-color);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.history-empty-title {
+  color: var(--f7-text-color);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+.history-error {
+  color: var(--wu-danger);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-top: 12px;
+}
+.history-login {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  color: var(--f7-theme-color);
+  font-size: 15px;
+}

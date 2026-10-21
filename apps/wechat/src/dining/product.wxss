@@ -1,0 +1,298 @@
+/* Public dining journeys only. Recovery and administration retain their styles. */
+.dining-product {
+  padding: 24rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: var(--wu-surface);
+}
+.dining-product.has-dock {
+  padding-bottom: calc(164rpx + env(safe-area-inset-bottom));
+}
+.dining-product .title {
+  font-size: 48rpx;
+  line-height: 1.25;
+  letter-spacing: -1rpx;
+  margin: 12rpx 0 22rpx;
+}
+.dining-product .section-title {
+  font-size: 31rpx;
+  line-height: 1.4;
+  margin: 0 0 8rpx;
+  font-weight: 600;
+}
+.dining-product .meta {
+  color: var(--wu-secondary);
+  font-size: 24rpx;
+  line-height: 1.5;
+  margin: 8rpx 0;
+}
+.dining-product .body {
+  font-size: 29rpx;
+  line-height: 1.65;
+  margin: 18rpx 0;
+  overflow-wrap: anywhere;
+}
+.dining-product .notice {
+  color: var(--wu-secondary);
+  font-size: 25rpx;
+  line-height: 1.6;
+  margin: 12rpx 0;
+  padding: 0;
+}
+.dining-product .error {
+  font-size: 26rpx;
+  margin: 18rpx 0;
+}
+.dining-product .empty {
+  text-align: center;
+  padding: 90rpx 16rpx;
+  color: var(--wu-secondary);
+}
+.dining-product button {
+  min-height: 88rpx;
+  margin: 0;
+  padding: 16rpx 22rpx;
+  background: var(--wu-bg);
+  color: var(--wu-text);
+  border-radius: 18rpx;
+  font-size: 27rpx;
+  line-height: 1.4;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+.dining-product button.primary {
+  background: var(--wu-text);
+  color: var(--wu-surface);
+}
+.dining-product button.dp-plain {
+  background: transparent;
+  color: var(--wu-secondary);
+  padding: 12rpx;
+  font-size: 25rpx;
+}
+.dining-product .link {
+  display: block;
+  color: var(--wu-text);
+  font-size: 26rpx;
+  min-height: 88rpx;
+  line-height: 88rpx;
+}
+.dining-product .dp-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+.dining-product .dp-heading .section-title {
+  margin: 0;
+}
+.dining-product .dp-refresh {
+  margin-left: auto;
+}
+.dining-product .dp-tabs {
+  display: flex;
+  gap: 24rpx;
+  overflow-x: auto;
+  margin: 10rpx 0 24rpx;
+}
+.dining-product .dp-tabs button {
+  flex: none;
+  background: transparent;
+  padding: 0;
+  color: var(--wu-secondary);
+  border-radius: 0;
+  border-bottom: 3rpx solid transparent;
+}
+.dining-product .dp-tabs button.selected {
+  color: var(--wu-text);
+  border-color: var(--wu-text);
+  font-weight: 600;
+}
+.dining-product .dp-disclosure {
+  padding: 24rpx;
+  background: var(--wu-bg);
+  border-radius: 22rpx;
+  margin: 16rpx 0;
+}
+.dining-product .dp-disclosure .link {
+  padding: 0;
+}
+.dining-product .dp-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+.dining-product .dp-options button {
+  background: var(--wu-surface);
+}
+.dining-product .dp-picker {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  font-size: 27rpx;
+}
+.dining-product picker {
+  border: 0;
+  margin: 12rpx 0;
+  padding: 0;
+}
+.dining-product input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 98rpx;
+  padding: 22rpx;
+  border: 0;
+  border-radius: 16rpx;
+  margin: 20rpx 0;
+  background: var(--wu-bg);
+  color: var(--wu-text);
+  font-size: 30rpx;
+}
+.dining-product .dp-disclosure input {
+  background: var(--wu-surface);
+}
+.dining-product .dp-open {
+  width: 100%;
+  padding: 26rpx 0;
+  background: transparent;
+  border-radius: 0;
+  justify-content: space-between;
+  text-align: left;
+}
+.dining-product .dp-list .dp-open + .dp-open,
+.dining-product .dp-row + .dp-row {
+  border-top: 1rpx solid var(--wu-separator);
+}
+.dining-product .dp-grow {
+  min-width: 0;
+  flex: 1;
+}
+.dining-product .dp-filter {
+  background: transparent;
+  justify-content: flex-start;
+  padding: 8rpx 0;
+}
+.dining-product .dp-result-label {
+  margin: 12rpx 0 4rpx;
+}
+.dining-product .dp-next {
+  margin: 24rpx auto;
+}
+.dining-product .dp-score {
+  display: flex;
+  align-items: baseline;
+  gap: 20rpx;
+  margin: 16rpx 0 0;
+}
+.dining-product .dp-score-value {
+  font-size: 40rpx;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.dining-product .dp-score-empty {
+  font-size: 32rpx;
+  color: var(--wu-secondary);
+  margin-top: 16rpx;
+}
+.dining-product .dp-hero {
+  padding: 14rpx 0 32rpx;
+}
+.dining-product .dp-hero .dp-score {
+  margin-top: 38rpx;
+  align-items: center;
+}
+.dining-product .dp-hero .dp-score-value {
+  font-size: 86rpx;
+  letter-spacing: -2rpx;
+}
+.dining-product .dp-own {
+  padding: 24rpx 0;
+  border-top: 1rpx solid var(--wu-separator);
+  font-size: 29rpx;
+}
+.dining-product .dp-own-value {
+  font-size: 36rpx;
+  font-weight: 600;
+  margin-left: 12rpx;
+}
+.dining-product .dp-destinations {
+  display: flex;
+  gap: 16rpx;
+  margin: 24rpx 0;
+}
+.dining-product .dp-destinations button {
+  flex: 1;
+  padding: 22rpx 10rpx;
+}
+.dining-product .dp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  margin-top: 28rpx;
+  color: var(--wu-secondary);
+}
+.dining-product .dp-footer .link {
+  color: var(--wu-secondary);
+}
+.dining-product .dp-dock {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 18rpx 32rpx calc(18rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid var(--wu-separator);
+  background: var(--wu-surface);
+}
+.dining-product .dp-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.35);
+}
+.dining-product .dp-sheet {
+  width: 100%;
+  max-height: 84vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 30rpx 32rpx calc(30rpx + env(safe-area-inset-bottom));
+  border-radius: 30rpx 30rpx 0 0;
+  background: var(--wu-elevated);
+}
+.dining-product .dp-sheet > button + button {
+  margin-top: 14rpx;
+}
+.dining-product .dp-score-choices {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12rpx;
+  margin: 24rpx 0;
+}
+.dining-product .dp-score-choices button {
+  width: 100%;
+  padding: 0;
+  min-width: 0;
+}
+.dining-product .score-selected {
+  background: var(--wu-text) !important;
+  color: var(--wu-surface) !important;
+}
+.dining-product .dp-recovery {
+  padding: 24rpx;
+  margin: 20rpx 0;
+  border-radius: 20rpx;
+  background: var(--wu-bg);
+}
+.dining-product .dp-recovery button {
+  background: var(--wu-surface);
+  margin-top: 14rpx;
+}

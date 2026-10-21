@@ -7,6 +7,8 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
+      'apps/wechat/release/**',
+      'apps/wechat/preview/**',
       '**/.openapi-build/**',
       '**/coverage/**',
     ],

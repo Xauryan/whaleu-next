@@ -1,1 +1,3 @@
-@import '../../community/forms.wxss';
+@import '../../notifications/details.wxss';
+
+@import '../../notifications/framework7-details.wxss';

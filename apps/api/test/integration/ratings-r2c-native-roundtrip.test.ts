@@ -609,10 +609,6 @@ test(
             a.transport.sent.slice(start).some((sent) => sent.method === 'PUT'),
             false,
           );
-          a.transport.beforeSend = (sent) => {
-            if (sent.path.endsWith(`/${notice.noticeId}/read`))
-              assert.equal(a.threadView().loaded, true);
-          };
           await a.thread.load(
             Object.fromEntries(
               new URL(path, directoryNativeOrigin).searchParams,
@@ -623,6 +619,16 @@ test(
             a.threadView().anchorReplyId,
             activity === 'root' ? '' : reply.id,
           );
+          assert.equal(
+            a.transport.sent.slice(start).some((sent) => sent.method === 'PUT'),
+            false,
+            'Receiving current content does not acknowledge any notice',
+          );
+          assert.deepEqual(
+            await a.runtime.ratingSubscriptionUpdates.unread(a.cancel),
+            { unreadCount: activity === 'root' ? 2 : 1 },
+          );
+          await a.updates.acknowledge(notice.noticeId);
           const reads = a.transport.sent
             .slice(start)
             .filter((sent) => sent.method === 'PUT');
@@ -649,6 +655,7 @@ test(
         assert.notEqual(subscriptionId, directId);
         // Later unsubscribe preserves the existing notification and its distinct read life.
         assert.equal((await desired(r, false)).receipt.outcome, 'applied');
+        const unsubscribeOpenStart = r.transport.sent.length;
         await r.updates.open(subscriptionId);
         await r.thread.load(
           Object.fromEntries(
@@ -656,6 +663,18 @@ test(
           ),
         );
         assert.equal(r.threadView().loaded, true, r.threadView().error);
+        assert.equal(
+          r.transport.sent
+            .slice(unsubscribeOpenStart)
+            .some((sent) => sent.method === 'PUT'),
+          false,
+          'Opening an existing notice after unsubscribe does not acknowledge it',
+        );
+        assert.deepEqual(
+          await r.runtime.ratingSubscriptionUpdates.unread(r.cancel),
+          { unreadCount: 1 },
+        );
+        await r.updates.acknowledge(subscriptionId);
         assert.deepEqual(
           await r.runtime.ratingSubscriptionUpdates.unread(r.cancel),
           { unreadCount: 0 },

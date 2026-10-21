@@ -1,29 +1,210 @@
-<view class="screen">
-  <view wx:if="{{schoolUidView.error}}" class="notice">校内 UID 查询未完成：{{schoolUidView.error}}</view>
-  <view wx:if="{{schoolUidView.loaded}}" class="card">
-    <view class="card-title">当前校内 UID</view>
-    <view wx:if="{{schoolUidView.schoolUid.status === 'assigned'}}">{{schoolUidView.schoolUid.school.name}} · {{schoolUidView.schoolUid.formattedUid}}</view>
-    <view wx:elif="{{schoolUidView.schoolUid.status === 'unassigned'}}">当前没有校内 UID</view>
-    <view wx:else>{{(application ? application.state === 'approved' : false) ? '认证已通过，校内 UID 暂不可用' : '校内 UID 暂不可用，请以独立的认证结果确认学校归属状态'}}</view>
+<view class="account-page f7-ios-theme f7-profile-verification-screen">
+  <wu-f7-block spacing="compact">
+    <view wx:if="{{error}}" class="error" aria-role="alert">
+      {{error}}
+    </view>
+    <view class="status-line" aria-role="status">
+      {{message}}
+    </view>
+    <navigator wx:if="{{!hasSession}}" class="text-link" url="/pages/login/login" open-type="reLaunch">
+      请先登录
+    </navigator>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{pending}}" class="surface" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="inline-icon">
+      <wu-icon name="clock" tone="accent" size="23" />
+      <view class="section-title">
+        上次操作还在确认中
+      </view>
+    </view>
+    <view class="body-copy">
+      请先找回原请求结果，再开始下一步。
+    </view>
+    <wu-f7-button class="primary" disabled="{{busy}}" bind:press="onRecover" variant="fill" size="large">
+      查询原请求
+    </wu-f7-button>
+    <wu-f7-button class="secondary" disabled="{{busy}}" bind:press="onCancelRequest" variant="tonal" size="normal">
+      关闭尚未执行的原请求
+    </wu-f7-button>
+  </wu-f7-block>
+  <view wx:if="{{canApply}}">
+    <view class="section-label">
+      第一步 · 选择材料对应的校区
+    </view>
+    <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+      <view class="verification-input-row">
+        <wu-f7-input value="{{campusQuery}}" maxlength="100" placeholder="搜索学校或校区" bind:input="onSearchInput" clearable="{{false}}" label="学校或校区" />
+      </view>
+    </wu-f7-list>
+    <wu-f7-block spacing="compact">
+      <wu-f7-button class="secondary" disabled="{{busy||pending}}" bind:press="onSearch" variant="tonal" size="normal">
+        搜索校区
+      </wu-f7-button>
+    </wu-f7-block>
+    <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+      <wu-f7-list-item wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" class="choice {{selectedCampusId===item.id?'selected':''}}" disabled="{{busy||pending}}" bind:press="onChooseCampus" link="{{true}}" title="{{item.fullName}}" after="{{selectedCampusId===item.id?'已选':''}}" aria-label="{{item.fullName + (selectedCampusId===item.id?'，已选':'')}}" />
+    </wu-f7-list>
+    <wu-f7-block spacing="compact">
+      <wu-f7-button class="primary" disabled="{{busy||pending||!selectedCampusId}}" bind:press="onPrepare" variant="fill" size="large">
+        下一步，准备材料
+      </wu-f7-button>
+    </wu-f7-block>
   </view>
-
- <view class="eyebrow">WHALEU · 学生归属申请</view>
- <view class="title">提交学校归属材料</view>
- <view class="intro">选择一张校园卡或录取通知书，只需足以判断学校归属，可遮盖无关信息。无需另填真实姓名、身份证号或学号。材料不会公开，也不会写入个人资料。</view>
- <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view><view class="detail">{{message}}</view>
- <navigator wx:if="{{!hasSession}}" url="/pages/login/login" open-type="reLaunch">请先登录</navigator>
- <view wx:if="{{application}}" class="card">
-  <view class="card-title">{{stateLabel}}</view><view>{{application.campusName}}</view><view wx:if="{{application.reason}}">拒绝原因：{{application.reason}}</view>
-  <view wx:if="{{application.evidenceExpiresAt}}">材料访问截止：{{application.evidenceExpiresAt}}</view>
-  <view wx:if="{{application.state==='approved'}}">归属与学号分别验证，校内 UID 状态单独查询。学校更正需由超级管理员处理；续期或撤销请联系学校管理员。</view>
-  <block wx:if="{{application.state==='draft'}}"><button bindtap="onChooseEvidence" disabled="{{busy||pending}}">选择一张材料图片</button><button bindtap="onRecoverEvidence" disabled="{{busy||pending}}">恢复原材料上传</button><view>{{evidenceMessage}}</view><button bindtap="onSubmit" disabled="{{busy||pending||!evidenceReady}}">提交审核</button></block>
-  <button wx:if="{{application.state==='draft'||application.state==='pending'}}" bindtap="onWithdraw" disabled="{{busy||pending}}">取消本次申请</button>
-  <button wx:if="{{application.evidenceAvailable}}" bindtap="onPreview" disabled="{{busy}}">私密查看本次材料</button>
- </view>
- <view wx:if="{{canApply}}" class="card"><view>选择材料对应的学校校区</view><input value="{{campusQuery}}" bindinput="onSearchInput" maxlength="100" placeholder="搜索学校或校区"/><button bindtap="onSearch" disabled="{{busy||pending}}">搜索校区</button><button wx:for="{{campuses}}" wx:key="id" data-id="{{item.id}}" bindtap="onChooseCampus" class="{{selectedCampusId===item.id?'selected':''}}" disabled="{{busy||pending}}">{{item.fullName}}</button><button bindtap="onPrepare" disabled="{{busy||pending||!selectedCampusId}}">开始本次申请</button></view>
- <view wx:if="{{confirmation}}" class="card"><view>{{confirmation==='submit'?'确认提交？材料将绑定本次申请，审核前不会获得学生归属认证。':'确认取消？已发行的归属资格不会因此撤销。'}}</view><button bindtap="onConfirm" disabled="{{busy}}">确认</button><button bindtap="onDismiss" disabled="{{busy}}">返回</button></view>
- <view wx:if="{{pending}}" class="card"><view>有一个结果待确认的原请求，请先恢复。</view><button bindtap="onRecover" disabled="{{busy}}">查询原请求</button><button bindtap="onCancelRequest" disabled="{{busy}}">关闭尚未执行的原请求</button></view>
- <view wx:if="{{evidenceSrc}}" class="card"><image class="evidence" src="{{evidenceSrc}}" mode="widthFix"/><button bindtap="onClosePreview">关闭并清除材料预览</button></view>
- <button bindtap="onReload" disabled="{{busy}}">刷新当前状态</button><button bindtap="onCleanup" disabled="{{busy||pending}}">清理本人未绑定的材料上传</button>
- <navigator url="/pages/verification/verification">查看独立认证状态</navigator><navigator url="/pages/phone-binding/phone-binding">授权手机号</navigator><navigator url="/pages/identity-campus/identity-campus">选择身份校区</navigator><navigator url="/pages/student-verification-notices/student-verification-notices">认证站内消息</navigator><navigator url="/pages/student-verification-review/student-verification-review">校方审核入口</navigator>
+  <wu-f7-block wx:if="{{application}}" class="application-section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="application-status">
+      <wu-icon name="{{application.state==='approved'?'shield':application.state==='pending'?'clock':'graduation'}}" tone="accent" size="26" />
+      <view class="choice-main">
+        <view class="section-title">
+          {{stateLabel}}
+        </view>
+        <view class="body-copy">
+          {{application.campusName}}
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{application.reason}}" class="error">
+      未通过原因：{{application.reason}}
+    </view>
+    <view wx:if="{{application.evidenceExpiresAt}}" class="caption">
+      材料访问截止：{{evidenceExpiresLabel}}（设备当地时间）
+    </view>
+    <view wx:if="{{application.state==='approved'}}" class="body-copy">
+      学生归属与学号分别验证，校内 UID
+      也需单独查询。换校请联系超级管理员，续期或撤销请联系学校管理员。
+    </view>
+    <block wx:if="{{application.state==='draft'}}">
+      <view class="section-label">
+        第二步 · 上传认证材料
+      </view>
+      <view class="evidence-guide">
+        <wu-icon name="image" tone="muted" size="36" />
+        <view class="section-title">
+          校园卡或录取通知书
+        </view>
+        <view class="body-copy">
+          一张清晰图片即可。保留学校归属信息，遮盖无关个人信息。
+        </view>
+      </view>
+      <view class="privacy-note">
+        无需另填真实姓名、身份证号或学号。材料仅用于本次申请审核，不公开、不写入个人资料。
+      </view>
+      <wu-f7-button class="secondary" disabled="{{busy||pending}}" bind:press="onChooseEvidence" variant="tonal" size="normal">
+        选择一张材料图片
+      </wu-f7-button>
+      <wu-f7-button class="quiet" disabled="{{busy||pending}}" bind:press="onRecoverEvidence" variant="plain" size="normal">
+        恢复上次材料上传
+      </wu-f7-button>
+      <view class="status-line">
+        {{evidenceMessage}}
+      </view>
+      <wu-f7-button class="primary" disabled="{{busy||pending||!evidenceReady}}" bind:press="onSubmit" variant="fill" size="large">
+        提交审核
+      </wu-f7-button>
+    </block>
+    <wu-f7-button wx:if="{{application.state==='draft'||application.state==='pending'}}" class="quiet" disabled="{{busy||pending}}" bind:press="onWithdraw" variant="plain" size="normal">
+      取消本次申请
+    </wu-f7-button>
+    <wu-f7-button wx:if="{{application.evidenceAvailable}}" class="secondary" disabled="{{busy}}" bind:press="onPreview" variant="tonal" size="normal">
+      私密查看本次材料
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{confirmation}}" class="confirmation" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">
+      {{confirmation==='submit'?'确认提交材料？':'确认取消申请？'}}
+    </view>
+    <view class="body-copy">
+      {{confirmation==='submit'?'材料将绑定本次申请，审核通过前不会获得学生归属认证。':'取消申请不会撤销已经获得的归属资格。'}}
+    </view>
+    <wu-f7-button class="primary" disabled="{{busy}}" bind:press="onConfirm" variant="fill" size="large">
+      确认
+    </wu-f7-button>
+    <wu-f7-button class="secondary" disabled="{{busy}}" bind:press="onDismiss" variant="tonal" size="normal">
+      返回
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{evidenceSrc}}" class="private-preview" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="caption">
+      仅你可见的材料预览
+    </view>
+    <image class="evidence" src="{{evidenceSrc}}" mode="widthFix" />
+    <wu-f7-button class="secondary" bind:press="onClosePreview" variant="tonal" size="normal">
+      关闭并清除材料预览
+    </wu-f7-button>
+  </wu-f7-block>
+  <view wx:if="{{schoolUidView.error}}" class="status-line">
+    校内 UID 查询未完成：{{schoolUidView.error}}
+  </view>
+  <wu-f7-block wx:if="{{schoolUidView.loaded}}" class="uid-summary" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="caption">
+      校内 UID
+    </view>
+    <view wx:if="{{schoolUidView.schoolUid.status === 'assigned'}}" class="body-copy">
+      {{schoolUidView.schoolUid.school.name}} ·
+      {{schoolUidView.schoolUid.formattedUid}}
+    </view>
+    <view wx:elif="{{schoolUidView.schoolUid.status === 'unassigned'}}" class="body-copy">
+      当前没有校内 UID
+    </view>
+    <view wx:elif="{{application &amp;&amp; application.state === 'approved'}}" class="body-copy">
+      认证已通过，校内 UID 暂不可用
+    </view>
+    <view class="body-copy" wx:else>
+      校内 UID 暂不可用，学校归属以独立认证结果为准。
+    </view>
+  </wu-f7-block>
+  <wu-f7-block spacing="compact">
+    <wu-f7-button class="quiet" disabled="{{busy}}" bind:press="onReload" variant="plain" size="normal">
+      刷新当前状态
+    </wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block spacing="compact">
+    <wu-f7-button class="quiet" disabled="{{busy||pending}}" bind:press="onCleanup" variant="plain" size="normal">
+      清理本人未绑定的材料上传
+    </wu-f7-button>
+  </wu-f7-block>
+  <view class="section-label">
+    相关服务
+  </view>
+  <wu-f7-list strong="{{true}}" inset="{{true}}" spacing="compact">
+    <navigator class="link-row" url="/pages/verification/verification">
+      <wu-f7-list-item title-slot="{{true}}" after-slot="{{true}}">
+        <text class="link-label" slot="title">
+          认证状态
+        </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+    <navigator class="link-row" url="/pages/phone-binding/phone-binding">
+      <wu-f7-list-item title-slot="{{true}}" after-slot="{{true}}">
+        <text class="link-label" slot="title">
+          手机号授权
+        </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+    <navigator class="link-row" url="/pages/identity-campus/identity-campus">
+      <wu-f7-list-item title-slot="{{true}}" after-slot="{{true}}">
+        <text class="link-label" slot="title">
+          身份校区
+        </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+    <navigator class="link-row" url="/pages/student-verification-notices/student-verification-notices">
+      <wu-f7-list-item title-slot="{{true}}" after-slot="{{true}}">
+        <text class="link-label" slot="title">
+          认证消息
+        </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+    <navigator class="link-row" url="/pages/student-verification-review/student-verification-review">
+      <wu-f7-list-item title-slot="{{true}}" after-slot="{{true}}">
+        <text class="link-label" slot="title">
+          校方审核入口
+        </text>
+        <wu-icon name="chevron-right" size="16" tone="muted" slot="after" />
+      </wu-f7-list-item>
+    </navigator>
+  </wu-f7-list>
 </view>

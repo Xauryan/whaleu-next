@@ -1,0 +1,8 @@
+{
+  "apps/wechat/src/pages/campus-hub/campus-hub.ts": "937b262abf60bbbd925f5fd41cadc1c45c6a9a2c3a95479c438f8bc1d6f94e3b",
+  "apps/wechat/src/pages/account-menu/account-menu.ts": "1e9ea4d09eb4f94097aa2f1008d5fdfadcee2ed245c05f8beae8b970d270eafe",
+  "apps/wechat/src/campus-tools/controller.ts": "7f460e03b2154ff7a297bdbacdc464b0b60e95f1f539d6c2c7ac55969ade44b4",
+  "apps/wechat/src/campus-tools/navigation.ts": "eab06d56d4fd62ab57846b6bb3330a110d2f53252de48eb67f7b49b5fde52946",
+  "apps/wechat/src/app.wxss": "46473e268194150934ce838727dffb49644ca06e1fc2dc3c168fdb646fc67dc6",
+  "apps/wechat/test/native-press-emitted-harness.mjs": "f271187e9a5a7110e8d9632b2b88213191e32a878946e9cf5e1ffcfd5ceccd05"
+}

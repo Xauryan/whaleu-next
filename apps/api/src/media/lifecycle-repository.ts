@@ -313,12 +313,12 @@ export class MediaLifecycleRepository {
       `SELECT i.id,i.state FROM whaleu_media.upload_intents i
       WHERE (i.state IN ('prepared','upload_observed','sealing','processing','awaiting_review')
         AND i.expires_at<=clock_timestamp())
-      OR (i.state='ready' AND ((i.protocol_version IN (8,9,10,11,12,13,14,15,16,17) AND i.expires_at<=clock_timestamp()) OR EXISTS (SELECT 1 FROM whaleu_media.assets a
+      OR (i.state='ready' AND ((i.protocol_version IN (8,9,10,11,12,13,14,15,16,17,18) AND i.expires_at<=clock_timestamp()) OR EXISTS (SELECT 1 FROM whaleu_media.assets a
         WHERE a.intent_id=i.id AND a.created_at<=clock_timestamp()-interval '24 hours')
         OR EXISTS (SELECT 1 FROM whaleu_media.assets a JOIN whaleu_community.media_drafts d
           ON d.id=a.resource_id AND d.actor_id=a.actor_id WHERE a.intent_id=i.id AND a.owner_kind='community' AND d.expires_at<=clock_timestamp())
         OR EXISTS (SELECT 1 FROM whaleu_media.assets a JOIN whaleu_profile.avatar_edits e
-          ON e.id=a.resource_id AND e.actor_id=a.actor_id AND e.scope_revision=a.scope_revision WHERE a.intent_id=i.id AND a.owner_kind='profile' AND e.expires_at<=clock_timestamp())
+          ON e.id=a.resource_id AND e.actor_id=a.actor_id AND e.scope_revision=a.scope_revision WHERE a.intent_id=i.id AND a.owner_kind='profile' AND a.resource_kind='avatar' AND e.expires_at<=clock_timestamp())
         OR EXISTS (SELECT 1 FROM whaleu_media.assets a JOIN whaleu_ratings.target_cover_upload_scopes s
           ON s.id=a.resource_id AND s.actor_id=a.actor_id AND s.scope_revision=a.scope_revision WHERE a.intent_id=i.id AND a.owner_kind='ratings' AND s.expires_at<=clock_timestamp()))
         AND NOT EXISTS (SELECT 1 FROM whaleu_media.bindings b

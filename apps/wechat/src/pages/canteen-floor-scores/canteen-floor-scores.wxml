@@ -1,10 +1,41 @@
-<import src="../../canteen-floor-scores/common.wxml" />
-<view class="screen">
- <view class="eyebrow">WHALEU · 食堂楼层评分</view><view class="title">选择食堂与楼层</view>
- <template is="floor-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryFloorId,recoveryScore,recoveryPhase,busy,confirming,receiptMissing}}" />
- <block wx:if="{{loaded &amp;&amp; catalog}}">
-  <view class="card"><view class="section-title">食堂</view><button wx:for="{{canteenOptions}}" wx:key="id" data-id="{{item.id}}" bindtap="onCanteen" disabled="{{busy}}">{{item.selected ? '已选 · ' : ''}}{{item.label}}</button></view>
-  <view class="card"><view class="section-title">原始楼层</view><picker range="{{floorLabels}}" value="{{floorIndex}}" bindchange="onFloor"><view>{{floorLabels[floorIndex]}}</view></picker><button wx:if="{{floorDraft}}" data-id="{{floorDraft}}" bindtap="onOpenFloor" disabled="{{busy}}">查看这个楼层</button><view wx:if="{{floorOptions.length === 0}}">已确认当前选择没有有效楼层。</view></view>
- </block>
- <view class="notice">楼层评分独立计算，不混入窗口评分、推荐或讨论；支持没有窗口的有效楼层。</view>
+<import src="../../canteen-floor-scores/framework7-product.wxml" />
+<view class="screen dining-product f7-ios-theme f7-dining-product">
+  <wu-f7-block spacing="compact">
+    <template is="floor-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryFloorId,recoveryScore,recoveryPhase,busy,confirming,receiptMissing,loaded}}" />
+  </wu-f7-block>
+  <block wx:if="{{loaded && catalog}}">
+    <view class="dp-heading">
+      <view class="meta">
+        选择食堂，看看楼层口碑
+      </view>
+      <wu-f7-button class="dp-plain" data-panel="filter" aria-label="筛选楼层" bind:press="onTogglePanel" variant="plain">
+        <wu-icon name="settings" size="20" />
+      </wu-f7-button>
+    </view>
+    <view class="dp-tabs">
+      <wu-f7-button wx:for="{{canteenOptions}}" wx:key="id" data-id="{{item.id}}" class="{{item.selected ? 'selected' : ''}}" disabled="{{busy}}" bind:press="onCanteen" variant="{{item.selected ? 'fill' : 'tonal'}}">
+        {{item.label}}
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{uiPanel === 'filter'}}" class="dp-disclosure">
+      <view class="section-title">
+        选择楼层
+      </view>
+      <picker range="{{floorLabels}}" value="{{floorIndex}}" bindchange="onFloor">
+        <view class="dp-picker">
+          {{floorLabels[floorIndex]}}
+          <wu-icon name="chevron-down" size="16" />
+        </view>
+      </picker>
+      <wu-f7-button wx:if="{{floorDraft}}" data-id="{{floorDraft}}" disabled="{{busy}}" bind:press="onOpenFloor" variant="tonal">
+        查看楼层
+      </wu-f7-button>
+    </view>
+    <wu-f7-list class="dp-list" spacing="compact">
+      <wu-f7-list-item wx:for="{{floorOptions}}" wx:key="id" data-id="{{item.id}}" disabled="{{busy}}" class="dp-open" bind:press="onOpenFloor" link="{{true}}" title="{{item.label}}" subtitle="查看楼层评分" last="{{index === floorOptions.length - 1}}" />
+    </wu-f7-list>
+    <view wx:if="{{floorOptions.length === 0}}" class="empty">
+      暂无可选楼层
+    </view>
+  </block>
 </view>

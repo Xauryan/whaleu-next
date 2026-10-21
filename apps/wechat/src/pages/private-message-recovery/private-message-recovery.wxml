@@ -1,4 +1,70 @@
-<view class="screen"><view class="eyebrow">WHALEU · 私信请求恢复</view><view class="title">确认原请求</view><view class="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view><navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看</navigator>
-  <view wx:if="{{pending}}" class="card"><view class="meta">操作：{{operation}} · 原请求编号：{{requestId}}</view><view wx:if="{{pendingText}}"><view class="section-title">尚未确认的原文</view><text class="body" selectable="true">{{pendingText}}</text></view><view class="notice">原文不会被新草稿覆盖。查询只返回操作回执；成功后需通过当前会话权限重新读取消息。来源删除或身份变化不会替换原请求。</view><button bindtap="onReceipt" disabled="{{busy}}">先查询原回执</button><button wx:if="{{canRetry}}" bindtap="onRetry" disabled="{{busy}}">{{operation === 'send_image' ? '继续处理原图片与原编号' : '查询后按相同编号和原内容重试'}}</button><button bindtap="onRequestCancel" disabled="{{busy}}">安全取消原请求</button></view>
-  <view wx:if="{{canReedit || editing}}" class="card"><view class="section-title">未发送的原文</view><view class="notice">原请求已终结。原文只保留在当前页面内存中，离开页面、退出登录或切换账号会清除。</view><button wx:if="{{canReedit}}" bindtap="onReedit" disabled="{{busy || pending}}">重新编辑为新草稿</button><view wx:if="{{editing}}"><textarea value="{{draftText}}" maxlength="-1" bindinput="onDraftText" disabled="{{busy || pending}}" /><view class="notice">发送新草稿会重新核验会话并创建新的审核请求，不会重试原请求。</view><button bindtap="onSendDraft" disabled="{{busy || pending || !draftText}}">发送新草稿</button></view><button bindtap="onDiscardDraft" disabled="{{busy}}">清除原文与新草稿</button></view>
-  <view wx:if="{{confirmCancel}}" class="confirm" aria-role="dialog"><view class="notice">确认安全取消原请求？服务端会阻止尚未执行的迟到请求；如果原请求已经完成，会返回真实结果，不能把已发送消息当作取消。</view><button bindtap="onConfirmCancel" disabled="{{busy}}">确认安全取消</button><button bindtap="onDismissCancel">保留原请求</button></view><view wx:if="{{outcome}}" class="notice">{{outcome}}</view><button wx:if="{{busy}}" bindtap="onCancel">停止等待（不撤销请求）</button><navigator wx:if="{{conversationId}}" class="link" url="/pages/private-message-detail/private-message-detail?conversationId={{conversationId}}">重新读取原会话 →</navigator><navigator class="link" url="/pages/private-message-list/private-message-list">私信列表 →</navigator><view class="notice">图片仅保存未确认请求编号与哈希，不保存图片、路径或已发送历史。文字请求的待确认原文存于当前账号的有限本地恢复记录；退出登录或切换账号会清除原文，但保留本账号的最小请求凭据；需回到原账号查询或安全取消。</view></view>
+<view class="f7-ios-theme recovery-page">
+  <view class="recovery-heading">确认原请求</view>
+  <view wx:if="{{!loaded &amp;&amp; !busy &amp;&amp; hasSession &amp;&amp; !error}}" class="request-description" aria-role="status">{{status}}</view>
+  <view wx:if="{{error}}" class="error-state" aria-role="alert">{{error}}</view>
+  <navigator wx:if="{{!hasSession}}" class="login-entry" url="/pages/login/login">登录后查看<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <view wx:if="{{pending}}" class="request-content">
+    <view class="request-symbol">
+      <wu-icon name="clock" tone="muted" size="30" />
+    </view>
+    <view class="request-title">{{operation === 'send' || operation === 'send_image' ? '这条消息，结果还未确认' : '操作结果还未确认'}}</view>
+    <view class="request-description">先查看结果，避免重复操作。</view>
+    <view wx:if="{{pendingText}}" class="original-message">
+      <text class="message-body" selectable="true">{{pendingText}}</text>
+      <view class="original-label">待确认的原文</view>
+    </view>
+    <view wx:if="{{operation === 'send_image'}}" class="image-placeholder">
+      <wu-icon name="image" tone="muted" size="28" />
+      <text>原图片请求</text>
+    </view>
+    <wu-f7-button class="primary-button" disabled="{{busy}}" loading="{{busy}}" bind:press="onReceipt" variant="fill" size="large">先查询原回执</wu-f7-button>
+    <wu-f7-button class="secondary-link" disabled="{{busy}}" bind:press="onToggleActions">其他处理方式</wu-f7-button>
+    <button class="detail-toggle" bindtap="onToggleDetails" aria-expanded="{{uiDetails}}">请求详情<wu-icon name="{{uiDetails ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="15" /></button>
+    <wu-f7-block wx:if="{{uiDetails}}" class="request-details" spacing="compact" strong="{{true}}" inset="{{true}}">
+      <view class="request-status">{{status}}</view>
+      <view class="request-id">原请求编号：{{requestId}}</view>
+      <view>重试使用原编号和原内容，不会替换为新草稿。退出登录或切换账号会清除原文，只保留最小请求凭据。</view>
+    </wu-f7-block>
+  </view>
+  <view wx:if="{{loaded &amp;&amp; !pending &amp;&amp; !canReedit &amp;&amp; !editing}}" class="settled-state">
+    <wu-icon name="message" tone="muted" size="36" />
+    <view class="request-title">{{outcome ? '已取得处理结果' : '没有待确认的请求'}}</view>
+    <view class="request-description" aria-role="status">{{outcome || status}}</view>
+  </view>
+  <view wx:if="{{canReedit || editing}}" class="draft-content">
+    <view class="request-title">未发送的原文</view>
+    <view class="request-description" aria-role="status">{{outcome}}</view>
+    <wu-f7-button wx:if="{{canReedit}}" class="primary-button" disabled="{{busy || pending}}" bind:press="onReedit" variant="fill" size="large">重新编辑为新草稿</wu-f7-button>
+    <view wx:if="{{editing}}">
+      <textarea class="draft-input" value="{{draftText}}" maxlength="-1" bindinput="onDraftText" disabled="{{busy || pending}}" placeholder="重新编辑消息" show-confirm-bar="false" cursor-spacing="80" />
+      <view class="draft-note">这是新草稿，发送时会重新审核。</view>
+      <wu-f7-button class="primary-button" disabled="{{busy || pending || !draftText}}" bind:press="onSendDraft" variant="fill" size="large">发送新草稿</wu-f7-button>
+    </view>
+    <wu-f7-button class="secondary-link danger" disabled="{{busy}}" bind:press="onDiscardDraft" tone="danger">清除原文与新草稿</wu-f7-button>
+    <view class="draft-note">离开页面会清除这份临时草稿。</view>
+  </view>
+  <view wx:if="{{busy}}" class="waiting-state" aria-role="status">
+    <text>正在查询或处理原请求…</text>
+    <wu-f7-button wx:if="{{busy}}" bind:press="onCancel">停止等待（不撤销请求）</wu-f7-button>
+  </view>
+  <navigator wx:if="{{conversationId}}" class="navigation-row" url="/pages/private-message-detail/private-message-detail?conversationId={{conversationId}}">重新读取原会话<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <navigator class="navigation-row" url="/pages/private-message-list/private-message-list">私信列表<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <view wx:if="{{uiActions}}" class="sheet-backdrop">
+    <view class="action-sheet" aria-role="dialog" aria-label="处理原请求">
+      <view class="sheet-title">处理原请求</view>
+      <wu-f7-list-item wx:if="{{canRetry}}" class="sheet-action" disabled="{{busy}}" bind:press="onRetry" link="{{true}}" last="{{true}}" aria-label="{{operation === 'send_image' ? '继续处理原图片与原编号' : '查询后按相同编号和原内容重试'}}">
+        <view class="full-action">{{operation === 'send_image' ? '继续处理原图片与原编号' : '查询后按相同编号和原内容重试'}}</view>
+      </wu-f7-list-item>
+      <wu-f7-button class="sheet-action danger" disabled="{{busy}}" bind:press="onRequestCancel" tone="danger" size="large">安全取消原请求</wu-f7-button>
+      <wu-f7-button class="sheet-action" bind:press="onCloseActions" size="large">返回</wu-f7-button>
+    </view>
+  </view>
+  <view wx:if="{{confirmCancel}}" class="sheet-backdrop">
+    <view class="action-sheet" aria-role="dialog" aria-label="安全取消原请求">
+      <view class="sheet-title">安全取消原请求？</view>
+      <view class="sheet-note">会阻止尚未执行的迟到请求。如果原请求已完成，将返回真实结果，不会撤销已发送消息。</view>
+      <wu-f7-button class="sheet-action danger" disabled="{{busy}}" bind:press="onConfirmCancel" tone="danger" size="large">确认安全取消</wu-f7-button>
+      <wu-f7-button class="sheet-action" bind:press="onDismissCancel" size="large">保留原请求</wu-f7-button>
+    </view>
+  </view>
+</view>

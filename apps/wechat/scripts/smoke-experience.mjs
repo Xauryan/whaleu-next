@@ -1,8 +1,10 @@
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { parse, render } from './smoke-ratings.mjs';
+import { render } from './smoke-ratings.mjs';
+import { parsePreviewWxml as parse } from './preview-wxml.mjs';
 const require = createRequire(import.meta.url);
 /** Compiled page, real gateway/decoders and app lifecycle; synthetic transport, no native device/provider. */
 export async function smokeExperience({ app, dist, mountPage, flush }) {
@@ -252,6 +254,92 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   );
   app.experience = runtime;
   let page = mountPage(path.join(dist, 'pages/experience/experience.js'));
+  const bridges = new WeakMap();
+  const press = (handler, dataset = {}) => {
+    let bridge = bridges.get(page);
+    if (!bridge) {
+      bridge = createNativePressBridge({
+        page,
+        pageFile: path.join(dist, 'pages/experience/experience'),
+        dist,
+      });
+      bridges.set(page, bridge);
+    }
+    const control = bridge.capture(handler, dataset);
+    try {
+      return control.press();
+    } finally {
+      control.detach();
+    }
+  };
+  const enterCode = (value) => {
+    const rendered = flatten(render(tree.children, page.data, {}));
+    const node = rendered.find(
+      (node) =>
+        node.tag === 'wu-f7-input' &&
+        node.attrs['bind:input'] === 'onRedemptionInput',
+    );
+    assert.ok(node, 'The actual emitted WXML renders the secret editor');
+    const file = path.join(dist, 'components/f7-input/f7-input.js');
+    let definition;
+    const prior = globalThis.Component;
+    globalThis.Component = (value) => {
+      definition = value;
+    };
+    try {
+      delete require.cache[require.resolve(file)];
+      require(file);
+    } finally {
+      globalThis.Component = prior;
+    }
+    assert.ok(definition);
+    const properties = Object.fromEntries(
+      Object.entries(definition.properties).map(([key, prop]) => {
+        const raw =
+          node.attrs[key.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())];
+        return [
+          key,
+          raw === undefined
+            ? structuredClone(prop.value)
+            : prop.type === Boolean
+              ? raw === 'true'
+              : prop.type === Number
+                ? Number(raw)
+                : raw,
+        ];
+      }),
+    );
+    assert.equal(properties.password, true);
+    assert.equal(properties.maxlength, 128);
+    assert.match(
+      readFileSync(
+        path.join(dist, 'components/f7-input/f7-input.wxml'),
+        'utf8',
+      ),
+      /catchinput="onInput"/,
+    );
+    const instance = {
+      properties,
+      data: structuredClone(definition.data),
+      ...definition.methods,
+      setData(patch) {
+        Object.assign(this.data, patch);
+      },
+      triggerEvent(name, detail, options) {
+        assert.deepEqual(options, { bubbles: false, composed: false });
+        page[node.attrs['bind:' + name]]({ detail });
+      },
+    };
+    definition.lifetimes.attached.call(instance);
+    definition.methods.onInput.call(instance, {
+      detail: { value, cursor: value.length },
+    });
+    definition.pageLifetimes.hide.call(instance);
+    definition.methods.onInput.call(instance, {
+      detail: { value: 'stale-editor-event' },
+    });
+    definition.lifetimes.detached.call(instance);
+  };
   await flush();
   assert.equal(page.data.balanceLabel, '0');
   assert.equal(page.data.appearance.titles.length, 2);
@@ -270,7 +358,7 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
     'utf8',
   );
   for (const [, handler] of template.matchAll(
-    /(?:bindtap|catchtap)="([^"]+)"/g,
+    /(?:bindtap|catchtap|bind:press)="([^"]+)"/g,
   ))
     assert.equal(typeof page[handler], 'function');
   const tree = parse(template);
@@ -318,7 +406,7 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   );
   assert.match(
     readFileSync(path.join(dist, 'pages/experience/experience.wxss'), 'utf8'),
-    /\.colors/,
+    /\.experience-colors/,
   );
   app.onShow();
   await runtime.foreground();
@@ -340,35 +428,38 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   await runtime.foreground();
   assert.equal(requests.filter((r) => r.method === 'POST').length, 1);
   loseResponse = false;
-  page.onRecover({ currentTarget: { dataset: { operation: 'sign_in' } } });
+  press('onRecover', { operation: 'sign_in' });
   await flush();
   assert.equal(pending.load(accountId, 'sign_in'), null);
   assert.equal(page.data.summary.signIn.signedIn, true);
   assert.match(page.data.receiptStatus, /签到已确认/);
   unknown = true;
   appearance = { ...appearance, coverage: 'partial' };
-  page.onReload();
+  press('onReload');
   await flush();
   assert.match(page.data.balanceLabel, /基准未确认/);
-  page.onTitle({ currentTarget: { dataset: { key: 'level_1' } } });
+  page.onToggleSection({ currentTarget: { dataset: { field: 'appearance' } } }); // Native aria-expanded disclosure.
+  press('onTitle', { key: 'level_1' });
   page.onColor({ currentTarget: { dataset: { id: 0 } } });
   checkRules();
-  page.onSave();
+  press('onSave');
   await flush();
   assert.equal(appearance.titleKey, 'level_1');
   assert.equal(appearance.colorId, 0);
   assert.equal(page.data.appearance.titles[0].earnedAt, null);
   redemptionAvailable = true;
-  page.onReload();
+  press('onReload');
   await flush();
-  page.onRedemptionInput({ detail: { value: 'SYNTHETIC-EMITTED-ONLY' } });
+  page.onToggleSection({ currentTarget: { dataset: { field: 'redemption' } } }); // Native disclosure keeps accessible expanded state.
+  enterCode('SYNTHETIC-EMITTED-ONLY');
   page.onHide();
   assert.equal(page.data.redemptionCode, '');
   page = mountPage(path.join(dist, 'pages/experience/experience.js'));
   await flush();
   redemptionLost = true;
-  page.onRedemptionInput({ detail: { value: 'SYNTHETIC-EMITTED-ONLY' } });
-  page.onRedeemTitle();
+  page.onToggleSection({ currentTarget: { dataset: { field: 'redemption' } } }); // Native disclosure keeps accessible expanded state.
+  enterCode('SYNTHETIC-EMITTED-ONLY');
+  press('onRedeemTitle');
   await flush();
   assert.equal(page.data.redemptionCode, '');
   assert.equal(page.data.redemptionPending, true);
@@ -385,7 +476,7 @@ export async function smokeExperience({ app, dist, mountPage, flush }) {
   redemptionAvailable = false;
   page = mountPage(path.join(dist, 'pages/experience/experience.js'));
   await flush();
-  page.onRecoverRedemption();
+  press('onRecoverRedemption');
   await flush();
   assert.equal(pending.redemption.load(accountId), null);
   assert.match(page.data.receiptStatus, /良辰美景/);

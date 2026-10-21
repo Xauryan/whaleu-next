@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse, render } from './smoke-ratings.mjs';
+import { createNativePressBridge } from '../test/native-press-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 const dist = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -236,8 +237,22 @@ function mount() {
     views.push(structuredClone(patch));
     page.data = { ...page.data, ...patch };
   };
+  const controls = createNativePressBridge({
+    page,
+    pageFile: entry.slice(0, -3),
+    dist,
+  });
   const nodes = () => flat(render(tree.children, page.data, {}));
   const event = (binding, handler, detail = {}) => {
+    if (binding === 'bindtap' && controls.find(handler)) {
+      const hit = controls.capture(handler);
+      try {
+        assert.equal(hit.press(), true);
+      } finally {
+        hit.detach();
+      }
+      return;
+    }
     const node = nodes().find(
       (node) => typeof node !== 'string' && node.attrs[binding] === handler,
     );
@@ -263,7 +278,9 @@ try {
       .nodes()
       .some(
         (node) =>
-          typeof node !== 'string' && node.attrs.bindtap === 'onPrepare',
+          typeof node !== 'string' &&
+          (node.attrs.bindtap === 'onPrepare' ||
+            node.attrs['bind:press'] === 'onPrepare'),
       ),
   );
   unavailable.page.onPrepare();
@@ -324,7 +341,23 @@ try {
     .filter((node) => typeof node === 'string')
     .join('');
   assert.ok(text.includes('000042'));
-  assert.ok(text.includes('学号验证'));
+  assert.ok(
+    h
+      .nodes()
+      .some(
+        (node) =>
+          typeof node !== 'string' &&
+          node.tag === 'wu-f7-list-item' &&
+          node.attrs.title === '学号验证',
+      ),
+  );
+  assert.match(
+    readFileSync(
+      path.join(dist, 'components/f7-list-item/f7-list-item.wxml'),
+      'utf8',
+    ),
+    /\{\{title\}\}/,
+  );
   assert.ok(!text.includes('one-use-synthetic-secret'));
   uidUnavailable = true;
   h.tap('onReload');
@@ -365,7 +398,9 @@ try {
       .nodes()
       .some(
         (node) =>
-          typeof node !== 'string' && node.attrs.bindtap === 'onAuthorize',
+          typeof node !== 'string' &&
+          (node.attrs.bindtap === 'onAuthorize' ||
+            node.attrs['bind:press'] === 'onAuthorize'),
       ),
   );
   cold.tap('onClose');

@@ -1,1 +1,35 @@
-<view class="page"><view class="error">{{error}}</view><view wx:if="{{activity}}"><view class="title">{{activity.content.title}}</view><view>主办方：{{activity.organizerLabel}}</view><view>类型：{{activity.content.types}}</view><view>时间：{{activity.content.activityTime || '未指定'}}</view><view>地点：{{activity.content.activityLocation || '未指定'}}</view><view>结束时间：{{activity.content.endAt || '未指定'}}</view><text selectable="true">{{activity.content.description}}</text><view class="card"><button wx:for="{{slots}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="onImage">{{item.label}}</button><image wx:if="{{image.status === 'ready'}}" src="{{image.src}}" mode="widthFix"/><text>{{image.message}}</text></view><view wx:if="{{activity.organizerQr.status === 'available'}}"><button bindtap="onQr">查看主办方公开主二维码</button><image wx:if="{{qr.status === 'ready'}}" src="{{qr.src}}" mode="widthFix"/><text>{{qr.message}}</text></view><view wx:elif="{{activity.organizerQr.status === 'unavailable'}}">主办方二维码已经变化，当前不可展示</view><view wx:else>发布者未开启主办方二维码展示</view></view></view>
+<view class="f7-ios-theme activity-page activity-detail-page">
+  <view wx:if="{{error}}" class="activity-error" aria-role="alert">{{error}}</view>
+  <wu-f7-button wx:if="{{error}}" class="activity-text-button" bind:press="onRefresh" disabled="{{busy}}" variant="plain">重新加载</wu-f7-button>
+  <view wx:if="{{busy}}" class="activity-status" aria-role="status">正在加载活动…</view>
+  <view wx:if="{{activity}}">
+    <view class="activity-detail-media">
+      <image wx:if="{{image.status === 'ready'}}" class="activity-hero-image" src="{{image.src}}" mode="widthFix" />
+      <view wx:if="{{image.message}}" class="activity-media-unavailable" aria-role="status"><wu-icon name="image" size="20" /><text>{{image.message}}</text></view>
+      <scroll-view wx:if="{{slots.length}}" scroll-x="true" class="activity-gallery-strip"><view class="activity-gallery-options"><wu-f7-button wx:for="{{slots}}" wx:key="slot" class="activity-media-choice {{selectedSlot === item.slot ? 'selected' : ''}}" data-slot="{{item.slot}}" bind:press="onImage" variant="{{selectedSlot === item.slot ? 'fill' : 'tonal'}}" round="{{true}}"><wu-icon name="{{item.slot === 'cover' ? 'image' : 'camera'}}" size="16" /><text>{{item.slot === 'cover' ? '封面' : item.label}}</text></wu-f7-button></view></scroll-view>
+    </view>
+    <view class="activity-detail-heading">
+      <view class="activity-tags"><text class="activity-tag" wx:for="{{activity.content.types}}" wx:for-item="type" wx:key="*this">{{activityTypeLabels[type]}}</text></view>
+      <view class="activity-detail-title">{{activity.content.title}}</view>
+      <view class="activity-organizer"><view class="activity-organizer-symbol"><wu-icon name="people" size="20" /></view><view><view class="activity-organizer-name">{{activity.organizerLabel}}</view><view class="activity-footnote">主办方</view></view></view>
+    </view>
+    <wu-f7-list class="activity-facts" strong="{{true}}" spacing="compact">
+      <view class="activity-fact"><wu-icon name="clock" size="21" /><view class="activity-fact-value"><view class="activity-fact-label">活动时间</view><text>{{activity.content.activityTime || '时间待公布'}}</text></view></view>
+      <view class="activity-fact"><wu-icon name="location" size="21" /><view class="activity-fact-value"><view class="activity-fact-label">活动地点</view><text>{{activity.content.activityLocation || '地点待公布'}}</text></view></view>
+    </wu-f7-list>
+    <wu-f7-block class="activity-section" strong="{{true}}" spacing="compact"><view class="activity-section-title">活动介绍</view><text class="activity-body" selectable="true">{{activity.content.description}}</text></wu-f7-block>
+    <wu-f7-block class="activity-section" strong="{{true}}" spacing="compact">
+      <wu-f7-button class="activity-disclosure" data-field="information" bind:press="onTogglePanel" variant="plain"><text>更多活动信息</text><wu-icon name="{{uiPanels.information ? 'chevron-up' : 'chevron-down'}}" size="14" /></wu-f7-button>
+      <view wx:if="{{uiPanels.information}}" class="activity-disclosure-content activity-information"><view>结束时间：{{endAtLabel}}</view><view>发布于 {{publishedAtLabel}}</view></view>
+    </wu-f7-block>
+    <wu-f7-block wx:if="{{activity.organizerQr.status === 'available'}}" class="activity-organizer-contact" strong="{{true}}" spacing="compact">
+      <view class="activity-section-title">了解更多</view>
+      <view class="activity-caption">查看主办方公开二维码。</view>
+      <wu-f7-button class="activity-primary" bind:press="onQr" variant="fill" size="large"><wu-icon name="scan" tone="inverse" size="20" /><text>查看主办方二维码</text></wu-f7-button>
+      <image wx:if="{{qr.status === 'ready'}}" class="activity-qr-image" src="{{qr.src}}" mode="widthFix" />
+      <view wx:if="{{qr.message}}" class="activity-caption" aria-role="status">{{qr.message}}</view>
+    </wu-f7-block>
+    <view wx:elif="{{activity.organizerQr.status === 'unavailable'}}" class="activity-footnote activity-contact-note">主办方二维码已更新，暂不可查看。</view>
+    <view wx:else class="activity-footnote activity-contact-note">主办方未公开二维码。</view>
+  </view>
+</view>

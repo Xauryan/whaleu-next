@@ -696,7 +696,7 @@ test('native page exposes account-wide confirmation and named content entries wi
   assert.match(page, /controller\?\.dispose/);
   assert.match(wxml, /包括其他地区的公开署名/);
   assert.match(wxml, /私有系统通知/);
-  assert.match(wxml, /匿名分身保持不变/);
+  assert.match(wxml, /分身保持不变/);
   assert.match(wxml, /management\.canReset/);
   assert.doesNotMatch(
     wxml,
@@ -712,7 +712,7 @@ test('native page exposes account-wide confirmation and named content entries wi
   }
   assert.match(
     source('pages/community-mine/community-mine.wxml'),
-    /恢复本账号原昵称管理请求/,
+    /bind:press="onToggleTools"[\s\S]*wx:if="\{\{showTools\}\}"[\s\S]*原管理请求恢复[\s\S]*url="\/pages\/profile-moderation\/profile-moderation">\s*<text>昵称管理<\/text>/,
   );
 });
 

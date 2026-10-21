@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "file": "scripts/smoke-ratings.mjs",
+  "beforeSha256": "7cc376ea0a7e2fa6efea3c1fc3d377255284f0ffb2754a01939f5e2efb87b32b",
+  "afterSha256": "df81246ef3388a69e04b6faaf6e6294c57ecfe92b2090e4e9f85132b5dd5c0d1",
+  "originalEvidence": "test/fixtures/native-renderer-original-7cc376ea.mjs.txt",
+  "baselineRootSealSha256": "b1fc5e1a926cb1cc76b7b50b7520fd7f0f6c6efa4ba877de50900cffdcc65415",
+  "historicalHarnessApproval": "test/fixtures/native-harness-successor-v38.json",
+  "historicalHarnessApprovalSha256": "3fd1561c7a3e94bb8c0ff68a081178edefb60d9b5b30eb05cbf081e4b1f22ec4",
+  "scope": "Attribute-only XML5 named entity decoding after tokenization, ampersand last. Renderer, source text decoder, native bridge and runtime remain unchanged.",
+  "review": "Explicit integration-owner approval on 2026-10-21 for this isolated test-only successor and immutable predecessor chain; actual-PG revalidation remains required.",
+  "emittedAstEvidence": {
+    "templates": 194,
+    "identical": 192,
+    "changedAttributes": 1,
+    "changedPage": "directory-detail",
+    "changedAttribute": "aria-label",
+    "unchangedPreexistingParseFailures": [
+      "components/f7-segmented/f7-segmented.wxml"
+    ]
+  },
+  "regressions": [
+    "test/wxml-renderer-entities.test.ts",
+    "test/native-press-emitted.smoke.mjs",
+    "test/reviewed-native-harness-successor.test.ts"
+  ]
+}

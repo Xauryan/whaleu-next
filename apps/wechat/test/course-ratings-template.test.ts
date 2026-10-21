@@ -31,7 +31,10 @@ test('actual course WXML replaces not-submitted with pending uncertainty and lab
     ),
   );
   const common = model.parse(
-    readFileSync(path.join(root, 'course-ratings/common.wxml'), 'utf8'),
+    readFileSync(
+      path.join(root, 'course-ratings/framework7-product.wxml'),
+      'utf8',
+    ),
   );
   const templates: Record<string, Exclude<Node, string>> = {};
   for (const node of common.children)
@@ -47,10 +50,14 @@ test('actual course WXML replaces not-submitted with pending uncertainty and lab
     scores: courseScoreChoices,
   };
   const pending = text(model.render(tree.children, view, templates));
-  assert.match(pending, /原请求结果待确认，当前快照不能解除原请求/);
-  assert.doesNotMatch(pending, /当前已确认尚未评分/);
-  assert.match(pending, /来源校区标识：synthetic-campus/);
-  assert.ok(pending.includes(`已核验目录版本：${detail().catalogRevision}`));
+  assert.match(pending, /上次评分结果待确认，请先查询/);
+  assert.doesNotMatch(pending, /还没有为这门课评分/);
+  assert.doesNotMatch(pending, /来源校区：synthetic-campus/);
+  const provenance = text(
+    model.render(tree.children, { ...view, uiPanel: 'info' }, templates),
+  );
+  assert.match(provenance, /来源校区：synthetic-campus/);
+  assert.ok(provenance.includes(`目录版本：${detail().catalogRevision}`));
   const corrupt = text(
     model.render(
       tree.children,
@@ -58,10 +65,10 @@ test('actual course WXML replaces not-submitted with pending uncertainty and lab
       templates,
     ),
   );
-  assert.doesNotMatch(corrupt, /当前已确认尚未评分/);
-  assert.match(corrupt, /原请求结果待确认/);
+  assert.doesNotMatch(corrupt, /还没有为这门课评分/);
+  assert.match(corrupt, /上次评分结果待确认/);
   const fresh = text(
     model.render(tree.children, { ...view, frozen: false }, templates),
   );
-  assert.match(fresh, /当前已确认尚未评分/);
+  assert.match(fresh, /还没有为这门课评分/);
 });

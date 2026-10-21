@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { normalizeFramework7ActionNode } from './framework7-action-parity';
 import { initialWindowDiscussionView } from '../src/window-discussion/controller';
 import { item, own, rootId } from './window-discussion-helpers';
 type Node =
@@ -19,30 +20,42 @@ const nativeRequire = createRequire(__filename),
   root = path.resolve(__dirname, '../src');
 const flatten = (n: Node[]): Node[] =>
   n.flatMap((i) => (typeof i === 'string' ? [i] : [i, ...flatten(i.children)]));
-const common = model.parse(
-    readFileSync(path.join(root, 'window-discussion/common.wxml'), 'utf8'),
-  ),
-  templates: Record<string, Exclude<Node, string>> = {};
-for (const n of common.children)
-  if (typeof n !== 'string' && n.attrs['name']) templates[n.attrs['name']] = n;
-function render(name: string, patch: Record<string, unknown>) {
+function actualTemplates(name: string) {
+  const pageFile = path.join(root, `pages/${name}/${name}.wxml`);
+  const pageSource = readFileSync(pageFile, 'utf8');
+  const templates: Record<string, Exclude<Node, string>> = {};
+  for (const [, source] of pageSource.matchAll(/<import src="([^"]+)"/g)) {
+    const tree = model.parse(
+      readFileSync(path.resolve(path.dirname(pageFile), source!), 'utf8'),
+    );
+    for (const node of tree.children)
+      if (typeof node !== 'string' && node.attrs.name)
+        templates[node.attrs.name] = node;
+  }
+  return templates;
+}
+function renderTree(name: string, patch: Record<string, unknown>) {
   const tree = model.parse(
     readFileSync(path.join(root, `pages/${name}/${name}.wxml`), 'utf8'),
   );
-  return flatten(
-    model.render(
-      tree.children,
-      { ...initialWindowDiscussionView(), ...patch },
-      templates,
-    ),
+  return model.render(
+    tree.children,
+    { ...initialWindowDiscussionView(), timeLabels: {}, uiPanel: '', ...patch },
+    actualTemplates(name),
+  );
+}
+function render(name: string, patch: Record<string, unknown>) {
+  const nodes = flatten(renderTree(name, patch));
+  return nodes.map((node) =>
+    typeof node === 'string' ? node : normalizeFramework7ActionNode(node),
   );
 }
 const buttons = (n: Node[], handler: string) =>
     n.filter(
       (i) =>
         typeof i !== 'string' &&
-        i.tag === 'button' &&
-        i.attrs['bindtap'] === handler,
+        normalizeFramework7ActionNode(i).tag === 'button' &&
+        normalizeFramework7ActionNode(i).attrs['bindtap'] === handler,
     ),
   text = (n: Node[]) => n.filter((i) => typeof i === 'string').join(' ');
 test('real WXML renders named root/reply and reversible likes without score or media controls', () => {
@@ -50,6 +63,7 @@ test('real WXML renders named root/reply and reversible likes without score or m
     loaded: true,
     items: [item()],
     hasSession: true,
+    uiPanel: 'compose',
   });
   assert.match(text(nodes), /合成用户/);
   assert.equal(buttons(nodes, 'onLike').length, 1);
@@ -159,6 +173,7 @@ test('registered W3 image composer and controlled gallery render real actions an
     imageBusy: false,
     imageFrozen: false,
     canPublish: true,
+    uiPanel: 'compose',
     galleryOpen: true,
     gallerySrc: 'wxfile://tmp/controlled.png',
     galleryStatus: '',
@@ -202,4 +217,207 @@ test('image recovery is available without public read state and offers explicit 
   assert.equal(buttons(nodes, 'onRequestImageCancel').length, 1);
   assert.equal(buttons(nodes, 'onConfirmImageCancel').length, 1);
   assert.equal(buttons(nodes, 'onPickImage').length, 0);
+});
+
+test('public reading state keeps composition and secondary tools out of the list', () => {
+  const nodes = render('window-discussion', {
+    loaded: true,
+    hasSession: true,
+    items: [item()],
+    totalCount: 1,
+    mode: 'roots',
+  });
+  assert.equal(buttons(nodes, 'onOpenComposer').length, 1);
+  assert.equal(buttons(nodes, 'onConfirmPublish').length, 0);
+  assert.equal(buttons(nodes, 'onRefresh').length, 0);
+  assert.equal(
+    nodes.some((node) => typeof node !== 'string' && node.tag === 'textarea'),
+    false,
+  );
+  assert.equal(buttons(nodes, 'onReply').length, 0);
+  assert.match(text(nodes), /1 个主题/);
+  assert.doesNotMatch(text(nodes), /窗口创建者|UTF-8|本版本的新策略/);
+  const tools = render('window-discussion', { loaded: true, uiPanel: 'tools' });
+  assert.equal(buttons(tools, 'onRefresh').length, 1);
+  assert.match(text(tools), /操作记录与恢复/);
+});
+
+test('public image recovery and its separate cancellation remain available without loaded content or an open composer', () => {
+  for (const name of ['window-discussion', 'window-discussion-thread']) {
+    const nodes = render(name, {
+      loaded: false,
+      uiPanel: '',
+      imageEnabled: true,
+      imagePending: true,
+      imageRecoverable: true,
+      imageRequestId: rootId,
+      imageFrozen: true,
+      imageCancelConfirm: true,
+      imageStatus: '原请求待确认',
+    });
+    assert.equal(buttons(nodes, 'onRecoverImages').length, 1);
+    assert.equal(buttons(nodes, 'onRequestImageCancel').length, 1);
+    assert.equal(buttons(nodes, 'onConfirmImageCancel').length, 1);
+    assert.equal(buttons(nodes, 'onPickImage').length, 0);
+    assert.equal(buttons(nodes, 'onOpenComposer').length, 0);
+    assert.equal(buttons(nodes, 'onRefresh').length, 1);
+    assert.doesNotMatch(text(nodes), /还没有主题|还没有回复|0 个主题/);
+  }
+});
+
+test('thread branch replies only to actual replies and retains focus, addressed identity and like confirmation gates', () => {
+  const reply = item({ id: 'reply', rootId, addressedAuthor: item().author });
+  const nodes = render('window-discussion-thread', {
+    loaded: true,
+    hasSession: true,
+    mode: 'thread',
+    root: item(),
+    items: [reply],
+    focusCommentId: reply.id,
+  });
+  assert.equal(buttons(nodes, 'onLike').length, 2);
+  assert.equal(buttons(nodes, 'onThread').length, 0);
+  assert.equal(buttons(nodes, 'onReply').length, 1);
+  assert.equal(
+    (buttons(nodes, 'onReply')[0] as Exclude<Node, string>).attrs['data-id'],
+    reply.id,
+  );
+  assert.match(text(nodes), /回复 合成用户/);
+  assert.ok(
+    nodes.some(
+      (node) =>
+        typeof node !== 'string' &&
+        node.attrs.class?.includes('discussion-focused'),
+    ),
+  );
+  const emptySelection = render('window-discussion-thread', {
+    confirming: 'like',
+    selectedComment: null,
+  });
+  assert.equal(buttons(emptySelection, 'onSubmit').length, 0);
+  const like = render('window-discussion-thread', {
+    confirming: 'like',
+    selectedComment: reply,
+    busy: true,
+  });
+  assert.equal(buttons(like, 'onSubmit').length, 1);
+  assert.equal(
+    (buttons(like, 'onSubmit')[0] as Exclude<Node, string>).attrs.disabled,
+    'true',
+  );
+});
+
+test('controlled public gallery retains local source and boundary-disabled navigation', () => {
+  const nodes = render('window-discussion-thread', {
+    galleryOpen: true,
+    gallerySrc: 'wxfile://tmp/controlled.png',
+    galleryIndex: 0,
+    galleryCount: 1,
+    galleryStatus: '',
+  });
+  assert.equal(buttons(nodes, 'onCloseGallery').length, 1);
+  assert.equal(
+    (buttons(nodes, 'onImagePrevious')[0] as Exclude<Node, string>).attrs
+      .disabled,
+    'true',
+  );
+  assert.equal(
+    (buttons(nodes, 'onImageNext')[0] as Exclude<Node, string>).attrs.disabled,
+    'true',
+  );
+  const images = nodes.filter(
+    (node) => typeof node !== 'string' && node.tag === 'image',
+  );
+  assert.equal(images.length, 1);
+  assert.equal(
+    (images[0] as Exclude<Node, string>).attrs.src,
+    'wxfile://tmp/controlled.png',
+  );
+});
+
+test('image recovery renders exactly once inside any visible composition/confirmation sheet, and outside when closed', () => {
+  const pending = {
+    loaded: true,
+    hasSession: true,
+    imageEnabled: true,
+    imagePending: true,
+    imageRecoverable: true,
+    imageRequestId: rootId,
+    imageStatus: '图片已就绪',
+    imageCount: 1,
+    imageBusy: false,
+    imageFrozen: false,
+  };
+  for (const page of ['window-discussion', 'window-discussion-thread']) {
+    for (const state of [
+      { uiPanel: 'compose' },
+      { uiPanel: 'compose', confirming: 'publish' },
+      { uiPanel: '', confirming: 'like', selectedComment: item() },
+    ]) {
+      const tree = renderTree(page, { ...pending, ...state });
+      const nodes = flatten(tree);
+      assert.equal(buttons(nodes, 'onRecoverImages').length, 1);
+      const sheet = nodes.find(
+        (node) =>
+          typeof node !== 'string' &&
+          /(?:^|\s)discussion-sheet(?:\s|$)/.test(node.attrs.class ?? ''),
+      );
+      assert.ok(sheet && typeof sheet !== 'string');
+      assert.equal(
+        buttons(flatten(sheet.children), 'onRecoverImages').length,
+        1,
+      );
+      assert.equal(
+        buttons(flatten(sheet.children), 'onRequestImageCancel').length,
+        1,
+      );
+    }
+    const closed = render(page, { ...pending, uiPanel: '' });
+    assert.equal(buttons(closed, 'onRecoverImages').length, 1);
+    assert.equal(
+      closed.some(
+        (node) =>
+          typeof node !== 'string' &&
+          /(?:^|\s)discussion-sheet(?:\s|$)/.test(node.attrs.class ?? ''),
+      ),
+      false,
+    );
+  }
+});
+
+test('unloaded public pages cannot reveal stale topics, replies or their actions', () => {
+  for (const page of ['window-discussion', 'window-discussion-thread']) {
+    const nodes = render(page, {
+      loaded: false,
+      root: item(),
+      items: [item()],
+      mode: page === 'window-discussion' ? 'roots' : 'thread',
+      uiPanel: 'compose',
+      totalCount: null,
+    });
+    assert.equal(buttons(nodes, 'onLike').length, 0);
+    assert.equal(buttons(nodes, 'onThread').length, 0);
+    assert.equal(buttons(nodes, 'onReply').length, 0);
+    assert.equal(buttons(nodes, 'onConfirmPublish').length, 0);
+    assert.doesNotMatch(text(nodes), /合成用户|合成回复|还没有主题|还没有回复/);
+  }
+});
+
+test('fictional preview fixtures merge real page data and render every required content marker', () => {
+  const fixtures = nativeRequire(
+    '../scripts/fixtures/window-discussion-preview.mjs',
+  ).default as {
+    id: string;
+    page: string;
+    patch: Record<string, unknown>;
+    expectedText: string[];
+  }[];
+  assert.equal(fixtures.length, 7);
+  for (const fixture of fixtures) {
+    const rendered = text(render(fixture.page, fixture.patch));
+    for (const marker of fixture.expectedText)
+      assert.ok(rendered.includes(marker), `${fixture.id}: missing ${marker}`);
+    assert.doesNotMatch(JSON.stringify(fixture.patch), /https?:\/\//);
+    assert.doesNotMatch(rendered, /undefined/);
+  }
 });

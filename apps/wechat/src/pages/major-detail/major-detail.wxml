@@ -1,19 +1,63 @@
-<import src="../../majors/common.wxml" />
-<view class="screen"><view class="title">专业详情</view>
-  <template is="major-status" data="{{status,error,hasSession,busy}}" />
-  <navigator class="link" url="/pages/major-discussion-recovery/major-discussion-recovery">原讨论请求与自己的点赞恢复 →</navigator>
-  <block wx:if="{{loaded &amp;&amp; detail}}">
-    <view class="card"><view class="section-title">{{detail.item.majorName}}</view><view class="meta">{{detail.item.departmentId}}系 · {{detail.item.collegeName}}</view>
-      <template is="major-summary" data="{{summary:detail.item.summary}}" />
-      <button bindtap="onOpenDiscussion" disabled="{{busy}}">查看实名文字讨论与回复 →</button>
+<!-- Native Framework7 v9.2.0 presentation; existing Page and controller ownership is unchanged. -->
+<import src="../../majors/framework7-product.wxml" />
+<view class="screen major-product has-dock f7-ios-theme f7-discussions">
+  <view class="major-toolbar major-toolbar-end">
+    <wu-f7-button class="major-icon-button" data-panel="options" aria-label="更多专业选项" bind:press="onTogglePanel" variant="plain">
+      <wu-icon name="more" size="22" />
+    </wu-f7-button>
+  </view>
+  <view wx:if="{{uiPanel === 'options'}}" class="major-options">
+    <navigator class="major-link" url="/pages/major-discussion-recovery/major-discussion-recovery">
+      请求与点赞记录
+      <wu-icon name="chevron-right" size="16" />
+    </navigator>
+    <view class="major-meta">
+      未提供培养方案、学位或就业说明。
     </view>
-    <view class="section-title">相关专业</view><view class="meta">同院系优先，之后为其他院系；最多展示 5 个</view>
-    <view wx:if="{{relatedError}}" class="error">{{relatedError}}</view>
-    <button bindtap="onRelatedRefresh" disabled="{{busy}}">重新核验相关专业</button>
-    <block wx:if="{{relatedLoaded}}"><template wx:for="{{relatedItems}}" wx:key="id" is="major-item" data="{{item,busy}}" />
-      <view wx:if="{{!relatedItems.length}}" class="empty">当前没有其他专业</view>
+  </view>
+  <template is="major-status" data="{{status,error,hasSession,busy,loaded,uiPanel}}" />
+  <block wx:if="{{loaded &amp;&amp; detail}}">
+    <wu-f7-block class="major-identity" spacing="compact">
+      <wu-f7-block class="major-identity-icon" spacing="compact">
+        <wu-icon name="graduation" size="30" tone="blue" />
+      </wu-f7-block>
+      <view class="major-title">
+        {{detail.item.majorName}}
+      </view>
+      <view class="major-meta">
+        {{detail.item.collegeName}} · {{detail.item.departmentId}}系
+      </view>
+    </wu-f7-block>
+    <view class="major-detail-summary">
+      <template is="major-summary" data="{{summary:detail.item.summary}}" />
+    </view>
+    <view class="major-list-heading">
+      <view class="major-section-title">
+        相关专业
+      </view>
+      <wu-f7-button class="major-icon-button" disabled="{{busy}}" aria-label="刷新相关专业" bind:press="onRelatedRefresh" variant="plain">
+        <wu-icon name="refresh" size="19" />
+      </wu-f7-button>
+    </view>
+    <view wx:if="{{relatedError}}" class="major-error">
+      {{relatedError}}
+    </view>
+    <block wx:if="{{relatedLoaded}}">
+      <wu-f7-list spacing="compact" strong="{{true}}">
+        <template wx:for="{{relatedItems}}" wx:key="id" is="major-item" data="{{item,busy}}" />
+      </wu-f7-list>
+      <wu-f7-block wx:if="{{!relatedItems.length}}" class="major-empty" spacing="compact">
+        暂时没有相关专业
+      </wu-f7-block>
     </block>
+    <view class="major-dock">
+      <wu-f7-button class="major-primary" disabled="{{busy}}" bind:press="onOpenDiscussion" variant="fill" size="large">
+        <wu-icon name="message" size="20" tone="inverse" />
+        查看主题
+      </wu-f7-button>
+    </view>
   </block>
-  <view wx:if="{{!loaded &amp;&amp; relatedError}}" class="error">{{relatedError}}</view>
-  <view class="notice">未提供经核验的培养方案、学位或就业说明。发布文字需有效基础认证或实际管理权限；浏览和点赞不要求同校认证。</view>
+  <view wx:if="{{!loaded &amp;&amp; relatedError}}" class="major-error">
+    {{relatedError}}
+  </view>
 </view>

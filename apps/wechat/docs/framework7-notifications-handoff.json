@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "scope": "native Framework7 v9.2.0 notification presentation only",
+  "pages": [
+    "community-updates",
+    "rating-updates",
+    "window-discussion-notices",
+    "major-discussion-notices",
+    "social-notices",
+    "system-notices",
+    "notice-thread"
+  ],
+  "actions": {
+    "original": 57,
+    "nativeComponentButtons": 37,
+    "nativeComponentListItems": 1,
+    "nativeNavigators": 19
+  },
+  "protectedFileCount": 307,
+  "fixtureModule": "scripts/fixtures/framework7-notifications-preview.mjs",
+  "fixtureCount": 19,
+  "fixtureIds": [
+    "framework7-notifications-notice-system-restriction",
+    "framework7-notifications-notice-unavailable-content",
+    "framework7-notifications-notice-community-loaded",
+    "framework7-notifications-notice-community-recovery",
+    "framework7-notifications-notice-rating-loaded",
+    "framework7-notifications-notice-rating-likes",
+    "framework7-notifications-notice-rating-recovery",
+    "framework7-notifications-notice-window-loaded",
+    "framework7-notifications-notice-window-recovery",
+    "framework7-notifications-notice-major-loaded",
+    "framework7-notifications-notice-major-recovery",
+    "framework7-notifications-notice-social-loaded",
+    "framework7-notifications-notice-social-likes",
+    "framework7-notifications-notice-social-recovery",
+    "framework7-notifications-notice-followers-unavailable",
+    "framework7-notifications-notice-system-loaded",
+    "framework7-notifications-notice-system-recovery",
+    "framework7-notifications-notice-activity-unavailable",
+    "framework7-notifications-notice-activity-invalid"
+  ],
+  "validation": {
+    "tests": {
+      "command": "node --import tsx --test test/framework7-notifications-migration.test.ts test/notification-details-presentation.test.ts test/updates-*.test.ts test/ratings-r2*-*.test.ts test/rating-updates-*.test.ts test/social-notices.test.ts test/social-notice-aggregation.test.ts test/system-notices-{contract,controller,gateway}.test.ts test/system-timeline*.test.ts test/window-discussion-{controller,template,image-native}.test.ts test/major-discussion-{controller,template,image-native}.test.ts test/notice-senders.test.ts test/f7-native-foundations.test.ts test/f7-segmented.test.ts test/wxml-expression-syntax.test.ts",
+      "passed": 606,
+      "failed": 0
+    },
+    "sourceTypeScript": "../../node_modules/.bin/tsc --project tsconfig.json --noEmit",
+    "testTypeScript": "../../node_modules/.bin/tsc --project tsconfig.test.json --noEmit",
+    "eslint": "../../node_modules/.bin/eslint test/framework7-notifications-migration.test.ts test/notification-details-presentation.test.ts test/window-discussion-template.test.ts test/major-discussion-template.test.ts scripts/fixtures/framework7-notifications-preview.mjs scripts/smoke-system-notices.mjs",
+    "syntax": "node --check scripts/smoke-system-notices.mjs"
+  },
+  "centralChangesNeeded": [
+    {
+      "file": "scripts/smoke-build.mjs",
+      "old": "assert.match(updatesTemplate, /bindtap=\"onRead\"/);",
+      "replacement": "assert.match(updatesTemplate, /bind:press=\"onRead\"/);"
+    },
+    {
+      "file": "scripts/preview-apple.mjs",
+      "fixtureBatch": "framework7-notifications"
+    },
+    {
+      "file": "docs/native-component-flow-coverage.json",
+      "scope": "Update only after integrated snapshot gates"
+    }
+  ],
+  "notRun": [
+    "build/dist",
+    "release-package",
+    "browser/emulator",
+    "network/provider",
+    "remote-read-acknowledgment",
+    "commit/push/deployment",
+    "Tencent-device acceptance"
+  ],
+  "files": {
+    "src/pages/community-updates/community-updates.wxml": "418aef79f0e126190d3488d385ea1be815522835f55e3355d0dac5549e149b8f",
+    "src/pages/community-updates/community-updates.wxss": "0a12d85cc946c85b92256c41ea25b2ac66d49ffda58f8d39c509a78f91098027",
+    "src/pages/community-updates/community-updates.json": "ce045499cce177fa383ea23cae484fb17b1461ca3ea065e41957edaa579fdff8",
+    "src/pages/rating-updates/rating-updates.wxml": "edcac3e10947739d932ac34f5b7beec276d7d0b1e20de53c9493bb43bcb2933b",
+    "src/pages/rating-updates/rating-updates.wxss": "ed8dfed6e1fce48f0415c3cde1e5e6899b8a6d173bf61ca6bc8e557d3ed1ce3d",
+    "src/pages/rating-updates/rating-updates.json": "273e5972832e706c497ece07dfaa49f809c23c3300c849ae1206e577458e94b2",
+    "src/pages/window-discussion-notices/window-discussion-notices.wxml": "3afec454493fea642bff33c542fbbbaf5c0ae676eff5b5bc5fa9ef4f62e3509c",
+    "src/pages/window-discussion-notices/window-discussion-notices.wxss": "ee034c550761e5d018b086d59a6ee6a58b6a5f8c30372f532f99c0b2d8da521c",
+    "src/pages/window-discussion-notices/window-discussion-notices.json": "ff43c69628c77856839dd6e729a05478588bec7c75f91bc26c9794f4c50b2534",
+    "src/pages/major-discussion-notices/major-discussion-notices.wxml": "65a00e9ad259f9d5ea46b39379291c810b9ccffea31984ea030bf337621f4245",
+    "src/pages/major-discussion-notices/major-discussion-notices.wxss": "df5ddf2dfb1b275457dc5e63cdbbd6628771be37defeb22feb1932e0542f1a7a",
+    "src/pages/major-discussion-notices/major-discussion-notices.json": "18d1c62cc04ea64c5ce2e5f580390fcf32e1efff7efa6f87164d7967ba227bce",
+    "src/pages/social-notices/social-notices.wxml": "ceb6e6d58352f5c19b959f26a8fc096480623cf9c1e22201121d3b00e7f56f8b",
+    "src/pages/social-notices/social-notices.wxss": "548efe878f82fc608598dbce41052a08dac727fa7c5adfb91d903e921849a63e",
+    "src/pages/social-notices/social-notices.json": "17201836bdaa24c9a14830972154852fd1b885afa0eb920b45c7a837d5d7c2dc",
+    "src/pages/system-notices/system-notices.wxml": "d98ab86e99b52fc8e84ef9dc059e2e22e01a733261c5a48878d0f2f96b9af3c2",
+    "src/pages/system-notices/system-notices.wxss": "8a69be059ea82b16325ded55768c798709ebd8e4402c2bd12575bbd88634d4e1",
+    "src/pages/system-notices/system-notices.json": "92eb7b7e7846f72e2884fd844d27c3a95f151afb8e66a3cc6efb7aafae6d0129",
+    "src/pages/notice-thread/notice-thread.wxml": "54fda630e09b73355943bdd5a0297d39f20a2a34cd56df784f58c77de1da4b63",
+    "src/pages/notice-thread/notice-thread.wxss": "9cb6e1a710793f1e0912a179a3641416ee45face6237214bc20528e9a229960f",
+    "src/pages/notice-thread/notice-thread.json": "9cce1dac4bab0e7ce809c9831a4acf0b1e430c5c72a2edc69bbf9a03c082586a",
+    "src/notifications/framework7-details.wxss": "659d8798ca167408ea658ee9d4e9cae975f92a20c44f9cc75e48c9371acbf993",
+    "scripts/fixtures/framework7-notifications-preview.mjs": "56b0fd282d6632ae3bb162da410bc27a904dda7f635ecac572d55f476397a405",
+    "scripts/smoke-system-notices.mjs": "c8b86e5045d4345291840f63dc4d4a90601b322d06c170688ca6702cb3ba340e",
+    "test/framework7-notifications-migration.test.ts": "a745658d96d499ea72bab1adbc86bbfca39f84fc9a0fcb5e5dfb368dd14995f8",
+    "test/fixtures/framework7-notifications-before-actions.json": "2fd4d3c0a456be925aa3b69668a931f1bfb127485b498fc638101b8b812cb549",
+    "test/fixtures/framework7-notifications-before-protected.json": "6bbc2023784fc6b2cdf0a0f727472f77ec823759b9def8331c74eacfe203bada",
+    "test/notification-details-presentation.test.ts": "bb5167e010116ab62432b94518aa6ebd90141453a99baaabd757d4377b98a596",
+    "test/window-discussion-template.test.ts": "4b359cbcb8f6c4ba01da4cd5bd0372e5a0c43de5f563e1c34ee86d9e3fd4ed0b",
+    "test/major-discussion-template.test.ts": "afeef0897115aa45c1ed865d05e45c5ee3c224f264c6ed806ebe84bdaebe0eae",
+    "docs/FRAMEWORK7_NOTIFICATIONS_HANDOFF.md": "6942830e855836ad64a8536b2e73f18aaeb41578adce760c11442ef912c57759"
+  }
+}

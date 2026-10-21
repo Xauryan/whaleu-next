@@ -1,0 +1,15 @@
+<view wx:for="{{renderKeys}}" wx:key="generation" wx:if="{{rendered}}" class="f7-ios-theme f7-overlay-layer f7-actions-layer f7-overlay-{{phase}}" catchtap="onConsumeTap">
+  <view class="f7-overlay-mask {{visible ? 'f7-overlay-mask-visible' : ''}}" data-session-id="{{activeSessionId}}" data-generation="{{generation}}" data-attempt-key="{{attemptKey}}" catchtap="onBackdrop" catchtouchmove="onConsumeMove" aria-hidden="true" />
+  <view class="f7-overlay-position" style="bottom:{{keyboardInset}}px;">
+    <view class="f7-actions-surface {{visible ? 'f7-actions-visible' : ''}} {{useSafeArea ? 'f7-overlay-safe' : ''}}" aria-role="dialog" aria-label="{{title || '选择操作'}}" aria-busy="{{loading}}">
+      <scroll-view class="f7-actions-scroll" scroll-y="{{true}}" enhanced="{{true}}" bounces="{{false}}" show-scrollbar="{{true}}" aria-label="可用操作">
+        <view class="f7-actions-group">
+          <view wx:if="{{title}}" class="f7-actions-label">{{title}}</view>
+          <button wx:for="{{items}}" wx:key="id" class="f7-actions-button {{item.strong ? 'f7-actions-strong' : ''}} {{item.destructive ? 'f7-actions-destructive' : ''}} {{item.disabled || interactionDisabled ? 'f7-actions-disabled' : ''}}" disabled="{{item.disabled || interactionDisabled}}" aria-role="button" aria-label="{{item.label}}" aria-disabled="{{item.disabled || interactionDisabled}}" hover-class="{{item.disabled || interactionDisabled ? 'none' : 'f7-actions-pressed'}}" hover-stop-propagation="{{true}}" hover-start-time="{{0}}" hover-stay-time="{{0}}" data-id="{{item.id}}" data-items-revision="{{itemsRevision}}" data-session-id="{{activeSessionId}}" data-generation="{{generation}}" data-attempt-key="{{attemptKey}}" catchtap="onAction">{{item.label}}</button>
+        </view>
+      </scroll-view>
+      <view wx:if="{{loading}}" class="f7-actions-status" aria-live="polite" catchtouchmove="onConsumeMove">处理中…</view>
+      <view wx:if="{{cancelLabel}}" class="f7-actions-group f7-actions-cancel" catchtouchmove="onConsumeMove"><button class="f7-actions-button f7-actions-strong {{interactionDisabled ? 'f7-actions-disabled' : ''}}" disabled="{{interactionDisabled}}" aria-role="button" aria-label="{{cancelLabel}}" hover-class="{{interactionDisabled ? 'none' : 'f7-actions-pressed'}}" hover-stop-propagation="{{true}}" hover-start-time="{{0}}" hover-stay-time="{{0}}" data-session-id="{{activeSessionId}}" data-generation="{{generation}}" data-attempt-key="{{attemptKey}}" catchtap="onCancel">{{cancelLabel}}</button></view>
+    </view>
+  </view>
+</view>

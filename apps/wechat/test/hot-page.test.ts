@@ -359,7 +359,9 @@ test('hot registration and plain card bindings expose no rank/score/private fiel
   assert.match(page, /下一页/);
   assert.match(page, /上一页/);
   assert.match(page, /继续查看/);
-  assert.match(page, /data-key="\{\{item.key\}\}" bindtap="onRange"/);
+  // Native Button now emits the same onRange handler through press; the
+  // collection action inventory separately proves exact datasets and guards.
+  assert.match(page, /data-key="\{\{item.key\}\}"[^>]*bind:press="onRange"/);
   assert.doesNotMatch(
     page,
     /rich-text|\bscore\b|\brank\b|\bindex\b|\btotal\b|accountId|actor|certificate|privateAuthor|本校|大学城/,

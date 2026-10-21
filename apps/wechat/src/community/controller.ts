@@ -32,7 +32,7 @@ export const reasonMessage = (code: string | null): string =>
       '需要确认身份校区；请进入身份校区页面明确选择，浏览校区不能代替',
     COMMUNITY_ACTION_RESTRICTED: '当前账号暂不能执行此操作',
     AUTHOR_MODE_NOT_ALLOWED: '所选身份暂不可用，请自行确认身份选择后再发布',
-    COMMENTS_DISABLED: '此帖暂不开放普通评论',
+    COMMENTS_DISABLED: '此帖暂不开放普通回复',
     CONTENT_REJECTED: '内容未通过安全审核，请修改后再提交',
     CONTENT_REVIEW_UNAVAILABLE:
       '尚不能确认此内容的有效审核，暂不能发布；当前版本尚未开放审核提交流程',
@@ -41,13 +41,13 @@ export const reasonMessage = (code: string | null): string =>
     NOTICE_NOT_FOUND: '此更新不存在或不属于当前账号，请刷新列表',
     POST_NOT_FOUND: '帖子不存在或当前不可查看',
     ADMIN_DISCUSSION_REMOVAL_UNAVAILABLE:
-      '当前不能确认评论/回复管理状态；待确认的原请求请继续查询回执',
+      '当前不能确认回复管理状态；待确认的原请求请继续查询回执',
     ADMIN_DISCUSSION_REMOVAL_TARGET_NOT_ALLOWED:
-      '此评论/回复当前不适用于所选地区的管理员删除',
+      '此回复当前不适用于所选地区的管理员删除',
     ADMIN_DISCUSSION_REMOVAL_OWN_CONTENT:
-      '这是你发布的内容，请返回原讨论使用“删除我的评论”或“删除我的回复”',
-    ADMIN_DISCUSSION_REMOVAL_STALE: '评论/回复状态已变化，请重新核验并确认',
-    ADMIN_DISCUSSION_REMOVAL_CANCELLED: '原管理员评论/回复删除请求已取消',
+      '这是你发布的内容，请返回原讨论使用“删除我的回复”或“删除我的回复”',
+    ADMIN_DISCUSSION_REMOVAL_STALE: '回复状态已变化，请重新核验并确认',
+    ADMIN_DISCUSSION_REMOVAL_CANCELLED: '原管理员回复删除请求已取消',
     ADMIN_POST_REMOVAL_UNAVAILABLE:
       '当前不能确认帖子管理状态；待确认的原请求请继续查询回执',
     ADMIN_POST_REMOVAL_TARGET_NOT_ALLOWED:
@@ -87,7 +87,7 @@ export const reasonMessage = (code: string | null): string =>
     SAFETY_MODERATION_TARGET_PROTECTED: '此账号具有受保护身份',
     SYSTEM_NOTICES_UNAVAILABLE: '系统通知服务尚未就绪，请稍后重试',
     REPORT_TARGET_UNAVAILABLE: '此内容当前不可查看，进度不可用',
-    REPORT_SELF_NOT_ALLOWED: '不能举报自己的帖子、评论或回复',
+    REPORT_SELF_NOT_ALLOWED: '不能举报自己的帖子、回复',
     REPORT_ALREADY_REPORTED: '你已举报过此内容，每个账号只能举报一次',
     REPORTING_CLOSED: '此帖已经进入过陪审，不再接受新举报',
     REPORT_SCOPE_UNAVAILABLE: '当前管理权限的内容范围尚不能确认，举报暂不可用',
@@ -121,9 +121,9 @@ export const reasonMessage = (code: string | null): string =>
     RATE_LIMITED: '操作过于频繁，请稍后重试',
     DISCUSSION_RESTART_REQUIRED: '讨论排序已变化，请重新加载，旧分页已清除',
     REPLY_NOT_FOUND: '回复不存在或当前不可查看',
-    COMMENT_PIN_CONFLICT: '此帖已有置顶评论，请先取消原置顶后再选择另一条',
-    COMMENT_PIN_FORBIDDEN: '只有帖子作者可以置顶根评论',
-    COMMENT_NOT_FOUND: '评论不存在或当前不可查看',
+    COMMENT_PIN_CONFLICT: '此帖已有置顶回复，请先取消原置顶后再选择另一条',
+    COMMENT_PIN_FORBIDDEN: '只有帖子作者可以置顶根回复',
+    COMMENT_NOT_FOUND: '回复不存在或当前不可查看',
     POST_DELETED: '帖子已删除',
     AUTHENTICATION_REQUIRED: '请先登录后参与',
     FORMATION_NOT_FOUND: '组队不存在或当前不可查看',

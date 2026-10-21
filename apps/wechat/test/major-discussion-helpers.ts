@@ -47,7 +47,7 @@ export const item = (patch: Partial<DiscussionItem> = {}): DiscussionItem => ({
   majorId: id,
   rootId: null,
   replyToReplyId: null,
-  body: '合成评论 😀',
+  body: '合成回复 😀',
   author,
   addressedAuthor: null,
   createdAt: recordedAt,

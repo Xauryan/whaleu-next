@@ -9,6 +9,12 @@ const exactDeadlines = new WeakMap<
   { until: string; code: ApplicationErrorCode }[]
 >();
 const readEpochs = new WeakMap<PoolClient, object>();
+// Stable only for one transaction; unlike read epochs, optional rollback must
+// not reset shared work budgets. Never use this token as an authority proof.
+const lifetimes = new WeakMap<PoolClient, object>();
+export function transactionLifetime(tx: PoolClient): object | undefined {
+  return lifetimes.get(tx);
+}
 const optionalDeadlines = new WeakMap<
   PoolClient,
   { until: number; expire: () => void }[]
@@ -85,6 +91,7 @@ export function hasTransactionDeadlines(tx: PoolClient): boolean {
 }
 
 export function startTransactionDeadlines(tx: PoolClient) {
+  lifetimes.set(tx, Object.freeze({}));
   deadlines.set(tx, new Map());
   exactDeadlines.set(tx, []);
   readEpochs.set(tx, Object.freeze({}));
@@ -93,6 +100,7 @@ export function startTransactionDeadlines(tx: PoolClient) {
   requiredProofs.set(tx, new Map());
 }
 export function clearTransactionDeadlines(tx: PoolClient) {
+  lifetimes.delete(tx);
   deadlines.delete(tx);
   exactDeadlines.delete(tx);
   readEpochs.delete(tx);

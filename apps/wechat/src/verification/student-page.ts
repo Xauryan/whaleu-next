@@ -21,9 +21,16 @@ interface StudentNativePage {
     value: Partial<StudentView> & { schoolUidView?: OwnSchoolUidView },
   ): void;
 }
-export function studentPage(mode: 'own' | 'review' | 'notices') {
+export function studentPage(
+  mode: 'own' | 'review' | 'notices',
+  present: (view: StudentView) => Record<string, unknown> = () => ({}),
+) {
   const definition: Record<string, unknown> & ThisType<StudentNativePage> = {
-    data: { ...initialStudentView(), schoolUidView: initialOwnSchoolUidView() },
+    data: {
+      ...present(initialStudentView()),
+      ...initialStudentView(),
+      schoolUidView: initialOwnSchoolUidView(),
+    },
     schoolUidController: undefined as OwnSchoolUidController | undefined,
     controller: undefined as StudentVerificationController | undefined,
     route: {} as { applicationId?: string; regionId?: string },
@@ -51,6 +58,7 @@ export function studentPage(mode: 'own' | 'review' | 'notices') {
         !app.verification
       ) {
         this.setData({
+          ...present(initialStudentView()),
           ...initialStudentView(),
           error: '认证服务尚未配置，请先登录',
         });
@@ -68,7 +76,8 @@ export function studentPage(mode: 'own' | 'review' | 'notices') {
           newRequestId: app.community.newRequestId,
           media: app.studentEvidence,
           privateViews: app.verification.privateViews,
-          render: (view: StudentView) => this.setData({ ...view }),
+          render: (view: StudentView) =>
+            this.setData({ ...present(view), ...view }),
         },
         mode,
         this.route,

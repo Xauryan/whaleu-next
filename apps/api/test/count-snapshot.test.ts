@@ -51,6 +51,7 @@ import type {
   ContentKind,
   EffectiveContentEnvelope,
 } from '../src/community/content-review/contracts.js';
+import { CurrentRatingLinkDependency } from '../src/community/rating-target-link/dependency.js';
 import { ContentReviewCountFacade } from '../src/community/content-review/count-snapshot.facade.js';
 import {
   ContentReviewCountRepository,
@@ -472,11 +473,19 @@ function fixture(collision = false) {
       );
     },
   };
+  const targetLinks = new CurrentRatingLinkDependency();
+  const currentLinks = targetLinks.currentBatch.bind(targetLinks);
+  let linkDependencyCalls = 0;
+  targetLinks.currentBatch = (...args) => {
+    linkDependencyCalls++;
+    return currentLinks(...args);
+  };
   const facade = new ContentReviewCountFacade(
     records,
     countCampus,
     safety,
     media,
+    targetLinks,
   );
   const scalarPost = async () => {
     try {
@@ -507,6 +516,7 @@ function fixture(collision = false) {
     }
   };
   return {
+    linkDependencyCalls: () => linkDependencyCalls,
     viewer,
     post,
     root,
@@ -1361,4 +1371,149 @@ test('exact definition equality reuses accepted digest without relaxing any cano
     definitionMatchesApproval(imageStored, imageAccepted, true),
     true,
   );
+});
+
+test('discussion child snapshots match scalar list/detail ancestry and never borrow target identity', async () => {
+  const changes: ((f: ReturnType<typeof fixture>) => void)[] = [
+    () => {},
+    (f) => {
+      f.root.visibility = 'hidden';
+    },
+    (f) => {
+      f.root.deleted_at = new Date();
+    },
+    (f) => {
+      f.post.visibility = 'hidden';
+    },
+    (f) => {
+      f.blocked.add(f.root.account_id);
+    },
+    (f) => {
+      f.blocked.add(f.reply.account_id);
+    },
+    (f) => {
+      f.unknownSafety.add(f.reply.account_id);
+    },
+    (f) => {
+      f.snapshot.bindings.delete(contentKey('comment', f.root.id));
+    },
+  ];
+  for (const change of changes) {
+    const f = fixture();
+    change(f);
+    const candidate = {
+      kind: 'reply' as const,
+      id: f.reply.id,
+      postId: f.post.id,
+      rootId: f.root.id,
+    };
+    let expected = 'allow';
+    try {
+      for (const content of [f.post, f.root, f.reply]) {
+        if (
+          !(await f.access.visible(f.viewer, content, f.tx, 'list_projection'))
+        ) {
+          expected = 'deny';
+          break;
+        }
+      }
+    } catch {
+      expected = 'unknown';
+    }
+    const batch = await f.facade.evaluateDiscussion(
+      [candidate],
+      f.viewer,
+      'list_projection',
+      f.tx,
+    );
+    assert.equal(
+      batch.facts.get(contentKey('reply', f.reply.id))?.decision,
+      expected,
+    );
+  }
+});
+test('discussion private hidden detail permits only owner while public/liked defaults stay denied', async () => {
+  const f = fixture();
+  f.post.owner_hidden = true;
+  const candidate = {
+    kind: 'reply' as const,
+    id: f.reply.id,
+    postId: f.post.id,
+    rootId: f.root.id,
+  };
+  assert.equal(
+    (
+      await f.facade.evaluateDiscussion(
+        [candidate],
+        f.post.account_id,
+        'detail_projection',
+        f.tx,
+      )
+    ).facts.get(contentKey('reply', f.reply.id))?.decision,
+    'allow',
+  );
+  for (const [viewer, purpose] of [
+    [f.post.account_id, 'list_projection'],
+    [f.viewer, 'detail_projection'],
+  ] as const)
+    assert.equal(
+      (
+        await f.facade.evaluateDiscussion([candidate], viewer, purpose, f.tx)
+      ).facts.get(contentKey('reply', f.reply.id))?.decision,
+      'deny',
+    );
+  assert.equal(
+    (
+      await f.facade.evaluatePosts([f.post.id], f.post.account_id, f.tx)
+    ).facts.get(f.post.id)?.decision,
+    'deny',
+  );
+});
+
+test('discussion count requires exact current root classification before reply', async () => {
+  const f = fixture();
+  (f.snapshot.childContext.allowed as Map<string, boolean>).set(
+    contentKey('comment', f.root.id),
+    false,
+  );
+  const result = await f.facade.evaluateDiscussion(
+    [{ kind: 'reply', id: f.reply.id, postId: f.post.id, rootId: f.root.id }],
+    f.viewer,
+    'list_projection',
+    f.tx,
+  );
+  assert.equal(
+    result.facts.get(contentKey('reply', f.reply.id))?.decision,
+    'deny',
+  );
+});
+
+test('v5 discussion optional counts do not enter a dependency that lacks the shared monotonic budget', async () => {
+  const f = fixture();
+  // An opaque nonempty dependency marker is sufficient: its binding must never
+  // be inspected by the optional discussion path, let alone sent to its owner.
+  f.snapshot.ratingTargetLinks = new Map([
+    [
+      f.post.id,
+      {
+        get binding() {
+          throw new Error('Unbounded dependency entered');
+        },
+      },
+    ],
+  ]) as unknown as NonNullable<CountReviewSnapshot['ratingTargetLinks']>;
+  const result = await f.facade.evaluateDiscussion(
+    [{ kind: 'reply', id: f.reply.id, postId: f.post.id, rootId: f.root.id }],
+    f.viewer,
+    'list_projection',
+    f.tx,
+  );
+  assert.equal(
+    result.facts.get(contentKey('reply', f.reply.id))?.decision,
+    'unknown',
+  );
+  assert.equal(f.linkDependencyCalls(), 0);
+  assert.deepEqual(f.mediaState.inputs, []);
+  assert.deepEqual(f.safetyInputs, []);
+  assert.equal(result.optionalUntil, null);
 });

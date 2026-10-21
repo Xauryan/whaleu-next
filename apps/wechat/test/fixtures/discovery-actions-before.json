@@ -1,0 +1,884 @@
+{
+  "community-search": [
+    {
+      "event": "bindtap",
+      "action": "onMode",
+      "dataset": {
+        "data-mode": "keyword"
+      },
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onMode",
+      "dataset": {
+        "data-mode": "semantic"
+      },
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onAggregateScope",
+      "dataset": {
+        "data-scope": "all"
+      },
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onAggregateScope",
+      "dataset": {
+        "data-scope": "regional"
+      },
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onAggregateScope",
+      "dataset": {
+        "data-scope": "global"
+      },
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onScope",
+      "dataset": {
+        "data-id": "{{regional.id}}"
+      },
+      "guards": ["wx:if:{{regional}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onScope",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": ["wx:for:{{globalSpaces}}", "wx:key:id"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCategory",
+      "dataset": {
+        "data-key": "{{item.key}}"
+      },
+      "guards": [
+        "wx:if:{{selectedScope === 'all' || selectedScope === 'regional' || selectedScope === 'explicit' && space}}",
+        "wx:for:{{categories}}",
+        "wx:key:key",
+        "wx:if:{{selectedScope === 'all' || selectedScope === 'regional' || space && space.kind === 'regional' || item.key === 'all' || item.key === 'discussion'}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onTradingSubtype",
+      "dataset": {
+        "data-key": ""
+      },
+      "guards": ["wx:if:{{category === 'trading'}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onTradingSubtype",
+      "dataset": {
+        "data-key": "{{item.key}}"
+      },
+      "guards": [
+        "wx:if:{{category === 'trading'}}",
+        "wx:for:{{tradingCategories}}",
+        "wx:key:key"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onType",
+      "dataset": {
+        "data-key": "{{item.key}}"
+      },
+      "guards": ["wx:for:{{searchTypes}}", "wx:key:key"]
+    },
+    {
+      "event": "bindchange",
+      "action": "onFromDate",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindchange",
+      "action": "onToDate",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onClearDates",
+      "dataset": {},
+      "guards": ["wx:if:{{from || to}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onClearPost",
+      "dataset": {},
+      "guards": ["wx:if:{{withinPostId}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/login/login",
+      "dataset": {},
+      "guards": ["wx:if:{{!hasSession}}"]
+    },
+    {
+      "event": "bindinput",
+      "action": "onInput",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindconfirm",
+      "action": "onSubmit",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onSubmit",
+      "dataset": {},
+      "guards": [
+        "disabled:{{!selectedScope || selectedScope === 'explicit' && !space || !configured}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{busy || !selectedScope}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-feed/community-feed",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "open:navigateBack",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onHit",
+      "dataset": {
+        "data-kind": "{{item.kind}}",
+        "data-id": "{{item.contentId}}"
+      },
+      "guards": ["wx:for:{{hits}}", "wx:key:key", "wx:if:{{hasSession}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onWithinPost",
+      "dataset": {
+        "data-post-id": "{{item.postId}}"
+      },
+      "guards": ["wx:for:{{hits}}", "wx:key:key", "wx:if:{{!withinPostId}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/login/login",
+      "dataset": {},
+      "guards": ["wx:if:{{continuation === 'login_required'}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPrevious",
+      "dataset": {},
+      "guards": ["wx:if:{{canPrevious}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNext",
+      "dataset": {},
+      "guards": ["wx:if:{{canNext}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/phone-binding/phone-binding",
+      "dataset": {},
+      "guards": ["wx:if:{{continuation === 'phone_verification_required'}}"]
+    }
+  ],
+  "community-hot": [
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-feed/community-feed",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onRange",
+      "dataset": {
+        "data-key": "{{item.key}}"
+      },
+      "guards": ["wx:for:{{hotRanges}}", "wx:key:key", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onAuthor",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": [
+        "wx:for:{{posts}}",
+        "wx:key:id",
+        "wx:if:{{item.author.kind === 'named'}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{item.id}}&viewSpaceId={{selectedSpaceId}}",
+      "dataset": {},
+      "guards": ["wx:for:{{posts}}", "wx:key:id", "wx:if:{{hasSession}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/login/login",
+      "dataset": {},
+      "guards": ["wx:for:{{posts}}", "wx:key:id", "wx:else:"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/login/login",
+      "dataset": {},
+      "guards": ["wx:if:{{continuation === 'login_required'}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/phone-binding/phone-binding",
+      "dataset": {},
+      "guards": ["wx:if:{{continuation === 'phone_verification_required'}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPrevious",
+      "dataset": {},
+      "guards": ["wx:if:{{canPrevious}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNext",
+      "dataset": {},
+      "guards": ["wx:if:{{canNext}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onToggleInfo",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "open:navigateBack",
+      "dataset": {},
+      "guards": []
+    }
+  ],
+  "community-saved": [
+    {
+      "event": "bindtap",
+      "action": "onReload",
+      "dataset": {},
+      "guards": ["disabled:{{busy || savedMutation.busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/login/login",
+      "dataset": {},
+      "guards": ["wx:if:{{!hasSession}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onAuthor",
+      "dataset": {
+        "data-id": "{{item.post.id}}"
+      },
+      "guards": [
+        "wx:for:{{items}}",
+        "wx:key:saveEpochId",
+        "wx:if:{{item.post.author.kind === 'named'}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{item.post.id}}",
+      "dataset": {},
+      "guards": ["wx:for:{{items}}", "wx:key:saveEpochId"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onUnsave",
+      "dataset": {
+        "data-id": "{{item.post.id}}"
+      },
+      "guards": [
+        "wx:for:{{items}}",
+        "wx:key:saveEpochId",
+        "disabled:{{busy || savedMutation.busy || savedMutation.frozen || !item.post.viewer.canSave}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onMore",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{canLoadMore}}",
+        "disabled:{{busy || savedMutation.busy}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-updates/community-updates",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-feed/community-feed",
+      "dataset": {},
+      "guards": []
+    }
+  ],
+  "community-liked": [
+    {
+      "event": "bindtap",
+      "action": "onReload",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/login/login",
+      "dataset": {},
+      "guards": ["wx:if:{{!hasSession}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onAuthor",
+      "dataset": {
+        "data-id": "{{item.likeId}}"
+      },
+      "guards": [
+        "wx:for:{{items}}",
+        "wx:key:likeId",
+        "wx:if:{{item.preview.author.kind === 'named'}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{item.postId}}",
+      "dataset": {},
+      "guards": [
+        "wx:for:{{items}}",
+        "wx:key:likeId",
+        "wx:if:{{item.kind === 'post'}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{item.postId}}&rootCommentId={{item.rootCommentId}}",
+      "dataset": {},
+      "guards": [
+        "wx:for:{{items}}",
+        "wx:key:likeId",
+        "wx:elif:{{item.kind === 'comment'}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-thread/community-thread?postId={{item.postId}}&rootCommentId={{item.rootCommentId}}&replyId={{item.targetId}}",
+      "dataset": {},
+      "guards": ["wx:for:{{items}}", "wx:key:likeId", "wx:else:"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPrevious",
+      "dataset": {},
+      "guards": ["wx:if:{{canPrevious}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onMore",
+      "dataset": {},
+      "guards": ["wx:if:{{canLoadMore}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-mine/community-mine",
+      "dataset": {},
+      "guards": []
+    }
+  ],
+  "community-mine": [
+    {
+      "event": "navigate",
+      "action": "/pages/admin-discussion-removal/admin-discussion-removal",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/admin-post-removal/admin-post-removal",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/profile-avatar-moderation/profile-avatar-moderation",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/profile-moderation/profile-moderation",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/public-profile/public-profile",
+      "dataset": {},
+      "guards": ["wx:if:{{hasSession}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-liked/community-liked",
+      "dataset": {},
+      "guards": ["wx:if:{{hasSession}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/report-progress/report-progress",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/system-notices/system-notices",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-blocks/community-blocks",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-saved/community-saved",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{savedRecoveryPostId}}",
+      "dataset": {},
+      "guards": ["wx:if:{{savedRecoveryPostId}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-compose/community-compose",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{formationRecoveryPostId}}",
+      "dataset": {},
+      "guards": ["wx:if:{{formationRecoveryPostId}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{ballotRecoveryPostId}}",
+      "dataset": {},
+      "guards": ["wx:if:{{ballotRecoveryPostId}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-thread/community-thread?postId={{discussionRecoveryPostId}}&rootCommentId={{discussionRecoveryRootCommentId}}",
+      "dataset": {},
+      "guards": ["wx:if:{{discussionRecoveryPostId}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{tradingRecoveryPostId}}",
+      "dataset": {},
+      "guards": ["wx:if:{{tradingRecoveryPostId}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onAllPublications",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onOwnTrading",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onTradingSubtype",
+      "dataset": {
+        "data-key": ""
+      },
+      "guards": ["wx:if:{{onlyTrading}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onTradingSubtype",
+      "dataset": {
+        "data-key": "{{item.key}}"
+      },
+      "guards": [
+        "wx:if:{{onlyTrading}}",
+        "wx:for:{{tradingCategories}}",
+        "wx:key:key"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onReload",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/login/login",
+      "dataset": {},
+      "guards": ["wx:if:{{!hasSession}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onOwnerVisibilityHide",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": [
+        "wx:for:{{publications}}",
+        "wx:key:id",
+        "wx:if:{{item.ownerVisibility.canChange && !item.ownerVisibility.ownerHidden}}",
+        "disabled:{{busy || ownerVisibility.busy || ownerVisibility.frozen}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onOwnerVisibilityUnhide",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": [
+        "wx:for:{{publications}}",
+        "wx:key:id",
+        "wx:if:{{item.ownerVisibility.canChange && item.ownerVisibility.ownerHidden}}",
+        "disabled:{{busy || ownerVisibility.busy || ownerVisibility.frozen}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{item.id}}",
+      "dataset": {},
+      "guards": [
+        "wx:for:{{publications}}",
+        "wx:key:id",
+        "wx:if:{{item.status === 'published'}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onAuthor",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": [
+        "wx:for:{{tradingPosts}}",
+        "wx:key:id",
+        "wx:if:{{item.author.kind === 'named'}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-detail/community-detail?postId={{item.id}}",
+      "dataset": {},
+      "guards": ["wx:for:{{tradingPosts}}", "wx:key:id"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onMore",
+      "dataset": {},
+      "guards": ["wx:if:{{canLoadMore}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/community-feed/community-feed",
+      "dataset": {},
+      "guards": []
+    }
+  ],
+  "directory-hub": [
+    {
+      "event": "navigate",
+      "action": "/pages/organizations/organizations",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/major-directory/major-directory",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/rating-scoped/rating-scoped?mode=catalog&scope=global",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onKind",
+      "dataset": {
+        "data-kind": "{{item}}"
+      },
+      "guards": ["wx:for:{{directoryKinds}}", "wx:key:*this"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onSearch",
+      "dataset": {},
+      "guards": ["wx:if:{{loaded}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCategory",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": ["wx:for:{{categories}}", "wx:key:id", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPrevious",
+      "dataset": {},
+      "guards": ["wx:if:{{loaded}}", "disabled:{{busy || !canPrevious}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNext",
+      "dataset": {},
+      "guards": ["wx:if:{{loaded}}", "disabled:{{busy || !canNext}}"]
+    }
+  ],
+  "directory-list": [
+    {
+      "event": "bindinput",
+      "action": "onInput",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindconfirm",
+      "action": "onSubmit",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onSubmit",
+      "dataset": {},
+      "guards": ["disabled:{{!configured || !hasSession}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onClear",
+      "dataset": {},
+      "guards": []
+    },
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onEntry",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": ["wx:for:{{entries}}", "wx:key:id", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onPrevious",
+      "dataset": {},
+      "guards": ["wx:if:{{loaded}}", "disabled:{{busy || !canPrevious}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNext",
+      "dataset": {},
+      "guards": ["wx:if:{{loaded}}", "disabled:{{busy || !canNext}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNativeRefresh",
+      "dataset": {},
+      "guards": ["disabled:{{nativeDirectory.busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNativeEntry",
+      "dataset": {
+        "data-id": "{{item.id}}"
+      },
+      "guards": ["wx:for:{{nativeDirectory.items}}", "wx:key:id"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNativeMore",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{nativeDirectory.more}}",
+        "disabled:{{nativeDirectory.busy}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/directory-hub/directory-hub?kind={{kind}}",
+      "dataset": {},
+      "guards": []
+    }
+  ],
+  "directory-detail": [
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["wx:if:{{!managed}}", "disabled:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCancel",
+      "dataset": {},
+      "guards": ["wx:if:{{!managed}}", "wx:if:{{busy}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onCopyQq",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{!managed}}",
+        "wx:if:{{loaded && detail}}",
+        "wx:if:{{detail.platform === 'qq'}}",
+        "wx:if:{{canCopy}}",
+        "disabled:{{busy || copyBusy || !canCopy}}"
+      ]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/directory-hub/directory-hub?kind={{kind}}",
+      "dataset": {},
+      "guards": ["wx:if:{{!managed}}"]
+    },
+    {
+      "event": "bindtap",
+      "action": "onRefresh",
+      "dataset": {},
+      "guards": ["wx:if:{{managed}}", "disabled:{{nativeDetail.busy}}"]
+    },
+    {
+      "event": "navigate",
+      "action": "/pages/organization-editor/organization-editor?id={{nativeDetail.id}}",
+      "dataset": {},
+      "guards": [
+        "wx:if:{{managed}}",
+        "wx:if:{{nativeDetail.publicDetail}}",
+        "wx:if:{{nativeDetail.publicDetail.management.available}}"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNativePreview",
+      "dataset": {
+        "data-slot": "{{item.slot}}"
+      },
+      "guards": [
+        "wx:if:{{managed}}",
+        "wx:for:{{nativeDetail.slots}}",
+        "wx:key:slot"
+      ]
+    },
+    {
+      "event": "bindtap",
+      "action": "onNativeClose",
+      "dataset": {},
+      "guards": ["wx:if:{{managed}}", "wx:if:{{nativeImage.src}}"]
+    }
+  ]
+}

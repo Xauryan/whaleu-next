@@ -22,7 +22,7 @@
   <button bindtap="onHistory" disabled="{{busy || frozen}}">查看我的处罚历史</button>
  </view>
  <view wx:if="{{mode === 'appeal'}}" class="notice">申诉仅本人和当前有权的超级管理员可见，不会发布到公开反馈。申诉绑定具体处罚；提交不会自动解除处罚。</view>
- <view wx:if="{{mode === 'punishment-management' || mode === 'appeal-management'}}" class="notice">仅当前超级管理员可读取和处理。列表不显示匿名作者账号映射。这里不能新建任意账号处罚。</view>
+ <view wx:if="{{mode === 'punishment-management' || mode === 'appeal-management'}}" class="notice">仅当前超级管理员可读取和处理。列表不显示分身作者账号映射。这里不能新建任意账号处罚。</view>
  <view wx:for="{{punishments}}" wx:key="punishmentId" class="card">
   <view>{{item.kind === 'interaction_mute' ? '禁言' : '封号'}} · {{item.state}}</view><view>{{item.reason}}</view><view>{{item.endsAt || '永久'}}</view>
   <button data-id="{{item.punishmentId}}" bindtap="onSelectPunishment" disabled="{{busy || frozen}}">核验此项处罚</button>

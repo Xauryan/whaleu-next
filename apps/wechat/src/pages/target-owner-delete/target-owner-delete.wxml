@@ -1,25 +1,63 @@
-<import src="../../ratings/common.wxml" />
-<view class="screen">
-  <view class="title">删除我创建的对象</view>
+<import src="../../ratings/framework7-recovery-common.wxml" />
+<view class="screen management-page target-owner-delete f7-ios-theme f7-rating-recovery">
+  <wu-f7-block class="f7-recovery-content" spacing="compact">
+  <view class="management-context">
+    <view class="management-context-icon">
+      <wu-icon name="shield" tone="accent" size="22" />
+    </view>
+    <view class="management-context-copy">
+      <view class="context-title">
+        创建者删除
+      </view>
+      <view class="meta">
+        仅处理你创建的评分对象
+      </view>
+    </view>
+  </view>
   <template is="rating-status" data="{{status,error,receiptStatus,hasSession,frozen,recoveryOperation,busy,needsRefresh}}" />
-  <view class="notice">此页面核验你是否可以删除此对象，不展示对象详情。即使对象已隐藏，也可通过原链接申请删除。</view>
+  <view class="notice">
+    此页面核验你是否可以删除此对象，不展示对象详情。即使对象已隐藏，也可通过原链接申请删除。
+  </view>
   <view wx:if="{{ready}}" class="card">
-    <view class="section-title">{{deleted ? '此对象已删除' : '此对象'}}</view>
-    <button wx:if="{{!deleted}}" bindtap="onDelete" disabled="{{busy || frozen}}">删除此对象</button>
+    <view class="section-title">
+      {{deleted ? '此对象已删除' : '此对象'}}
+    </view>
+    <wu-f7-button wx:if="{{!deleted}}" bind:press="onDelete" disabled="{{busy || frozen}}" class="management-action" variant="tonal">
+      删除此对象
+    </wu-f7-button>
     <view wx:if="{{deleteConfirmation}}">
-      <view class="notice">删除后不再公开显示，评分和互动历史会保留。删除后无法恢复，确认删除此对象？</view>
-      <button bindtap="onConfirmDelete" disabled="{{busy || frozen}}">确认删除</button>
-      <button bindtap="onDismissDelete">暂不删除</button>
+      <view class="notice">
+        删除后不再公开显示，评分和互动历史会保留。删除后无法恢复，确认删除此对象？
+      </view>
+      <wu-f7-button bind:press="onConfirmDelete" disabled="{{busy || frozen}}" class="management-destructive" variant="tonal" tone="danger">
+        确认删除
+      </wu-f7-button>
+      <wu-f7-button bind:press="onDismissDelete" class="management-quiet" variant="plain">
+        暂不删除
+      </wu-f7-button>
     </view>
   </view>
   <view wx:if="{{canCancelDeletion}}" class="card">
-    <button bindtap="onCancelDeletion" disabled="{{busy}}">撤销这次未确认的删除申请</button>
+    <wu-f7-button bind:press="onCancelDeletion" disabled="{{busy}}" class="management-action" variant="tonal">
+      撤销这次未确认的删除申请
+    </wu-f7-button>
     <view wx:if="{{cancelDeletionConfirmation}}">
-      <view class="notice">确认撤销原删除申请？服务器将关闭尚未完成的原请求；若删除已经成功，只会返回成功回执，不会恢复对象。</view>
-      <button bindtap="onConfirmCancelDeletion" disabled="{{busy}}">确认撤销原申请</button>
-      <button bindtap="onDismissCancelDeletion" disabled="{{busy}}">保留原申请</button>
+      <view class="notice">
+        确认撤销原删除申请？服务器将关闭尚未完成的原请求；若删除已经成功，只会返回成功回执，不会恢复对象。
+      </view>
+      <wu-f7-button bind:press="onConfirmCancelDeletion" disabled="{{busy}}" class="management-destructive" variant="tonal" tone="danger">
+        确认撤销原申请
+      </wu-f7-button>
+      <wu-f7-button bind:press="onDismissCancelDeletion" disabled="{{busy}}" class="management-action" variant="plain">
+        保留原申请
+      </wu-f7-button>
     </view>
   </view>
-  <button bindtap="onCancel">关闭确认并停止等待</button>
-  <button bindtap="onReturnCatalog">返回目录并重新加载 →</button>
+  <wu-f7-button bind:press="onCancel" class="management-quiet" variant="plain">
+    关闭确认并停止等待
+  </wu-f7-button>
+  <wu-f7-button bind:press="onReturnCatalog" class="management-quiet" variant="plain">
+    返回目录并重新加载 →
+  </wu-f7-button>
+  </wu-f7-block>
 </view>

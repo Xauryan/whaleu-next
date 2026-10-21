@@ -1,3 +1,9 @@
 {
-  "navigationBarTitleText": "内容搜索"
+  "navigationBarTitleText": "搜索帖子",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon",
+    "wu-f7-block": "../../components/f7-block/f7-block",
+    "wu-f7-searchbar": "../../components/f7-searchbar/f7-searchbar",
+    "wu-f7-button": "../../components/f7-button/f7-button"
+  }
 }

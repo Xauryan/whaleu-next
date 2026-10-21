@@ -1,0 +1,19 @@
+<view wx:for="{{renderKeys}}" wx:key="generation" wx:if="{{rendered}}" class="f7-ios-theme f7-overlay-layer f7-dialog-layer f7-overlay-{{phase}}" catchtap="onConsumeTap">
+  <view class="f7-overlay-mask {{visible ? 'f7-overlay-mask-visible' : ''}}" catchtap="onConsumeTap" catchtouchmove="onConsumeMove" aria-hidden="true" />
+  <view class="f7-overlay-position f7-dialog-position {{useSafeArea ? 'f7-overlay-safe' : ''}}" style="bottom:{{keyboardInset}}px;">
+    <view class="f7-dialog-surface {{visible ? 'f7-dialog-visible' : ''}} {{phase === 'closing' ? 'f7-dialog-closing' : ''}}" aria-role="dialog" aria-label="{{title || '提示'}}" aria-busy="{{loading}}">
+      <scroll-view class="f7-dialog-scroll" scroll-y="{{true}}" enhanced="{{true}}" bounces="{{false}}" show-scrollbar="{{true}}" aria-label="{{title || '提示内容'}}">
+        <view class="f7-dialog-inner">
+          <view wx:if="{{title}}" class="f7-dialog-title">{{title}}</view>
+          <view wx:if="{{message}}" class="f7-dialog-message">{{message}}</view>
+          <view wx:for="{{editorKeys}}" wx:key="key" wx:if="{{mode === 'prompt'}}" class="f7-dialog-input"><f7-input value="{{value}}" label="{{inputLabel}}" aria-label="{{inputLabel}}" placeholder="{{placeholder}}" maxlength="{{maxlength}}" focus="{{editorFocused}}" disabled="{{interactionDisabled}}" adjust-position="{{false}}" error-text="{{errorText}}" data-session-id="{{activeSessionId}}" data-generation="{{generation}}" data-attempt-key="{{attemptKey}}" bind:input="onInput" bind:focus="onInputFocus" bind:blur="onInputBlur" bind:confirm="onKeyboardConfirm" /></view>
+          <view wx:if="{{mode !== 'prompt' && errorText}}" class="f7-dialog-error">{{errorText}}</view>
+        </view>
+      </scroll-view>
+      <view class="f7-dialog-buttons" catchtouchmove="onConsumeMove">
+        <view wx:if="{{mode === 'confirm' || mode === 'prompt'}}" class="f7-dialog-button"><f7-button interaction-key="{{buttonInteractionKey}}" size="large" round="{{true}}" variant="tonal" aria-label="{{cancelLabel}}" disabled="{{interactionDisabled}}" data-session-id="{{activeSessionId}}" data-generation="{{generation}}" data-attempt-key="{{attemptKey}}" bind:press="onCancel">{{cancelLabel}}</f7-button></view>
+        <view class="f7-dialog-button"><f7-button interaction-key="{{buttonInteractionKey}}" size="large" round="{{true}}" variant="fill" tone="{{destructive ? 'danger' : 'default'}}" aria-label="{{confirmLabel}}" disabled="{{interactionDisabled || confirmDisabled || !!errorText}}" loading="{{loading}}" data-session-id="{{activeSessionId}}" data-generation="{{generation}}" data-attempt-key="{{attemptKey}}" bind:press="onConfirm">{{confirmLabel}}</f7-button></view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -152,7 +152,7 @@ export class DiscussionGalleryController {
       groupKind: this.selected?.kind ?? null,
       groupId: this.selected?.id ?? '',
       title: this.selected
-        ? { post: '帖子图片', comment: '评论图片', reply: '回复图片' }[
+        ? { post: '帖子图片', comment: '回复图片', reply: '回复图片' }[
             this.selected.kind
           ]
         : '',

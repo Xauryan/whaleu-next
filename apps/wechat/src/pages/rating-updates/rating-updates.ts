@@ -1,3 +1,4 @@
+import { noticeRows, noticeStatus } from '../../notifications/details';
 import type { WhaleuApp } from '../../app';
 import { ClientError, isRecord } from '../../api/errors';
 import {
@@ -31,7 +32,12 @@ Page({
     }
     this.controller = new RatingUpdatesController(
       runtime,
-      (view) => this.setData({ ...view }),
+      (view) =>
+        this.setData({
+          ...view,
+          items: noticeRows(view.items),
+          uiStatus: noticeStatus(view.status),
+        }),
       (url) =>
         new Promise<void>((resolve, reject) => {
           if (!wx.navigateTo) {

@@ -1,22 +1,20 @@
-<view class="screen">
-  <view class="eyebrow">WHALEU · 当前范围帖子管理</view>
-  <view class="title">管理员删除帖子</view>
-  <view class="notice">从当前可查看的帖子核验本次浏览范围管理权限，匿名帖子同样适用。权限和帖子状态以服务端本次核验为准。</view>
+<view class="management-page moderation-native f7-ios-theme">
+  <view class="page-heading"><view class="section-label">按当前浏览范围核验</view><wu-f7-button class="icon-button" bind:press="onReload" disabled="{{busy}}" aria-label="重新核验目标与原请求" variant="plain"><wu-icon name="refresh" tone="accent" size="22" /></wu-f7-button></view>
+  <view class="scope"><wu-icon name="shield" tone="muted" size="18" /><text>仅处理当前可查看的主题，分身同样适用。管理权限与目标状态以本次服务端核验为准。</text></view>
   <view class="status" aria-role="status">{{status}}</view>
-  <view wx:if="{{addressError || error}}" class="error">{{addressError || error}}</view>
+  <view wx:if="{{addressError || error}}" class="error" aria-role="alert">{{addressError || error}}</view>
   <view wx:if="{{receiptStatus}}" class="notice" aria-role="status">{{receiptStatus}}</view>
-  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续 →</navigator>
-  <navigator wx:if="{{ownPost &amp;&amp; target}}" class="link" url="/pages/community-detail/community-detail?postId={{target.id}}">返回帖子使用“删除我的帖子” →</navigator>
-  <button bindtap="onReload" disabled="{{busy}}">重新核验目标与原请求</button>
-  <button wx:if="{{busy}}" bindtap="onStopWaiting">停止等待</button>
-  <view wx:if="{{management &amp;&amp; management.canRemove &amp;&amp; !frozen}}" class="card">
-    <view class="section-title">管理此帖子</view>
-    <view class="meta">帖子：{{management.target.id}}</view>
-    <button bindtap="onRemovePost" disabled="{{busy}}">删除此帖子</button>
-  </view>
-  <view wx:if="{{confirming === 'remove' &amp;&amp; management &amp;&amp; !frozen}}" class="card" aria-role="alert">
-    <view class="section-title">确认管理员删除此帖子？</view>
-    <view class="notice">删除后，此帖子及其评论、回复将不可访问，作者会收到私有系统通知。当前没有恢复此帖的管理入口。未选择处罚时仅删除内容。已下载或正在展示的图片不会即时从所有设备消失。帖子状态变化后需要重新确认。</view>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后继续<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <navigator wx:if="{{ownPost &amp;&amp; target}}" class="link" url="/pages/community-detail/community-detail?postId={{target.id}}">返回帖子使用“删除我的帖子”<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <wu-f7-button wx:if="{{busy}}" class="quiet" bind:press="onStopWaiting" variant="plain">停止等待</wu-f7-button>
+  <wu-f7-block wx:if="{{management &amp;&amp; management.canRemove &amp;&amp; !frozen}}" class="section" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="identity-row"><view class="identity-mark"><wu-icon name="post" tone="muted" size="25" /></view><view><view class="section-title">当前帖子主题</view><view class="meta">本次核验可删除</view></view></view>
+    <wu-f7-button class="disclosure" bind:press="onToggleDetails" aria-expanded="{{detailsExpanded}}" variant="plain">目标与核验信息<wu-icon name="{{detailsExpanded ? 'chevron-up' : 'chevron-down'}}" tone="muted" size="18" /></wu-f7-button><view wx:if="{{detailsExpanded}}" class="reference">主题编号：{{management.target.id}}<view>目标版本：{{management.targetVersion}}</view><view wx:if="{{management.viewSpaceId}}">本次浏览范围：{{management.viewSpaceId}}</view></view>
+    <wu-f7-button class="primary" bind:press="onRemovePost" disabled="{{busy}}" variant="fill">继续核对删除</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{confirming === 'remove' &amp;&amp; management &amp;&amp; !frozen}}" class="confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact">
+    <view class="section-title">确认删除此主题？</view>
+    <view class="notice">删除后，此主题及其全部回复将不可访问，作者会收到私有系统通知。当前没有恢复此帖的管理入口。未选择处罚时仅删除内容。已下载或正在展示的图片不会即时从所有设备消失。帖子状态变化后需要重新确认。</view>
     <view wx:if="{{management.version === 3}}" class="notice">当前浏览地区仅支持删除内容，删除会影响所有地区的同一条内容。</view>
     <view wx:if="{{management.punishmentOptions}}" class="punishment-controls">
       <view>可选：对该内容的原作者同时处罚</view>
@@ -39,23 +37,23 @@
         <view>有限时长从本次生效时重新计算。同类永久处罚须先由超级管理员解除，不能直接缩短；另一类处罚独立保留。</view>
       </view>
     </view>
-    <button bindtap="onSubmit" disabled="{{busy || frozen}}">确认删除帖子并通知作者</button>
-    <button bindtap="onClose" disabled="{{busy}}">返回</button>
-  </view>
-  <view wx:if="{{frozen}}" class="card">
+    <wu-f7-button class="primary destructive" bind:press="onSubmit" disabled="{{busy || frozen}}" variant="fill" tone="danger">删除主题并通知作者</wu-f7-button>
+    <wu-f7-button class="quiet" bind:press="onClose" disabled="{{busy}}" variant="plain">返回</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{frozen}}" class="recovery" strong="{{true}}" inset="{{true}}" spacing="compact">
     <view class="section-title">原管理员删帖请求待确认</view>
     <view wx:if="{{pendingTarget}}" class="meta">帖子 {{pendingTarget.id}} · {{pendingPhase === 'cancel' ? '取消请求' : '提交请求'}}</view>
     <view class="notice">查询不到回执不代表原请求不会完成。确认结果或取消成功前不能创建新请求，请保留本机数据。停止等待不会取消服务器处理。</view>
-    <button bindtap="onRecover" disabled="{{busy || !pendingRequestId}}">查询原删帖回执</button>
-    <button bindtap="onRetry" disabled="{{busy || !pendingRequestId}}">重试原删帖请求</button>
-    <button bindtap="onCancelRequest" disabled="{{busy || !pendingRequestId}}">取消原删帖请求</button>
-  </view>
-  <view wx:if="{{confirming === 'cancel'}}" class="card" aria-role="alert">
+    <wu-f7-button class="primary" bind:press="onRecover" disabled="{{busy || !pendingRequestId}}" variant="fill">查询原删帖回执</wu-f7-button>
+    <wu-f7-button class="secondary" bind:press="onRetry" disabled="{{busy || !pendingRequestId}}" variant="tonal">重试原删帖请求</wu-f7-button>
+    <wu-f7-button class="quiet" bind:press="onCancelRequest" disabled="{{busy || !pendingRequestId}}" variant="plain">取消原删帖请求</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{confirming === 'cancel'}}" class="confirmation" aria-role="alert" strong="{{true}}" inset="{{true}}" spacing="compact">
     <view>确认取消尚未完成的原删帖请求？如果删除已完成，仍返回原删除结果，不会恢复帖子。</view>
-    <button bindtap="onConfirmCancel" disabled="{{busy}}">确认取消原请求</button>
-    <button bindtap="onClose" disabled="{{busy}}">返回</button>
-  </view>
+    <wu-f7-button class="primary" bind:press="onConfirmCancel" disabled="{{busy}}" variant="fill">确认取消原请求</wu-f7-button>
+    <wu-f7-button class="quiet" bind:press="onClose" disabled="{{busy}}" variant="plain">返回</wu-f7-button>
+  </wu-f7-block>
   <view wx:if="{{!target &amp;&amp; !frozen &amp;&amp; !busy}}" class="notice">没有待确认请求时，请从具体帖子进入管理。</view>
-  <navigator class="link" url="/pages/community-mine/community-mine">我的发布与请求恢复 →</navigator>
-  <navigator class="link" url="/pages/community-feed/community-feed">返回校园社区 →</navigator>
+  <navigator class="link" url="/pages/community-mine/community-mine">我的发布与请求恢复<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
+  <navigator class="link" url="/pages/community-feed/community-feed">返回校园社区<wu-icon name="chevron-right" tone="muted" size="18" /></navigator>
 </view>

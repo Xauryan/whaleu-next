@@ -5,8 +5,17 @@ import {
   initialActivityView,
   type ActivityRoute,
 } from '../../activities/controller';
+import {
+  activityDisplayTimestamp,
+  initialActivityPanels,
+  toggledActivityPanels,
+} from '../activity-list/presentation';
 Page({
-  data: initialActivityView(),
+  data: {
+    ...initialActivityView(),
+    uiPanels: initialActivityPanels(),
+    publishedAtLabel: '',
+  },
   route: null as ActivityRoute | null,
   controller: undefined as ActivityController | undefined,
   onLoad(query: unknown = {}) {
@@ -19,6 +28,10 @@ Page({
   onShow() {
     this.controller?.dispose();
     this.controller = undefined;
+    this.setData({
+      uiPanels: initialActivityPanels(),
+      publishedAtLabel: '',
+    });
     const runtime = getApp<WhaleuApp>().community;
     if (!runtime) {
       this.setData({
@@ -28,7 +41,14 @@ Page({
       return;
     }
     this.controller = new ActivityController(runtime, 'detail', (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        publishedAtLabel: activityDisplayTimestamp(
+          view.detail?.createdAt.status === 'known'
+            ? view.detail.createdAt.value
+            : null,
+        ),
+      }),
     );
     void this.controller.load(this.route);
   },
@@ -38,13 +58,29 @@ Page({
   onCancel() {
     this.controller?.cancel();
   },
+  onTogglePanel(e: { currentTarget: { dataset: { field: string } } }) {
+    this.setData({
+      uiPanels: toggledActivityPanels(
+        this.data.uiPanels,
+        e.currentTarget.dataset.field,
+      ),
+    });
+  },
   onHide() {
     this.controller?.dispose();
     this.controller = undefined;
+    this.setData({
+      uiPanels: initialActivityPanels(),
+      publishedAtLabel: '',
+    });
   },
   onUnload() {
     this.controller?.dispose();
     this.controller = undefined;
     this.route = null;
+    this.setData({
+      uiPanels: initialActivityPanels(),
+      publishedAtLabel: '',
+    });
   },
 });

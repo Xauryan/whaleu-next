@@ -19,6 +19,114 @@ import { IdentityMaintenance } from '../../src/identity/maintenance.js';
 import { hashToken, mintToken } from '../../src/identity/tokens.js';
 import { profileAvatarModerationFixture } from '../support/profile-avatar-moderation-fixture.js';
 import { profileOk } from '../support/media/profile-runtime-fixture.js';
+import type { EffectiveContentEnvelopeV1 } from '../../src/community/content-review/contracts.js';
+import { CommunitySubscriptionEnrollment } from '../../src/community/subscription-component/enrollment.js';
+import { CommunityLikeEnrollment } from '../../src/community/like-component/enrollment.js';
+import { CommunityViewEnrollment } from '../../src/community/view-component/enrollment.js';
+import { CommunityCommentEnrollment } from '../../src/community/comment-component/enrollment.js';
+import { enrollPublishedHotProcessing } from '../../src/community/hot-score/storage.js';
+import { approveEnvelope } from '../support/community-approval-fixtures.js';
+import { withCommunityScopeWriter } from '../support/community-scope-fixtures.js';
+
+/** Seed only publication prerequisites, not the moderation commands under test.
+ * Current publication requires the 0171 reference owner, absent at 0132. Keep
+ * the real historical schema and its guards rather than installing future DDL
+ * or disabling current reference allocation. All facts below are synthetic. */
+async function historicalContent(
+  f: Awaited<ReturnType<typeof profileAvatarModerationFixture>>,
+  accountId: string,
+  postId: string | null = null,
+) {
+  const kind = postId === null ? 'post' : 'comment';
+  const id = randomUUID(),
+    requestId = randomUUID();
+  const envelope: EffectiveContentEnvelopeV1 = {
+    version: 1,
+    accountId,
+    purpose: postId === null ? 'publish_post' : 'publish_comment',
+    spaceId: f.scope.home.spaceId,
+    category: 'discussion',
+    authorMode: 'named',
+    commentsPolicy: 'open',
+    postId,
+    rootCommentId: null,
+    targetReplyId: null,
+    text: `Synthetic historical ${kind}`,
+    images: [],
+    component: { kind: 'none' },
+    trading: null,
+    scope: {
+      originalSpaceId: f.scope.home.spaceId,
+      originalRegionId: f.scope.home.regionId,
+      authorOriginRegionId: f.scope.home.regionId,
+      identityRegionId: f.scope.home.regionId,
+      topologySnapshotId: f.scope.topologySnapshotId,
+      sync: 'none',
+    },
+  };
+  const approval = await approveEnvelope(f.pool, envelope);
+  await withCommunityScopeWriter(f.pool, async (tx) => {
+    await tx.query(
+      'INSERT INTO whaleu_community.publication_requests(account_id,client_request_id,payload_hash,operation,receipt) VALUES($1,$2,$3,$4,$5)',
+      [
+        accountId,
+        requestId,
+        approval.digest,
+        envelope.purpose,
+        {
+          requestId,
+          operation: envelope.purpose,
+          outcome: 'created',
+          resourceId: id,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    );
+    if (postId === null)
+      await tx.query(
+        "INSERT INTO whaleu_community.posts(id,space_id,account_id,category,text,author_mode,comments_policy) VALUES($1,$2,$3,'discussion',$4,'named','open')",
+        [id, f.scope.home.spaceId, accountId, envelope.text],
+      );
+    else
+      await tx.query(
+        "INSERT INTO whaleu_community.root_comments(id,post_id,account_id,text,author_mode) VALUES($1,$2,$3,$4,'named')",
+        [id, postId, accountId, envelope.text],
+      );
+    await tx.query(
+      "INSERT INTO whaleu_community.report_origins(kind,target_id,owner_account_id,source_request_id,provenance) VALUES($1,$2,$3,$4,'native_publication')",
+      [kind, id, accountId, requestId],
+    );
+    await tx.query(
+      'INSERT INTO whaleu_community.content_approval_bindings(content_kind,content_id,content_version,decision_id,account_id,operation,envelope_version,digest,envelope,scope) VALUES($1,$2,1,$3,$4,$5,1,$6,$7,$8)',
+      [
+        kind,
+        id,
+        approval.decisionId,
+        accountId,
+        envelope.purpose,
+        approval.digest,
+        approval.envelope,
+        approval.envelope.scope,
+      ],
+    );
+    if (postId === null) {
+      const canonical = {
+        postId: id,
+        ownerId: accountId,
+        publicationRequestId: requestId,
+      };
+      for (const owner of [
+        new CommunitySubscriptionEnrollment(),
+        new CommunityViewEnrollment(),
+        new CommunityCommentEnrollment(),
+        new CommunityLikeEnrollment(),
+      ])
+        await owner.enrollPublishedPost(canonical, tx);
+      await enrollPublishedHotProcessing(id, tx);
+    }
+  });
+  return { kind, id };
+}
 
 const families = [
   [
@@ -61,9 +169,22 @@ test(
       stranger = await f.actor(),
       plain = await f.actor();
     await f.custom(subject);
-    const post = await f.publish(subject);
-    const discussionPost = await f.publish(subject);
-    const child = await f.child(subject, discussionPost.id);
+    assert.equal(
+      (
+        await f.pool.query(
+          "SELECT to_regclass('whaleu_community.content_reference_policy') present",
+        )
+      ).rows[0]!.present,
+      null,
+      'Historical publication preparation must not install the future reference schema',
+    );
+    const post = await historicalContent(f, subject.accountId);
+    const discussionPost = await historicalContent(f, subject.accountId);
+    const child = await historicalContent(
+      f,
+      subject.accountId,
+      discussionPost.id,
+    );
     type Actor = Awaited<ReturnType<typeof f.actor>>;
     const records: {
       path: string;

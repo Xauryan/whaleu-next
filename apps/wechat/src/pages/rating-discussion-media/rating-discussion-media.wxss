@@ -1,5 +1,4 @@
 @import '../../ratings/ratings.wxss';
-.discussion-image {
-  width: 100%;
-  height: 60vh;
-}
+@import '../../ratings/management.wxss';
+
+@import '../../ratings/framework7-recovery.wxss';

@@ -4,9 +4,17 @@ import {
   initialSchoolUidLookupView,
 } from '../../school-uid/controller';
 Page({
-  data: { ...initialSchoolUidLookupView() },
+  data: {
+    uiPanel: '',
+    ...initialSchoolUidLookupView(),
+  },
   controller: undefined as SchoolUidLookupController | undefined,
+  onToggleUiPanel(event: { currentTarget: { dataset: { panel?: string } } }) {
+    const panel = event.currentTarget.dataset.panel ?? '';
+    this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+  },
   onShow() {
+    this.setData({ uiPanel: '' });
     this.onHide();
     const runtime = getApp<WhaleuApp>().community;
     if (!runtime) {
@@ -14,7 +22,10 @@ Page({
       return;
     }
     this.controller = new SchoolUidLookupController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        ...(!view.loaded || !view.canLookup ? { uiPanel: '' } : {}),
+      }),
     );
     void this.controller.load();
   },
@@ -48,10 +59,12 @@ Page({
     this.controller?.cancel();
   },
   onHide() {
+    this.setData({ uiPanel: '' });
     this.controller?.dispose();
     this.controller = undefined;
   },
   onUnload() {
+    this.setData({ uiPanel: '' });
     this.onHide();
   },
 });

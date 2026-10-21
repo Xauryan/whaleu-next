@@ -1,2 +1,5 @@
 @import '../../ratings/ratings.wxss';
-@import '../../ratings/category-scoped.wxss';
+@import '../../ratings/management.wxss';
+@import '../../ratings/framework7-recovery-category.wxss';
+
+@import '../../ratings/framework7-recovery.wxss';

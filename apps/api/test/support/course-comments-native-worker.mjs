@@ -134,6 +134,10 @@ process.once('message', async (input) => {
         'original request retained',
         h,
       );
+    const ensureComposeOpen = (h) => {
+      if (h.page.data.uiPanel !== 'compose')
+        h.tap('onTogglePanel', { panel: 'compose' });
+    };
     const listPath = `/v1/ratings/courses/${input.courseId}/comments`;
     const exactBody = '  Native exact comment\r\n第二行 😀 e\u0301  ';
     transport.checkResponse = (path, status, data) => {
@@ -165,7 +169,8 @@ process.once('message', async (input) => {
     let h = mount('course-comments', { courseId: input.courseId });
     await loaded(h);
     assert.deepEqual(h.page.data.items, []);
-    assert.match(text(h), /当前已确认没有课程评论/);
+    assert.match(text(h), /还没有课程回复/);
+    ensureComposeOpen(h);
     h.event('bindinput', 'onBody', { value: exactBody });
     h.tap('onConfirmPublish');
     assert.equal(h.page.data.confirming, 'publish');
@@ -236,6 +241,7 @@ process.once('message', async (input) => {
     await settled(h);
     assert.match(h.page.data.receiptStatus, /已经赞过/);
     assert.equal(h.page.data.items[0].likes, 1);
+    ensureComposeOpen(h);
     h.event('bindinput', 'onBody', { value: 'Second distinct native comment' });
     h.tap('onConfirmPublish');
     h.tap('onSubmit');
@@ -249,6 +255,7 @@ process.once('message', async (input) => {
     await loaded(h);
     assert.equal(h.page.data.items[0].id, first.id);
     review = false;
+    ensureComposeOpen(h);
     h.event('bindinput', 'onBody', {
       value: 'Unreviewed cancellable native comment',
     });
@@ -286,6 +293,7 @@ process.once('message', async (input) => {
     assert.equal(replay.status, 200);
     assert.equal(replay.body.code, 'COURSE_COMMENT_CANCELLED');
     review = 'reject';
+    ensureComposeOpen(h);
     h.event('bindinput', 'onBody', { value: 'Rejected native exact comment' });
     h.tap('onConfirmPublish');
     h.tap('onSubmit');
@@ -294,6 +302,7 @@ process.once('message', async (input) => {
     assert.equal(h.page.data.items.length, 2);
     review = 'allow';
     const revokedBody = 'Reviewed native body revoked before receipt recovery';
+    ensureComposeOpen(h);
     h.event('bindinput', 'onBody', { value: revokedBody });
     h.tap('onConfirmPublish');
     transport.dropSuccess = { path: listPath, method: 'POST' };
@@ -349,6 +358,7 @@ process.once('message', async (input) => {
     assert.equal(unknown.page.data.loaded, false);
     assert.match(text(unknown), /历史尚未确认/);
     assert.doesNotMatch(text(unknown), /当前已确认没有课程评论/);
+    assert.doesNotMatch(text(unknown), /还没有课程回复/);
     close(unknown);
     const paged = mount('course-comments', { courseId: input.paginationId });
     await loaded(paged);

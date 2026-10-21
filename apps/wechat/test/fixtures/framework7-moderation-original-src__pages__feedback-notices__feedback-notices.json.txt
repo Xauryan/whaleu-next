@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "反馈提醒",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon"
+  }
+}

@@ -106,7 +106,7 @@ export const pinPageSchema = z.strictObject({
       z.strictObject({
         pin: pinMetadataSchema,
         post: hotPostViewSchema
-          .extend({
+          .safeExtend({
             feedback: z
               .strictObject({
                 authorSchool: z.string().nullable(),

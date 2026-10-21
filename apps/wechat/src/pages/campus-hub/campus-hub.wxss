@@ -1,0 +1,103 @@
+/* Framework7 v9.2.0 iOS native list composition; MIT, see docs/vendor. */
+@import '../../design/framework7-ios.wxss';
+.hub-page {
+  min-height: 100vh;
+  padding: 8px 0 calc(72px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: var(--f7-page-bg-color);
+}
+.campus-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  gap: 12px;
+  padding: 0 16px;
+}
+.compact-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+.campus-selector {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  min-width: 0;
+  color: var(--wu-secondary);
+  font-size: 13px;
+}
+.campus-selector text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.hub-row,
+.tool-item {
+  display: block;
+}
+.hub-footnote,
+.hub-notice {
+  color: var(--wu-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 8px 16px;
+}
+.hub-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.notice-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--f7-theme-color);
+}
+.inline-chevron {
+  display: inline-flex;
+  margin-left: 4px;
+}
+.section-heading {
+  margin: 22px 32px 8px;
+}
+.section-title {
+  font-size: 13px;
+  color: var(--wu-secondary);
+  font-weight: 400;
+}
+.academic-pair {
+  display: flex;
+  gap: 16px;
+  padding: 16px 32px;
+}
+.academic-card {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.hub-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  opacity: 0.45;
+}
+.academic-title {
+  color: var(--wu-secondary);
+  font-size: 13px;
+}
+.academic-note {
+  width: 100%;
+  margin-left: 26px;
+  font-size: 12px;
+  color: var(--wu-tertiary);
+}
+.hub-pressed {
+  opacity: 0.6;
+}

@@ -2,13 +2,25 @@ import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display'
 import type { WhaleuApp } from '../../app';
 import { AuthorNavigator } from '../../profile/author-navigation';
 import { LikedController, initialLikedView } from './controller';
+/** View-only date label. Original timestamps stay on the DTO for all actions. */
+function displayDate(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 Page({
   data: {
+    showInfo: false,
     experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
     ...initialLikedView(),
   },
   controller: undefined as LikedController | undefined,
   authorNavigator: undefined as AuthorNavigator | undefined,
+  onToggleInfo() {
+    this.setData({ showInfo: !this.data.showInfo });
+  },
   onShow() {
     this.controller?.dispose();
     this.authorNavigator?.dispose();
@@ -23,7 +35,13 @@ Page({
       getApp<WhaleuApp>().community,
     );
     this.controller = new LikedController(runtime, (view) =>
-      this.setData({ ...view }),
+      this.setData({
+        ...view,
+        items: view.items.map((item) => ({
+          ...item,
+          likedAtLabel: displayDate(item.likedAt),
+        })),
+      }),
     );
     void this.controller.load();
   },

@@ -1,1 +1,9 @@
-{ "navigationBarTitleText": "校园活动" }
+{
+  "navigationBarTitleText": "校园活动",
+  "usingComponents": {
+    "wu-icon": "../../components/icon/icon",
+    "wu-f7-block": "../../components/f7-block/f7-block",
+    "wu-f7-button": "../../components/f7-button/f7-button",
+    "wu-f7-toggle": "../../components/f7-toggle/f7-toggle"
+  }
+}

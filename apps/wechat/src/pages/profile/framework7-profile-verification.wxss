@@ -1,0 +1,92 @@
+/* Framework7 v9.2.0 iOS composition, MIT. Copyright (c) 2014 Vladimir
+ * Kharlampidi. See docs/vendor/framework7-v9.2.0/LICENSE.
+ * Real List/Block/Button/Input/Toggle components own their visual geometry.
+ * Native media, multiline input and picker controls remain page-owned. */
+@import '../../design/framework7-ios.wxss';
+.f7-profile-verification-screen {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 1px 0 calc(24px + env(safe-area-inset-bottom));
+  color: var(--f7-text-color);
+  background: var(--f7-page-bg-color);
+}
+.f7-profile-verification-screen .section-title,
+.f7-profile-verification-screen .card-title {
+  margin: 0 0 var(--f7-block-title-margin-bottom);
+  font-size: var(--f7-block-title-font-size);
+  font-weight: var(--f7-block-title-font-weight);
+  line-height: var(--f7-block-title-line-height);
+}
+.f7-profile-verification-screen .section-label {
+  margin: 20px var(--f7-block-padding-horizontal) 10px;
+  color: var(--f7-block-title-text-color);
+  font-size: var(--f7-block-title-font-size);
+  font-weight: var(--f7-block-title-font-weight);
+}
+.f7-profile-verification-screen .body-copy {
+  margin: 10px 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.f7-profile-verification-screen .caption,
+.f7-profile-verification-screen .hint,
+.f7-profile-verification-screen .counter,
+.f7-profile-verification-screen .status-line,
+.f7-profile-verification-screen .privacy-note,
+.f7-profile-verification-screen .request-id {
+  margin: 10px 0;
+  color: var(--f7-block-footer-text-color);
+  font-size: var(--f7-block-footer-font-size);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.f7-profile-verification-screen .error {
+  margin: 10px 0;
+  color: var(--f7-input-error-text-color);
+  font-size: var(--f7-block-footer-font-size);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.f7-profile-verification-screen .primary,
+.f7-profile-verification-screen .secondary,
+.f7-profile-verification-screen .quiet {
+  display: block;
+  margin-top: 10px;
+}
+.f7-profile-verification-screen .link-row {
+  display: block;
+  color: var(--f7-text-color);
+}
+.f7-profile-verification-screen .text-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--f7-theme-color);
+}
+.f7-profile-verification-screen .inline-icon,
+.f7-profile-verification-screen .pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.f7-profile-verification-screen .pagination {
+  justify-content: space-between;
+}
+.f7-profile-verification-screen .pagination .quiet {
+  flex: 1;
+}
+.f7-profile-verification-screen .page-count {
+  color: var(--f7-block-footer-text-color);
+  font-size: var(--f7-block-footer-font-size);
+}
+.f7-profile-verification-screen .empty-state {
+  padding: 24px 0;
+  text-align: center;
+}
+.f7-profile-verification-screen .empty-state .section-title {
+  margin-top: 12px;
+}
+.f7-profile-verification-screen .verification-input-row {
+  padding: var(--f7-list-item-padding-vertical)
+    var(--f7-list-item-padding-horizontal);
+}

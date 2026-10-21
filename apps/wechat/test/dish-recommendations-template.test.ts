@@ -34,6 +34,7 @@ const render = (patch: Record<string, unknown>) =>
       tree.children,
       {
         ...initialDishRecommendationView(),
+        uiPanel: 'dish',
         ...patch,
       },
       templates,
@@ -45,8 +46,8 @@ const buttons = (nodes: Node[], handler: string) =>
   nodes.filter(
     (node): node is Exclude<Node, string> =>
       typeof node !== 'string' &&
-      node.tag === 'button' &&
-      node.attrs['bindtap'] === handler,
+      node.tag === 'wu-f7-button' &&
+      node.attrs['bind:press'] === handler,
   );
 test('real WXML leaves independent own lookup and retract reachable without public list', () => {
   const nodes = render({
@@ -64,11 +65,11 @@ test('real WXML leaves independent own lookup and retract reachable without publ
     nodes.some(
       (node) =>
         typeof node !== 'string' &&
-        node.tag === 'input' &&
+        node.tag === 'wu-f7-input' &&
         node.attrs['maxlength'] === '-1',
     ),
   );
-  assert.match(text(nodes), /10 个 🍱/);
+  assert.match(text(nodes), /1 至 10 个字符/);
 });
 test('recovery, cancellation and unavailable own history never require public source visibility', () => {
   const nodes = render({
@@ -82,7 +83,7 @@ test('recovery, cancellation and unavailable own history never require public so
   assert.equal(buttons(nodes, 'onRetry').length, 1);
   assert.equal(buttons(nodes, 'onRequestCancellation').length, 0);
   assert.match(text(nodes), /撤回推荐/);
-  const unknown = render({ own: { kind: 'unavailable' } });
+  const unknown = render({ hasSession: true, own: { kind: 'unavailable' } });
   assert.match(text(unknown), /不能当作尚未推荐/);
   assert.doesNotMatch(text(unknown), /已确认尚未推荐/);
 });
@@ -111,9 +112,39 @@ test('cold actor-owned recovery links are outside all catalog visibility conditi
       path.join(root, `pages/${entry}/${entry}.wxml`),
       'utf8',
     );
+    const matches: Array<{ node: Exclude<Node, string>; gates: string[] }> = [];
+    const visit = (nodes: Node[], gates: string[]) => {
+      for (const node of nodes) {
+        if (typeof node === 'string') continue;
+        const next = [
+          ...gates,
+          ...Object.entries(node.attrs)
+            .filter(([key]) =>
+              ['wx:if', 'wx:elif', 'wx:for', 'hidden'].includes(key),
+            )
+            .map(([, value]) => value),
+        ];
+        if (
+          node.tag === 'navigator' &&
+          node.attrs['url'] === '/pages/window-dishes/window-dishes'
+        )
+          matches.push({ node, gates: next });
+        visit(node.children, next);
+      }
+    };
+    visit(model.parse(source).children, []);
+    assert.equal(matches.length, 1);
+    assert.match(matches[0]!.node.attrs['class'] ?? '', /(?:^|\s)link(?:\s|$)/);
     assert.match(
-      source,
-      /<navigator class="link" url="\/pages\/window-dishes\/window-dishes">菜品推荐原请求/,
+      flatten(matches[0]!.node.children)
+        .filter((node) => typeof node === 'string')
+        .join(''),
+      /菜品推荐原请求/,
     );
+    assert.deepEqual(
+      matches[0]!.gates,
+      entry === 'window-ratings' ? ["{{uiPanel === 'menu'}}"] : [],
+    );
+    assert.equal(matches[0]!.node.attrs['disabled'], undefined);
   }
 });

@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "file": "test/native-press-emitted-harness.mjs",
+  "beforeSha256": "f271187e9a5a7110e8d9632b2b88213191e32a878946e9cf5e1ffcfd5ceccd05",
+  "afterSha256": "a853e7bdd808a40158356dc05e78ced791ee2b5682bd2d433c411aa87117bed0",
+  "originalEvidence": "test/fixtures/native-harness-original-f271.mjs.txt",
+  "parser": "scripts/smoke-ratings.mjs",
+  "parserSha256": "7cc376ea0a7e2fa6efea3c1fc3d377255284f0ffb2754a01939f5e2efb87b32b",
+  "lineage": [
+    {
+      "stage": "original personal text decode approval",
+      "before": "085e3f616ded754cb13694157e9598efe1de296c92d2b4e56748bcfb0c727d98",
+      "after": "f271187e9a5a7110e8d9632b2b88213191e32a878946e9cf5e1ffcfd5ceccd05",
+      "evidence": "test/fixtures/framework7-activities-reviewed-shared.json",
+      "evidenceSha256": "ac508cd3f905d62adefcdc89eb85accd822f4557eeb857d37b69f84b6f6609f2"
+    },
+    {
+      "stage": "V38a actual F7 Input model bridge",
+      "before": "f271187e9a5a7110e8d9632b2b88213191e32a878946e9cf5e1ffcfd5ceccd05",
+      "after": "2fe553be1975194a1830836e7895f84cae57697072f3b3d0d7d7df96700bad73"
+    },
+    {
+      "stage": "V38 searchbar input-only bridge",
+      "before": "2fe553be1975194a1830836e7895f84cae57697072f3b3d0d7d7df96700bad73",
+      "after": "306d35b89f579272c6fdd9858ae91d692ca6505f0acbec771255097c0b19b83b"
+    },
+    {
+      "stage": "single source-text decode boundary",
+      "before": "306d35b89f579272c6fdd9858ae91d692ca6505f0acbec771255097c0b19b83b",
+      "after": "a853e7bdd808a40158356dc05e78ced791ee2b5682bd2d433c411aa87117bed0"
+    }
+  ],
+  "review": "Explicit integration-owner approval on 2026-10-21: actual registered input/searchbar model and lifecycle guards; one text decode in parser after tokenization; immutable original expectations; no runtime/component/controller changes.",
+  "regressions": [
+    "test/framework7-personal-migration.test.ts",
+    "test/native-press-emitted.smoke.mjs",
+    "test/wxml-renderer-entities.test.ts",
+    "test/reviewed-native-harness-successor.test.ts"
+  ]
+}

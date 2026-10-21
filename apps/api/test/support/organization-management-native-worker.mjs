@@ -35,6 +35,10 @@ async function rpc(name, fields = {}) {
   await send({ event: 'checkpoint', name, ...fields });
   assert.deepEqual(await response, { event: 'continue', name });
 }
+const nodeText = (nodes) =>
+  nodes
+    .map((node) => (typeof node === 'string' ? node : nodeText(node.children)))
+    .join('');
 process.once('message', async (input) => {
   const pages = new Set();
   let app, bridge;
@@ -115,6 +119,14 @@ process.once('message', async (input) => {
       );
     const inputField = (h, field, value) =>
       h.event('bindinput', 'onField', { value }, { field });
+    const ensureMediaOpen = (h, slot) => {
+      if (!h.page.data.publicRead && !h.page.data.showMedia)
+        h.tap('onToggleMediaSection');
+      if (!h.page.data.expandedMedia[slot]) h.tap('onToggleMedia', { slot });
+    };
+    const ensureMembersOpen = (h) => {
+      if (!h.page.data.showMembers) h.tap('onToggleMembers');
+    };
     login('owner');
     let editor = mount('organization-editor');
     await ready(editor);
@@ -143,6 +155,7 @@ process.once('message', async (input) => {
         height: 40,
         type: 'png',
       });
+      ensureMediaOpen(editor, slot);
       editor.tap('onPickImage', { slot });
       await until(
         () => editor.page.data.upload.status === 'ready',
@@ -259,12 +272,14 @@ process.once('message', async (input) => {
       height: 40,
       type: 'png',
     });
+    ensureMediaOpen(editor, 'introImage0');
     editor.tap('onPickImage', { slot: 'introImage0' });
     await until(
       () => editor.page.data.upload.status === 'ready',
       'unused reviewed image',
       editor.page,
     );
+    ensureMediaOpen(editor, 'introImage0');
     editor.tap('onKeepImage', { slot: 'introImage0' });
     editor.tap('onSave');
     await until(
@@ -319,12 +334,32 @@ process.once('message', async (input) => {
     assert.ok(
       directory
         .nodes()
-        .some((n) => typeof n === 'string' && n.includes('已核验历史目录')),
+        .some(
+          (n) =>
+            typeof n !== 'string' &&
+            n.attrs.class === 'f7-directory-section-toolbar' &&
+            nodeText(n.children).includes('已核验目录'),
+        ),
     );
     assert.ok(
       directory
         .nodes()
-        .some((n) => typeof n === 'string' && n.includes('本平台审核通过')),
+        .some(
+          (n) =>
+            typeof n !== 'string' &&
+            n.attrs.class === 'f7-directory-section-toolbar' &&
+            nodeText(n.children).includes('本平台组织'),
+        ),
+    );
+    assert.ok(
+      directory
+        .nodes()
+        .some(
+          (n) =>
+            typeof n !== 'string' &&
+            n.attrs.class === 'f7-directory-section-toolbar' &&
+            nodeText(n.children).includes('审核通过 · 独立目录'),
+        ),
     );
     directory.tap('onNativeEntry', { id });
     close(directory);
@@ -362,6 +397,7 @@ process.once('message', async (input) => {
     close(publicPage);
     editor = mount('organization-editor', { id });
     await ready(editor);
+    ensureMembersOpen(editor);
     editor.event('bindinput', 'onLookupInput', { value: input.profileIds.one });
     editor.tap('onLookup');
     await until(
@@ -382,6 +418,7 @@ process.once('message', async (input) => {
     await ready(editor);
     assert.equal(editor.page.data.detail.role, 'organization_admin');
     assert.equal(editor.page.data.detail.permissions.transferOwner, false);
+    ensureMembersOpen(editor);
     editor.event('bindinput', 'onLookupInput', { value: input.profileIds.two });
     editor.tap('onLookup');
     await until(
@@ -407,6 +444,7 @@ process.once('message', async (input) => {
     login('reviewer');
     editor = mount('organization-editor', { id });
     await ready(editor);
+    ensureMembersOpen(editor);
     editor.event('bindinput', 'onLookupInput', { value: input.profileIds.two });
     editor.tap('onLookup');
     await until(
@@ -449,6 +487,7 @@ process.once('message', async (input) => {
     editor = mount('organization-editor', { id });
     await ready(editor);
     assert.equal(editor.page.data.detail.permissions.transferOwner, false);
+    ensureMembersOpen(editor);
     editor.tap('onRemoveAdmin', { id: input.profileIds.owner });
     await until(
       () =>

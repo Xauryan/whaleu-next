@@ -1,17 +1,15 @@
-<import src="../../directory/common.wxml" /><navigator class="link" url="/pages/organizations/organizations">我管理的组织与学校审核 →</navigator>
-<view class="screen">
-  <navigator class="link" url="/pages/major-directory/major-directory">院系专业目录与实名文字讨论 →</navigator><navigator class="link" url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global">校园范围评分：明确选择校园 →</navigator>
-  <view class="eyebrow">WHALEU · 校园目录</view><view class="title">发现身边的群与组织</view>
-  <view class="kind-tabs"><button wx:for="{{directoryKinds}}" wx:key="*this" class="{{kind === item ? 'active' : 'secondary'}}" data-kind="{{item}}" bindtap="onKind">{{directoryKindLabels[item]}}</button></view>
-  <template is="directory-feedback" data="{{status,error,hasSession}}" />
-  <button bindtap="onRefresh" disabled="{{busy}}" loading="{{busy}}">{{restartRequired ? '重新加载目录' : '刷新当前类型'}}</button>
-  <button wx:if="{{busy}}" bindtap="onCancel">停止读取</button>
-  <button wx:if="{{loaded}}" bindtap="onSearch" disabled="{{busy}}">按名称搜索此类型的所有分类</button>
-  <view wx:for="{{categories}}" wx:key="id" class="card directory-card accent-{{item.accent}}">
-    <view class="section-title">{{item.name}}</view><view class="directory-text">{{item.description}}</view>
-    <button class="secondary" data-id="{{item.id}}" bindtap="onCategory" disabled="{{busy}}">查看分类 →</button>
-  </view>
-  <view wx:if="{{loaded &amp;&amp; !categories.length &amp;&amp; pageNumber === 1}}" class="empty">当前类型暂无分类</view>
-  <view wx:if="{{loaded}}" class="pagination"><button bindtap="onPrevious" disabled="{{busy || !canPrevious}}">上一页</button><text>第 {{pageNumber}} 页</text><button bindtap="onNext" disabled="{{busy || !canNext}}">下一页</button></view>
-  <view class="notice">推广标记、分类类型与条目平台分别展示。公众号分类仍按当前身份地区查看。</view>
+<view class="f7-directory-screen f7-ios-theme">
+  <wu-f7-block spacing="compact">
+    <wu-f7-button wx:if="{{loaded}}" variant="tonal" size="large" bind:press="onSearch" disabled="{{busy}}"><view class="f7-directory-search-label"><wu-icon name="search" tone="accent" size="20" /><text>搜索{{directoryKindLabels[kind]}}名称</text></view></wu-f7-button>
+    <view class="f7-directory-segments"><wu-f7-segmented options="{{directorySegmentOptions}}" value="{{kind}}" label="目录类型" bind:change="onKindSegment" /></view>
+    <view class="f7-directory-toolbar"><navigator class="f7-directory-scope-link" url="/pages/identity-campus/identity-campus"><wu-icon name="location" size="16" /><text>身份校区所在地区</text><wu-icon name="chevron-right" size="12" /></navigator><wu-f7-button aria-label="{{restartRequired ? '重新加载目录' : '刷新当前类型'}}" bind:press="onRefresh" disabled="{{busy}}" loading="{{busy}}"><wu-icon name="refresh" tone="accent" size="18" /></wu-f7-button></view>
+    <view wx:if="{{busy || !loaded}}" class="f7-directory-status" aria-role="status">{{status}}</view><view wx:if="{{error}}" class="f7-directory-error" aria-role="alert">{{error}}</view><navigator wx:if="{{!hasSession}}" class="f7-directory-link" url="/pages/login/login">登录后查看目录<wu-icon name="chevron-right" tone="accent" size="15" /></navigator><wu-f7-button wx:if="{{busy}}" bind:press="onCancel">停止加载</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-list spacing="compact" inset="{{true}}" strong="{{true}}">
+    <wu-f7-list-item wx:for="{{categories}}" wx:key="id" link="{{true}}" media="{{true}}" title-slot="{{true}}" title="{{item.name}}" text="{{item.description}}" last="{{index === categories.length - 1}}" data-id="{{item.id}}" bind:press="onCategory" disabled="{{busy}}"><wu-icon slot="media" name="{{kind === 'official' ? 'post' : kind === 'org' ? 'people' : 'message'}}" tone="accent" size="25" /><text slot="title">{{item.name}}</text></wu-f7-list-item>
+  </wu-f7-list>
+  <wu-f7-block spacing="compact" wx:if="{{loaded &amp;&amp; !categories.length &amp;&amp; pageNumber === 1}}"><view class="f7-directory-empty"><wu-icon name="people" size="34" /><view class="f7-directory-empty-title">当前类型暂无分类</view><view>可以看看其他类型</view></view></wu-f7-block>
+  <wu-f7-block spacing="compact" wx:if="{{loaded}}"><view class="f7-directory-pagination"><wu-f7-button bind:press="onPrevious" disabled="{{busy || !canPrevious}}">上一页</wu-f7-button><text>第 {{pageNumber}} 页</text><wu-f7-button bind:press="onNext" disabled="{{busy || !canNext}}">下一页</wu-f7-button></view></wu-f7-block>
+  <wu-f7-list spacing="compact" inset="{{true}}" strong="{{true}}" title-slot="{{true}}"><text slot="title">更多校园发现</text><navigator url="/pages/major-directory/major-directory"><wu-f7-list-item media="{{true}}" title-slot="{{true}}" after-slot="{{true}}"><wu-icon slot="media" name="graduation" size="22" /><text slot="title">院系专业</text><wu-icon slot="after" name="chevron-right" size="14" /></wu-f7-list-item></navigator><navigator url="/pages/rating-scoped/rating-scoped?mode=catalog&amp;scope=global"><wu-f7-list-item media="{{true}}" title-slot="{{true}}" after-slot="{{true}}"><wu-icon slot="media" name="star" size="22" /><text slot="title">校园评分</text><wu-icon slot="after" name="chevron-right" size="14" /></wu-f7-list-item></navigator><navigator url="/pages/organizations/organizations"><wu-f7-list-item media="{{true}}" title-slot="{{true}}" after-slot="{{true}}" last="{{true}}"><wu-icon slot="media" name="people" size="22" /><text slot="title">我管理的组织</text><wu-icon slot="after" name="chevron-right" size="14" /></wu-f7-list-item></navigator></wu-f7-list>
+  <wu-f7-block spacing="compact"><wu-f7-button bind:press="onToggleInfo">目录范围<wu-icon name="{{showInfo ? 'chevron-up' : 'chevron-down'}}" tone="accent" size="13" /></wu-f7-button><view wx:if="{{showInfo}}" class="f7-directory-note">只展示当前身份校区所在地区的已核验条目，公众号同样按此范围查看。浏览校园不会更改身份校区或授予访问权限。分类、条目平台与推广标记分别展示。</view></wu-f7-block>
 </view>

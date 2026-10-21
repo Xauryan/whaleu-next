@@ -1,0 +1,980 @@
+{
+  "src/pages/feedback/feedback.wxml": {
+    "sourceSha256": "250230a2efd2a532cdb8fdf5a9e08f4bf2098dc5d3756763534ae2f05f76e068",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onRefresh",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}",
+          "aria-label": "刷新意见列表"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}",
+            "loading": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{space && hasSession}}",
+          "class": "primary compose-entry",
+          "url": "/pages/community-compose/community-compose?spaceId={{space.id}}&category=feedback"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{space && hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "primary",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{hasSession}}",
+          "class": "detail-link",
+          "url": "/pages/community-detail/community-detail?postId={{item.id}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{posts}}",
+            "wx:key": "id"
+          },
+          {
+            "wx:if": "{{hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{canLoadMore}}",
+          "class": "quiet",
+          "bindtap": "onMore",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{canLoadMore}}",
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{continuation === 'phone_verification_required'}}",
+          "class": "link-row",
+          "url": "/pages/phone-binding/phone-binding"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{continuation === 'phone_verification_required'}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/feedback-contacts/feedback-contacts.wxml": {
+    "sourceSha256": "9ecb6e3ea33e4a90a05628bf776f1a2025858aa4f396e1126c29777b9c2aafc0",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "copy-button",
+          "bindtap": "onCopy",
+          "data-field": "wechat",
+          "disabled": "{{contacts.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{contacts.contacts && contacts.contacts.wechat}}"
+          },
+          {
+            "disabled": "{{contacts.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "copy-button",
+          "bindtap": "onCopy",
+          "data-field": "qq",
+          "disabled": "{{contacts.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{contacts.contacts && contacts.contacts.qq}}"
+          },
+          {
+            "disabled": "{{contacts.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "copy-button",
+          "bindtap": "onCopy",
+          "data-field": "phone",
+          "disabled": "{{contacts.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{contacts.contacts && contacts.contacts.phone}}"
+          },
+          {
+            "disabled": "{{contacts.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onReveal",
+          "disabled": "{{busy || contacts.busy || !contacts.enabled}}",
+          "loading": "{{contacts.busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy || contacts.busy || !contacts.enabled}}",
+            "loading": "{{contacts.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onReload",
+          "disabled": "{{busy || contacts.busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy || contacts.busy}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/report-progress/recovery.wxml": {
+    "sourceSha256": "4fc13c27199821128ab7a99f8b2170e34ba3077fc259cec4e8423692993dcaa4",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary danger",
+          "bindtap": "onConfirmReport",
+          "disabled": "{{report.busy || report.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{report.confirmation}}"
+          },
+          {
+            "disabled": "{{report.busy || report.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onDismissReport",
+          "disabled": "{{report.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{report.confirmation}}"
+          },
+          {
+            "disabled": "{{report.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onReportReceipt",
+          "disabled": "{{report.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          },
+          {
+            "wx:if": "{{report.frozen}}"
+          },
+          {
+            "disabled": "{{report.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onReportRetry",
+          "disabled": "{{report.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          },
+          {
+            "wx:if": "{{report.frozen}}"
+          },
+          {
+            "disabled": "{{report.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{report.busy}}",
+          "class": "quiet",
+          "bindtap": "onReportCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          },
+          {
+            "wx:if": "{{report.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/report-progress/report-progress"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{report.busy || report.frozen || report.receiptStatus || report.error}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirmJuryVote",
+          "disabled": "{{juryVote.busy || juryVote.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{juryVote.confirmation}}"
+          },
+          {
+            "disabled": "{{juryVote.busy || juryVote.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onDismissJuryVote",
+          "disabled": "{{juryVote.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{juryVote.confirmation}}"
+          },
+          {
+            "disabled": "{{juryVote.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onJuryReceipt",
+          "disabled": "{{juryVote.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+          },
+          {
+            "wx:if": "{{juryVote.frozen}}"
+          },
+          {
+            "disabled": "{{juryVote.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onJuryRetry",
+          "disabled": "{{juryVote.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+          },
+          {
+            "wx:if": "{{juryVote.frozen}}"
+          },
+          {
+            "disabled": "{{juryVote.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{juryVote.busy}}",
+          "class": "quiet",
+          "bindtap": "onJuryCancel"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{juryVote.busy || juryVote.frozen || juryVote.receiptStatus || juryVote.error}}"
+          },
+          {
+            "wx:if": "{{juryVote.busy}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/report-progress/report-progress.wxml": {
+    "sourceSha256": "3b9c4320a5e874d3cd50ae654bfd6d88aac830e8c5c3d30fa8f2764de4e3fbfd",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "icon-button",
+          "bindtap": "onReloadReportProgress",
+          "disabled": "{{reportProgress.busy}}",
+          "aria-label": "刷新进度"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "wx:if": "{{reportProgress.loaded && reportProgress.progress}}"
+          },
+          {
+            "disabled": "{{reportProgress.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "data-vote": "keep",
+          "bindtap": "onJuryChoice",
+          "disabled": "{{juryVote.busy || juryVote.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "wx:if": "{{reportProgress.loaded && reportProgress.progress}}"
+          },
+          {
+            "wx:if": "{{reportProgress.progress.kind === 'post'}}"
+          },
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:if": "{{reportProgress.canVote}}"
+          },
+          {
+            "disabled": "{{juryVote.busy || juryVote.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "secondary",
+          "data-vote": "remove",
+          "bindtap": "onJuryChoice",
+          "disabled": "{{juryVote.busy || juryVote.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "wx:if": "{{reportProgress.loaded && reportProgress.progress}}"
+          },
+          {
+            "wx:if": "{{reportProgress.progress.kind === 'post'}}"
+          },
+          {
+            "wx:else": ""
+          },
+          {
+            "wx:if": "{{reportProgress.canVote}}"
+          },
+          {
+            "disabled": "{{juryVote.busy || juryVote.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onReloadReportProgress",
+          "disabled": "{{reportProgress.busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "wx:else": ""
+          },
+          {
+            "disabled": "{{reportProgress.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{reportProgress.busy}}",
+          "class": "quiet",
+          "bindtap": "onCancelReportProgress"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "wx:if": "{{reportProgress.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{reportProgress.loaded && !reportProgress.progress.isSelf}}",
+          "class": "secondary",
+          "bindtap": "onReport",
+          "disabled": "{{!reportProgress.canReport || report.busy || report.frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{hasTarget}}"
+          },
+          {
+            "wx:if": "{{reportProgress.loaded && !reportProgress.progress.isSelf}}",
+            "disabled": "{{!reportProgress.canReport || report.busy || report.frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onReloadRecovery",
+          "disabled": "{{report.busy || juryVote.busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{report.busy || juryVote.busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!report.hasSession}}",
+          "class": "primary",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!report.hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/system-notices/system-notices"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/community-feed/community-feed"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/account-status/account-status.wxml": {
+    "sourceSha256": "c3753326317e49cdd34e1b9c7dba6e40e1d0db8f6e603a65322d5a212a6ac7f4",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "primary",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "{{accountStatus ? 'quiet' : 'primary'}}",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}",
+            "loading": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onStopWaiting"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.canAppeal}}",
+          "class": "link-row",
+          "url": "/pages/safety-appeal/safety-appeal?punishmentId={{item.punishmentId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}",
+            "wx:key": "punishmentId"
+          },
+          {
+            "wx:if": "{{item.canAppeal}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{item.openAppealId}}",
+          "class": "link-row",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{item.openAppealId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "wx:for": "{{accountStatus.current}}",
+            "wx:key": "punishmentId"
+          },
+          {
+            "wx:if": "{{item.openAppealId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{mode === 'status' && accountStatus}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{historyCursor}}",
+          "class": "quiet",
+          "bindtap": "onMoreHistory",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{historyCursor}}",
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/system-notices/system-notices"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/safety-appeal/safety-appeal"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/account-status/recovery.wxml": {
+    "sourceSha256": "62e62a7b973dacdb9f605c262d9c47d7b299687c7295a2e18990a9bfcc7f5ad6",
+    "actions": [
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRecover",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onRetry",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet danger-text",
+          "bindtap": "onCancelRequest",
+          "disabled": "{{busy || !pendingRequestId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{frozen}}"
+          },
+          {
+            "disabled": "{{busy || !pendingRequestId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onConfirmCancel",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming === 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      }
+    ]
+  },
+  "src/pages/safety-appeal/safety-appeal.wxml": {
+    "sourceSha256": "189b536b6b4cfe8d2b2396b003ca159cef83c509ea45934684f5d7cdd16c268b",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{!hasSession}}",
+          "class": "primary",
+          "url": "/pages/login/login"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{!hasSession}}"
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "attrs": {
+          "value": "{{text}}",
+          "maxlength": "4000",
+          "bindinput": "onText",
+          "disabled": "{{busy || frozen}}",
+          "placeholder": "说明你希望复核的情况，以及相关依据"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onRequestAppeal",
+          "disabled": "{{busy || frozen || !text}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{mode === 'appeal' && selectedPunishment.canAppeal}}"
+          },
+          {
+            "disabled": "{{busy || frozen || !text}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "wx:if": "{{selectedPunishment.openAppealId}}",
+          "class": "link-row",
+          "url": "/pages/safety-appeal/safety-appeal?appealId={{selectedPunishment.openAppealId}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{selectedPunishment}}"
+          },
+          {
+            "wx:if": "{{selectedPunishment.openAppealId}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "primary",
+          "bindtap": "onSubmit",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onClose",
+          "disabled": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{confirming && confirming !== 'cancel'}}"
+          },
+          {
+            "disabled": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "row-button",
+          "data-id": "{{item.appealId}}",
+          "bindtap": "onSelectAppeal",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:for": "{{appeals}}",
+            "wx:key": "appealId"
+          },
+          {
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{nextCursor}}",
+          "class": "quiet",
+          "bindtap": "onMore",
+          "disabled": "{{busy || frozen}}"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{nextCursor}}",
+            "disabled": "{{busy || frozen}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "class": "quiet",
+          "bindtap": "onReload",
+          "disabled": "{{busy}}",
+          "loading": "{{busy}}"
+        },
+        "scopes": [
+          {
+            "disabled": "{{busy}}",
+            "loading": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "attrs": {
+          "wx:if": "{{busy}}",
+          "class": "quiet",
+          "bindtap": "onStopWaiting"
+        },
+        "scopes": [
+          {
+            "wx:if": "{{busy}}"
+          }
+        ]
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/account-status/account-status"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/system-notices/system-notices"
+        },
+        "scopes": []
+      }
+    ]
+  },
+  "src/pages/status/status.wxml": {
+    "sourceSha256": "077c2a12e0cb540bd2cedc24de8300bd38af5df208f85687dc96e5ef0bb16e52",
+    "actions": [
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/announcements/announcements"
+        },
+        "scopes": []
+      },
+      {
+        "tag": "navigator",
+        "attrs": {
+          "class": "link-row",
+          "url": "/pages/verification/verification"
+        },
+        "scopes": []
+      }
+    ]
+  }
+}

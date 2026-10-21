@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "title": "Three native Framework7 course pages source freeze",
+  "framework7": {
+    "version": "9.2.0",
+    "commit": "7668f883c29f69dd2ad7bd8ac3b35b9124082b0b"
+  },
+  "runtimeScope": "exact three Page WXML/WXSS/JSON plus two isolated course presentation assets; no Page/controller TS edits",
+  "files": {
+    "apps/wechat/scripts/fixtures/framework7-courses-preview.mjs": {
+      "sha256": "cff02b871737154f0b7cff03728b421e8f1fd778fb43319642d2118d4038b109",
+      "bytes": 9169
+    },
+    "apps/wechat/src/course-ratings/framework7-product.wxml": {
+      "sha256": "0ed7f69c930bf3f29535d163db7dc71335211c0d7d4a57f8ac74f71427d36441",
+      "bytes": 3192
+    },
+    "apps/wechat/src/course-ratings/framework7-product.wxss": {
+      "sha256": "5b121d2839b5b4c33b03f93496b5809844736f9f3386adf8d124d94246fc0202",
+      "bytes": 1562
+    },
+    "apps/wechat/src/pages/course-comments/course-comments.json": {
+      "sha256": "8d83517b73a2ab9c5b5a3ca78ed4d5a944fe04a56adac01a7a47c399b35dee6b",
+      "bytes": 236
+    },
+    "apps/wechat/src/pages/course-comments/course-comments.wxml": {
+      "sha256": "ecd29378b5db9da49d9a00e8ba27639aa8cb2120da13249271ad08bed892feba",
+      "bytes": 8180
+    },
+    "apps/wechat/src/pages/course-comments/course-comments.wxss": {
+      "sha256": "7eb6d25160438858014aea211e2747595461b4753add83656ad0486bfdfca403",
+      "bytes": 428
+    },
+    "apps/wechat/src/pages/course-rating-detail/course-rating-detail.json": {
+      "sha256": "145c0974befe014df6ba6036bcc392d7353340d086a20e12c367c5011dc53196",
+      "bytes": 236
+    },
+    "apps/wechat/src/pages/course-rating-detail/course-rating-detail.wxml": {
+      "sha256": "9c36eb76ded939453a971dfbd58451e6682c8e44ac0f923a6bc5c4e264a9b331",
+      "bytes": 8108
+    },
+    "apps/wechat/src/pages/course-rating-detail/course-rating-detail.wxss": {
+      "sha256": "8471569e581751158c801b13d84b780c7a4d97b3fd2436179580b152d8382692",
+      "bytes": 148
+    },
+    "apps/wechat/src/pages/course-ratings/course-ratings.json": {
+      "sha256": "ad399934e67aff273bc11c039ec9eb6bffea1cccb89acbb1d072178f327ea8b6",
+      "bytes": 410
+    },
+    "apps/wechat/src/pages/course-ratings/course-ratings.wxml": {
+      "sha256": "ac8b9abd22e4530640de54c40b03a53a3be2a06a6c9f5aecdf9cff794cf13c5f",
+      "bytes": 4146
+    },
+    "apps/wechat/src/pages/course-ratings/course-ratings.wxss": {
+      "sha256": "8471569e581751158c801b13d84b780c7a4d97b3fd2436179580b152d8382692",
+      "bytes": 148
+    },
+    "apps/wechat/test/course-comments-template.test.ts": {
+      "sha256": "de8733459da24c1fd9cab0fd3a2bae7def8a4180bb329415edb21506bdc55fa9",
+      "bytes": 4610
+    },
+    "apps/wechat/test/course-ratings-template.test.ts": {
+      "sha256": "9c549d4613d819a2ab8e7d316d8405b32aae7554b3c45a816dc7dd9d88641f56",
+      "bytes": 2762
+    },
+    "apps/wechat/test/fixtures/framework7-courses-before-actions.json": {
+      "sha256": "10b5f42d95cf4f67dee6a5564b6c0da9343c14852090e03a315ac0b66ad0f266",
+      "bytes": 19945
+    },
+    "apps/wechat/test/fixtures/framework7-courses-before-protected.json": {
+      "sha256": "aa2b91352d5146db3053fbaaf7d3d99d16e2041b868433475908ec21f980573a",
+      "bytes": 6932
+    },
+    "apps/wechat/test/framework7-courses-migration.test.ts": {
+      "sha256": "1f7d5a57c63cfee170881a5439cf64c219630c24479446234c30760c57cf905e",
+      "bytes": 30889
+    },
+    "docs/FRAMEWORK7_COURSES_MIGRATION.md": {
+      "sha256": "b5b7fbcfaf020342ae8c2cfa54829b131b8d38d78e26b2aeca21b11a7f11189c",
+      "bytes": 7299
+    }
+  }
+}

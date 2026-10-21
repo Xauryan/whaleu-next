@@ -192,17 +192,21 @@ test(
         assert.equal(response.status, 200, JSON.stringify(response.body));
         return response;
       };
-      const waitQuery = async (pattern: string) => {
-        for (let attempt = 0; attempt < 200; attempt++) {
-          if (
-            (
-              await pool.query<{ waiting: boolean }>(
-                "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE query LIKE $1 AND wait_event_type='Lock') waiting",
-                [pattern],
-              )
-            ).rows[0]!.waiting
+      const queryWaiting = async (pattern: string, blockerPid?: number) =>
+        (
+          await pool.query<{ waiting: boolean }>(
+            blockerPid === undefined
+              ? "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE query LIKE $1 AND wait_event_type='Lock') waiting"
+              : `SELECT EXISTS(SELECT 1 FROM pg_stat_activity
+                 WHERE datname=current_database() AND pid<>pg_backend_pid()
+                 AND query=$1 AND wait_event_type='Lock'
+                 AND $2::integer=ANY(pg_blocking_pids(pid))) waiting`,
+            blockerPid === undefined ? [pattern] : [pattern, blockerPid],
           )
-            return;
+        ).rows[0]!.waiting;
+      const waitQuery = async (pattern: string, blockerPid?: number) => {
+        for (let attempt = 0; attempt < 200; attempt++) {
+          if (await queryWaiting(pattern, blockerPid)) return;
           await sleep(5);
         }
         assert.fail(`Expected deterministic database lock wait for ${pattern}`);
@@ -384,9 +388,29 @@ test(
             [author.accountId],
           );
           try {
+            const writerPid = (
+              await writer.query<{ pid: number }>('SELECT pg_backend_pid() pid')
+            ).rows[0]!.pid;
+            // The held suite connection is real but does not own this row lock.
+            const unrelatedPid = (
+              await suite!.query<{ pid: number }>('SELECT pg_backend_pid() pid')
+            ).rows[0]!.pid;
+            assert.notEqual(unrelatedPid, writerPid);
+            const accountQuery =
+              "SELECT status FROM whaleu_identity.accounts WHERE id=$1 AND lifecycle='active' FOR SHARE";
             const pending = profile().then((response) => response);
-            await waitQuery(
-              '%SELECT status FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE%',
+            await waitQuery(accountQuery, writerPid);
+            assert.equal(
+              await queryWaiting(
+                '%SELECT status FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE%',
+              ),
+              false,
+              'The obsolete status-only observer must not match the lifecycle query',
+            );
+            assert.equal(
+              await queryWaiting(accountQuery, unrelatedPid),
+              false,
+              'The lifecycle waiter must be blocked by the writer, not another connection',
             );
             await writer.query('COMMIT');
             const result = await pending;

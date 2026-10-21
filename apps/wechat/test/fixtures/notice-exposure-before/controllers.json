@@ -1,0 +1,46 @@
+{
+  "src/notifications/social-updates/controller.ts": {
+    "before": "e0ac1a27cd5bb239ca38ecff8067bea88c3638ff23f81d3c15b7100d709d34cb",
+    "evidence": "test/fixtures/notice-exposure-before/src/notifications/social-updates/controller.ts.txt"
+  },
+  "src/pages/community-updates/controller.ts": {
+    "before": "e1d1eb0da395036cb6ba918c163d5b35c092aca96535c8fb21cc832633dd92ee",
+    "evidence": "test/fixtures/notice-exposure-before/src/pages/community-updates/controller.ts.txt"
+  },
+  "src/ratings/updates-controller.ts": {
+    "before": "eabd0cf50d3b51cd113cc11492bb2765752b281f5adaa32046ed2fae5ecec5be",
+    "evidence": "test/fixtures/notice-exposure-before/src/ratings/updates-controller.ts.txt"
+  },
+  "src/window-discussion/notices-controller.ts": {
+    "before": "a3b65361006df453f1a0008dfef003cfa7a8fbecc2ec213b9464e1c9612f152a",
+    "evidence": "test/fixtures/notice-exposure-before/src/window-discussion/notices-controller.ts.txt"
+  },
+  "src/major-discussion/notices-controller.ts": {
+    "before": "803ce9f3c8690473f014589fe33f90790a86ca6dfb0deb5fc2a30cfb13081459",
+    "evidence": "test/fixtures/notice-exposure-before/src/major-discussion/notices-controller.ts.txt"
+  },
+  "src/pages/system-notices/controller.ts": {
+    "before": "8683605ec5a1904555b9480bbd11ebe4355c14d911e5debe58a1826c19071399",
+    "evidence": "test/fixtures/notice-exposure-before/src/pages/system-notices/controller.ts.txt"
+  },
+  "src/errands/notices.ts": {
+    "before": "c2024572cdf52f1dff577e53cbeb01a7b256c724e8bb07834526c7a27adc5c69",
+    "evidence": "test/fixtures/notice-exposure-before/src/errands/notices.ts.txt"
+  },
+  "src/pages/feedback-notices/controller.ts": {
+    "before": "63d87d9f682e5345567f4e5f61961168a14ce3b23ac02f50747334142529890f",
+    "evidence": "test/fixtures/notice-exposure-before/src/pages/feedback-notices/controller.ts.txt"
+  },
+  "src/notifications/student-notices.ts": {
+    "before": "616ff28856219d1e0a2554ebc61070a1100df8fd7c2a2dc1f21482396c849108",
+    "evidence": "test/fixtures/notice-exposure-before/src/notifications/student-notices.ts.txt"
+  },
+  "src/pages/social-notices/controller.ts": {
+    "before": "8d9d7821dee05f9c3fd7416e1264c62a97caacef63614bed334ac6bd3c3e327f",
+    "evidence": "test/fixtures/notice-exposure-before/src/pages/social-notices/controller.ts.txt"
+  },
+  "src/notifications/system-timeline.ts": {
+    "before": "acca24cc00eba445cb7697767aeabc4dc2c01f974aed458dab96f71d1d11c36f",
+    "evidence": "test/fixtures/notice-exposure-before/src/notifications/system-timeline.ts.txt"
+  }
+}
