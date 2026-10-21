@@ -23,10 +23,7 @@ import type {
   TitleMaintenanceCursor,
   TitleMaintenanceSweep,
 } from '../../../src/identity/title-maintenance.contract.js';
-import type {
-  ProviderIdentity,
-  SessionView,
-} from '../../../src/identity/contracts.js';
+import type { ProviderIdentity, SessionView } from '../../../src/identity/contracts.js';
 
 const ACCESS_MS = 10 * 60 * 1000;
 const REFRESH_MS = 7 * 24 * 60 * 60 * 1000;

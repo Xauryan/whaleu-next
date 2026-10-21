@@ -9,3 +9,7 @@ coverage
 # Generated visual previews and transformed native release output.
 apps/wechat/preview
 apps/wechat/release
+
+# Byte-preserved predecessor fixture: hash-tested after import-path relocation.
+# Formatting would invalidate the historical migration proof, not improve runtime code.
+apps/api/test/support/historical-identity/repository.ts

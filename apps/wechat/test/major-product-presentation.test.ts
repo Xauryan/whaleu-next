@@ -168,6 +168,34 @@ const buttons = (nodes: Node[], handler: string) =>
 const text = (nodes: Node[]) =>
   nodes.filter((node) => typeof node === 'string').join(' ');
 
+function assertIsolatedMajorImports(source: string): void {
+  assert.match(
+    source.trim(),
+    /^@import (["'])\.\.\/\.\.\/majors\/product\.wxss\1;\s*@import (["'])\.\.\/\.\.\/majors\/framework7-product\.wxss\2;$/,
+  );
+}
+
+test('isolated major imports accept quote formatting but reject changed ownership or order', () => {
+  const first = '../../majors/product.wxss';
+  const second = '../../majors/framework7-product.wxss';
+  for (const quote of ['"', "'"]) {
+    const valid = `@import ${quote}${first}${quote};\n@import ${quote}${second}${quote};`;
+    assert.doesNotThrow(() => assertIsolatedMajorImports(valid));
+    for (const invalid of [
+      `@import ${quote}${second}${quote};\n@import ${quote}${first}${quote};`,
+      `@import ${quote}${first}${quote};`,
+      `${valid}\n@import '../../app.wxss';`,
+      `${valid}\npage { color: red; }`,
+      valid.replace(first, '../../majors/common.wxss'),
+      valid.replace(second, '../../majors/common.wxss'),
+    ])
+      assert.throws(() => assertIsolatedMajorImports(invalid));
+  }
+  assert.throws(() =>
+    assertIsolatedMajorImports(`@import "${first}';\n@import '${second}';`),
+  );
+});
+
 test('public surfaces import only isolated product styles and registered real icons', () => {
   for (const page of [
     'major-directory',
@@ -178,10 +206,7 @@ test('public surfaces import only isolated product styles and registered real ic
     const source = read(`pages/${page}/${page}.wxml`);
     assert.match(source, /class="screen major-product/);
     assert.doesNotMatch(source, /WHALEU ·|实名|主回复|历史迁移|→|✓/);
-    assert.equal(
-      read(`pages/${page}/${page}.wxss`).trim(),
-      '@import "../../majors/product.wxss";\n@import "../../majors/framework7-product.wxss";',
-    );
+    assertIsolatedMajorImports(read(`pages/${page}/${page}.wxss`));
     const json = JSON.parse(read(`pages/${page}/${page}.json`)) as {
       usingComponents: Record<string, string>;
     };
