@@ -34,6 +34,11 @@ async function until(check, label, page) {
     await delay(10);
   }
 }
+// Disclosures are actual native presses, never injected presentation state.
+function openComposePanel(h, field) {
+  if (!h.page.data.uiPanels[field]) h.tap('onTogglePanel', { field });
+  assert.equal(h.page.data.uiPanels[field], true);
+}
 process.once('message', async (input) => {
   let app, upload;
   const pages = new Set();
@@ -109,6 +114,7 @@ process.once('message', async (input) => {
         'compose',
         compose.page,
       );
+      openComposePanel(compose, 'private');
       for (const [field, value] of Object.entries({
         title: `Native group v${version}`,
         publicText: 'PUBLIC_BODY_NOT_DELIVERED',
@@ -126,6 +132,7 @@ process.once('message', async (input) => {
             height: 48,
             type: 'png',
           });
+          openComposePanel(compose, 'images');
           compose.tap('onChooseOrderImage', { value: slot });
           await until(
             () =>

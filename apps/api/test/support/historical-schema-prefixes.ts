@@ -1,8 +1,11 @@
 // Every entry names an intentionally pinned integration fixture boundary. This
 // is not an arbitrary maximum-version compatibility mode.
 export const historicalPrefixes = new Map<number, string>([
+  [28, 'view-component-proof before enrollment'],
   [30, 'admin-discussion-removal-upgrade'],
-  [52, 'ratings-deletion-upgrade'],
+  [50, 'ratings-subscription-activation before enrollment'],
+  [51, 'ratings-subscription-activation before fanout cutover'],
+  [52, 'ratings-subscription-activation / ratings-deletion-upgrade'],
   [55, 'ratings-target-deletion-integrity before upgrade'],
   [56, 'ratings-target-deletion-integrity / target-edit before upgrade'],
   [57, 'ratings-target-edit-integrity / category before upgrade'],

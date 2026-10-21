@@ -1,6 +1,6 @@
 # Synthetic follow/social account-deletion owner
 
-Status: local synthetic-cohort validation only. This document describes the sealed V38d candidate tested on 2026-10-21, not production readiness or a public deletion feature.
+Status: local synthetic-cohort validation only, with a subsequently discovered and reproduced locale regression. This document retains the sealed V38d evidence and describes the 0174 correction under validation. Neither is production readiness or a public deletion feature.
 
 ## Scope and admission
 
@@ -74,3 +74,23 @@ Prior records remain under `/tmp/whaleu-pg18-source.nwdz7ABW/{v38-follow-social-
 The 26-test acceptance does not establish full broader regressions, whole-corpus unit acceptance, native/browser/device behavior, production deployment or production performance. Those remain outside this run's evidence and must not inherit a pass from these focused suites.
 
 SHA-256 manifests and row fingerprints identify bytes and causal evidence; they are **not signed Git commits**, cryptographic signatures, proof of signer identity, remote publication or deployment verification. No commit-signing claim follows from a matching hash or successful local tests.
+
+## Locale regression and successor qualification (2026-10-21)
+
+The earlier 26-test run used PostgreSQL's C locale. It did not establish acceptance under every database collation. GitHub Actions run 39569827733 on published commit ad61a16b379e1a143eee5f02a2f215a9fee606e5 exposed a genuine 0173 inventory comparison defect under en_US.utf8. A fresh local run of those exact published migration bytes reproduced the failure. The source correction is not a relaxation of account, request, generation, lifecycle or transaction authority.
+
+The same-transaction diagnostic showed the exact current cause and lifecycle predicates remained true. Both relation inventories contained 837 entries, but 103 positions differed because one ordering used the database's text collation while the catalog-name expression used C ordering. Explicit C ordering produced identical arrays. The diagnostic is evidence of the cause, not a successful deletion run.
+
+Migration 0174 explicitly fixes all four relation-identifier sorts to COLLATE "C". It also qualifies the coordinator seal with a versioned, stable function profile so a previously sealed inventory cannot silently inherit a changed inventory_current implementation. Existing seals are immutable and fail closed after this change; they are not updated or backfilled. A new supported qualification is required. The original 0173 file and all owner causality predicates remain unchanged. The new seal uses typed pg_proc metadata, not caller-sensitive pg_get_functiondef output. Its local settings normalize search_path, quote_all_identifiers and IntervalStyle; this is not an invariance claim for arbitrary GUCs or every part of admission. Its deliberately finite function profile rejects unsupported metadata.
+
+The successor still describes a synthetic local owner, not a public production deletion feature. Real content/media owners, full retained-history policy, providers and production admission remain separate requirements.
+
+Validation record must distinguish the unchanged original suites, the added collation/seal negatives, and the complete cloud regression run. The first version of the new body-tamper test failed before reaching its assertion because JavaScript replacement-string syntax collapsed $$ into $. That failed test is retained in the evidence. The callback-based test successor preserves the SQL delimiter and asserts the injected comment is the only change. Only real PostgreSQL execution of that successor can establish body-tamper rejection.
+
+### Successor validation evidence
+
+The unmodified original three deletion suites subsequently passed 26/26 in each of C and en_US.utf8 on the same 0174 production bytes. The corrected full collation/seal suite then passed 7/7 in each locale, including real function-body mutation, rejection of stale qualifications, exact-cause negatives, unsupported inventory changes and genuine owner completion. No failure from the first malformed test construction was erased or counted as a pass.
+
+These are focused local PostgreSQL 18.6 results. The test-only v2 successor differs from its predecessor only in construction of the body-mutation SQL; its 5,601-file manifest SHA-256 is `8b26df5e468998b18cde893e851e9bce332777aeef7fbeccc904768eb1f656c9`. Its two-locale terminal matrix SHA-256 is `a159f0c530304b2df9ba3b7f297718c9951da4d7fd46638727f00fdd1bf62d41`. The preceding twelve-run matrix, including the original test failures, remains `189c29b3af1540adcd348b23342d0cbeb4cfa392388d6b936c72cbf4d2e841b9`.
+
+A later test-only v3 restores the unchanged native thread's original text assertion and adds a regression for its actual template. This does not change the migration or any production runtime. Full clean cloud CI on the eventual signed commit is still required; this focused evidence is not a claim that all integration files passed on one successor version.

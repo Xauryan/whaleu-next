@@ -24,6 +24,7 @@ import { CommunitySubscriptionEnrollment } from '../../src/community/subscriptio
 import { CommunityCommentEnrollment } from '../../src/community/comment-component/enrollment.js';
 import { createRuntimeActor } from '../support/community-runtime-fixtures.js';
 import { withCommunityScopeWriter } from '../support/community-scope-fixtures.js';
+import { configureHistoricalAccountPolicy } from '../support/historical-account-punishment-policy.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
 import {
   epochPath,
@@ -92,9 +93,11 @@ test(
         { mode: 'up' },
       );
       // Manual application contexts start no retention or other automatic jobs.
-      const module = await Test.createTestingModule({
+      const historicalBuilder = Test.createTestingModule({
         imports: [AppModule.register(config)],
-      }).compile();
+      });
+      await configureHistoricalAccountPolicy(historicalBuilder, config, 28);
+      const module = await historicalBuilder.compile();
       app = module.createNestApplication({ logger: false });
       configureHttp(app);
       await app.init();

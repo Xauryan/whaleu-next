@@ -35,6 +35,25 @@ async function until(check, label, page) {
     await delay(10);
   }
 }
+function openMediaPanel(h) {
+  if (h.page.data.uiPanel !== 'media')
+    h.tap('onTogglePanel', { panel: 'media' });
+  assert.equal(h.page.data.uiPanel, 'media');
+}
+function openConversationPanel(h) {
+  if (h.page.data.uiPanel !== 'conversation')
+    h.tap('onTogglePanel', { panel: 'conversation' });
+  assert.equal(h.page.data.uiPanel, 'conversation');
+}
+function openRecoveryActions(h) {
+  if (!h.page.data.uiActions) h.tap('onToggleActions');
+  assert.equal(h.page.data.uiActions, true);
+}
+function openMessageMenu(h, id) {
+  if (h.page.data.uiMessageMenu !== id)
+    h.event('bindlongpress', 'onMessageMenu', {}, { id });
+  assert.equal(h.page.data.uiMessageMenu, id);
+}
 process.once('message', async (input) => {
   let app,
     upload,
@@ -189,6 +208,7 @@ process.once('message', async (input) => {
       height: 48,
       type: 'png',
     });
+    openMediaPanel(h);
     h.tap('onImageAlbum');
     await until(
       () => h.page.data.pending && !h.page.data.busy,
@@ -200,14 +220,17 @@ process.once('message', async (input) => {
     close(h);
     let recovery = mount('private-message-recovery');
     assert.equal(recovery.page.data.pending, true);
+    openRecoveryActions(recovery);
     recovery.tap('onRetry');
     await until(
       () => !recovery.page.data.busy,
       'recover uploaded original without file',
       recovery.page,
     );
-    if (!recovery.page.data.error && recovery.page.data.pending)
+    if (!recovery.page.data.error && recovery.page.data.pending) {
+      openRecoveryActions(recovery);
       recovery.tap('onRetry');
+    }
     await until(
       () => !recovery.page.data.busy && !!recovery.page.data.error,
       'dropped send response',
@@ -283,12 +306,14 @@ process.once('message', async (input) => {
     // A rendered observation acknowledges only its watermark, not the later arrival.
     for (const observer of observers)
       observer.callback?.({ intersectionRatio: 1 });
+    openConversationPanel(h);
     h.tap('onReload');
     await until(() => !h.page.data.busy, 'acknowledge observed image', h.page);
     await rpc('later-unread');
     close(h);
     login('sender');
     h = await detail();
+    openMessageMenu(h, message.id);
     h.tap('onAction', { kind: 'recall', id: message.id });
     h.tap('onConfirm');
     await until(
@@ -312,6 +337,7 @@ process.once('message', async (input) => {
       messageId: message.id,
       bindingId: message.image.bindingId,
     });
+    openConversationPanel(h);
     h.tap('onAction', { kind: 'hide' });
     h.tap('onConfirm');
     await until(
@@ -319,6 +345,7 @@ process.once('message', async (input) => {
       'hide watermark',
       h.page,
     );
+    openConversationPanel(h);
     h.tap('onAction', { kind: 'reopen' });
     h.tap('onConfirm');
     await until(
@@ -327,6 +354,7 @@ process.once('message', async (input) => {
       h.page,
     );
     assert.ok(h.page.data.messages.length);
+    openConversationPanel(h);
     h.tap('onAction', { kind: 'block' });
     h.tap('onConfirm');
     await until(

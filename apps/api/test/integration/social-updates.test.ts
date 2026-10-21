@@ -212,6 +212,55 @@ test(
               sqlCode('23514'),
               'A pending source cannot claim completion without its receipt',
             );
+            // The source fence is deliberately NOWAIT. Prove its exact
+            // contention contract before testing concurrent materialization.
+            const holder = await f.pool.connect();
+            try {
+              await holder.query('BEGIN');
+              await holder.query(
+                'SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+                [`social-in-app:${rows[0]!.id}`],
+              );
+              assert.deepEqual(
+                await f.worker.run({ mode: 'apply', sourceIds: [rows[0]!.id] }),
+                {
+                  mode: 'apply',
+                  requested: 1,
+                  materialized: 0,
+                  existing: 0,
+                  alreadyProcessed: 0,
+                  missing: 0,
+                  retryable: 1,
+                },
+              );
+              assert.equal((await sources(f, owner))[0]!.notice_id, null);
+              assert.equal((await sources(f, owner))[0]!.state, 'pending');
+              assert.equal(
+                (
+                  await f.pool.query<{ n: number }>(
+                    'SELECT count(*)::integer n FROM whaleu_notifications.social_notices WHERE source_id=$1',
+                    [rows[0]!.id],
+                  )
+                ).rows[0]!.n,
+                0,
+              );
+
+              assert.equal(
+                (
+                  await f.pool.query<{ n: number }>(
+                    'SELECT count(*)::integer n FROM whaleu_notifications.social_receipts WHERE source_id=$1',
+                    [rows[0]!.id],
+                  )
+                ).rows[0]!.n,
+                0,
+              );
+            } finally {
+              try {
+                await holder.query('ROLLBACK');
+              } finally {
+                holder.release();
+              }
+            }
             const outcomes = await Promise.all([
               f.worker.run({ mode: 'apply', sourceIds: [rows[0]!.id] }),
               f.worker.run({ mode: 'apply', sourceIds: [rows[0]!.id] }),
@@ -221,12 +270,33 @@ test(
               1,
             );
             assert.equal(
-              outcomes.reduce((n, result) => n + result.alreadyProcessed, 0),
+              outcomes.reduce(
+                (n, result) => n + result.alreadyProcessed + result.retryable,
+                0,
+              ),
               1,
+              'The other worker either sees the receipt or loses the NOWAIT fence',
             );
             assert.equal(
-              outcomes.reduce((n, result) => n + result.retryable, 0),
+              outcomes.reduce(
+                (n, result) => n + result.existing + result.missing,
+                0,
+              ),
               0,
+            );
+            // After both transactions have settled, an actual retry must prove
+            // the sole receipt rather than tolerating an arbitrary worker error.
+            assert.deepEqual(
+              await f.worker.run({ mode: 'apply', sourceIds: [rows[0]!.id] }),
+              {
+                mode: 'apply',
+                requested: 1,
+                materialized: 0,
+                existing: 0,
+                alreadyProcessed: 1,
+                missing: 0,
+                retryable: 0,
+              },
             );
             rows = await sources(f, owner);
             assert.equal(rows[0]!.state, 'completed');

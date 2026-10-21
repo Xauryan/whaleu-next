@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { NestFactory } from '@nestjs/core';
+import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
@@ -36,6 +36,7 @@ import {
 } from '../support/community-runtime-fixtures.js';
 import { writeRatingApproval } from '../support/rating-runtime-fixture.js';
 import { publishLegacyRating } from '../support/rating-legacy-upgrade-fixture.js';
+import { configureHistoricalAccountPolicy } from '../support/historical-account-punishment-policy.js';
 
 interface SourceCase {
   name: string;
@@ -268,6 +269,30 @@ test(
       app: INestApplication | undefined,
       owns = false,
       locked = false;
+    const runtime = () => {
+      assert.ok(app, 'Historical subscription application is not running');
+      return app;
+    };
+    const restartApp = async (prefix: 50 | 51 | 52) => {
+      const old = app;
+      app = undefined;
+      await old?.close();
+      const builder = Test.createTestingModule({
+        imports: [AppModule.register(config)],
+      });
+      await configureHistoricalAccountPolicy(builder, config, prefix);
+      const next = (await builder.compile()).createNestApplication({
+        logger: false,
+      });
+      try {
+        configureHttp(next);
+        await next.listen(0, '127.0.0.1');
+        app = next;
+      } catch (error) {
+        await next.close();
+        throw error;
+      }
+    };
     try {
       suite = await pool.connect();
       locked = (
@@ -315,15 +340,10 @@ test(
         ).rows[0]!.subscriptions,
         null,
       );
-      app = await NestFactory.create(AppModule.register(config), {
-        logger: false,
-      });
-      configureHttp(app);
-      await app.listen(0, '127.0.0.1');
-      const runtime = app,
-        scope = await seedCommunityScope(pool);
-      const actor = await createRuntimeActor(runtime),
-        replyActor = await createRuntimeActor(runtime);
+      await restartApp(50);
+      const scope = await seedCommunityScope(pool);
+      const actor = await createRuntimeActor(runtime()),
+        replyActor = await createRuntimeActor(runtime());
       for (const account of [actor, replyActor])
         await setRuntimeVerification(
           pool,
@@ -361,6 +381,8 @@ test(
         '0051 enrolls only exact native evidence and its legacy SQL read never borrows score coverage',
         async () => {
           await runMigrations(pool, through(51), { mode: 'up' });
+          // Exact-prefix owners must be replaced, not reused after an upgrade.
+          await restartApp(51);
           assert.deepEqual(await snapshotTargets(), before);
           const baselines = (
             await pool.query<{
@@ -511,7 +533,7 @@ test(
           assetIds: [],
         });
         const result = await publishLegacyRating(
-          { app: runtime, pool },
+          { app: runtime(), pool },
           envelope,
           { targetId: subject.id, ...command },
         );
@@ -573,10 +595,12 @@ test(
             ).rows[0]!.last_order,
             '0',
           );
-          const settled = await runtime.get(ExperienceWorker).run({
-            mode: 'apply',
-            unitIds: captured.map((row) => row.unit_id),
-          });
+          const settled = await runtime()
+            .get(ExperienceWorker)
+            .run({
+              mode: 'apply',
+              unitIds: captured.map((row) => row.unit_id),
+            });
           assert.equal(settled.settled, 1, JSON.stringify(settled));
           assert.equal(settled.failed, 0);
           gapSnapshot = (
@@ -600,6 +624,7 @@ test(
             )
           ).rows;
           await runMigrations(pool, through(52), { mode: 'up' });
+          await restartApp(52);
           assert.deepEqual(
             (
               await pool.query(
@@ -692,7 +717,7 @@ test(
             assetIds: [],
           });
           const response = await publishLegacyRating(
-            { app: runtime, pool },
+            { app: runtime(), pool },
             envelope,
             { rootId: root.id, ...input },
           );

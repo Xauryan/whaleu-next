@@ -40,6 +40,12 @@ async function until(check, label, h) {
     await delay(10);
   }
 }
+// Follow the visible disclosure before interacting with the original controls.
+function openComposer(h) {
+  if (h.page.data.uiPanel !== 'compose')
+    h.tap('onTogglePanel', { panel: 'compose' });
+  assert.equal(h.page.data.uiPanel, 'compose');
+}
 process.once('message', async (input) => {
   let app,
     upload,
@@ -218,6 +224,7 @@ process.once('message', async (input) => {
         h,
       );
     async function pick(h, number = 1, loss = false) {
+      openComposer(h);
       const before = h.page.data.imageCount;
       pickerPage = h;
       losePrepare = loss;
@@ -246,6 +253,7 @@ process.once('message', async (input) => {
       }
     }
     async function publish(h, body = ' Reply text 😀 ', loss = false) {
+      openComposer(h);
       if (body) h.event('bindinput', 'onBody', { value: body });
       assert.equal(h.page.data.canPublish, true);
       h.tap('onConfirmPublish');
@@ -329,6 +337,7 @@ process.once('message', async (input) => {
       await loaded(h);
       const body =
         '  Legacy Major exact Unicode 😀\nold journal stays unchanged  ';
+      openComposer(h);
       h.event('bindinput', 'onBody', { value: body });
       h.tap('onConfirmPublish');
       transport.dropSuccess = {

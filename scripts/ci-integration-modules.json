@@ -366,6 +366,7 @@
           "account-deletion-follow-social.test.ts",
           "account-deletion-follow-social-races.test.ts",
           "account-deletion-local-rehearsal.test.ts",
+          "account-deletion-inventory-collation.test.ts",
           "historical-identity-fence.test.ts",
           "dm-owner-proofs.test.ts",
           "identity-campus-native-roundtrip.test.ts",

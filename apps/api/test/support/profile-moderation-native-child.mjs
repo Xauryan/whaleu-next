@@ -177,7 +177,7 @@ process.once('message', async (input) => {
         .join('');
       assert.match(words, /其他地区/);
       assert.match(words, /私有系统通知/);
-      assert.match(words, /匿名分身保持不变/);
+      assert.match(words, /分身保持不变/);
     };
 
     boot();

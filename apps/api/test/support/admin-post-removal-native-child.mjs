@@ -44,6 +44,117 @@ async function until(check, label, h) {
     await delay(10);
   }
 }
+function openPostMenu(h) {
+  if (h.page.data.uiExpandedMenu !== 'post')
+    h.tap('onToggleMenu', { menu: 'post' });
+  assert.equal(h.page.data.uiExpandedMenu, 'post');
+}
+// Raw owner DTOs and timeline display metadata are separate privacy boundaries.
+function assertAdminNoticePresentation(rawPages, view) {
+  assert.equal(rawPages.length, 1, 'One actual owner list response');
+  const raw = rawPages[0];
+  const { decodeSystemNoticesList } = emitted(
+    'community/system-notices-contract',
+  );
+  assert.deepEqual(decodeSystemNoticesList(raw), raw);
+  assert.deepEqual(Object.keys(raw).sort(), [
+    'items',
+    'nextCursor',
+    'unreadCount',
+  ]);
+  assert.equal(raw.nextCursor, null);
+  assert.equal(raw.unreadCount, raw.items.length);
+  assert.equal(view.unreadCount, null, 'No invented cross-source unread total');
+  assert.equal(
+    view.sources.find((source) => source.source === 'system').unreadCount,
+    raw.unreadCount,
+  );
+  const { systemNoticeRows } = emitted('notifications/details');
+  const { systemNoticeSummary } = emitted('notifications/system-summary');
+  const expected = systemNoticeRows(
+    raw.items.map((notice) => ({
+      ...notice,
+      key: `system:${notice.noticeId}`,
+      source: 'system',
+      summary: systemNoticeSummary(notice),
+    })),
+  );
+  assert.equal(view.items.length, expected.length);
+  for (const row of view.items) {
+    assert.deepEqual(Object.keys(row).sort(), [
+      'createdAt',
+      'endTimeLabel',
+      'key',
+      'kind',
+      'noticeId',
+      'observationId',
+      'punishmentEndTimeLabel',
+      'punishmentStartTimeLabel',
+      'readAt',
+      'releaseTimeLabel',
+      'source',
+      'startTimeLabel',
+      'summary',
+      'timeLabel',
+    ]);
+    assert.match(
+      row.observationId,
+      new RegExp(`^notice-[0-9]+-system-${row.noticeId}$`),
+    );
+    assert.deepEqual(row, {
+      ...expected.find((notice) => notice.noticeId === row.noticeId),
+      observationId: row.observationId,
+    });
+    assert.equal(
+      row.readAt,
+      null,
+      'Rendering alone does not acknowledge a notice',
+    );
+  }
+  assert.equal(
+    new Set(view.items.map((row) => row.noticeId)).size,
+    expected.length,
+  );
+}
+function assertSystemNoticeReads(calls, noticeIds) {
+  assert.deepEqual(
+    calls.filter((call) =>
+      /^\/v1\/me\/system-notices\/[^/]+\/read$/.test(call.path),
+    ),
+    noticeIds.map((noticeId) => ({
+      path: `/v1/me/system-notices/${noticeId}/read`,
+      method: 'PUT',
+      body: {},
+    })),
+    'Only an explicit admitted read uses the exact owner endpoint and empty body',
+  );
+}
+function assertAdminNoticeReadState(view, notices, receipts) {
+  assert.equal(
+    receipts.length,
+    1,
+    'The original native action has one server receipt',
+  );
+  const receipt = receipts[0];
+  const { decodeSystemNoticeRead } = emitted(
+    'community/system-notices-contract',
+  );
+  assert.deepEqual(decodeSystemNoticeRead(receipt), receipt);
+  assert.equal(receipt.noticeId, notices[0].noticeId);
+  assert.equal(receipt.unreadCount, notices.length - 1);
+  assert.equal(view.unreadCount, null);
+  assert.equal(view.items.length, notices.length);
+  for (const notice of notices) {
+    const row = view.items.find(
+      (item) => item.key === `system:${notice.noticeId}`,
+    );
+    assert.ok(row);
+    assert.equal(
+      row.readAt,
+      notice.noticeId === receipt.noticeId ? receipt.readAt : null,
+    );
+  }
+}
 process.once('message', async (input) => {
   let app;
   const pages = new Set();
@@ -52,7 +163,9 @@ process.once('message', async (input) => {
       platform = platformStorage();
     const commands = [],
       calls = [],
-      navigations = [];
+      navigations = [],
+      systemNoticePages = [],
+      systemNoticeReads = [];
     const localFiles = new Map();
     let mediaReads = 0;
     let failJournal = '';
@@ -92,7 +205,13 @@ process.once('message', async (input) => {
       },
       request(options) {
         const path = new URL(options.url).pathname;
-        calls.push({ path, method: options.method });
+        calls.push({
+          path,
+          method: options.method,
+          ...(/^\/v1\/me\/system-notices\/[^/]+\/read$/.test(path)
+            ? { body: structuredClone(options.data) }
+            : {}),
+        });
         if (options.method === 'POST' && path.startsWith(commandPath)) {
           const durable = app.community.pendingAdminPostRemoval.load(
             input.admin.accountId,
@@ -127,12 +246,25 @@ process.once('message', async (input) => {
             timeoutMs: options.timeout,
           })
           .then(
-            (response) =>
+            (response) => {
+              if (response.status === 200) {
+                if (
+                  options.method === 'GET' &&
+                  path === '/v1/me/system-notices'
+                )
+                  systemNoticePages.push(structuredClone(response.body));
+                if (
+                  options.method === 'PUT' &&
+                  /^\/v1\/me\/system-notices\/[^/]+\/read$/.test(path)
+                )
+                  systemNoticeReads.push(structuredClone(response.body));
+              }
               options.success({
                 statusCode: response.status,
                 header: response.headers,
                 data: response.body,
-              }),
+              });
+            },
             () => options.fail({ errMsg: 'request:fail synthetic' }),
           );
         // Deliberately uncooperative I/O: stale callbacks must still be rejected.
@@ -258,7 +390,7 @@ process.once('message', async (input) => {
         .nodes()
         .filter((node) => typeof node === 'string')
         .join('');
-      assert.match(words, /评论、回复将不可访问/);
+      assert.match(words, /此主题及其全部回复将不可访问/);
       assert.match(words, /私有系统通知/);
       assert.match(words, /没有恢复此帖/);
       assert.doesNotMatch(words, /school_admin|super_admin|作者账号/);
@@ -275,6 +407,7 @@ process.once('message', async (input) => {
     const fromDetail = async (target, authorMode) => {
       const d = await detail(target);
       assert.equal(d.page.data.post.author.kind, authorMode);
+      openPostMenu(d);
       assert.ok(d.button('bindtap', 'onAdminPostRemoval'));
       if (target.id === input.targets.image.id) {
         await until(
@@ -408,6 +541,7 @@ process.once('message', async (input) => {
 
     d = await detail(input.targets.own);
     assert.equal(d.page.data.post.viewer.isSelf, true);
+    openPostMenu(d);
     assert.equal(d.button('bindtap', 'onAdminPostRemoval'), undefined);
     assert.ok(d.button('bindtap', 'onDeletePost'));
     const ownCalls = calls.length;
@@ -593,13 +727,21 @@ process.once('message', async (input) => {
     close(h);
 
     login(input.subject);
+    const ownerNoticePageStart = systemNoticePages.length;
     h = mount('system-notices');
     await until(
       () => h.page.data.loaded && !h.page.data.busy,
       'owner system notices',
       h,
     );
-    const notices = h.page.data.items;
+    const ownerNoticePages = systemNoticePages.slice(ownerNoticePageStart);
+    assertAdminNoticePresentation(ownerNoticePages, h.page.data);
+    // Keep the original exact DTO privacy assertion on actual transport data.
+    const notices = h.page.data.items.map((row) =>
+      ownerNoticePages[0].items.find(
+        (notice) => notice.noticeId === row.noticeId,
+      ),
+    );
     assert.equal(notices.length, 6);
     for (const notice of notices) {
       assert.equal(notice.kind, 'admin_post_removed');
@@ -619,17 +761,29 @@ process.once('message', async (input) => {
       !nodes.some((n) => typeof n !== 'string' && n.tag === 'navigator'),
       'No deleted-content or author link in own notice',
     );
-    h.tap('onRead', { id: notices[0].noticeId });
+    const selectedNoticeKey = `system:${notices[0].noticeId}`;
+    assertSystemNoticeReads(calls, []);
+    h.tap('onRead', { id: selectedNoticeKey });
     await until(
       () => !h.page.data.busy && h.page.data.items[0].readAt !== null,
       'mark only original notice',
       h,
     );
     const readAt = h.page.data.items[0].readAt;
-    h.page.onRead({ currentTarget: { dataset: { id: notices[0].noticeId } } });
+    assertSystemNoticeReads(calls, [notices[0].noticeId]);
+    assertAdminNoticeReadState(h.page.data, notices, systemNoticeReads);
+    // Existing anti-replay probe: replay the already completed callback, not a
+    // hidden control or a synthetic exposure/dwell event. It must not dispatch.
+    h.page.onRead({ currentTarget: { dataset: { id: selectedNoticeKey } } });
     await until(() => !h.page.data.busy, 'stable repeated read', h);
     assert.equal(h.page.data.items[0].readAt, readAt);
-    assert.equal(h.page.data.unreadCount, 5);
+    assert.equal(
+      h.page.data.sources.find((source) => source.source === 'system')
+        .unreadCount,
+      5,
+    );
+    assertSystemNoticeReads(calls, [notices[0].noticeId]);
+    assertAdminNoticeReadState(h.page.data, notices, systemNoticeReads);
     close(h);
     login(input.stranger);
     h = mount('system-notices');

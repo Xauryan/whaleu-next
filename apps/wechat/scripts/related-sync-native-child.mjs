@@ -86,6 +86,28 @@ const route = (url) => {
   return { name: segments[2], query: Object.fromEntries(parsed.searchParams) };
 };
 
+function openIdentityPanel(h) {
+  if (h.page.data.uiPanel !== 'identity')
+    h.tap('onToggleComposePanel', { panel: 'identity' });
+  assert.equal(h.page.data.uiPanel, 'identity');
+}
+function openManagementMenu(h) {
+  if (h.page.data.uiExpandedMenu !== 'management')
+    h.tap('onToggleMenu', { menu: 'management' });
+  assert.equal(h.page.data.uiExpandedMenu, 'management');
+}
+function openRemovalMenu(h, kind, id) {
+  const menu = kind === 'post' ? 'post' : `${kind}:${id}`;
+  if (h.page.data.uiExpandedMenu !== menu) h.tap('onToggleMenu', { menu });
+  assert.equal(h.page.data.uiExpandedMenu, menu);
+}
+function openCampusPicker(h) {
+  if (h.page.data.campusId && !h.page.data.showCampusPicker) {
+    if (!h.page.data.showHomeMenu) h.tap('onToggleHomeMenu');
+    h.tap('onToggleCampusPicker');
+  }
+  assert.ok(h.page.data.showCampusPicker || !h.page.data.campusId);
+}
 process.once('message', async (input) => {
   let app;
   const pages = new Set();
@@ -351,6 +373,7 @@ process.once('message', async (input) => {
       const h = mount('community-feed');
       await loaded(h, 'feed campus catalog');
       if (h.page.data.campusId !== selected.campusId) {
+        openCampusPicker(h);
         h.tap('onCampus', { id: selected.campusId });
         await until(
           () =>
@@ -488,6 +511,7 @@ process.once('message', async (input) => {
       const h = mount('community-compose', query);
       await loaded(h, 'scoped discussion composer');
       assert.equal(h.page.data.viewSpaceId, related.spaceId);
+      openIdentityPanel(h);
       if (h.page.data.authorMode !== 'named')
         h.tap('onMode', { mode: 'named' });
       h.event('bindinput', 'onText', { value: text });
@@ -592,6 +616,7 @@ process.once('message', async (input) => {
     await loaded(h, 'root composer eligibility');
     assert.equal(h.page.data.syncToRelatedCampuses, false);
     assert.equal(h.page.data.canChooseRelatedCampusSync, true);
+    openIdentityPanel(h);
     if (h.page.data.authorMode !== 'named') h.tap('onMode', { mode: 'named' });
     if (h.page.data.allowAnonymousDm)
       h.event('bindchange', 'onAllowAnonymousDm', { value: false });
@@ -799,6 +824,7 @@ process.once('message', async (input) => {
       'B scoped pin management',
       h,
     );
+    openManagementMenu(h);
     h.tap('onPinCreate');
     assert.equal(h.page.data.postPin.confirming, 'pin');
     h.tap('onPinDuration', { hours: '1' });
@@ -882,6 +908,7 @@ process.once('message', async (input) => {
     login(actors.adminB);
     async function remove(kind, id) {
       const d = await detail(related);
+      openRemovalMenu(d, kind, id);
       if (kind === 'post') d.tap('onAdminPostRemoval');
       else d.tap('onAdminDiscussionRemoval', { kind, id });
       const url = navigations.at(-1);

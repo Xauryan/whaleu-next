@@ -69,7 +69,19 @@ test(
       delete item.row['school_admin_actor_id'];
       delete item.row['school_admin_request_id'];
     }
-    // Assert 0133's exact additive catalog row and null-only historical linkage;
+    const accountsKey = 'whaleu_identity.accounts';
+    const accounts = after[accountsKey] as { row: Record<string, unknown> }[];
+    assert.equal(accounts.length, (before[accountsKey] as unknown[]).length);
+    for (const item of accounts) {
+      // 0172 adds these exact defaults without changing historical identity.
+      assert.equal(item.row['lifecycle'], 'active');
+      assert.equal(item.row['lifecycle_generation'], 0);
+      assert.equal(item.row['deletion_request_id'], null);
+      delete item.row['lifecycle'];
+      delete item.row['lifecycle_generation'];
+      delete item.row['deletion_request_id'];
+    }
+    // Prove 0172's exact additive defaults and 0133's exact additive catalog row;
     // retain every original field of every historical table in the comparison.
     assert.deepEqual(after, before);
     for (const table of [

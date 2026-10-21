@@ -34,6 +34,11 @@ async function until(check, label, h) {
     await delay(10);
   }
 }
+function openManagementMenu(h) {
+  if (h.page.data.uiExpandedMenu !== 'management')
+    h.tap('onToggleMenu', { menu: 'management' });
+  assert.equal(h.page.data.uiExpandedMenu, 'management');
+}
 process.once('message', async (input) => {
   let app;
   const pages = new Set();
@@ -167,6 +172,7 @@ process.once('message', async (input) => {
     let h = mount();
     await loaded(h);
     assert.equal(h.page.data.postPin.detail.canPin, true);
+    openManagementMenu(h);
     h.tap('onPinCreate');
     h.tap('onPinDuration', { hours: '6' });
     assert.equal(h.page.data.postPin.durationHours, 6);
@@ -249,6 +255,7 @@ process.once('message', async (input) => {
     login(input.admin);
     h = mount();
     await loaded(h);
+    openManagementMenu(h);
     h.tap('onPinCreate');
     h.tap('onPinSubmit');
     await settled(h);
@@ -306,6 +313,7 @@ process.once('message', async (input) => {
     login(input.admin);
     h = mount();
     await loaded(h);
+    openManagementMenu(h);
     h.tap('onPinCreate');
     transport.failNext = '/v1/community/post-pin-commands';
     h.tap('onPinSubmit');
@@ -318,6 +326,7 @@ process.once('message', async (input) => {
     // A local persistence failure sends nothing and keeps recovery blocked.
     h.page.onShow();
     await loaded(h);
+    openManagementMenu(h);
     h.tap('onPinCreate');
     const prior = commands.length;
     failJournal = true;
@@ -328,6 +337,7 @@ process.once('message', async (input) => {
     close(h);
     h = mount();
     await loaded(h);
+    openManagementMenu(h);
     h.tap('onPinCreate');
     const held = transport.holdNext('/v1/community/post-pin-commands', 'POST');
     h.tap('onPinSubmit');
@@ -356,6 +366,7 @@ process.once('message', async (input) => {
     login(input.admin);
     h = mount();
     await loaded(h);
+    openManagementMenu(h);
     h.tap('onPinUnpin');
     h.tap('onPinSubmit');
     await settled(h);
@@ -364,6 +375,7 @@ process.once('message', async (input) => {
     assert.equal(h.page.data.postPin.detail.canUnpin, false);
     // A hidden occupied slot remains closable from the current feed, without
     // opening the hidden detail or returning any hidden presentation fields.
+    openManagementMenu(h);
     h.tap('onPinCreate');
     h.tap('onPinSubmit');
     await settled(h);

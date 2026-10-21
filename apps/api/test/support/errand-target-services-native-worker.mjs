@@ -33,6 +33,10 @@ async function until(check, label, page) {
     await delay(10);
   }
 }
+function openQrPanel(h) {
+  if (h.page.data.uiPanel !== 'qr') h.tap('onToggleUiPanel', { panel: 'qr' });
+  assert.equal(h.page.data.uiPanel, 'qr');
+}
 process.once('message', async (input) => {
   let app,
     upload,
@@ -167,6 +171,7 @@ process.once('message', async (input) => {
       );
     };
     const selectQr = async (h, data) => {
+      openQrPanel(h);
       await upload.select(Buffer.from(data, 'base64'), 'image/png', {
         width: 48,
         height: 48,

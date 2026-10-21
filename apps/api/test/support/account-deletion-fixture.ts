@@ -58,7 +58,15 @@ import {
   validateNativeBaseline,
 } from '../../src/account-deletion/owners/baseline.js';
 import { migrationSchemaNames } from './migration-schemas.js';
-export async function accountDeletionFixture() {
+export async function accountDeletionFixture(
+  options: { throughMigration?: 173 | 174 } = {},
+) {
+  assert.ok(
+    options.throughMigration === undefined ||
+      options.throughMigration === 173 ||
+      options.throughMigration === 174,
+    'Only the exact 0173 or 0174 historical prefix is supported',
+  );
   const url = process.env['TEST_DATABASE_URL'];
   assert.ok(
     url,
@@ -126,13 +134,23 @@ export async function accountDeletionFixture() {
       'Refuse any preexisting application schema',
     );
     owns = true;
-    await runMigrations(
-      pool,
-      await readMigrations(
-        fileURLToPath(new URL('../../migrations', import.meta.url)),
-      ),
-      { mode: 'up' },
+    const migrations = await readMigrations(
+      fileURLToPath(new URL('../../migrations', import.meta.url)),
     );
+    const selected =
+      options.throughMigration === undefined
+        ? migrations
+        : migrations.filter(
+            (migration) =>
+              Number(migration.name.slice(0, 4)) <= options.throughMigration!,
+          );
+    if (options.throughMigration !== undefined)
+      assert.equal(
+        Number(selected.at(-1)?.name.slice(0, 4)),
+        options.throughMigration,
+        'The requested historical migration must actually exist',
+      );
+    await runMigrations(pool, selected, { mode: 'up' });
     const repository = new AccountDeletionRepository(pool),
       sandbox = randomUUID();
     let now = Date.now();

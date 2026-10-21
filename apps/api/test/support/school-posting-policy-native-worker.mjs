@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { renderedReferenceText } from './native-reference-text-render.mjs';
 import { mountEmittedPage } from '../../../wechat/test/text-review-emitted-harness.mjs';
 const require = createRequire(import.meta.url);
 const dist = fileURLToPath(new URL('../../../wechat/dist/', import.meta.url));
@@ -383,9 +384,11 @@ process.once('message', async (input) => {
       detail.page,
     );
     assert.ok(
-      detail
-        .nodes()
-        .some((n) => typeof n === 'string' && n.includes(`${phrase} comment`)),
+      renderedReferenceText(
+        detail.nodes(),
+        `${dist}pages/community-detail/community-detail`,
+        dist,
+      ).some((n) => typeof n === 'string' && n.includes(`${phrase} comment`)),
     );
     close(detail);
     const thread = mount('community-thread', { postId, rootCommentId });
@@ -614,9 +617,11 @@ process.once('message', async (input) => {
       retained.page,
     );
     assert.ok(
-      retained
-        .nodes()
-        .some((n) => typeof n === 'string' && n.includes(`${phrase} post`)),
+      renderedReferenceText(
+        retained.nodes(),
+        `${dist}pages/community-detail/community-detail`,
+        dist,
+      ).some((n) => typeof n === 'string' && n.includes(`${phrase} post`)),
     );
     close(retained);
     await checkpoint('user-denied', {

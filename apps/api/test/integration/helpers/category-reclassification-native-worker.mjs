@@ -47,6 +47,11 @@ async function until(check, label, h) {
     await delay(10);
   }
 }
+function openManagementMenu(h) {
+  if (h.page.data.uiExpandedMenu !== 'management')
+    h.tap('onToggleMenu', { menu: 'management' });
+  assert.equal(h.page.data.uiExpandedMenu, 'management');
+}
 process.once('message', async (input) => {
   let app;
   const pages = new Set();
@@ -208,6 +213,7 @@ process.once('message', async (input) => {
     const journal = () =>
       app.community.pendingCategoryReclassification.load(input.admin.accountId);
     const prepare = async (h, category) => {
+      openManagementMenu(h);
       h.tap('onCategoryChoose', { id: input.postId, category });
       await until(
         () => !view(h).busy && view(h).confirming === 'change',

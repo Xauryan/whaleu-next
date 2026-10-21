@@ -13,6 +13,8 @@ import { historicalCommunityDistribution } from './historical-community-distribu
 import { configureHistoricalAvatarModeration } from './historical-avatar-moderation/configure.js';
 import { configureHistoricalIdentity } from './historical-identity/configure.js';
 import { CommunityDistributionService } from '../../src/community/related-sync/service.js';
+import { ContentReferenceAllocation } from '../../src/community/content-references/allocation.js';
+import { historicalContentReferences } from './historical-content-references.js';
 
 // readMigrations hashes checked-in SQL. Share this immutable manifest promise,
 // not a database-validation result; the latter must be checked on every call.
@@ -115,6 +117,10 @@ export async function configureHistoricalAccountPolicy(
     `Unregistered historical prefix ${prefix}`,
   );
   await configureHistoricalIdentity(builder, config, prefix);
+  if (prefix < 171)
+    builder
+      .overrideProvider(ContentReferenceAllocation)
+      .useValue(await historicalContentReferences(config, prefix));
   if (prefix === 132)
     await configureHistoricalAvatarModeration(builder, config, prefix);
   // Boundaries at or after 0138 retain the real distribution owner. The

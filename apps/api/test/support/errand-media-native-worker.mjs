@@ -32,6 +32,11 @@ async function until(check, label, page) {
     await delay(10);
   }
 }
+// Disclosures are actual native presses, never injected presentation state.
+function openComposePanel(h, field) {
+  if (!h.page.data.uiPanels[field]) h.tap('onTogglePanel', { field });
+  assert.equal(h.page.data.uiPanels[field], true);
+}
 process.once('message', async (input) => {
   let app,
     upload,
@@ -162,6 +167,7 @@ process.once('message', async (input) => {
     };
     const tap = (h) => h.tap.bind(h);
     const pick = async (h, slot, loss) => {
+      openComposePanel(h, 'images');
       losePrepare = loss === 'prepare';
       upload.dropUploadResponse = loss === 'upload';
       await upload.select(Buffer.from(input.png, 'base64'), 'image/png', {
@@ -206,6 +212,7 @@ process.once('message', async (input) => {
       pendingDraft.page,
     );
     dropDraft = true;
+    openComposePanel(pendingDraft, 'images');
     tap(pendingDraft)('onChooseOrderImage', { value: 'public0' });
     await until(
       () =>
@@ -232,6 +239,7 @@ process.once('message', async (input) => {
       'new explicit target',
       pendingDraft.page,
     );
+    openComposePanel(pendingDraft, 'images');
     tap(pendingDraft)('onChooseOrderImage', { value: 'public0' });
     await until(
       () =>
@@ -257,6 +265,7 @@ process.once('message', async (input) => {
         'compose loaded',
         h.page,
       );
+      openComposePanel(h, 'private');
       for (const [field, value] of Object.entries({
         title: `Native ${count} image errand`,
         publicText: 'Synthetic public instructions',

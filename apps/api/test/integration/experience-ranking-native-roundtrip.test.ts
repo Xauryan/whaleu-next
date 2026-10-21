@@ -781,8 +781,49 @@ test(
         `${dist}pages/experience-ranking/experience-ranking.wxml`,
         'utf8',
       );
-      for (const handler of ['onRefresh', 'onCancel', 'onProfile'])
-        assert.ok(template.includes(`bindtap="${handler}"`));
+      // These three controls are now exact registered F7 native components.
+      // This is a binding contract check, not a claim of device rendering.
+      const componentRegistration = JSON.parse(
+        readFileSync(
+          `${dist}pages/experience-ranking/experience-ranking.json`,
+          'utf8',
+        ),
+      ) as { usingComponents: Record<string, string> };
+      const { parse } =
+        require('../../../wechat/scripts/smoke-ratings.mjs') as {
+          parse(source: string): { children: WxmlNode[] };
+        };
+      interface WxmlNode {
+        tag: string;
+        attrs: Record<string, string>;
+        children: (WxmlNode | string)[];
+      }
+      const flattenControls = (nodes: (WxmlNode | string)[]): WxmlNode[] =>
+        nodes.flatMap((node) =>
+          typeof node === 'string'
+            ? []
+            : [node, ...flattenControls(node.children)],
+        );
+      const controls = flattenControls(parse(template).children);
+      for (const [handler, component] of [
+        ['onRefresh', 'f7-button'],
+        ['onCancel', 'f7-button'],
+        ['onProfile', 'f7-list-item'],
+      ] as const) {
+        const matching = controls.filter(
+          (node) => node.attrs['bind:press'] === handler,
+        );
+        assert.equal(
+          matching.length,
+          1,
+          `Exactly one registered control binds ${handler}`,
+        );
+        assert.equal(matching[0]!.tag, `wu-${component}`);
+        assert.equal(
+          componentRegistration.usingComponents[`wu-${component}`],
+          `../../components/${component}/${component}`,
+        );
+      }
       assert.ok(
         bridge.exchanges.every(
           (exchange) =>

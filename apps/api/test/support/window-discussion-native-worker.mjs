@@ -40,6 +40,11 @@ const text = (h) =>
     .nodes()
     .filter((n) => typeof n === 'string')
     .join(' ');
+// Follow the visible disclosure before interacting with the original controls.
+function openComposer(h) {
+  if (h.page.data.uiPanel !== 'compose') h.tap('onOpenComposer');
+  assert.equal(h.page.data.uiPanel, 'compose');
+}
 process.once('message', async (input) => {
   let app;
   const pages = new Set();
@@ -171,6 +176,7 @@ process.once('message', async (input) => {
           h,
         );
     async function publish(h, body) {
+      openComposer(h);
       h.event('bindinput', 'onBody', { value: body });
       h.tap('onConfirmPublish');
       assert.equal(h.page.data.confirming, 'publish');
@@ -204,8 +210,10 @@ process.once('message', async (input) => {
     let h = mount();
     await loaded(h);
     assert.equal(h.page.data.items.length, 0);
+    openComposer(h);
     h.event('bindinput', 'onBody', { value: '😀'.repeat(2001) });
     assert.equal(h.page.data.canPublish, false);
+    openComposer(h);
     h.event('bindinput', 'onBody', { value: exact });
     h.tap('onConfirmPublish');
     h.tap('onCloseConfirmation');
@@ -355,6 +363,7 @@ process.once('message', async (input) => {
     h = mount();
     await loaded(h);
     const beforeCommands = commands.length;
+    openComposer(h);
     h.event('bindinput', 'onBody', { value: 'Storage failure' });
     h.tap('onConfirmPublish');
     failJournal = true;
@@ -368,6 +377,7 @@ process.once('message', async (input) => {
     );
     h.tap('onRefresh');
     await loaded(h);
+    openComposer(h);
     h.event('bindinput', 'onBody', { value: 'PENDING native original' });
     h.tap('onConfirmPublish');
     h.tap('onSubmit');
@@ -446,6 +456,7 @@ process.once('message', async (input) => {
     h = mount();
     await loaded(h);
     const heldRead = transport.holdNext(path);
+    h.tap('onToggleTools');
     h.tap('onRefresh');
     await heldRead.arrived;
     app.onHide();

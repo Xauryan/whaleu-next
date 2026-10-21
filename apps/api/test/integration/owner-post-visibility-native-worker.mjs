@@ -37,6 +37,14 @@ async function until(check, label, h) {
   }
 }
 
+function openManagementMenu(h) {
+  // My Publications already exposes its own row controls; detail has a menu.
+  if ('uiExpandedMenu' in h.page.data) {
+    if (h.page.data.uiExpandedMenu !== 'management')
+      h.tap('onToggleMenu', { menu: 'management' });
+    assert.equal(h.page.data.uiExpandedMenu, 'management');
+  }
+}
 process.once('message', async (input) => {
   let app;
   const pages = new Set();
@@ -156,6 +164,7 @@ process.once('message', async (input) => {
         h,
       );
     const prepare = async (h, hidden) => {
+      openManagementMenu(h);
       h.tap(hidden ? 'onOwnerVisibilityHide' : 'onOwnerVisibilityUnhide', {
         id: input.postId,
       });
