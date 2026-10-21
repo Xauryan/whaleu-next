@@ -67,7 +67,7 @@ export function inventory(directory) {
       }
     } else if (
       stat.isFile() &&
-      (/\.(js|json|wxml|wxss)$/.test(relative) ||
+      (/\.(js|json|wxml|wxss|png)$/.test(relative) ||
         relative === 'vendor/js-sha256-LICENSE.txt')
     ) {
       bytes += stat.size;

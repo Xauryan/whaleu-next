@@ -60,6 +60,31 @@ test('only checked native bytes are staged, verified and restored once', () =>
     assert.throws(() => createArtifact(source, artifact, context), /fresh/);
   }));
 
+test('native PNG assets retain exact binary bytes and provenance across restore', () =>
+  fixture(({ root, source, artifact }) => {
+    const relative = 'assets/icons/accent/arrow-right.png';
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6mQAAAAASUVORK5CYII=',
+      'base64',
+    );
+    mkdirSync(join(source, 'assets/icons/accent'), { recursive: true });
+    writeFileSync(join(source, relative), png);
+    const manifest = createArtifact(source, artifact, context);
+    const image = manifest.files.find((file) => file.path === relative);
+    assert.equal(image.bytes, png.length);
+    const destination = join(root, 'restored');
+    restoreArtifact(artifact, destination, context);
+    assert.deepEqual(readFileSync(join(destination, relative)), png);
+    assert.deepEqual(inventory(destination), inventory(source));
+    const changed = Buffer.from(png);
+    changed[changed.length - 1] ^= 1;
+    writeFileSync(join(artifact, 'dist', relative), changed);
+    assert.throws(() => verifyArtifact(artifact, context), /digest mismatch/);
+    assert.throws(() =>
+      restoreArtifact(artifact, join(root, 'tampered-restored'), context),
+    );
+  }));
+
 test('source SHA, tree, run, producer attempt, lockfile and toolchain must all match', () =>
   fixture(({ source, artifact }) => {
     createArtifact(source, artifact, context);
@@ -94,7 +119,14 @@ test('modified, added and missing artifact bytes fail before restoring', () => {
 });
 
 test('hidden files, credentials, foreign outputs, symlinks and malformed envelopes are rejected', () => {
-  for (const name of ['.env', '.npmrc', 'credential.pem', 'application.zip'])
+  for (const name of [
+    '.env',
+    '.npmrc',
+    'credential.pem',
+    'application.zip',
+    'icon.png.exe',
+    'icon.svg',
+  ])
     fixture(({ source, artifact }) => {
       writeFileSync(join(source, name), 'not an output');
       assert.throws(
@@ -116,6 +148,23 @@ test('hidden files, credentials, foreign outputs, symlinks and malformed envelop
     symlinkSync(join(root, 'external.json'), join(artifact, 'manifest.json'));
     assert.throws(() => verifyArtifact(artifact, context), /envelope/);
   });
+});
+
+test('manifest traversal paths cannot escape the verified native inventory', () => {
+  for (const path of [
+    '../escaped.js',
+    '/tmp/escaped.js',
+    'dist/../../escaped.js',
+  ])
+    fixture(({ root, source, artifact }) => {
+      const manifest = createArtifact(source, artifact, context);
+      manifest.files[0].path = path;
+      writeFileSync(join(artifact, 'manifest.json'), JSON.stringify(manifest));
+      assert.throws(() => verifyArtifact(artifact, context), /inventory/);
+      assert.throws(() =>
+        restoreArtifact(artifact, join(root, 'restored'), context),
+      );
+    });
 });
 
 test('app entrypoints are required and the sole text output is the vendor license', () =>
