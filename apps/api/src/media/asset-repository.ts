@@ -16,7 +16,10 @@ import {
 } from '../database/transaction-deadlines.js';
 import { MediaLifecycleRepository } from './lifecycle-repository.js';
 import { MediaRequiredProof } from './required-proof.js';
-import { mediaAttachmentDescriptorSchema } from './contracts.js';
+import {
+  mediaAttachmentDescriptorSchema,
+  mediaParentSchema,
+} from './contracts.js';
 import type {
   MediaAttachmentDescriptor,
   MediaManifest,
@@ -370,6 +373,36 @@ export class MediaAssetRepository {
       !collectDiscussionAncestorMedia(tx, parent, expected) &&
         !collectAvatarModerationMedia(tx, parent, expected),
     );
+  }
+  /** Explicit negative fact for a text-only Community owner. This does not
+   * weaken nonempty descriptor validation or issue viewer/storage authority.
+   * Capture BEFORE the bounded absence read: first insertion and zero-row raw
+   * writers are covered by the native mandatory Media epoch/final table fence. */
+  async verifyAbsentContentBindings(
+    parent: MediaParent,
+    tx: PoolClient,
+  ): Promise<void> {
+    this.managed(tx);
+    if (
+      !mediaParentSchema.safeParse(parent).success ||
+      parent.ownerKind !== 'community'
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
+    await this.proof.capture(tx);
+    if (
+      (
+        await tx.query(
+          `SELECT id FROM whaleu_media.bindings WHERE owner_kind=$1 AND resource_kind=$2 AND resource_id=$3 AND content_version=$4 AND slot='images' AND detached_at IS NULL LIMIT 1`,
+          [
+            parent.ownerKind,
+            parent.resourceKind,
+            parent.resourceId,
+            parent.contentVersion,
+          ],
+        )
+      ).rows.length
+    )
+      throw new ApplicationError('MEDIA_UNAVAILABLE');
   }
   /** Delete-transition proof only: exact original set is now detached and its
    * intent has durably entered cleanup. Never produces downloadable descriptors. */

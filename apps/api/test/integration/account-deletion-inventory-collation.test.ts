@@ -99,9 +99,12 @@ test(
       )
     ).rows[0]!.equal;
     assert.equal(await current(f.pool, intent.requestId), oldArrays);
-    const migrations = await readMigrations(
-      fileURLToPath(new URL('../../migrations', import.meta.url)),
-    );
+    // This regression upgrades exactly 0173 -> published 0174, not later owners.
+    const migrations = (
+      await readMigrations(
+        fileURLToPath(new URL('../../migrations', import.meta.url)),
+      )
+    ).filter((migration) => Number(migration.name.slice(0, 4)) <= 174);
     assert.equal(migrations.at(-1)?.name, migrationName);
     const result = await runMigrations(f.pool, migrations, { mode: 'up' });
     assert.ok(result.some((entry) => entry.name === migrationName));
@@ -149,7 +152,7 @@ test(
   '0174 fresh qualification preserves exact causes, current inventory and real completion',
   { timeout: 900000 },
   async (t) => {
-    const f = await accountDeletionFixture();
+    const f = await accountDeletionFixture({ throughMigration: 174 });
     t.after(() => f.close());
     const actor = await f.create(),
       peer = await f.create(),

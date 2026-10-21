@@ -1,8 +1,11 @@
-import { assertReviewedBusinessSuccessor } from './reviewed-business-successor';
+import { batchPublicationReference } from '../src/media/batch-publication';
+import type { PendingAttempt } from '../src/community/pending-attempt';
+import { assertReviewedReadingSuccessor } from './reviewed-reading-successor';
+import { assertReviewedBusinessSuccessor } from './reviewed-reading-successor';
 import {
   assertReviewedReferenceSuccessor,
   reviewedReferencePresentation,
-} from './reviewed-reference-successor';
+} from './reviewed-reading-successor';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -18,6 +21,7 @@ import {
 } from './framework7-action-parity';
 import {
   comment,
+  intent,
   commentId,
   post,
   postId,
@@ -178,6 +182,7 @@ test('all four Page/controller sources, shared contracts, pending journals, medi
   for (const [file, expected] of Object.entries(protectedFiles).filter(
     ([file, expected]) =>
       !assertReviewedReferenceSuccessor(file, expected) &&
+      !assertReviewedReadingSuccessor(file, expected) &&
       !assertReviewedBusinessSuccessor(file, expected),
   ))
     assert.equal(hash(read(file)), expected, file);
@@ -904,5 +909,238 @@ test('real detail save/delete/report entry Buttons reach original controllers wi
   } finally {
     f.close();
     s.controller.dispose();
+  }
+});
+
+for (const missing of [null, undefined])
+  test(`actual composer bindings retain ${String(missing)} legacy source descriptor with current capability; explicit selection alone changes format`, async () => {
+    const { createNativePressBridge } = requireNative(
+      './native-press-emitted-harness.mjs',
+    ) as {
+      createNativePressBridge(options: {
+        page: Owner;
+        pageFile: string;
+        dist: string;
+        extension: 'ts';
+      }): {
+        find(
+          handler: string,
+          dataset?: Record<string, unknown>,
+        ): PresentationNode | undefined;
+        capture(
+          handler: string,
+          dataset?: Record<string, unknown>,
+        ): { press(): boolean; detach(): void };
+        lifecycle(name: string): void;
+      };
+    };
+    const s = setup();
+    Object.assign(s.gateway, {
+      textSourceCapabilities: async (
+        _space: string,
+        _category: string,
+        authorMode: 'named' | 'anonymous',
+      ) => ({
+        version: 1,
+        authorMode,
+        availability: 'available',
+        operations: ['publish_post', 'publish_comment', 'publish_reply'],
+        formats: ['plain', 'markdown'],
+        readingFormatting: ['auto', 'off'],
+        media: 'unavailable',
+        markdownReferences: 'unavailable',
+        formatter: 'not_configured',
+      }),
+      submitReview: async (attempt: PendingAttempt) => ({
+        requestId: attempt.payload.clientRequestId,
+        operation: attempt.operation,
+        status: 'pending',
+      }),
+      reviewStatus: async (attempt: PendingAttempt) => ({
+        requestId: attempt.payload.clientRequestId,
+        operation: attempt.operation,
+        status: 'pending',
+      }),
+    });
+    const draftKey = `post:${spaceId}:discussion`;
+    s.runtime.drafts.save(s.accountId, draftKey, {
+      version: 1,
+      text: '历史原文😀',
+      authorMode: 'named',
+      commentsPolicy: 'open',
+    });
+    const original = s.runtime.drafts.load(s.accountId, draftKey);
+    const f = mount('community-compose', s.runtime, {
+      spaceId,
+      category: 'discussion',
+    });
+    try {
+      await flush();
+      assert.equal(f.target.data.loaded, true);
+      assert.equal(f.target.data.canChooseTextSource, true);
+      assert.equal(
+        f.target.data.textSource,
+        null,
+        'real legacy controller state is not auto-upgraded',
+      );
+      const beforeRender = s.runtime.drafts.load(s.accountId, draftKey);
+      assert.equal(beforeRender?.textSource, undefined);
+      // undefined is an additional native template boundary, not a fabricated
+      // controller default or a replacement for the genuine null legacy case.
+      f.target.data.textSource = missing;
+      const bridge = createNativePressBridge({
+        page: f.target,
+        pageFile: path.join(
+          root,
+          'src/pages/community-compose/community-compose',
+        ),
+        dist: path.join(root, 'src'),
+        extension: 'ts',
+      });
+      assert.equal(
+        bridge.find('onSourceFormat', { format: 'plain' })?.attrs.variant,
+        'tonal',
+      );
+      assert.equal(
+        bridge.find('onSourceFormat', { format: 'markdown' })?.attrs.variant,
+        'plain',
+      );
+      assert.equal(bridge.find('onSourcePreview'), undefined);
+      assert.equal(f.target.data.textSource, missing);
+      assert.deepEqual(
+        s.runtime.drafts.load(s.accountId, draftKey),
+        beforeRender,
+        'rendering neither initializes source nor rewrites the loaded draft',
+      );
+      const blocked = bridge.capture('onSourceFormat', { format: 'markdown' });
+      f.target.data.busy = true;
+      assert.equal(blocked.press(), false);
+      blocked.detach();
+      f.target.data.busy = false;
+      const choose = bridge.capture('onSourceFormat', { format: 'markdown' });
+      assert.equal(
+        choose.press(),
+        true,
+        'real component dispatch reaches actual Page/controller only on explicit action',
+      );
+      choose.detach();
+      assert.deepEqual(f.target.data.textSource, {
+        version: 1,
+        format: 'markdown',
+      });
+      assert.equal(f.target.data.text, original?.text);
+      assert.deepEqual(
+        s.runtime.drafts.load(s.accountId, draftKey)?.textSource,
+        { version: 1, format: 'markdown' },
+      );
+      assert.equal(
+        bridge.find('onSourceFormat', { format: 'markdown' })?.attrs.variant,
+        'tonal',
+      );
+      const stale = bridge.capture('onSourceFormat', { format: 'plain' });
+      bridge.lifecycle('hide');
+      assert.equal(stale.press(), false);
+      stale.detach();
+      assert.deepEqual(f.target.data.textSource, {
+        version: 1,
+        format: 'markdown',
+      });
+    } finally {
+      f.close();
+    }
+  });
+
+test('actual frozen legacy pending composer renders null source without inventing descriptor or changing request/hash', async () => {
+  const { createNativePressBridge } = requireNative(
+    './native-press-emitted-harness.mjs',
+  ) as {
+    createNativePressBridge(options: {
+      page: Owner;
+      pageFile: string;
+      dist: string;
+      extension: 'ts';
+    }): { find(handler: string, dataset?: Record<string, unknown>): unknown };
+  };
+  const s = setup();
+  Object.assign(s.gateway, {
+    textSourceCapabilities: async (
+      _space: string,
+      _category: string,
+      authorMode: 'named' | 'anonymous',
+    ) => ({
+      version: 1,
+      authorMode,
+      availability: 'available',
+      operations: ['publish_post', 'publish_comment', 'publish_reply'],
+      formats: ['plain', 'markdown'],
+      readingFormatting: ['auto', 'off'],
+      media: 'unavailable',
+      markdownReferences: 'unavailable',
+      formatter: 'not_configured',
+    }),
+    submitReview: async (attempt: PendingAttempt) => ({
+      requestId: attempt.payload.clientRequestId,
+      operation: attempt.operation,
+      status: 'pending',
+    }),
+    reviewStatus: async (attempt: PendingAttempt) => ({
+      requestId: attempt.payload.clientRequestId,
+      operation: attempt.operation,
+      status: 'pending',
+    }),
+  });
+  s.gateway.receiptImpl = async () => {
+    throw new ClientError('http', 'missing', {
+      httpStatus: 404,
+      serverCode: 'REQUEST_NOT_FOUND',
+    });
+  };
+  const original = s.runtime.pending.freeze({
+    version: 1,
+    accountId: s.accountId,
+    operation: 'publish_post',
+    payload: intent({ text: '历史待确认原文😀' }),
+  });
+  const f = mount('community-compose', s.runtime, {
+    spaceId,
+    category: 'discussion',
+  });
+  try {
+    await flush();
+    assert.equal(f.target.data.loaded, true);
+    assert.equal(f.target.data.frozen, true);
+    assert.equal(f.target.data.textSource, null);
+    const bridge = createNativePressBridge({
+      page: f.target,
+      pageFile: path.join(
+        root,
+        'src/pages/community-compose/community-compose',
+      ),
+      dist: path.join(root, 'src'),
+      extension: 'ts',
+    });
+    assert.equal(bridge.find('onSourceFormat'), undefined);
+    assert.equal(bridge.find('onSourcePreview'), undefined);
+    invoke(f.target, 'onSourceFormat', {
+      currentTarget: { dataset: { format: 'markdown' } },
+    });
+    assert.equal(
+      f.target.data.textSource,
+      null,
+      'frozen handler cannot reroute immutable request',
+    );
+    const retained = s.runtime.pending.load(s.accountId);
+    assert.deepEqual(retained, original);
+    assert.ok(retained);
+    assert.equal(
+      batchPublicationReference(retained).intentHash,
+      batchPublicationReference(original).intentHash,
+    );
+    assert.equal(
+      s.runtime.pending.load(s.accountId)?.payload.textSource,
+      undefined,
+    );
+  } finally {
+    f.close();
   }
 });

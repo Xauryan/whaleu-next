@@ -1,3 +1,5 @@
+import { writeReadingCapabilityOpenApi } from './reading-capability-openapi-document.js';
+import { writeReadingContentOpenApi } from './reading-content-openapi-document.js';
 import { writeContentReferencesOpenApi } from './content-references-openapi-document.js';
 import { writeSocialUpdatesOpenApi } from './social-updates-openapi-document.js';
 import { writePersonalTimetableOpenApi } from './personal-timetable-openapi-document.js';
@@ -376,3 +378,7 @@ await writePersonalTimetableOpenApi(args[0] === '--check');
 await writeSocialUpdatesOpenApi(args[0] === '--check');
 
 await writeContentReferencesOpenApi(args[0] === '--check');
+
+await writeReadingContentOpenApi(args[0] === '--check');
+
+await writeReadingCapabilityOpenApi(args[0] === '--check');

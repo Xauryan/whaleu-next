@@ -1,8 +1,5 @@
 import { countsAfterRootDeletion } from '../../community/discussion-counts';
-import {
-  checkDiscussionPrivacy,
-  type Reply,
-} from '../../community/discussion-contract';
+import { checkDiscussionPrivacy } from '../../community/discussion-contract';
 import type { CommentQuery } from '../../community/gateway';
 import { ClientError } from '../../api/errors';
 import {
@@ -10,7 +7,11 @@ import {
   initialCommunityView,
   type CommunityView,
 } from '../../community/controller';
-import type { Comment, Post } from '../../community/contract';
+import type {
+  ReadingComment as Comment,
+  ReadingPost as Post,
+  ReadingReply as Reply,
+} from '../../community/reading-contract';
 import type { CommunityRuntime } from '../../community/runtime';
 export interface DetailView extends CommunityView {
   readonly viewSpaceQuery: string;

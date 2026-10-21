@@ -1,3 +1,4 @@
+import { sourceTextAvailable } from '../text-source/protocol.js';
 import { CurrentRatingLinkDependency } from '../rating-target-link/dependency.js';
 import { requireFeedbackSpace } from '../feedback/topic.js';
 import { registerTransactionDeadline } from '../../database/transaction-deadlines.js';
@@ -39,6 +40,17 @@ export class TextReviewRuntime {
       !!this.config.COMMUNITY_TEXT_REVIEW_OPERATOR
     );
   }
+  /** Source-only explicit human issuer mode. Never enables legacy or related Review. */
+  sourceConfigured(): boolean {
+    return (
+      (this.configured() ||
+        this.config.COMMUNITY_TEXT_REVIEW === 'source_manual') &&
+      !!this.config.COMMUNITY_TEXT_REVIEW_SPACE_ID &&
+      !!this.config.COMMUNITY_TEXT_REVIEW_REGION_ID &&
+      !!this.config.COMMUNITY_TEXT_REVIEW_OPERATOR &&
+      !!this.config.COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID
+    );
+  }
   async available(
     space: Pick<CommunitySpace, 'id' | 'operatingRegionId'>,
     tx: PoolClient,
@@ -75,9 +87,11 @@ export class TextReviewRuntime {
     ).rows[0];
   }
   policyId(envelope: EffectiveContentEnvelope): string | undefined {
-    return envelope.version === 4
-      ? this.config.COMMUNITY_RELATED_REVIEW_POLICY_ID
-      : this.config.COMMUNITY_TEXT_REVIEW_POLICY_ID;
+    return envelope.version === 6
+      ? this.config.COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID
+      : envelope.version === 4
+        ? this.config.COMMUNITY_RELATED_REVIEW_POLICY_ID
+        : this.config.COMMUNITY_TEXT_REVIEW_POLICY_ID;
   }
   async relatedAvailable(
     space: Pick<CommunitySpace, 'id' | 'operatingRegionId'>,
@@ -112,10 +126,62 @@ export class TextReviewRuntime {
       );
     return true;
   }
+  async sourceAvailable(
+    space: Pick<CommunitySpace, 'id' | 'operatingRegionId'>,
+    tx: PoolClient,
+  ): Promise<boolean> {
+    if (
+      !this.sourceConfigured() ||
+      !this.config.COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID ||
+      space.id !== this.config.COMMUNITY_TEXT_REVIEW_SPACE_ID ||
+      space.operatingRegionId !== this.config.COMMUNITY_TEXT_REVIEW_REGION_ID
+    )
+      return false;
+    const row = (
+      await tx.query<{ valid_until: Date | null }>(
+        `SELECT valid_until FROM whaleu_community.content_approval_policies WHERE id=$1 AND policy_key='local-text-source-v1' AND version=1 AND coverage='complete' AND provenance='accepted' AND issuer=$2 AND length(btrim(provenance_ref))>0 AND valid_from<=clock_timestamp() AND (valid_until IS NULL OR valid_until>clock_timestamp()) FOR SHARE`,
+        [
+          this.config.COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID,
+          this.config.COMMUNITY_TEXT_REVIEW_OPERATOR,
+        ],
+      )
+    ).rows[0];
+    if (!row) return false;
+    if (row.valid_until)
+      registerTransactionDeadline(
+        tx,
+        row.valid_until.getTime(),
+        'CONTENT_REVIEW_UNAVAILABLE',
+      );
+    return true;
+  }
   async requireEnvelope(
     envelope: EffectiveContentEnvelope,
     tx: PoolClient,
   ): Promise<void> {
+    if (envelope.version === 6) {
+      // This locally admitted profile is genuinely text-only. Media remains
+      // unavailable until a separate source-aware Media policy is reviewed.
+      if (
+        envelope.images.length ||
+        envelope.scope.sync !== 'none' ||
+        envelope.category === 'feedback' ||
+        envelope.category === 'trading' ||
+        envelope.component.kind !== 'none' ||
+        envelope.trading !== null ||
+        envelope.commentsPolicy !== 'open' ||
+        !sourceTextAvailable(envelope.text, envelope.textSource) ||
+        !(await this.sourceAvailable(
+          {
+            id: envelope.spaceId,
+            operatingRegionId: envelope.scope.originalRegionId,
+          },
+          tx,
+        ))
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      return;
+    }
     if (envelope.version === 4) {
       if (
         !this.distribution ||
@@ -182,7 +248,7 @@ export class TextReviewRuntime {
   private async storageAvailable(tx: PoolClient): Promise<boolean> {
     // Disabled mode preserves historical schema callers. Enabled mode must have
     // the migration; a missing table is an honest configuration failure.
-    if (this.configured()) return true;
+    if (this.configured() || this.sourceConfigured()) return true;
     return !!(
       await tx.query<{ present: boolean }>(
         "SELECT to_regclass('whaleu_community.text_review_requests') IS NOT NULL AS present",
@@ -331,6 +397,7 @@ export class TextReviewRuntime {
     context: PublicationMediaContext,
     tx: PoolClient,
   ): Promise<void> {
+    if (envelope.version === 6) await this.requireEnvelope(envelope, tx);
     if (!(await this.storageAvailable(tx))) return;
     const row = await this.request(
       envelope.accountId,
@@ -385,6 +452,7 @@ export class TextReviewRuntime {
     accepted: AcceptedApproval | undefined,
     tx: PoolClient,
   ): Promise<void> {
+    if (envelope.version === 6) await this.requireEnvelope(envelope, tx);
     if (!(await this.storageAvailable(tx))) return;
     const row = await this.request(
       envelope.accountId,

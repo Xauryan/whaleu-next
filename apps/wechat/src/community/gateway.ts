@@ -1,4 +1,8 @@
 import {
+  decodeTextSourceCapability,
+  type TextSourceCapability,
+} from './text-source-contract';
+import {
   decodeFeedbackContacts,
   type FeedbackContacts,
 } from './feedback-contract';
@@ -136,6 +140,12 @@ export interface FeedQuery {
   readonly cursor?: string;
 }
 export interface CommunityGateway {
+  textSourceCapabilities?(
+    spaceId: string,
+    category: Category,
+    authorMode: 'named' | 'anonymous',
+    cancel: Cancellation,
+  ): Promise<TextSourceCapability>;
   feedbackTopic?(
     cancel: Cancellation,
   ): Promise<{ topic: 'feedback'; space: CommunitySpace }>;
@@ -336,6 +346,27 @@ const postComponentBody = (component: NonNullable<PostIntent['component']>) =>
         ? { ...component, selector: { ...component.selector } }
         : { kind: 'none' as const };
 export class HttpCommunityGateway implements CommunityGateway {
+  async textSourceCapabilities(
+    spaceId: string,
+    category: Category,
+    authorMode: 'named' | 'anonymous',
+    cancel: Cancellation,
+  ): Promise<TextSourceCapability> {
+    if (!isCategory(category) || !['named', 'anonymous'].includes(authorMode))
+      invalid();
+    const result = await this.api.request(
+      endpoint(
+        '/v1/community/text-source-capabilities',
+        decodeTextSourceCapability,
+      ),
+      {
+        query: { spaceId: id(spaceId), category, authorMode },
+        cancellation: cancel,
+      },
+    );
+    if (result.authorMode !== authorMode) invalid();
+    return result;
+  }
   constructor(private readonly api: ApiClient) {}
   async feedbackTopic(
     cancel: Cancellation,
@@ -425,6 +456,9 @@ export class HttpCommunityGateway implements CommunityGateway {
           authorMode: payload.authorMode,
           commentsPolicy: payload.commentsPolicy,
           imageAssetIds: [...payload.imageAssetIds],
+          ...(payload.textSource
+            ? { textSource: { ...payload.textSource } }
+            : {}),
           ...(payload.feedback
             ? { feedback: { contacts: { ...payload.feedback.contacts } } }
             : {}),

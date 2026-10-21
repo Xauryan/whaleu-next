@@ -34,6 +34,10 @@
           "community-feedback.test.ts",
           "community-runtime-client-contract.test.ts",
           "community-runtime-policy.test.ts",
+          "community-text-source-storage.test.ts",
+          "community-text-source.test.ts",
+          "reading-formatting.test.ts",
+          "reading-content-native-roundtrip.test.ts",
           "community-text-review-native-roundtrip.test.ts",
           "community-text-review-storage.test.ts",
           "community-text-review.test.ts",
@@ -363,6 +367,7 @@
       ],
       "shards": [
         [
+          "account-deletion-current-source-failclosed.test.ts",
           "account-deletion-follow-social.test.ts",
           "account-deletion-follow-social-races.test.ts",
           "account-deletion-local-rehearsal.test.ts",

@@ -1,3 +1,10 @@
+import {
+  DEFAULT_TEXT_SOURCE,
+  decodeTextSourceDescriptor,
+  sourceTextAvailable,
+  type TextSourceDescriptor,
+  type TextSourceCapability,
+} from '../../community/text-source-contract';
 import { systemClock } from '../../platform/clock';
 import {
   AssistanceController,
@@ -101,6 +108,10 @@ export type ComposeTarget = { readonly viewSpaceId?: string } & (
     }
 );
 export interface ComposeView extends CommunityView {
+  readonly textSource: TextSourceDescriptor | null;
+  readonly canChooseTextSource: boolean;
+  readonly sourcePreview: boolean;
+  readonly sourceNotice: string;
   readonly assistance: AssistanceView;
   readonly ratingLinkName: string;
   readonly ratingLinkLabel: string;
@@ -155,6 +166,10 @@ export interface ComposeView extends CommunityView {
 }
 export const initialComposeView = (): ComposeView => ({
   ...initialCommunityView(),
+  textSource: null,
+  canChooseTextSource: false,
+  sourcePreview: false,
+  sourceNotice: '',
   assistance: initialAssistanceView(),
   ratingLinkName: '',
   ratingLinkLabel: '',
@@ -270,6 +285,7 @@ export class ComposeController extends CommunityController<ComposeView> {
   private mediaGeneration = 0;
   private mediaDisposed = false;
   private mediaAction: { kind: string; task: Promise<void> } | null = null;
+  private sourceCapabilities: readonly TextSourceCapability[] = [];
   private capabilities: Capabilities | null = null;
   private commentCapabilities: CommentCapabilities | null = null;
   private parentPost: Post | null = null;
@@ -524,6 +540,7 @@ export class ComposeController extends CommunityController<ComposeView> {
     }
   }
   protected override resetPrivate(): void {
+    this.sourceCapabilities = [];
     this.assistance?.invalidate();
     this.ratingLink = null;
     this.ratingLinkContext = null;
@@ -728,7 +745,51 @@ export class ComposeController extends CommunityController<ComposeView> {
             throw new ClientError('protocol', 'Root copy must create a root');
           copiedText = source.text;
         }
+        const sourceContext =
+          target.operation === 'publish_post'
+            ? { spaceId: target.spaceId, category: target.category }
+            : post
+              ? { spaceId: post.space.id, category: post.category }
+              : null;
+        const canChooseTextSource =
+          !!this.runtime.gateway!.textSourceCapabilities &&
+          !!sourceContext &&
+          sourceContext.category !== 'trading' &&
+          sourceContext.category !== 'feedback' &&
+          !linkRead;
+        // Source advisory failure cannot silently downgrade a new source draft,
+        // and must not prevent recovery of an already-existing legacy draft.
+        const sourceCapabilities: TextSourceCapability[] = [];
+        if (canChooseTextSource && sourceContext) {
+          try {
+            sourceCapabilities.push(
+              ...(await Promise.all(
+                (['named', 'anonymous'] as const).map((mode) =>
+                  this.runtime.gateway!.textSourceCapabilities!(
+                    sourceContext.spaceId,
+                    sourceContext.category,
+                    mode,
+                    cancel,
+                  ),
+                ),
+              )),
+            );
+          } catch (error) {
+            if (
+              !(error instanceof ClientError) ||
+              [
+                'auth-required',
+                'auth-expired',
+                'stale-session',
+                'cancelled',
+              ].includes(error.kind)
+            )
+              throw error;
+          }
+        }
         return {
+          canChooseTextSource,
+          sourceCapabilities,
           profile,
           post,
           capability,
@@ -745,6 +806,7 @@ export class ComposeController extends CommunityController<ComposeView> {
           this.showPending(pending);
           return;
         }
+        this.sourceCapabilities = result.sourceCapabilities;
         this.capabilities = result.capability;
         this.commentCapabilities = result.commentCapability;
         this.parentPost = result.post;
@@ -832,6 +894,22 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.identityConflict = chosen.conflict;
         this.update({
           loaded: true,
+          canChooseTextSource: result.canChooseTextSource,
+          // Absent legacy draft descriptors remain absent; never auto-upgrade.
+          textSource: draft
+            ? (draft.textSource ?? null)
+            : result.canChooseTextSource &&
+                result.sourceCapabilities.some(
+                  (item) =>
+                    item.authorMode === chosen.mode &&
+                    item.availability === 'available' &&
+                    item.operations.includes(target.operation),
+                ) &&
+                !this.activeUploader()?.hasPendingDraft &&
+                !result.profile.preferences.defaultAllowAnonymousDm
+              ? DEFAULT_TEXT_SOURCE
+              : null,
+          sourcePreview: false,
           hasRatingLink: !!result.linkRead,
           ratingLinkName: result.linkRead?.name ?? '',
           ratingLinkLabel: result.linkRead
@@ -932,6 +1010,12 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.ratingLinkContext = null;
     this.pending = pending;
     this.update({
+      textSource: pending.payload.textSource ?? null,
+      canChooseTextSource: false,
+      sourcePreview: false,
+      sourceNotice: pending.payload.textSource
+        ? '原文格式与排版选择已随原请求冻结；恢复不会更换请求编号。'
+        : '',
       hasRatingLink: pending.version === 5,
       ratingLinkName: '',
       // Original-owner recovery never releases target-identifying text before fresh public proof.
@@ -1061,6 +1145,45 @@ export class ComposeController extends CommunityController<ComposeView> {
     this.update({ text });
     this.persistDraft();
     this.recompute();
+  }
+  setSourceFormat(format: string): void {
+    if (
+      !this.editable() ||
+      !this.view.canChooseTextSource ||
+      !['plain', 'markdown', 'legacy'].includes(format)
+    )
+      return;
+    const textSource =
+      format === 'legacy'
+        ? null
+        : format === 'markdown'
+          ? decodeTextSourceDescriptor({ version: 1, format: 'markdown' })
+          : DEFAULT_TEXT_SOURCE;
+    this.update({ textSource, sourcePreview: false });
+    this.persistDraft();
+    this.recompute();
+  }
+  setReadingFormatting(enabled: boolean): void {
+    if (!this.editable() || this.view.textSource?.format !== 'plain') return;
+    this.update({
+      textSource: {
+        version: 1,
+        format: 'plain',
+        readingFormatting: enabled ? 'auto' : 'off',
+      },
+    });
+    this.persistDraft();
+    this.recompute();
+  }
+  toggleSourcePreview(): void {
+    if (
+      !this.view.loaded ||
+      !this.accountId() ||
+      this.view.busy ||
+      !this.view.textSource
+    )
+      return;
+    this.update({ sourcePreview: !this.view.sourcePreview });
   }
   setAuthorMode(mode: string): void {
     if (
@@ -1277,6 +1400,7 @@ export class ComposeController extends CommunityController<ComposeView> {
     try {
       this.runtime.drafts.save(accountId, targetKey(this.target), {
         version: 1,
+        ...(this.view.textSource ? { textSource: this.view.textSource } : {}),
         text: this.view.text,
         ...(this.target.operation === 'publish_post'
           ? { allowAnonymousDm: this.view.allowAnonymousDm }
@@ -1307,6 +1431,44 @@ export class ComposeController extends CommunityController<ComposeView> {
       this.draftSaved = false;
       this.update({ error: communityError(error) });
     }
+  }
+  private sourceShapeSupported(): boolean {
+    return (
+      !this.view.isTrading &&
+      !this.view.isFeedback &&
+      !this.ratingLink &&
+      !this.view.syncToRelatedCampuses &&
+      !this.view.pollDraft.enabled &&
+      !this.view.formationDraft.enabled &&
+      !this.view.allowAnonymousDm &&
+      this.view.commentsPolicy === 'open' &&
+      this.view.mediaSelected === 0 &&
+      ['idle', 'terminal', 'bound_history'].includes(this.view.mediaStatus)
+    );
+  }
+  private sourceCapabilityCurrent(): boolean {
+    return (
+      !!this.target &&
+      !!this.runtime.gateway?.submitReview &&
+      !!this.runtime.gateway.reviewStatus &&
+      this.sourceCapabilities.some(
+        (item) =>
+          item.authorMode === this.view.authorMode &&
+          item.availability === 'available' &&
+          item.operations.includes(this.target!.operation),
+      )
+    );
+  }
+  /** Format preference is not an immutable request. Ordinary plain media/components
+   * use the existing reviewed publication path; explicit Markdown is never rerouted.
+   * Called only before freeze, never as recovery from source-owner rejection. */
+  private effectiveTextSource(): TextSourceDescriptor | undefined {
+    const descriptor = this.view.textSource;
+    if (!descriptor) return undefined;
+    return descriptor.format === 'markdown' ||
+      (this.sourceShapeSupported() && this.sourceCapabilityCurrent())
+      ? descriptor
+      : undefined;
   }
   private recompute(): void {
     const cap = this.capabilities,
@@ -1449,6 +1611,17 @@ export class ComposeController extends CommunityController<ComposeView> {
         this.view.mediaSelected > 0)
     )
       blocker = '评分卡片不能与同步、图片、投票、组队或分身私信同时发布';
+    if (!blocker && this.view.textSource?.format === 'markdown') {
+      if (!this.sourceCapabilityCurrent())
+        blocker =
+          'Markdown 原文审核能力暂不可确认，请重新加载；不会自动更改格式';
+      else if (!this.sourceShapeSupported())
+        blocker =
+          'Markdown 当前仅支持纯文字、开放回复；请保留原文并明确处理图片、组件、同步和分身私信，或自行选择纯文字格式';
+      else if (!sourceTextAvailable(this.view.text, this.view.textSource))
+        blocker =
+          'Markdown 的图片和内部内容引用尚未支持；请保留原文并明确修改，不会自动删除引用';
+    }
     if (!blocker && this.view.mediaBusy) blocker = '请先等待当前图片操作完成';
     if (
       !blocker &&
@@ -1459,6 +1632,16 @@ export class ComposeController extends CommunityController<ComposeView> {
       blocker = '请先确认原图片的上传、审核或取消结果';
     this.update({
       blocker,
+      sourceNotice:
+        this.view.textSource?.format === 'markdown'
+          ? 'Markdown 为明确选择的纯文字格式，不会自动排版或调用 AI；当前预览不执行 HTML、图片或链接。'
+          : this.view.textSource?.format === 'plain'
+            ? !this.effectiveTextSource()
+              ? '当前内容按原有发布方式发送；图片、组件等内容暂不提供长文阅读排版，文字与附件保持不变。'
+              : this.view.textSource.readingFormatting === 'auto'
+                ? '纯文字原文完整保留；帖子满 300 字、回复满 200 字时允许后台生成可选阅读排版，未完成仍显示原文。'
+                : '已关闭本次阅读排版，仍完整保留纯文字原文。'
+            : '纯文字不推断 Markdown；原有图片、组件、草稿与发布记录保持不变。',
       canDisableComments,
       canSubmit: !blocker && !this.view.frozen && this.view.loaded,
       canOpenIdentityCampus:
@@ -1498,7 +1681,9 @@ export class ComposeController extends CommunityController<ComposeView> {
     const trading = this.view.isTrading
       ? tradingDraftIntent(this.view.tradingDraft)
       : undefined;
+    const source = this.effectiveTextSource();
     const draft = {
+      ...(source ? { textSource: source } : {}),
       ...(component.kind !== 'none' ? { component } : {}),
       ...(trading ? { trading } : {}),
       ...(this.view.isFeedback
@@ -1550,6 +1735,7 @@ export class ComposeController extends CommunityController<ComposeView> {
                   ...(draft.trading ? { trading: draft.trading } : {}),
                   ...(draft.feedback ? { feedback: draft.feedback } : {}),
                   text: draft.text,
+                  ...(draft.textSource ? { textSource: draft.textSource } : {}),
                   authorMode: draft.authorMode,
                   commentsPolicy: draft.commentsPolicy,
                   imageAssetIds,
@@ -1576,6 +1762,9 @@ export class ComposeController extends CommunityController<ComposeView> {
                   payload: decodeReplyIntent({
                     clientRequestId: requestId,
                     text: draft.text,
+                    ...(draft.textSource
+                      ? { textSource: draft.textSource }
+                      : {}),
                     authorMode: draft.authorMode,
                     imageAssetIds,
                     targetReplyId: target.targetReplyId,
@@ -1592,6 +1781,9 @@ export class ComposeController extends CommunityController<ComposeView> {
                   payload: decodeCommentIntent({
                     clientRequestId: requestId,
                     text: draft.text,
+                    ...(draft.textSource
+                      ? { textSource: draft.textSource }
+                      : {}),
                     authorMode: draft.authorMode,
                     imageAssetIds,
                   }),
@@ -1694,6 +1886,41 @@ export class ComposeController extends CommunityController<ComposeView> {
       throw new ClientError('business', 'Review unavailable', {
         serverCode: capability.reason ?? 'COMMUNITY_UNAVAILABLE',
       });
+    if (attempt.payload.textSource) {
+      if (!this.runtime.gateway?.textSourceCapabilities)
+        throw new ClientError(
+          'configuration',
+          'Source review owner unavailable',
+        );
+      const parent =
+        attempt.operation === 'publish_post'
+          ? null
+          : await this.runtime.gateway.post(
+              attempt.postId,
+              cancel,
+              attempt.viewSpaceId,
+            );
+      const context =
+        attempt.operation === 'publish_post'
+          ? {
+              spaceId: attempt.payload.spaceId,
+              category: attempt.payload.category,
+            }
+          : { spaceId: parent!.space.id, category: parent!.category };
+      const source = await this.runtime.gateway.textSourceCapabilities(
+        context.spaceId,
+        context.category,
+        attempt.payload.authorMode,
+        cancel,
+      );
+      if (
+        source.availability !== 'available' ||
+        !source.operations.includes(attempt.operation)
+      )
+        throw new ClientError('business', 'Source review unavailable', {
+          serverCode: 'CONTENT_REVIEW_UNAVAILABLE',
+        });
+    }
     this.assertOriginalAttempt(attempt);
     const review = matchPublicationReview(
       attempt,

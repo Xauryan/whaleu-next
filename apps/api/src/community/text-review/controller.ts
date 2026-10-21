@@ -38,7 +38,7 @@ import { PublicationService } from '../publication.service.js';
 import { PublicationRepository } from '../publication.repository.js';
 import { ReplyPublicationService } from '../discussion/publication.service.js';
 
-@ApiTags('Non-production text review')
+@ApiTags('Explicit human text review')
 @ApiBearerAuth('accessToken')
 @ApiResponse({
   status: 400,
@@ -69,7 +69,7 @@ import { ReplyPublicationService } from '../discussion/publication.service.js';
   status: 503,
   standardSchema: safeErrorResponseSchema,
   description:
-    'Explicit local non-production mode, current policy or review unavailable.',
+    'Explicit human-review mode, current policy or review unavailable.',
 })
 @Controller('v1/community/reviews')
 export class TextReviewController {
@@ -88,7 +88,7 @@ export class TextReviewController {
   @ApiOperation({
     operationId: 'textReviewPost',
     description:
-      'Explicit local manual review; original publication receipt and current authorization remain authoritative.',
+      'Explicit human review; original publication receipt and current authorization remain authoritative.',
   })
   @ApiOkResponse({
     standardSchema: textReviewStatusSchema,
@@ -113,7 +113,7 @@ export class TextReviewController {
   @ApiOperation({
     operationId: 'textReviewComment',
     description:
-      'Explicit local manual review; original publication receipt and current authorization remain authoritative.',
+      'Explicit human review; original publication receipt and current authorization remain authoritative.',
   })
   @ApiOkResponse({
     standardSchema: textReviewStatusSchema,
@@ -139,7 +139,7 @@ export class TextReviewController {
   @ApiOperation({
     operationId: 'textReviewReply',
     description:
-      'Explicit local manual review; original publication receipt and current authorization remain authoritative.',
+      'Explicit human review; original publication receipt and current authorization remain authoritative.',
   })
   @ApiOkResponse({
     standardSchema: textReviewStatusSchema,
@@ -165,7 +165,7 @@ export class TextReviewController {
   @ApiOperation({
     operationId: 'textReviewCancel',
     description:
-      'Explicit local manual review; original publication receipt and current authorization remain authoritative.',
+      'Explicit human review; original publication receipt and current authorization remain authoritative.',
   })
   @ApiOkResponse({
     standardSchema: z.union([postCancellation, discussionCancellation]),
@@ -190,7 +190,7 @@ export class TextReviewController {
   @ApiOperation({
     operationId: 'textReviewStatus',
     description:
-      'Explicit local manual review; original publication receipt and current authorization remain authoritative.',
+      'Explicit human review; original publication receipt and current authorization remain authoritative.',
   })
   @ApiOkResponse({
     standardSchema: textReviewStatusSchema,

@@ -1,3 +1,4 @@
+import { readingPredecessor } from './reviewed-reading-successor';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -22,7 +23,7 @@ import {
   referencePage,
   referenceSuccessors,
   reviewedReferencePresentation,
-} from './reviewed-reference-successor';
+} from './reviewed-reading-successor';
 
 const read = (file: string) => readFileSync(path.join(__dirname, '..', file));
 const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
@@ -41,7 +42,11 @@ const flatten = (node: PresentationNode): PresentationNode[] => [
 const beforeWxml = read(
   `${referenceEvidenceRoot}/before/community-detail.wxml.txt`,
 ).toString('utf8');
-const afterWxml = read(`${referencePage}.wxml`).toString('utf8');
+const currentWxml = read(`${referencePage}.wxml`).toString('utf8');
+const afterWxml = readingPredecessor(
+  `${referencePage}.wxml`,
+  Buffer.from(currentWxml),
+).toString('utf8');
 
 for (const entry of referenceSuccessors) {
   const file = entry.path.slice('apps/wechat/'.length);
@@ -50,7 +55,7 @@ for (const entry of referenceSuccessors) {
       sha(read(`${referenceEvidenceRoot}/${entry.evidence}`)),
       entry.before,
     );
-    assert.equal(sha(read(file)), entry.after);
+    assert.equal(sha(readingPredecessor(file, read(file))), entry.after);
     for (const alias of [file, entry.path])
       assert.equal(assertReviewedReferenceSuccessor(alias, entry.before), true);
     const unexpectedRead = () => {
@@ -122,7 +127,7 @@ test('the complete immediate predecessor seal and reviewed delta cannot be repla
 test('143 complete raw actions and ancestor chains survive; only the four exact renderers replace old text', () => {
   assertReferenceActionDelta(beforeWxml, afterWxml);
   assert.equal(
-    reviewedReferencePresentation(`${referencePage}.wxml`, afterWxml),
+    reviewedReferencePresentation(`${referencePage}.wxml`, currentWxml),
     beforeWxml,
   );
   assert.equal(
@@ -131,8 +136,11 @@ test('143 complete raw actions and ancestor chains survive; only the four exact 
   );
   assert.throws(
     () =>
-      reviewedReferencePresentation(`${referencePage}.wxml`, afterWxml + '\n'),
-    /exact reviewed presentation successor/,
+      reviewedReferencePresentation(
+        `${referencePage}.wxml`,
+        currentWxml + '\n',
+      ),
+    /exact reading presentation successor/,
   );
 });
 

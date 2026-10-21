@@ -15,7 +15,7 @@ import {
 } from './reviewed-notice-exposure-successor';
 import { assertReviewedBusinessSuccessor } from './reviewed-business-successor';
 import { assertReviewedNoticeReadSuccessor } from './reviewed-notice-read-successor';
-import { assertReviewedReferenceSuccessor } from './reviewed-reference-successor';
+import { assertReviewedReferenceSuccessor } from './reviewed-reading-successor';
 import { assertReviewedSocialSuccessor } from './reviewed-social-successor';
 
 const read = (file: string) => readFileSync(path.join(__dirname, '..', file));

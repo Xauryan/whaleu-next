@@ -1,3 +1,12 @@
+import {
+  withReviewedTextSource,
+  requireOrdinarySourceParent,
+} from './text-source/publication.js';
+import { insertTextSource } from './text-source/repository.js';
+import {
+  appendTextSource,
+  sourceTextAvailable,
+} from './text-source/protocol.js';
 import { CurrentRatingLinkDependency } from './rating-target-link/dependency.js';
 import type { ReviewedRatingTargetLink } from './rating-target-link/contracts.js';
 import { AccountPolicy } from '../safety/account-policy/decorator.js';
@@ -104,6 +113,19 @@ export class PublicationService {
     images: ApprovedAsset[];
     approval: AcceptedApproval | undefined;
   }> {
+    if (envelope?.version === 6) {
+      if (
+        !this.reviews ||
+        !this.content.bind ||
+        ids.length ||
+        !sourceTextAvailable(envelope.text, envelope.textSource)
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      await this.reviews.requireEnvelope(
+        canonicalEnvelope({ ...envelope, images: [] }),
+        tx,
+      );
+    }
     if (ids.length && !envelope)
       throw new ApplicationError('MEDIA_UNAVAILABLE');
     const images = ids.length
@@ -364,64 +386,67 @@ export class PublicationService {
                     component: body.component,
                   }
                 : undefined,
-          {
-            accountId: actor,
-            purpose: 'publish_post',
-            spaceId,
-            category,
-            commentsPolicy,
-            postId: null,
-            rootCommentId: null,
-            targetReplyId: null,
-            text,
-            component:
-              body.component?.kind === 'rating_target_link'
-                ? { kind: 'none' }
-                : (body.component ?? { kind: 'none' }),
-            trading: body.trading ?? null,
-            ...(ratingLink
-              ? {
-                  version: 5 as const,
-                  category: 'discussion' as const,
-                  authorMode,
-                  trading: null,
-                  component: ratingLink,
-                  scope: this.scope(
-                    authority,
-                    space.id,
-                    space.operatingRegionId,
-                  ),
-                }
-              : relatedScope
+          withReviewedTextSource(
+            {
+              accountId: actor,
+              purpose: 'publish_post',
+              spaceId,
+              category,
+              commentsPolicy,
+              postId: null,
+              rootCommentId: null,
+              targetReplyId: null,
+              text,
+              component:
+                body.component?.kind === 'rating_target_link'
+                  ? { kind: 'none' }
+                  : (body.component ?? { kind: 'none' }),
+              trading: body.trading ?? null,
+              ...(ratingLink
                 ? {
-                    version: 4 as const,
+                    version: 5 as const,
+                    category: 'discussion' as const,
                     authorMode,
-                    allowAnonymousDm: body.allowAnonymousDm ?? null,
-                    scope: relatedScope,
-                  }
-                : {
+                    trading: null,
+                    component: ratingLink,
                     scope: this.scope(
                       authority,
                       space.id,
                       space.operatingRegionId,
                     ),
-                    ...(body.feedback
-                      ? {
-                          version: 3 as const,
-                          category: 'feedback' as const,
-                          authorMode,
-                          commentsPolicy: 'open' as const,
-                          feedback: body.feedback,
-                        }
-                      : body.allowAnonymousDm === undefined
-                        ? { version: 1 as const, authorMode }
-                        : {
-                            version: 2 as const,
-                            authorMode: 'named' as const,
-                            allowAnonymousDm: body.allowAnonymousDm,
-                          }),
-                  }),
-          },
+                  }
+                : relatedScope
+                  ? {
+                      version: 4 as const,
+                      authorMode,
+                      allowAnonymousDm: body.allowAnonymousDm ?? null,
+                      scope: relatedScope,
+                    }
+                  : {
+                      scope: this.scope(
+                        authority,
+                        space.id,
+                        space.operatingRegionId,
+                      ),
+                      ...(body.feedback
+                        ? {
+                            version: 3 as const,
+                            category: 'feedback' as const,
+                            authorMode,
+                            commentsPolicy: 'open' as const,
+                            feedback: body.feedback,
+                          }
+                        : body.allowAnonymousDm === undefined
+                          ? { version: 1 as const, authorMode }
+                          : {
+                              version: 2 as const,
+                              authorMode: 'named' as const,
+                              allowAnonymousDm: body.allowAnonymousDm,
+                            }),
+                    }),
+            },
+            body.textSource,
+          ),
           {
             clientRequestId,
             operation: 'publish_post',
@@ -432,9 +457,12 @@ export class PublicationService {
         if (
           body.allowAnonymousDm !== undefined &&
           (!this.content.bind ||
-            (approval?.version !== 2 && approval?.version !== 4) ||
+            (approval?.version !== 2 &&
+              approval?.version !== 4 &&
+              approval?.version !== 6) ||
             (approval.envelope.version !== 2 &&
-              approval.envelope.version !== 4) ||
+              approval.envelope.version !== 4 &&
+              approval.envelope.version !== 6) ||
             approval.envelope.allowAnonymousDm !== body.allowAnonymousDm)
         )
           throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -450,15 +478,17 @@ export class PublicationService {
             text,
             authorMode,
             commentsPolicy,
-            ratingLink
-              ? 5
-              : relatedScope
-                ? 4
-                : body.feedback
-                  ? 3
-                  : body.allowAnonymousDm === undefined
-                    ? 1
-                    : 2,
+            body.textSource
+              ? 6
+              : ratingLink
+                ? 5
+                : relatedScope
+                  ? 4
+                  : body.feedback
+                    ? 3
+                    : body.allowAnonymousDm === undefined
+                      ? 1
+                      : 2,
             body.allowAnonymousDm ?? null,
             ...(body.feedback ? [JSON.stringify(body.feedback)] : []),
           ],
@@ -488,6 +518,20 @@ export class PublicationService {
             ],
           );
         }
+        await insertTextSource(
+          {
+            kind: 'post',
+            id,
+            accountId: actor,
+            requestId: clientRequestId,
+            requestedAuthorMode: authorMode,
+            originalIntentHash: publicationHash('publish_post', intent),
+            text,
+            source: body.textSource,
+            approval,
+          },
+          tx,
+        );
         await this.bind(approval, 'post', id, tx, images);
         if (relatedScope) {
           if (!approval || !this.distribution)
@@ -553,11 +597,17 @@ export class PublicationService {
     reviewOnly = false,
   ): Promise<PublicationReceipt | TextReviewStatus> {
     const { clientRequestId, text, imageAssetIds, authorMode } = body;
+    if (body.textSource !== undefined && postId !== postId.toLowerCase())
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    const intent = appendTextSource(
+      { postId, text, imageAssetIds, authorMode },
+      body.textSource,
+    );
     return this.publications.execute(
       token,
       clientRequestId,
       'publish_comment',
-      { postId, text, imageAssetIds, authorMode },
+      intent,
       async (actor, tx) => {
         const publish = async () => {
           const {
@@ -573,6 +623,8 @@ export class PublicationService {
             tx,
             authorMode,
           );
+          if (body.textSource !== undefined)
+            await requireOrdinarySourceParent(post.id, tx);
           // Recovery happens in execute before this new-v4-only admission rule.
           if (
             post.publication_envelope_version === 4 &&
@@ -588,36 +640,34 @@ export class PublicationService {
             imageAssetIds,
             tx,
             undefined,
-            {
-              ...(await this.discussionScope(
-                authority,
-                space,
-                post.id,
-                post.publication_envelope_version,
-                tx,
-              )),
-              accountId: actor,
-              purpose: 'publish_comment',
-              spaceId: space.id,
-              category: post.category,
-              authorMode: effectiveMode,
-              commentsPolicy: post.comments_policy,
-              postId: post.id,
-              rootCommentId: null,
-              targetReplyId: null,
-              text,
-              component: { kind: 'none' },
-              trading: null,
-            },
+            withReviewedTextSource(
+              {
+                ...(await this.discussionScope(
+                  authority,
+                  space,
+                  post.id,
+                  post.publication_envelope_version,
+                  tx,
+                )),
+                accountId: actor,
+                purpose: 'publish_comment',
+                spaceId: space.id,
+                category: post.category,
+                authorMode: effectiveMode,
+                commentsPolicy: post.comments_policy,
+                postId: post.id,
+                rootCommentId: null,
+                targetReplyId: null,
+                text,
+                component: { kind: 'none' },
+                trading: null,
+              },
+              body.textSource,
+            ),
             {
               clientRequestId,
               operation: 'publish_comment',
-              intentHash: publicationHash('publish_comment', {
-                postId,
-                text,
-                imageAssetIds,
-                authorMode,
-              }),
+              intentHash: publicationHash('publish_comment', intent),
             },
             reviewOnly,
           );
@@ -630,6 +680,20 @@ export class PublicationService {
           if (effectiveMode === 'anonymous')
             await this.repository.persona(postId, actor, tx);
           await this.repository.attach('comment', id, images, tx);
+          await insertTextSource(
+            {
+              kind: 'comment',
+              id,
+              accountId: actor,
+              requestId: clientRequestId,
+              requestedAuthorMode: authorMode,
+              originalIntentHash: publicationHash('publish_comment', intent),
+              text,
+              source: body.textSource,
+              approval,
+            },
+            tx,
+          );
           await this.bind(approval, 'comment', id, tx, images);
           if (approval)
             await bindCategoryChildContext(

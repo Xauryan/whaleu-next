@@ -1,0 +1,220 @@
+{
+  "predecessorManifestSha256": "861aafeebb8abcd98e0cd37b1e2bb8ef7f41d03707cc1c59ff6aee1e4900b096",
+  "sources": [
+    {
+      "path": "scripts/build.mjs",
+      "before": "d18a85dc30a9ac8520585f08e8bce66dc46bfb7ba680fe87ce7e1f4866af8c8e",
+      "after": "893dd55071ff2909545d2743e1fb2002ae2fb8972bfc19937c30e099f68390f9",
+      "beforeBytes": 6335,
+      "evidence": "before/scripts/build.mjs.txt",
+      "reason": "exact-vetted-sha-importer"
+    },
+    {
+      "path": "src/community/contract.ts",
+      "before": "8500a1d3d3cf609d7aaa243a4aeea65e7595c8116d5f063752406bec27cda048",
+      "after": "112b3d9965ffba1c1929daee06af7565399e4c7225472b8dea296b5285a3cff0",
+      "beforeBytes": 34973,
+      "evidence": "before/src/community/contract.ts.txt",
+      "reason": "source-publication-descriptor-and-immutable-pending"
+    },
+    {
+      "path": "src/community/discussion-contract.ts",
+      "before": "497f2e827bf2349ad269c6ee38c526e6bb2239f05995e8bb0166abaf7f7d0225",
+      "after": "554f521ed47517c7897b4ab8f139364c7d7954dbdbf2ed0d6cf9312b01299abb",
+      "beforeBytes": 6737,
+      "evidence": "before/src/community/discussion-contract.ts.txt",
+      "reason": "source-publication-descriptor-and-immutable-pending"
+    },
+    {
+      "path": "src/community/gateway.ts",
+      "before": "a167ce388e7079359e5c1a558de59942158dfe849725ee5d1810d9ba5493e94c",
+      "after": "ff921502b70a270ebfc4d8583163b7fde41065f661cb45f2f38a7fd5c154ebc7",
+      "beforeBytes": 37072,
+      "evidence": "before/src/community/gateway.ts.txt",
+      "reason": "source-publication-descriptor-and-immutable-pending"
+    },
+    {
+      "path": "src/community/pending-attempt.ts",
+      "before": "c5d3286406f025987e8cdc4ab6d30e515cd2bb06ca9dc86370f182d65e0542a5",
+      "after": "6bd7cf5ab2897528b18bc24061aea7d2dd8d7a96b398f2c07588e1fba50be2fb",
+      "beforeBytes": 13872,
+      "evidence": "before/src/community/pending-attempt.ts.txt",
+      "reason": "source-publication-descriptor-and-immutable-pending"
+    },
+    {
+      "path": "src/community/review-contract.ts",
+      "before": "5573a404352b95ee57ff65e28ab1739c5d4ac1ca3e30f5e1e20cb1a2fa1a889e",
+      "after": "7a7614f1ac72cd707f9bb7fcc8af9af7542c567c37f4f4bdb3e53db9e65374e5",
+      "beforeBytes": 3715,
+      "evidence": "before/src/community/review-contract.ts.txt",
+      "reason": "source-publication-descriptor-and-immutable-pending"
+    },
+    {
+      "path": "src/media/batch-controller.ts",
+      "before": "8940da24d71d01fb49620f1d09068c65c6430b80f532627fd4d87ddea67e4d24",
+      "after": "0f968c4bb98e4546eb76b1113787fd96725b8064c3eda9c351ec229eea6d5c32",
+      "beforeBytes": 45048,
+      "evidence": "before/src/media/batch-controller.ts.txt",
+      "reason": "source-publication-descriptor-and-immutable-pending"
+    },
+    {
+      "path": "src/media/batch-publication.ts",
+      "before": "9947af805de04a64cafe3a41f87c2feecce43c36292ead2dce67fd17857394f9",
+      "after": "8f640739f41a8f6398cfa07fcf4b61a6b44e59dce351d3cbaa4a091e99fa2f6d",
+      "beforeBytes": 3295,
+      "evidence": "before/src/media/batch-publication.ts.txt",
+      "reason": "source-publication-descriptor-and-immutable-pending"
+    },
+    {
+      "path": "src/media/upload-controller.ts",
+      "before": "24deba1ab3b796c290af4edc071a40c23fb30180e4c4adcb9e353cb36ef355d0",
+      "after": "8d16d72586607f901555416cd4f08819dce4614b71c9807584c6edb25ad302a6",
+      "beforeBytes": 22887,
+      "evidence": "before/src/media/upload-controller.ts.txt",
+      "reason": "source-publication-descriptor-and-immutable-pending"
+    },
+    {
+      "path": "src/media/upload-runtime.ts",
+      "before": "b7a4d53d0a96f3fb31798ed9aade5c9240b823562def2582a3b3cf635799edc9",
+      "after": "aff520eeaa52397679c36fea409bd1b83961e862417b34ec5110790c0cb324d9",
+      "beforeBytes": 5289,
+      "evidence": "before/src/media/upload-runtime.ts.txt",
+      "reason": "source-publication-descriptor-and-immutable-pending"
+    },
+    {
+      "path": "src/pages/community-compose/community-compose.json",
+      "before": "672dbbbdc7f8c468094b93649c0f19a87a22afe91a4e59b9ab20b649aeb1d56c",
+      "after": "b848fea39093209472463e992ece61f13a516be95912ed252981fd133c8b86e4",
+      "beforeBytes": 410,
+      "evidence": "before/src/pages/community-compose/community-compose.json.txt",
+      "reason": "exact-source-component-registration"
+    },
+    {
+      "path": "src/pages/community-compose/community-compose.ts",
+      "before": "bcff82da228b6fc24683b7caf2d74c33b29fd59f88709deb29c98c869144f61a",
+      "after": "9868b2168963929b69b1871281d67cfd9c77ebb117fa029a50e0ce4eb5409a2c",
+      "beforeBytes": 10131,
+      "evidence": "before/src/pages/community-compose/community-compose.ts.txt",
+      "reason": "ordinary-plain-media-routing-and-explicit-markdown"
+    },
+    {
+      "path": "src/pages/community-compose/community-compose.wxml",
+      "before": "dc770cf018dc44a663d3c970ef5979e94e619985c64128942b5a8482ad9b834e",
+      "after": "bb7db0663f501411b319bed3a7252aeed135141e9bebec0c49bdcd3db6054f0d",
+      "beforeBytes": 23595,
+      "evidence": "before/src/pages/community-compose/community-compose.wxml.txt",
+      "reason": "explicit-additive-source-presentation"
+    },
+    {
+      "path": "src/pages/community-compose/controller.ts",
+      "before": "c8fe25f43d3d06f8b24aaa31c54251e95ce0927c3c1d1f8648b749e1dedac3c6",
+      "after": "d001002d3a935a6347267838b1fd22a2f06b1526790af1ecedaa9f626bed43d8",
+      "beforeBytes": 80305,
+      "evidence": "before/src/pages/community-compose/controller.ts.txt",
+      "reason": "ordinary-plain-media-routing-and-explicit-markdown"
+    },
+    {
+      "path": "src/pages/community-detail/community-detail.json",
+      "before": "ee3c3180273ea0e70852cf10b27770f759e6ce6d824539de1e3c54093cabd32e",
+      "after": "6eb0a289f427545d263bf091b20752cd9c60dac440889bf970735b34a8a0be6c",
+      "beforeBytes": 491,
+      "evidence": "before/src/pages/community-detail/community-detail.json.txt",
+      "reason": "exact-source-component-registration"
+    },
+    {
+      "path": "src/pages/community-detail/community-detail.ts",
+      "before": "f66054fb0ca16b2e6a27671d2415d4c9e74e0fe53b03bf1575211ffc7402ac42",
+      "after": "d27bd38fb7bab974f322e843998d0924e7dce4a522775821eec7cb2802b7680c",
+      "beforeBytes": 53763,
+      "evidence": "before/src/pages/community-detail/community-detail.ts.txt",
+      "reason": "versioned-source-reader-and-lifecycle"
+    },
+    {
+      "path": "src/pages/community-detail/community-detail.wxml",
+      "before": "c9ba8258ab59f4fbf03f9465ae1febad888dc8e5fc89ff9cb61c4a509f47392e",
+      "after": "5e44fe537940275147bbae25e8620bcdcbbc99338bea4921d85d638c2b9ec420",
+      "beforeBytes": 52918,
+      "evidence": "before/src/pages/community-detail/community-detail.wxml.txt",
+      "reason": "explicit-additive-source-presentation"
+    },
+    {
+      "path": "src/pages/community-detail/controller.ts",
+      "before": "26c9fc775b3f2ceb228a00ec81781f3d5ded27c7a45923c0bb73ccc012394324",
+      "after": "0b1ca1029a817daffcb2d87e59f6ff9b40572b2964bbac95aa144a60924ee339",
+      "beforeBytes": 11550,
+      "evidence": "before/src/pages/community-detail/controller.ts.txt",
+      "reason": "versioned-source-reader-and-lifecycle"
+    },
+    {
+      "path": "src/pages/community-thread/community-thread.json",
+      "before": "79ba4b94bc3e12a4e19eabd78b543597206035b1ed338dac6b091c39b15d4756",
+      "after": "0722d482b221c3ad1192f4c3b57c6220f667c9c372b1c7f88a90e968833f77e2",
+      "beforeBytes": 353,
+      "evidence": "before/src/pages/community-thread/community-thread.json.txt",
+      "reason": "exact-source-component-registration"
+    },
+    {
+      "path": "src/pages/community-thread/community-thread.ts",
+      "before": "a1c3f6573635bd3d4a4fc9c53e107c5eefbeaac4e35461cdf2c9d02081da577e",
+      "after": "8290e45faa90a0e8ea9131b9275d26c76928dd54880ff452b51fcb723b56279d",
+      "beforeBytes": 21741,
+      "evidence": "before/src/pages/community-thread/community-thread.ts.txt",
+      "reason": "versioned-source-reader-and-lifecycle"
+    },
+    {
+      "path": "src/pages/community-thread/community-thread.wxml",
+      "before": "187551dd59a2840d4235d062f11b8722248ff2138898214832aa6125d1d72f34",
+      "after": "e9aa1a8717045003b78136ddc6ee8132f1a3289b7f09d42cb74a2845e3fd4bbd",
+      "beforeBytes": 19922,
+      "evidence": "before/src/pages/community-thread/community-thread.wxml.txt",
+      "reason": "explicit-additive-source-presentation"
+    },
+    {
+      "path": "src/pages/community-thread/controller.ts",
+      "before": "0835a31017e68d46fb417388c12beba36755308ac4be9c4aa51bd1a26f5d0398",
+      "after": "910c2ab44d3a338d10b8359ee276f0d0d6619a4201d8b741fadbc2f05713daec",
+      "beforeBytes": 7780,
+      "evidence": "before/src/pages/community-thread/controller.ts.txt",
+      "reason": "versioned-source-reader-and-lifecycle"
+    }
+  ],
+  "added": [
+    {
+      "path": "src/community/reading-contract.ts",
+      "sha256": "7b5f400eae0b2b8bb57bdf4626572ff533d311bd3b6b7500a82e16314beb27c7"
+    },
+    {
+      "path": "src/community/reading-gateway.ts",
+      "sha256": "e0728ee9b0c056181467da164bb7d484699564d26286fedd1b5a9148a81d632f"
+    },
+    {
+      "path": "src/community/text-source-contract.ts",
+      "sha256": "4491b14520fd22c4996d636ffebd6e16ffcb09846b3b9b479e0b3cb6c9d7cf09"
+    },
+    {
+      "path": "src/community/text-source-read-contract.ts",
+      "sha256": "181376067dab5deb4924081c6aef6fc7700dfee7d0a187f46fd2c85855b56a0e"
+    },
+    {
+      "path": "src/community/text-source-renderer.ts",
+      "sha256": "4c9088ac9108e4f5f992f059b5568f972ace60f43acd91d02a413ebbdaa91a58"
+    },
+    {
+      "path": "src/components/source-text/source-text.json",
+      "sha256": "e7b657f5a4b032a68e9e084639b3a5564ce552896d269c3f8c4463bf7a7fa3b5"
+    },
+    {
+      "path": "src/components/source-text/source-text.ts",
+      "sha256": "ec5ad2add3c99e7badeca1621c79c4f84bb923c9cb721829d0eb3bd18875d4ac"
+    },
+    {
+      "path": "src/components/source-text/source-text.wxml",
+      "sha256": "8566cf9e8e3a467c00ee129641dc1cd844f9cbf33f59ef4b3f176e9230154618"
+    },
+    {
+      "path": "src/components/source-text/source-text.wxss",
+      "sha256": "695e578ea70d80c0f4a0e25685385fd41dfbd716fd64ee1d31fb8a35ac16e7c9"
+    }
+  ],
+  "patchSha256": "761577eebef4b253105dfab4674f4519d56194d2cf718a4e48420396a74d1c0c"
+}

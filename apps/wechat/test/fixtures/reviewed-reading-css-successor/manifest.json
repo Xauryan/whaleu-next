@@ -1,0 +1,10 @@
+{
+  "reason": "exact whitespace-only expansion of nine existing single-line source-text rules",
+  "path": "src/components/source-text/source-text.wxss",
+  "sourceManifestSha256": "3b7a3281fbf23af3f88fedd64614f8ab935977cc71b6a0dcf887153b3979bec2",
+  "nativeV4ManifestSha256": "7dfd61b99529d2c123c617f3635e9f5b772068c02d40a2bc0eb57cffbd7afaf2",
+  "before": "695e578ea70d80c0f4a0e25685385fd41dfbd716fd64ee1d31fb8a35ac16e7c9",
+  "after": "129aa69ca79967d205824f520b6c67d52315d783bd71aa4937f5bce69148881b",
+  "evidence": "source-text.wxss.before.txt",
+  "patchSha256": "8837c60f87c92b8572d1c50ff8eafb81eec8a8ff487f88a24f2cda7a3a76f12c"
+}

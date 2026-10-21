@@ -60,6 +60,8 @@ export function matchPublicationReview(
 
 export function supportsTextReview(attempt: PendingAttempt): boolean {
   const payload = attempt.payload;
+  // Explicit source has its own separately admitted Review lane, including anonymous source.
+  if (payload.textSource) return payload.imageAssetIds.length === 0;
   if (
     attempt.operation === 'publish_post' &&
     attempt.payload.component?.kind === 'rating_target_link'

@@ -1172,6 +1172,44 @@
                   },
                   "text": {
                     "type": "string"
+                  },
+                  "textSource": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["plain"],
+                            "type": "string"
+                          },
+                          "readingFormatting": {
+                            "enum": ["auto", "off"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format", "readingFormatting"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["markdown"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format"],
+                        "type": "object"
+                      }
+                    ]
                   }
                 },
                 "required": ["clientRequestId", "text", "authorMode"],
@@ -3426,6 +3464,44 @@
                   },
                   "text": {
                     "type": "string"
+                  },
+                  "textSource": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["plain"],
+                            "type": "string"
+                          },
+                          "readingFormatting": {
+                            "enum": ["auto", "off"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format", "readingFormatting"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["markdown"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format"],
+                        "type": "object"
+                      }
+                    ]
                   },
                   "trading": {
                     "additionalProperties": false,
@@ -5748,6 +5824,44 @@
                   },
                   "text": {
                     "type": "string"
+                  },
+                  "textSource": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["plain"],
+                            "type": "string"
+                          },
+                          "readingFormatting": {
+                            "enum": ["auto", "off"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format", "readingFormatting"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["markdown"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format"],
+                        "type": "object"
+                      }
+                    ]
                   }
                 },
                 "required": ["clientRequestId", "text", "authorMode"],

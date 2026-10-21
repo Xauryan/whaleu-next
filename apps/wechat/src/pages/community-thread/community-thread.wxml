@@ -20,7 +20,7 @@
 <text wx:else>{{reply.target.status === 'available' ? reply.target.author.displayName : '当前不可查看的对象'}}</text>
 <template wx:if="{{reply.target.status === 'available' &amp;&amp; reply.target.author.kind === 'named'}}" is="public-experience-display" data="{{display:reply.target.author.experienceDisplay,colors:experienceColorStyles}}" />
 </view>
-<view class="body">{{reply.text}}</view>
+<wu-source-text wx:if="{{reply.readingBody &amp;&amp; reply.readingBody.classification === 'reviewedSource'}}" presentation="{{reply.readingBody.value}}" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" /><view wx:else class="body">{{reply.text}}</view>
 <button wx:if="{{reply.images.length}}" class="secondary" data-kind="reply" data-id="{{reply.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{reply.images.length}} 张）</button>
 <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[reply.id]}}" />
 <wu-f7-button class="more-button" data-menu="{{'reply:' + reply.id}}" bind:press="onToggleThreadMenu" aria-label="回复的更多操作"><wu-icon name="more" size="20" /></wu-f7-button>
@@ -60,7 +60,7 @@
 <template wx:if="{{root.author.kind === 'named'}}" is="public-experience-display" data="{{display:root.author.experienceDisplay,colors:experienceColorStyles}}" />
 <text wx:if="{{root.author.kind === 'anonymous'}}" class="badge">分身</text>
 </view>
-<view class="body">{{root.text}}</view>
+<wu-source-text wx:if="{{root.readingBody &amp;&amp; root.readingBody.classification === 'reviewedSource'}}" presentation="{{root.readingBody.value}}" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" /><view wx:else class="body">{{root.text}}</view>
 <button wx:if="{{root.images.length}}" class="secondary" data-kind="comment" data-id="{{root.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{root.images.length}} 张）</button>
 <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[root.id]}}" />
 <view class="meta">{{root.likeCount}} 赞 · {{root.replyCount === null ? '—' : root.replyCount}} 条回复</view>

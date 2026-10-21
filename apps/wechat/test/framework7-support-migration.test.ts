@@ -1,6 +1,7 @@
+import { assertReviewedReadingSuccessor } from './reviewed-reading-successor';
 import { assertReviewedNativeHarnessSuccessor } from './reviewed-native-harness-successor';
 import { assertReviewedNoticeExposureSuccessor } from './reviewed-notice-exposure-successor';
-import { assertReviewedBusinessSuccessor } from './reviewed-business-successor';
+import { assertReviewedBusinessSuccessor } from './reviewed-reading-successor';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -152,6 +153,7 @@ test('protected business, privacy, accepted pages, components and original test 
   for (const [file, hash] of Object.entries(protectedFiles).filter(
     ([file, expected]) =>
       !assertReviewedNoticeExposureSuccessor(file, expected) &&
+      !assertReviewedReadingSuccessor(file, expected) &&
       !assertReviewedBusinessSuccessor(file, expected) &&
       !assertReviewedNativeHarnessSuccessor(file, expected),
   )) {

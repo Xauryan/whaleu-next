@@ -416,6 +416,7 @@ test('the existing required verify gate rejects every failure, skip and cancella
     'native-checks',
     'main-integration',
     'semantic-integration',
+    'source-manual-production',
   ];
   assert.match(jobs.verify, /if: always\(\)/);
   const needed = jobs.verify
@@ -567,5 +568,100 @@ test('rating promotion emits operator assets before either applicable database s
   assert.doesNotMatch(
     launcher,
     /['"]--(?:no-sandbox|disable-setuid-sandbox|disable-namespace-sandbox|disable-seccomp-filter-sandbox)['"]/,
+  );
+});
+
+test('production source review owns a required strict-TLS acceptance lane', () => {
+  const job = jobs['source-manual-production'];
+  assert.match(job, /needs: \[api-checks\]/);
+  assert.match(job, /source-manual-tls-sandbox\.sh run/);
+  assert.match(
+    job,
+    /if: always\(\)[\s\S]*source-manual-tls-sandbox\.sh cleanup/,
+  );
+  const sandbox = read('scripts/source-manual-tls-sandbox.sh');
+  assert.match(sandbox, /postgres:18\.6-bookworm/);
+  assert.match(sandbox, /--publish 127\.0\.0\.1::5432/);
+  assert.match(sandbox, /subjectAltName=DNS:localhost,IP:127\.0\.0\.1/);
+  assert.match(sandbox, /export NODE_ENV=production/);
+  assert.match(sandbox, /export NODE_EXTRA_CA_CERTS=/);
+  assert.match(sandbox, /env -u NODE_EXTRA_CA_CERTS node/);
+  assert.match(sandbox, /rejectUnauthorized:true/);
+  assert.match(sandbox, /SELECT ssl,version FROM pg_stat_ssl/);
+  assert.match(sandbox, /trap cleanup EXIT/);
+  assert.match(sandbox, /Refusing cleanup of an unowned container/);
+  assert.doesNotMatch(
+    sandbox,
+    /rejectUnauthorized\s*:\s*false|NODE_TLS_REJECT_UNAUTHORIZED|docker (?:system|container) prune|update-ca-certificates/,
+  );
+  assert.equal(
+    packageJson.scripts['test:source-manual:production'],
+    'npm run test:source-manual:production -w @whaleu/api',
+  );
+  assert.equal(
+    JSON.parse(read('apps/api/package.json')).scripts[
+      'test:source-manual:production'
+    ],
+    'node --import tsx --test --test-concurrency=1 test/production-integration/text-source-manual-production.test.ts',
+  );
+});
+
+test('source review readiness cannot accept the temporary Unix-only initialization server', () => {
+  const sandbox = read('scripts/source-manual-tls-sandbox.sh');
+  assert.match(sandbox, /for attempt in \$\(seq 1 60\); do/);
+  assert.match(
+    sandbox,
+    /docker exec "\$id" pg_isready -h 127\.0\.0\.1 -U whaleu_test -d whaleu_test/,
+  );
+  assert.match(
+    sandbox,
+    /\[\[ "\$attempt" -lt 60 \]\] \|\| \{ echo 'Disposable TLS database did not become ready' >&2; exit 1; \}/,
+  );
+  assert.ok(
+    sandbox.indexOf('pg_isready -h 127.0.0.1') <
+      sandbox.indexOf('SELECT ssl,version FROM pg_stat_ssl'),
+  );
+});
+
+test('reading worker production acceptance requires the real build and password-backed TLS lane', () => {
+  assert.deepEqual(
+    globSync('apps/api/test/production-integration/*.test.ts', {
+      cwd: root,
+    }).sort(),
+    [
+      'apps/api/test/production-integration/reading-worker-process-production.test.ts',
+      'apps/api/test/production-integration/text-source-manual-production.test.ts',
+    ],
+    'every production integration file must have an explicit serial TLS command',
+  );
+  const job = jobs['source-manual-production'];
+  const build = job.indexOf('run: npm run build -w @whaleu/api');
+  const run = job.indexOf('run: bash scripts/source-manual-tls-sandbox.sh run');
+  assert.ok(build >= 0 && run > build);
+  const sandbox = read('scripts/source-manual-tls-sandbox.sh');
+  assert.match(sandbox, /export TEST_READING_LOGIN_AUTH=password/);
+  assert.match(sandbox, /docker run --detach --network bridge --label/);
+  assert.match(sandbox, /actual_owner.*docker inspect/);
+  assert.match(sandbox, /actual_id.*docker inspect/);
+  assert.match(
+    sandbox,
+    /assert.deepEqual\(Object.keys\(networks\),\['bridge'\]\)/,
+  );
+  assert.match(sandbox, /export TEST_READING_DOCKER_TARGET=/);
+  assert.match(sandbox, /assert.equal\(url.hostname,'127\.0\.0\.1'\)/);
+
+  assert.doesNotMatch(
+    sandbox,
+    /TEST_READING_LOGIN_AUTH=trust|POSTGRES_HOST_AUTH_METHOD=trust/,
+  );
+  assert.match(
+    sandbox,
+    /npm run test:source-manual:production\nnpm run test:reading-worker:production -w @whaleu\/api/,
+  );
+  assert.equal(
+    JSON.parse(read('apps/api/package.json')).scripts[
+      'test:reading-worker:production'
+    ],
+    'node --import tsx --test --test-concurrency=1 test/production-integration/reading-worker-process-production.test.ts',
   );
 });

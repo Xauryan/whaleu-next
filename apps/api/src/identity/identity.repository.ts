@@ -1,3 +1,4 @@
+import { processingAccountState } from './processing-account-proof.js';
 import { SYNTHETIC_APP } from '../account-deletion/synthetic-policy.js';
 import { APP_CONFIG } from '../config/config.js';
 import type { RuntimeConfig } from '../config/config.js';
@@ -123,6 +124,11 @@ export class IdentityRepository {
       Object.freeze({ accountId, fingerprint: state.fingerprint }),
     );
     return state.active;
+  }
+
+  /** Bounded processing consumer, distinct from reader/session authority. */
+  processingAccountState(ids: readonly string[], tx: PoolClient) {
+    return processingAccountState(ids, tx);
   }
 
   /** Internal lifecycle facade, deliberately independent of user sessions. */

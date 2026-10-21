@@ -1,3 +1,4 @@
+import { readTextSources } from '../text-source/repository.js';
 import { readRatingTargetLinks } from '../rating-target-link/binding.js';
 import {
   readDistributionBindings,
@@ -198,7 +199,15 @@ export class ContentDefinitionRepository {
         [id],
       )
     ).rows;
-    const facts: DefinitionPayload = { images, options: [], creators: [] };
+    const source = (await readTextSources([kind], [id], tx)).get(
+      `${kind}:${id}`,
+    );
+    const facts: DefinitionPayload = {
+      images,
+      options: [],
+      creators: [],
+      ...(source ? { textSource: source } : {}),
+    };
     if (images.some((image, position) => image.position !== position))
       return { kind: 'unavailable' };
     if (kind === 'post') {

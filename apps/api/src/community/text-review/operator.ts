@@ -30,6 +30,10 @@ export const reviewOperatorCommandSchema = z.discriminatedUnion('command', [
   }),
   z.strictObject({ command: z.literal('list') }),
   z.strictObject({
+    command: z.literal('init-source-policy'),
+    basis: z.string().trim().min(1).max(1000),
+  }),
+  z.strictObject({
     command: z.literal('init-related-policy'),
     basis: z.string().trim().min(1).max(1000),
   }),
@@ -65,7 +69,7 @@ export const reviewOperatorCommandSchema = z.discriminatedUnion('command', [
 ]);
 export type ReviewOperatorCommand = z.infer<typeof reviewOperatorCommandSchema>;
 
-/** Called only by the local OS-owned CLI. It is not registered as an HTTP provider. */
+/** Called only by the OS-owned human-review CLI. Not an automatic or HTTP provider. */
 export class TextReviewOperator {
   constructor(
     private readonly runtime: TextReviewRuntime,
@@ -73,11 +77,29 @@ export class TextReviewOperator {
   ) {}
   async run(command: ReviewOperatorCommand, tx: PoolClient): Promise<unknown> {
     if (
-      !this.runtime.configured() ||
+      (!this.runtime.configured() && !this.runtime.sourceConfigured()) ||
       this.runtime.config.COMMUNITY_TEXT_REVIEW_OPERATOR !== this.operator
     )
-      throw new Error('Operator or non-production configuration unavailable');
+      throw new Error(
+        'Operator or explicit human-review configuration unavailable',
+      );
     const config = this.runtime.config;
+    const sourceOnly = config.COMMUNITY_TEXT_REVIEW === 'source_manual';
+    if (
+      sourceOnly &&
+      ![
+        'init-source-policy',
+        'list',
+        'show',
+        'decide',
+        'withdraw',
+        'expire',
+      ].includes(command.command)
+    )
+      throw new Error(
+        'Source manual review cannot administer unrelated review or scope',
+      );
+
     if (
       command.command === 'preview-region' ||
       command.command === 'apply-region'
@@ -110,12 +132,16 @@ export class TextReviewOperator {
     }
     if (
       command.command === 'init-policy' ||
-      command.command === 'init-related-policy'
+      command.command === 'init-related-policy' ||
+      command.command === 'init-source-policy'
     ) {
       const related = command.command === 'init-related-policy';
-      const policyId = related
-        ? config.COMMUNITY_RELATED_REVIEW_POLICY_ID
-        : config.COMMUNITY_TEXT_REVIEW_POLICY_ID;
+      const source = command.command === 'init-source-policy';
+      const policyId = source
+        ? config.COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID
+        : related
+          ? config.COMMUNITY_RELATED_REVIEW_POLICY_ID
+          : config.COMMUNITY_TEXT_REVIEW_POLICY_ID;
       if (!policyId)
         throw new Error(
           'Explicit related Review policy configuration unavailable',
@@ -129,7 +155,11 @@ export class TextReviewOperator {
           policyId,
           this.operator,
           reference,
-          related ? 'local-related-v1' : 'local-explicit-v1',
+          source
+            ? 'local-text-source-v1'
+            : related
+              ? 'local-related-v1'
+              : 'local-explicit-v1',
         ],
       );
       return {
@@ -143,7 +173,7 @@ export class TextReviewOperator {
         await tx.query<TextReviewRequest>(
           `SELECT q.* FROM whaleu_community.text_review_requests q
         JOIN whaleu_community.publication_requests p USING(account_id,client_request_id)
-        WHERE q.expires_at<=clock_timestamp() AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$4 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb))
+        WHERE ($5::boolean=false OR q.envelope->>'version'='6') AND q.expires_at<=clock_timestamp() AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$4 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb))
         AND NOT EXISTS(SELECT 1 FROM whaleu_community.publication_cancel_fences f WHERE f.account_id=q.account_id AND f.client_request_id=q.client_request_id)
         ORDER BY q.account_id,q.client_request_id LIMIT $3`,
           [
@@ -151,6 +181,7 @@ export class TextReviewOperator {
             config.COMMUNITY_TEXT_REVIEW_REGION_ID,
             command.limit,
             config.COMMUNITY_FEEDBACK_SPACE_ID ?? null,
+            sourceOnly,
           ],
         )
       ).rows;
@@ -179,11 +210,12 @@ export class TextReviewOperator {
         await tx.query(
           `SELECT q.account_id,q.client_request_id,q.operation,q.digest,q.created_at
         FROM whaleu_community.text_review_requests q JOIN whaleu_community.publication_requests p USING(account_id,client_request_id)
-        WHERE q.decision_id IS NULL AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$3 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb)) ORDER BY q.created_at LIMIT 100`,
+        WHERE ($4::boolean=false OR (q.envelope->>'version'='6' AND q.expires_at>clock_timestamp() AND NOT EXISTS(SELECT 1 FROM whaleu_community.publication_cancel_fences f WHERE f.account_id=q.account_id AND f.client_request_id=q.client_request_id))) AND q.decision_id IS NULL AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$3 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb)) ORDER BY q.created_at LIMIT 100`,
           [
             config.COMMUNITY_TEXT_REVIEW_SPACE_ID,
             config.COMMUNITY_TEXT_REVIEW_REGION_ID,
             config.COMMUNITY_FEEDBACK_SPACE_ID ?? null,
+            sourceOnly,
           ],
         )
       ).rows;
@@ -208,6 +240,8 @@ export class TextReviewOperator {
     ).rows[0];
     if (!row) throw new Error('Review unavailable');
     const envelope = canonicalEnvelope(row.envelope);
+    if (sourceOnly && envelope.version !== 6)
+      throw new Error('Source manual review requires an exact source envelope');
     if (
       row.digest !== approvalDigest(envelope) ||
       canonicalJson(envelope) !== canonicalJson(row.envelope)

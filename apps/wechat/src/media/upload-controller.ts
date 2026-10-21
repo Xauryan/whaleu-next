@@ -93,6 +93,11 @@ export class MediaUploadController {
           this.hide();
       }) ?? (() => undefined);
   }
+  /** Checked local journal presence only; never a publication or source authority. */
+  get hasPendingDraft(): boolean {
+    const actor = this.sessions.snapshot().credentials?.accountId;
+    return actor ? this.pending.load(actor) !== null : false;
+  }
   get available(): boolean {
     return !!this.transfer;
   }

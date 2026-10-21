@@ -20,6 +20,9 @@ export class IdentityService {
     @Inject(IDENTITY_PROVIDER) private readonly provider: IdentityProvider,
     @Inject(IdentityRepository) private readonly repository: IdentityRepository,
   ) {}
+  processingAccountState(ids: readonly string[], tx: PoolClient) {
+    return this.repository.processingAccountState(ids, tx);
+  }
   dmActiveAccount(accountId: string, tx: PoolClient): Promise<boolean> {
     return this.repository.dmActiveAccount(accountId, tx);
   }

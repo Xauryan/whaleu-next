@@ -64,7 +64,11 @@ export type DiscussionReceipt =
       readonly code: string;
     };
 export function decodeReplyIntent(value: unknown): ReplyIntent {
+  const hasSource =
+    isRecord(value) &&
+    Object.prototype.hasOwnProperty.call(value, 'textSource');
   exact(value, [
+    ...(hasSource ? ['textSource'] : []),
     'clientRequestId',
     'text',
     'imageAssetIds',

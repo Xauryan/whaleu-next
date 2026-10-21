@@ -1,0 +1,220 @@
+[
+  {
+    "envelope": {
+      "version": 1,
+      "accountId": "10000000-0000-4000-8000-000000000003",
+      "purpose": "publish_post",
+      "spaceId": "10000000-0000-4000-8000-000000000001",
+      "category": "discussion",
+      "authorMode": "named",
+      "commentsPolicy": "open",
+      "postId": null,
+      "rootCommentId": null,
+      "targetReplyId": null,
+      "text": "Golden text",
+      "images": [],
+      "component": {
+        "kind": "none"
+      },
+      "trading": null,
+      "scope": {
+        "originalSpaceId": "10000000-0000-4000-8000-000000000001",
+        "originalRegionId": "10000000-0000-4000-8000-000000000002",
+        "authorOriginRegionId": "10000000-0000-4000-8000-000000000002",
+        "identityRegionId": "10000000-0000-4000-8000-000000000002",
+        "topologySnapshotId": "10000000-0000-4000-8000-000000000004",
+        "sync": "none",
+        "configurationRevisionId": null,
+        "identityCampusId": null,
+        "identitySelectionId": null,
+        "affiliationSnapshotId": null,
+        "affiliationAssertionId": null
+      }
+    },
+    "canonical": "{\"accountId\":\"10000000-0000-4000-8000-000000000003\",\"authorMode\":\"named\",\"category\":\"discussion\",\"commentsPolicy\":\"open\",\"component\":{\"kind\":\"none\"},\"images\":[],\"postId\":null,\"purpose\":\"publish_post\",\"rootCommentId\":null,\"scope\":{\"affiliationAssertionId\":null,\"affiliationSnapshotId\":null,\"authorOriginRegionId\":\"10000000-0000-4000-8000-000000000002\",\"configurationRevisionId\":null,\"identityCampusId\":null,\"identityRegionId\":\"10000000-0000-4000-8000-000000000002\",\"identitySelectionId\":null,\"originalRegionId\":\"10000000-0000-4000-8000-000000000002\",\"originalSpaceId\":\"10000000-0000-4000-8000-000000000001\",\"sync\":\"none\",\"topologySnapshotId\":\"10000000-0000-4000-8000-000000000004\"},\"spaceId\":\"10000000-0000-4000-8000-000000000001\",\"targetReplyId\":null,\"text\":\"Golden text\",\"trading\":null,\"version\":1}",
+    "digest": "3720c04047c6a63b2ee7b8ccbcfcaf0326e5176ec606449c1245c0d7cd845767"
+  },
+  {
+    "envelope": {
+      "version": 2,
+      "accountId": "10000000-0000-4000-8000-000000000003",
+      "purpose": "publish_post",
+      "spaceId": "10000000-0000-4000-8000-000000000001",
+      "category": "discussion",
+      "authorMode": "named",
+      "commentsPolicy": "open",
+      "postId": null,
+      "rootCommentId": null,
+      "targetReplyId": null,
+      "text": "Golden text",
+      "images": [],
+      "component": {
+        "kind": "none"
+      },
+      "trading": null,
+      "scope": {
+        "originalSpaceId": "10000000-0000-4000-8000-000000000001",
+        "originalRegionId": "10000000-0000-4000-8000-000000000002",
+        "authorOriginRegionId": "10000000-0000-4000-8000-000000000002",
+        "identityRegionId": "10000000-0000-4000-8000-000000000002",
+        "topologySnapshotId": "10000000-0000-4000-8000-000000000004",
+        "sync": "none",
+        "configurationRevisionId": null,
+        "identityCampusId": null,
+        "identitySelectionId": null,
+        "affiliationSnapshotId": null,
+        "affiliationAssertionId": null
+      },
+      "allowAnonymousDm": false
+    },
+    "canonical": "{\"accountId\":\"10000000-0000-4000-8000-000000000003\",\"allowAnonymousDm\":false,\"authorMode\":\"named\",\"category\":\"discussion\",\"commentsPolicy\":\"open\",\"component\":{\"kind\":\"none\"},\"images\":[],\"postId\":null,\"purpose\":\"publish_post\",\"rootCommentId\":null,\"scope\":{\"affiliationAssertionId\":null,\"affiliationSnapshotId\":null,\"authorOriginRegionId\":\"10000000-0000-4000-8000-000000000002\",\"configurationRevisionId\":null,\"identityCampusId\":null,\"identityRegionId\":\"10000000-0000-4000-8000-000000000002\",\"identitySelectionId\":null,\"originalRegionId\":\"10000000-0000-4000-8000-000000000002\",\"originalSpaceId\":\"10000000-0000-4000-8000-000000000001\",\"sync\":\"none\",\"topologySnapshotId\":\"10000000-0000-4000-8000-000000000004\"},\"spaceId\":\"10000000-0000-4000-8000-000000000001\",\"targetReplyId\":null,\"text\":\"Golden text\",\"trading\":null,\"version\":2}",
+    "digest": "9e76c4d2afd2545815ec20ce4522f6136e0a99e4ec3c6007700186c9b0af8bfc"
+  },
+  {
+    "envelope": {
+      "version": 3,
+      "accountId": "10000000-0000-4000-8000-000000000003",
+      "purpose": "publish_post",
+      "spaceId": "10000000-0000-4000-8000-000000000001",
+      "category": "feedback",
+      "authorMode": "named",
+      "commentsPolicy": "open",
+      "postId": null,
+      "rootCommentId": null,
+      "targetReplyId": null,
+      "text": "Golden text",
+      "images": [],
+      "component": {
+        "kind": "none"
+      },
+      "trading": null,
+      "scope": {
+        "originalSpaceId": "10000000-0000-4000-8000-000000000001",
+        "originalRegionId": null,
+        "authorOriginRegionId": "10000000-0000-4000-8000-000000000002",
+        "identityRegionId": "10000000-0000-4000-8000-000000000002",
+        "topologySnapshotId": "10000000-0000-4000-8000-000000000004",
+        "sync": "none",
+        "configurationRevisionId": null,
+        "identityCampusId": null,
+        "identitySelectionId": null,
+        "affiliationSnapshotId": null,
+        "affiliationAssertionId": null
+      },
+      "feedback": {
+        "contacts": {
+          "wechat": "",
+          "qq": "",
+          "phone": ""
+        }
+      }
+    },
+    "canonical": "{\"accountId\":\"10000000-0000-4000-8000-000000000003\",\"authorMode\":\"named\",\"category\":\"feedback\",\"commentsPolicy\":\"open\",\"component\":{\"kind\":\"none\"},\"feedback\":{\"contacts\":{\"phone\":\"\",\"qq\":\"\",\"wechat\":\"\"}},\"images\":[],\"postId\":null,\"purpose\":\"publish_post\",\"rootCommentId\":null,\"scope\":{\"affiliationAssertionId\":null,\"affiliationSnapshotId\":null,\"authorOriginRegionId\":\"10000000-0000-4000-8000-000000000002\",\"configurationRevisionId\":null,\"identityCampusId\":null,\"identityRegionId\":\"10000000-0000-4000-8000-000000000002\",\"identitySelectionId\":null,\"originalRegionId\":null,\"originalSpaceId\":\"10000000-0000-4000-8000-000000000001\",\"sync\":\"none\",\"topologySnapshotId\":\"10000000-0000-4000-8000-000000000004\"},\"spaceId\":\"10000000-0000-4000-8000-000000000001\",\"targetReplyId\":null,\"text\":\"Golden text\",\"trading\":null,\"version\":3}",
+    "digest": "974aa16e3849fa7c8f548a3fa5f4b9e0c67ec311faaf4e70a6c8d42606f2c1df"
+  },
+  {
+    "envelope": {
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "purpose": "publish_post",
+      "spaceId": "10000000-0000-4000-8000-000000000002",
+      "category": "discussion",
+      "authorMode": "named",
+      "commentsPolicy": "open",
+      "postId": null,
+      "rootCommentId": null,
+      "targetReplyId": null,
+      "text": "Golden original 🐳",
+      "images": [],
+      "component": {
+        "kind": "none"
+      },
+      "trading": null,
+      "scope": {
+        "originalSpaceId": "10000000-0000-4000-8000-000000000002",
+        "originalRegionId": "10000000-0000-4000-8000-000000000003",
+        "authorOriginRegionId": "10000000-0000-4000-8000-000000000003",
+        "identityRegionId": "10000000-0000-4000-8000-000000000003",
+        "topologySnapshotId": "10000000-0000-4000-8000-000000000004",
+        "configurationRevisionId": "10000000-0000-4000-8000-000000000005",
+        "identityCampusId": "10000000-0000-4000-8000-000000000006",
+        "identitySelectionId": "10000000-0000-4000-8000-000000000007",
+        "affiliationSnapshotId": "10000000-0000-4000-8000-000000000008",
+        "affiliationAssertionId": "10000000-0000-4000-8000-000000000009",
+        "sync": "related",
+        "syncPolicyId": "10000000-0000-4000-8000-000000000010",
+        "publicationGroupId": "10000000-0000-4000-8000-000000000011",
+        "publicationMembersDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "version": 4,
+      "allowAnonymousDm": null
+    },
+    "canonical": "{\"accountId\":\"10000000-0000-4000-8000-000000000001\",\"allowAnonymousDm\":null,\"authorMode\":\"named\",\"category\":\"discussion\",\"commentsPolicy\":\"open\",\"component\":{\"kind\":\"none\"},\"images\":[],\"postId\":null,\"purpose\":\"publish_post\",\"rootCommentId\":null,\"scope\":{\"affiliationAssertionId\":\"10000000-0000-4000-8000-000000000009\",\"affiliationSnapshotId\":\"10000000-0000-4000-8000-000000000008\",\"authorOriginRegionId\":\"10000000-0000-4000-8000-000000000003\",\"configurationRevisionId\":\"10000000-0000-4000-8000-000000000005\",\"identityCampusId\":\"10000000-0000-4000-8000-000000000006\",\"identityRegionId\":\"10000000-0000-4000-8000-000000000003\",\"identitySelectionId\":\"10000000-0000-4000-8000-000000000007\",\"originalRegionId\":\"10000000-0000-4000-8000-000000000003\",\"originalSpaceId\":\"10000000-0000-4000-8000-000000000002\",\"publicationGroupId\":\"10000000-0000-4000-8000-000000000011\",\"publicationMembersDigest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"sync\":\"related\",\"syncPolicyId\":\"10000000-0000-4000-8000-000000000010\",\"topologySnapshotId\":\"10000000-0000-4000-8000-000000000004\"},\"spaceId\":\"10000000-0000-4000-8000-000000000002\",\"targetReplyId\":null,\"text\":\"Golden original 🐳\",\"trading\":null,\"version\":4}",
+    "digest": "10420ad5595bd880c110e9e0a76c42afdd141908c1369a6afb61697ef43b307c"
+  },
+  {
+    "envelope": {
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "purpose": "publish_post",
+      "spaceId": "10000000-0000-4000-8000-000000000002",
+      "category": "discussion",
+      "authorMode": "named",
+      "commentsPolicy": "open",
+      "postId": null,
+      "rootCommentId": null,
+      "targetReplyId": null,
+      "text": "Golden original 🐳",
+      "images": [],
+      "component": {
+        "kind": "rating_target_link",
+        "targetId": "10000000-0000-4000-8000-000000000012",
+        "label": "Course",
+        "binding": {
+          "version": 1,
+          "targetId": "10000000-0000-4000-8000-000000000012",
+          "categoryId": "10000000-0000-4000-8000-000000000013",
+          "targetRevision": "10000000-0000-4000-8000-000000000014",
+          "definitionRevision": "10000000-0000-4000-8000-000000000015",
+          "contentVersion": 1,
+          "originSourceId": "10000000-0000-4000-8000-000000000016",
+          "sourceId": "10000000-0000-4000-8000-000000000017",
+          "sourceRevision": "10000000-0000-4000-8000-000000000018",
+          "placementRevision": "10000000-0000-4000-8000-000000000019",
+          "categoryRevision": "10000000-0000-4000-8000-000000000020",
+          "catalogId": "10000000-0000-4000-8000-000000000021",
+          "headRevision": "10000000-0000-4000-8000-000000000022",
+          "protocolGeneration": "10000000-0000-4000-8000-000000000023",
+          "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "selector": {
+            "kind": "campus",
+            "campusId": "10000000-0000-4000-8000-000000000006"
+          },
+          "originRegionId": "10000000-0000-4000-8000-000000000003",
+          "systemKey": "course",
+          "ancestry": [
+            {
+              "categoryId": "10000000-0000-4000-8000-000000000013",
+              "revision": "10000000-0000-4000-8000-000000000020"
+            }
+          ]
+        }
+      },
+      "trading": null,
+      "scope": {
+        "originalSpaceId": "10000000-0000-4000-8000-000000000002",
+        "originalRegionId": "10000000-0000-4000-8000-000000000003",
+        "authorOriginRegionId": "10000000-0000-4000-8000-000000000003",
+        "identityRegionId": "10000000-0000-4000-8000-000000000003",
+        "topologySnapshotId": "10000000-0000-4000-8000-000000000004",
+        "sync": "none",
+        "configurationRevisionId": null,
+        "identityCampusId": null,
+        "identitySelectionId": null,
+        "affiliationSnapshotId": null,
+        "affiliationAssertionId": null
+      },
+      "version": 5
+    },
+    "canonical": "{\"accountId\":\"10000000-0000-4000-8000-000000000001\",\"authorMode\":\"named\",\"category\":\"discussion\",\"commentsPolicy\":\"open\",\"component\":{\"binding\":{\"ancestry\":[{\"categoryId\":\"10000000-0000-4000-8000-000000000013\",\"revision\":\"10000000-0000-4000-8000-000000000020\"}],\"catalogId\":\"10000000-0000-4000-8000-000000000021\",\"categoryId\":\"10000000-0000-4000-8000-000000000013\",\"categoryRevision\":\"10000000-0000-4000-8000-000000000020\",\"contentVersion\":1,\"definitionRevision\":\"10000000-0000-4000-8000-000000000015\",\"headRevision\":\"10000000-0000-4000-8000-000000000022\",\"originRegionId\":\"10000000-0000-4000-8000-000000000003\",\"originSourceId\":\"10000000-0000-4000-8000-000000000016\",\"placementRevision\":\"10000000-0000-4000-8000-000000000019\",\"protocolGeneration\":\"10000000-0000-4000-8000-000000000023\",\"selector\":{\"campusId\":\"10000000-0000-4000-8000-000000000006\",\"kind\":\"campus\"},\"sourceDigest\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"sourceId\":\"10000000-0000-4000-8000-000000000017\",\"sourceRevision\":\"10000000-0000-4000-8000-000000000018\",\"systemKey\":\"course\",\"targetId\":\"10000000-0000-4000-8000-000000000012\",\"targetRevision\":\"10000000-0000-4000-8000-000000000014\",\"version\":1},\"kind\":\"rating_target_link\",\"label\":\"Course\",\"targetId\":\"10000000-0000-4000-8000-000000000012\"},\"images\":[],\"postId\":null,\"purpose\":\"publish_post\",\"rootCommentId\":null,\"scope\":{\"affiliationAssertionId\":null,\"affiliationSnapshotId\":null,\"authorOriginRegionId\":\"10000000-0000-4000-8000-000000000003\",\"configurationRevisionId\":null,\"identityCampusId\":null,\"identityRegionId\":\"10000000-0000-4000-8000-000000000003\",\"identitySelectionId\":null,\"originalRegionId\":\"10000000-0000-4000-8000-000000000003\",\"originalSpaceId\":\"10000000-0000-4000-8000-000000000002\",\"sync\":\"none\",\"topologySnapshotId\":\"10000000-0000-4000-8000-000000000004\"},\"spaceId\":\"10000000-0000-4000-8000-000000000002\",\"targetReplyId\":null,\"text\":\"Golden original 🐳\",\"trading\":null,\"version\":5}",
+    "digest": "8919ba59481153a91405effabf4098446914700f166248fc6dd94d8780230a3b"
+  }
+]

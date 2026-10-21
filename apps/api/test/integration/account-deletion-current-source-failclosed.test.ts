@@ -1,0 +1,338 @@
+/** Current-catalog rejection, distinct from historical 0174 owner completion.
+ * Uses actual migrations, synthetic Identity/reauthentication, service and worker.
+ * No source relation is admitted to erasure and no schema/guard is weakened. */
+import 'reflect-metadata';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+import {
+  readMigrations,
+  runMigrations,
+} from '../../src/database/migrations.js';
+import {
+  COOLING_MS,
+  DeletionError,
+} from '../../src/account-deletion/contracts.js';
+import {
+  inventory,
+  preflight,
+} from '../../src/account-deletion/owners/preflight.js';
+import { accountDeletionFixture } from '../support/account-deletion-fixture.js';
+
+const inventoryDenied = (error: unknown) =>
+  error instanceof DeletionError && error.code === 'INVENTORY_BOUND_EXCEEDED';
+const command = () => ({
+  version: 1,
+  requestId: randomUUID(),
+  expectedGeneration: '0',
+  consent: 'account-deletion-explicit-v1',
+});
+
+test(
+  'default current deletion fixture rejects the unqualified 0175 catalog, even with no source rows',
+  { timeout: 120000 },
+  async () => {
+    // The fixture owns disposal on failed construction. Its default must still
+    // apply the actual full catalog, never silently pin a historical prefix.
+    await assert.rejects(accountDeletionFixture(), inventoryDenied);
+  },
+);
+
+test(
+  'real current service and worker fail closed after M1 and M2 installation without erasing any owner data',
+  { timeout: 240000 },
+  async (t) => {
+    const f = await accountDeletionFixture({ throughMigration: 174 });
+    t.after(() => f.close());
+    const active = await f.create(),
+      pending = await f.create(),
+      historical = await f.create();
+    await f.populate(pending);
+    await f.populate(historical);
+    const pendingObject = f.media.create(
+      [pending.accountId],
+      Buffer.from('retained generated pending payload'),
+    );
+    const historicalObject = f.media.create(
+      [historical.accountId],
+      Buffer.from('erased generated historical control payload'),
+    );
+    assert.deepEqual(await f.service.eligibility(f.assertion(active)), {
+      status: 'eligible',
+      blockers: [],
+      generation: '0',
+    });
+    const acceptedCommand = command();
+    const accepted = await f.service.request(
+      f.assertion(pending),
+      acceptedCommand,
+    );
+    assert.equal(accepted.status.phase, 'cooling');
+    assert.ok(accepted.receiptRecoveryKey);
+    const historicalCommand = command();
+    const historicalAccepted = await f.service.request(
+      f.assertion(historical),
+      historicalCommand,
+    );
+    assert.equal(historicalAccepted.status.phase, 'cooling');
+    // Existing reviewed synthetic-clock path: advance changes only the sandbox
+    // now_at via f.advance(). No wall-clock seven-day wait, trigger disabling,
+    // request timestamp rewriting or fabricated cause/revision is involved.
+    await f.advance(COOLING_MS);
+    const due = await f.repository.transaction(async (tx) => {
+      const context = await f.repository.context(tx, pending.accountId);
+      const row = await f.repository.request(tx, acceptedCommand.requestId);
+      return context.now_at.getTime() >= row.eligible_at.getTime();
+    });
+    assert.equal(due, true, 'The real pending request is no longer cooling');
+    let historicalStatus = historicalAccepted.status;
+    for (let i = 0; i < 16 && historicalStatus.phase !== 'completed'; i++)
+      historicalStatus = await f.worker.tick(historicalCommand.requestId);
+    assert.equal(historicalStatus.phase, 'completed');
+    assert.deepEqual(historicalStatus.pending, []);
+    assert.ok(historicalStatus.completedAt);
+    assert.equal(f.media.exists(historicalObject), false);
+    assert.equal(
+      (
+        await f.pool.query<{ count: number }>(
+          'SELECT count(*)::integer count FROM whaleu_account_deletion.owner_receipts WHERE request_id=$1',
+          [historicalCommand.requestId],
+        )
+      ).rows[0]!.count,
+      7,
+      'The same real worker and seven historical owners must succeed before upgrade',
+    );
+    assert.deepEqual(await f.service.eligibility(f.assertion(active)), {
+      status: 'eligible',
+      blockers: [],
+      generation: '0',
+    });
+    assert.equal(
+      (
+        await f.pool.query<{ valid: boolean }>(
+          'SELECT whaleu_account_deletion.inventory_current($1) valid',
+          [acceptedCommand.requestId],
+        )
+      ).rows[0]!.valid,
+      true,
+      'The exact SQL inventory predicate must admit the pending request before upgrade',
+    );
+    const activeContext = await f.repository.transaction((tx) =>
+      f.repository.context(tx, active.accountId),
+    );
+    const immutableSeal = async () =>
+      (
+        await f.pool.query<{ value: unknown }>(`SELECT jsonb_build_object(
+          'sandboxes',(SELECT jsonb_agg(to_jsonb(s)-'now_at' ORDER BY id) FROM whaleu_account_deletion.sandboxes s),
+          'inventory',(SELECT jsonb_agg(to_jsonb(i) ORDER BY sandbox_id,relation COLLATE "C") FROM whaleu_account_deletion.inventory i)
+        ) value`)
+      ).rows[0]!.value;
+    const activeState = async () =>
+      (
+        await f.pool.query<{ value: unknown }>(
+          `SELECT jsonb_build_object(
+            'account',(SELECT to_jsonb(a) FROM whaleu_identity.accounts a WHERE id=$1),
+            'requests',(SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY id),'[]'::jsonb) FROM whaleu_account_deletion.requests r WHERE account_id=$1),
+            'commands',(SELECT coalesce(jsonb_agg(to_jsonb(c) ORDER BY command_id),'[]'::jsonb) FROM whaleu_account_deletion.commands c WHERE account_id=$1)
+          ) value`,
+          [active.accountId],
+        )
+      ).rows[0]!.value;
+    const retainedOwnerData = async () =>
+      (
+        await f.pool.query<{ value: unknown }>(`SELECT jsonb_build_object(
+          'identities',(SELECT jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text COLLATE "C") FROM whaleu_identity.provider_identities t),
+          'sessions',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM whaleu_identity.sessions t),
+          'access',(SELECT jsonb_agg(to_jsonb(t) ORDER BY token_hash) FROM whaleu_identity.access_tokens t),
+          'refresh',(SELECT jsonb_agg(to_jsonb(t) ORDER BY token_hash) FROM whaleu_identity.refresh_tokens t),
+          'profiles',(SELECT jsonb_agg(to_jsonb(t) ORDER BY account_id) FROM whaleu_profile.profiles t),
+          'details',(SELECT jsonb_agg(to_jsonb(t) ORDER BY account_id) FROM whaleu_profile.details t),
+          'terms',(SELECT jsonb_agg(to_jsonb(t) ORDER BY account_id,term_id) FROM whaleu_timetable.terms t),
+          'entries',(SELECT jsonb_agg(to_jsonb(t) ORDER BY account_id,entry_id) FROM whaleu_timetable.entries t)
+        ) value`)
+      ).rows[0]!.value;
+    const ownerEvidence = async () =>
+      (
+        await f.pool.query<{ causes: number; receipts: number }>(
+          `SELECT
+            (SELECT count(*)::integer FROM whaleu_account_deletion.owner_causes WHERE request_id=$1) causes,
+            (SELECT count(*)::integer FROM whaleu_account_deletion.owner_receipts WHERE request_id=$1) receipts`,
+          [acceptedCommand.requestId],
+        )
+      ).rows[0]!;
+    const catalog = async () =>
+      (
+        await f.pool.query<{ relation: string }>(
+          "SELECT n.nspname||'.'||c.relname relation FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname LIKE 'whaleu\\_%' ESCAPE '\\' AND c.relkind IN('r','p','m','f')",
+        )
+      ).rows
+        .map((row) => row.relation)
+        .sort();
+    const historicalCatalog = await catalog();
+    const beforeSeal = await immutableSeal(),
+      beforeActive = await activeState(),
+      beforePrivate = await retainedOwnerData();
+    const migrations = await readMigrations(
+      fileURLToPath(new URL('../../migrations', import.meta.url)),
+    );
+    assert.ok(
+      migrations.some((m) => m.name === '0175_community_text_sources.sql'),
+    );
+    await runMigrations(
+      f.pool,
+      migrations.filter((m) => Number(m.name.slice(0, 4)) <= 175),
+      { mode: 'up' },
+    );
+    assert.deepEqual(await immutableSeal(), beforeSeal);
+    let previousWaiting: typeof accepted.status | undefined;
+    for (const stage of ['M1 source only', 'M2 empty derived owner'] as const) {
+      if (stage === 'M2 empty derived owner') {
+        await runMigrations(f.pool, migrations, { mode: 'up' });
+      }
+      const addedRelations = ['whaleu_community.community_text_sources'];
+      if (stage === 'M2 empty derived owner')
+        addedRelations.push(
+          'whaleu_community.reading_format_heads',
+          'whaleu_community.reading_format_jobs',
+          'whaleu_community.reading_format_results',
+          'whaleu_community.reading_format_slots',
+        );
+      assert.deepEqual(
+        await catalog(),
+        [...historicalCatalog, ...addedRelations].sort(),
+        'Only the genuine added source/derived relations exceed the reviewed catalog bound',
+      );
+      const sourceBefore = (
+        await f.pool.query<{ count: number }>(
+          'SELECT count(*)::integer count FROM whaleu_community.community_text_sources',
+        )
+      ).rows[0]!.count;
+      assert.equal(sourceBefore, 0, stage);
+      const derivedBefore =
+        stage === 'M2 empty derived owner'
+          ? (
+              await f.pool.query<{ value: unknown }>(`SELECT jsonb_build_object(
+              'heads',(SELECT count(*) FROM whaleu_community.reading_format_heads),
+              'jobs',(SELECT count(*) FROM whaleu_community.reading_format_jobs),
+              'results',(SELECT count(*) FROM whaleu_community.reading_format_results),
+              'slots',(SELECT jsonb_agg(to_jsonb(s) ORDER BY slot_id) FROM whaleu_community.reading_format_slots s)
+            ) value`)
+            ).rows[0]!.value
+          : null;
+      await assert.rejects(
+        f.repository.transaction((tx) => inventory(tx, true)),
+        inventoryDenied,
+        stage,
+      );
+      await assert.rejects(
+        f.repository.transaction((tx) =>
+          preflight(tx, activeContext.sandbox_id),
+        ),
+        inventoryDenied,
+        stage,
+      );
+      await assert.rejects(
+        f.service.eligibility(f.assertion(active)),
+        inventoryDenied,
+        stage,
+      );
+      await assert.rejects(
+        f.service.request(f.assertion(active), command()),
+        inventoryDenied,
+        stage,
+      );
+      assert.deepEqual(
+        await activeState(),
+        beforeActive,
+        'Rejected new requests cannot change account, command, receipt or lifecycle',
+      );
+      const waiting = await f.worker.tick(acceptedCommand.requestId);
+      assert.equal(waiting.phase, 'waiting', stage);
+      assert.deepEqual(waiting.pending, ['INVENTORY_BOUND_EXCEEDED'], stage);
+      assert.equal(waiting.completedAt, null);
+      assert.equal(waiting.reregisterAfter, null);
+      if (previousWaiting)
+        assert.deepEqual(
+          waiting,
+          previousWaiting,
+          'Repeated catalog denial must not advance the waiting cursor',
+        );
+      previousWaiting = waiting;
+      assert.deepEqual(await ownerEvidence(), { causes: 0, receipts: 0 });
+      assert.equal(f.media.exists(pendingObject), true);
+      assert.deepEqual(
+        await retainedOwnerData(),
+        beforePrivate,
+        'No Identity/Profile/Timetable data can be erased on inventory denial',
+      );
+      assert.equal(
+        (
+          await f.pool.query<{ valid: boolean }>(
+            'SELECT whaleu_account_deletion.inventory_current($1) valid',
+            [acceptedCommand.requestId],
+          )
+        ).rows[0]!.valid,
+        false,
+      );
+      // Supply the real current cause first, isolating inventory rejection from
+      // a generic missing-cause failure. The entire failed attempt must roll back.
+      await assert.rejects(
+        f.repository.transaction(async (tx) => {
+          const row = await f.repository.request(tx, acceptedCommand.requestId);
+          await f.repository.cause(tx, row, 'unsupported-inventory');
+          assert.equal(
+            (
+              await tx.query<{ valid: boolean }>(
+                "SELECT whaleu_account_deletion.owner_cause($1,'unsupported-inventory') valid",
+                [pending.accountId],
+              )
+            ).rows[0]!.valid,
+            true,
+          );
+          await f.repository.proof(
+            tx,
+            row,
+            'unsupported-inventory',
+            'a'.repeat(64),
+          );
+        }),
+        (error: unknown) =>
+          error instanceof Error &&
+          'code' in error &&
+          error.code === '23514' &&
+          error.message === 'Owner receipt requires actual erasure evidence',
+        stage,
+      );
+      assert.deepEqual(
+        await ownerEvidence(),
+        { causes: 0, receipts: 0 },
+        'The deliberate cause and failed receipt must both roll back',
+      );
+      assert.deepEqual(await immutableSeal(), beforeSeal);
+      assert.equal(
+        (
+          await f.pool.query<{ count: number }>(
+            'SELECT count(*)::integer count FROM whaleu_community.community_text_sources',
+          )
+        ).rows[0]!.count,
+        sourceBefore,
+      );
+      if (stage === 'M2 empty derived owner') {
+        const after = (
+          await f.pool.query<{ value: unknown }>(`SELECT jsonb_build_object(
+          'heads',(SELECT count(*) FROM whaleu_community.reading_format_heads),
+          'jobs',(SELECT count(*) FROM whaleu_community.reading_format_jobs),
+          'results',(SELECT count(*) FROM whaleu_community.reading_format_results),
+          'slots',(SELECT jsonb_agg(to_jsonb(s) ORDER BY slot_id) FROM whaleu_community.reading_format_slots s)
+        ) value`)
+        ).rows[0]!.value;
+        assert.deepEqual(
+          after,
+          derivedBefore,
+          'Unqualified deletion cannot clear slots or mutate derived work',
+        );
+      }
+    }
+  },
+);

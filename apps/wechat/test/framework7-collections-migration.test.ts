@@ -1,4 +1,5 @@
-import { assertReviewedBusinessSuccessor } from './reviewed-business-successor';
+import { assertReviewedReadingSuccessor } from './reviewed-reading-successor';
+import { assertReviewedBusinessSuccessor } from './reviewed-reading-successor';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -168,7 +169,9 @@ for (const page of pages)
 test('accepted roots, all collection Page/controller TS, shared domain and native media files stay byte-identical except explicit reviewed business successors', () => {
   assert.equal(Object.keys(protectedFiles).length, 179);
   for (const [file, expected] of Object.entries(protectedFiles).filter(
-    ([file, expected]) => !assertReviewedBusinessSuccessor(file, expected),
+    ([file, expected]) =>
+      !assertReviewedReadingSuccessor(file, expected) &&
+      !assertReviewedBusinessSuccessor(file, expected),
   ))
     assert.equal(hash(read(file)), expected, file);
 });

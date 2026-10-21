@@ -1,3 +1,4 @@
+import { textSourceIntentHash } from '../community/text-source-contract';
 import { sha256 } from 'js-sha256';
 import { ClientError } from '../api/errors';
 import type { SessionStore } from '../auth/session';
@@ -47,11 +48,14 @@ export function mediaPublicationReference(
     ...(body.syncToRelatedCampuses === true
       ? { syncToRelatedCampuses: true }
       : {}),
+    ...(body.textSource ? { textSource: body.textSource } : {}),
   };
   return Object.freeze({
     clientRequestId: body.clientRequestId,
     operation: 'publish_post',
-    intentHash: sha256(JSON.stringify({ operation: 'publish_post', intent })),
+    intentHash: body.textSource
+      ? textSourceIntentHash('publish_post', intent)
+      : sha256(JSON.stringify({ operation: 'publish_post', intent })),
   });
 }
 export function mediaPublicationOwner(

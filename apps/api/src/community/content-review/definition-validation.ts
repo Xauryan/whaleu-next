@@ -1,3 +1,6 @@
+import { sourceOriginalIntentHash } from '../text-source/protocol.js';
+import { reconstructTextSource } from '../text-source/repository.js';
+import type { StoredTextSource } from '../text-source/repository.js';
 import type { ReviewedRatingTargetLink } from '../rating-target-link/contracts.js';
 import type { Decision } from '../community-policy.js';
 import type {
@@ -19,6 +22,7 @@ import type {
 
 export interface CurrentContent {
   envelope: EffectiveContentEnvelope;
+  textSource?: StoredTextSource;
   authorAccountId: string;
   authorMode: 'named' | 'anonymous';
   parents: { kind: ContentKind; id: string }[];
@@ -71,6 +75,7 @@ export interface DefinitionListing {
   resolution?: string;
 }
 export interface DefinitionPayload {
+  textSource?: StoredTextSource;
   ratingTargetLink?: ReviewedRatingTargetLink | undefined;
   images: DefinitionImage[];
   poll?: DefinitionPoll | undefined;
@@ -196,9 +201,11 @@ export function reconstructDefinition(
   const version =
     kind === 'post'
       ? (post.publication_envelope_version ?? 1)
-      : scope.sync === 'inherited_related'
-        ? 4
-        : 1;
+      : facts.textSource
+        ? 6
+        : scope.sync === 'inherited_related'
+          ? 4
+          : 1;
   if (
     kind === 'post' &&
     ((version === 5) !== !!ratingTargetLink ||
@@ -229,9 +236,34 @@ export function reconstructDefinition(
           typeof post.allow_anonymous_dm !== 'boolean')))
   )
     return { kind: 'unavailable' };
+  const textSource = facts.textSource
+    ? reconstructTextSource(
+        facts.textSource,
+        kind,
+        content.id,
+        content.account_id,
+        content.text,
+      )
+    : null;
+  if ((version === 6) !== !!textSource || (facts.textSource && !textSource))
+    return { kind: 'unavailable' };
+  if (
+    version === 6 &&
+    post.publication_envelope_version !== 1 &&
+    post.publication_envelope_version !== 2 &&
+    post.publication_envelope_version !== 6
+  )
+    return { kind: 'unavailable' };
   try {
     const envelope = canonicalEnvelope({
       version,
+      ...(version === 6
+        ? {
+            textSource,
+            allowAnonymousDm:
+              kind === 'post' ? (post.allow_anonymous_dm ?? null) : null,
+          }
+        : {}),
       ...(version === 2 ? { allowAnonymousDm: post.allow_anonymous_dm } : {}),
       ...(version === 4
         ? {
@@ -256,10 +288,27 @@ export function reconstructDefinition(
       trading,
       scope,
     });
+    if (
+      envelope.version === 6 &&
+      (!facts.textSource ||
+        facts.textSource.original_intent_hash !==
+          sourceOriginalIntentHash(
+            envelope,
+            facts.textSource.requested_author_mode,
+          ) ||
+        content.author_mode !==
+          (kind !== 'post' &&
+          post.author_mode === 'anonymous' &&
+          post.account_id === content.account_id
+            ? 'anonymous'
+            : facts.textSource.requested_author_mode))
+    )
+      return { kind: 'unavailable' };
     return {
       kind: 'allow',
       value: {
         envelope,
+        ...(facts.textSource ? { textSource: facts.textSource } : {}),
         authorAccountId: content.account_id,
         authorMode: content.author_mode,
         parents,
@@ -272,11 +321,20 @@ export function reconstructDefinition(
 
 export function definitionMatchesApproval(
   stored: CurrentContent,
-  accepted: { digest: string; envelope: EffectiveContentEnvelope },
+  accepted: {
+    decisionId?: string;
+    digest: string;
+    envelope: EffectiveContentEnvelope;
+  },
   currentMediaProved = false,
 ): boolean {
   return (
     canonicalEqual(stored.envelope, accepted.envelope) &&
+    (stored.envelope.version !== 6 ||
+      (!!stored.textSource &&
+        stored.textSource.decision_id === accepted.decisionId &&
+        stored.textSource.approval_digest === accepted.digest &&
+        stored.textSource.account_id === accepted.envelope.accountId)) &&
     // Equal canonical JSON has the same versioned digest. Reuse the accepted
     // parser-owned envelope's digest rather than encoding its equal reconstructed
     // copy again; this retains both independent equality and digest checks.

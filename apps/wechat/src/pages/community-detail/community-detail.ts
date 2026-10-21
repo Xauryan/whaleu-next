@@ -1,3 +1,4 @@
+import { withReadingSources } from '../../community/reading-gateway';
 import {
   ContentReferenceController,
   initialReferenceView,
@@ -101,6 +102,28 @@ Page({
   onReferenceThread(event: { detail: ReferencePress }) {
     if (this.referenceInteractionBlocked()) return;
     this.referenceController?.openThread(event.detail);
+  },
+  onSourceThread(event: {
+    currentTarget: { dataset: { rowKey?: string; generation?: number } };
+  }) {
+    if (this.referenceInteractionBlocked()) return;
+    const { rowKey, generation } = event.currentTarget.dataset;
+    if (typeof rowKey !== 'string' || typeof generation !== 'number') return;
+    const roots = [
+      ...this.data.comments,
+      ...(this.data.locatedComment ? [this.data.locatedComment] : []),
+    ];
+    const source =
+      roots.find((root) => `comment:${root.id}` === rowKey) ??
+      roots
+        .flatMap((root) => root.replyPreview.items)
+        .find((reply) => `reply:${reply.id}` === rowKey);
+    if (
+      source?.readingBody?.classification !== 'reviewedSource' ||
+      source.readingUseReferences
+    )
+      return;
+    this.referenceController?.openThread({ rowKey, generation });
   },
   referenceInteractionBlocked() {
     return (
@@ -397,7 +420,10 @@ Page({
     this.formationIdentityOverlay?.dispose();
     this.overlayTargets = '';
     this.formationOverlayTargets = '';
-    const runtime = getApp<WhaleuApp>().community;
+    const existingRuntime = getApp<WhaleuApp>().community;
+    const runtime = existingRuntime
+      ? withReadingSources(existingRuntime, getApp<WhaleuApp>().identity?.api)
+      : undefined;
     if (!runtime || !this.postId) {
       this.setData({ error: '帖子地址无效或环境尚未初始化' });
       return;

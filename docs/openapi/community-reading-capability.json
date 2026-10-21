@@ -1,0 +1,211 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "WhaleU source capability and independent formatting readiness",
+    "version": "2"
+  },
+  "paths": {
+    "/v2/community/text-source-capabilities": {
+      "get": {
+        "operationId": "communityTextSourceCapabilitiesV2",
+        "security": [{ "accessToken": [] }],
+        "parameters": [
+          {
+            "name": "spaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "discussion",
+                "feedback",
+                "confession",
+                "companions",
+                "pets",
+                "internships",
+                "scenery",
+                "dorms",
+                "research",
+                "deep_sea",
+                "trading"
+              ]
+            }
+          },
+          {
+            "name": "authorMode",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["named", "anonymous"] }
+          }
+        ],
+        "description": "Current source capability is mandatory and independent. Installed means complete formal M2 catalog/slot protocol observation. Worker requestedMode is this API process configuration intent, not proof of external worker readiness; readiness remains not_observed. No credentials, queue state or source content is exposed.",
+        "responses": {
+          "200": {
+            "description": "Current source capability and optional M2 observation",
+            "headers": {
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" }
+              },
+              "Vary": {
+                "schema": { "type": "string", "const": "Authorization" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReadingCapability" }
+              }
+            }
+          },
+          "400": {
+            "description": "Canonical access or validation failure",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeError" }
+              }
+            }
+          },
+          "401": {
+            "description": "Canonical access or validation failure",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Canonical access or validation failure",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeError" }
+              }
+            }
+          },
+          "409": {
+            "description": "Canonical access or validation failure",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeError" }
+              }
+            }
+          },
+          "503": {
+            "description": "Canonical access or validation failure",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeError" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "accessToken": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "ReadingCapability": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "version": { "type": "number", "const": 2 },
+          "authorMode": { "type": "string", "enum": ["named", "anonymous"] },
+          "availability": {
+            "type": "string",
+            "enum": ["available", "unavailable"]
+          },
+          "operations": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["publish_post", "publish_comment", "publish_reply"]
+            }
+          },
+          "formats": {
+            "maxItems": 2,
+            "type": "array",
+            "items": { "type": "string", "enum": ["plain", "markdown"] }
+          },
+          "readingFormatting": {
+            "maxItems": 2,
+            "type": "array",
+            "items": { "type": "string", "enum": ["auto", "off"] }
+          },
+          "media": { "type": "string", "const": "unavailable" },
+          "markdownReferences": { "type": "string", "const": "unavailable" },
+          "formatter": {
+            "type": "object",
+            "properties": {
+              "version": { "type": "string", "const": "plain-cjk-slices-v2" },
+              "schema": {
+                "type": "string",
+                "enum": ["installed", "missing", "unavailable"]
+              },
+              "worker": {
+                "type": "object",
+                "properties": {
+                  "requestedMode": {
+                    "type": "string",
+                    "enum": ["disabled", "manual_only", "automatic"]
+                  },
+                  "readiness": { "type": "string", "const": "not_observed" }
+                },
+                "required": ["requestedMode", "readiness"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["version", "schema", "worker"],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "version",
+          "authorMode",
+          "availability",
+          "operations",
+          "formats",
+          "readingFormatting",
+          "media",
+          "markdownReferences",
+          "formatter"
+        ],
+        "additionalProperties": false
+      },
+      "SafeError": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$ref": "#/$defs/SafeErrorResponse",
+        "$defs": {
+          "SafeErrorResponse": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": { "type": "string" },
+                  "message": { "type": "string" },
+                  "requestId": { "type": "string" }
+                },
+                "required": ["code", "message", "requestId"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["error"],
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  }
+}

@@ -23,7 +23,8 @@ test(
   'real PG local synthetic deletion: true payload erasure, causal history, cooling/cancel, exact media, receipt and completion-based registration guard',
   { timeout: 300000 },
   async (t) => {
-    const f = await accountDeletionFixture();
+    // Historical owner completion is qualified through published c27/0174.
+    const f = await accountDeletionFixture({ throughMigration: 174 });
     t.after(() => f.close());
     const owner = await f.create(),
       other = await f.create(),

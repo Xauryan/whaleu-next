@@ -1,3 +1,4 @@
+import { textSourceIntentHash } from '../community/text-source-contract';
 import { ratingLinkPublicationHash } from '../community/rating-link-contract';
 import { sha256 } from 'js-sha256';
 import { decodeCommentIntent } from '../community/contract';
@@ -46,9 +47,12 @@ export function batchPublicationReference(
   return Object.freeze({
     clientRequestId: body.clientRequestId,
     operation: attempt.operation,
-    intentHash: sha256(
-      JSON.stringify({ operation: attempt.operation, intent }),
-    ),
+    intentHash: body.textSource
+      ? textSourceIntentHash(attempt.operation, {
+          ...intent,
+          textSource: body.textSource,
+        })
+      : sha256(JSON.stringify({ operation: attempt.operation, intent })),
   });
 }
 export function discussionTarget(

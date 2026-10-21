@@ -1,0 +1,436 @@
+<import src="../../community/rating-link-card.wxml" />
+<import src="../../category-reclassification/management.wxml" />
+<import src="../../owner-post-visibility/management.wxml" />
+<import src="../../profile/named-avatar.wxml" />
+<import src="../../experience/public-display.wxml" />
+<import src="../../community/post-like-recovery.wxml" />
+<import src="../../community/report-progress.wxml" />
+<import src="../../community/report-recovery.wxml" />
+<import src="../../community/block-recovery.wxml" />
+<import src="../../community/saved-recovery.wxml" />
+<import src="../../community/trading-summary.wxml" />
+<import src="../../identity-privacy/view.wxml" />
+<import src="../../community/discussion-recovery.wxml" />
+<template name="root-comment">
+  <view class="comment-item">
+    <view class="author author-line">
+      <button wx:if="{{item.author.kind === 'named'}}" size="mini" data-kind="comment" data-id="{{item.id}}" bindtap="onAuthorAvatar" disabled="{{busy || needsReload || block.busy || block.frozen}}" class="avatar-button" aria-label="查看公开头像"><wu-icon name="person" size="24" tone="muted" /></button>
+      <text wx:if="{{item.author.kind === 'named'}}" class="author-name" data-kind="comment" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}}</text>
+      <text wx:else>{{item.author.displayName}}</text>
+      <template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" />
+      <text wx:if="{{item.author.kind === 'anonymous'}}" class="badge">分身</text>
+      <text wx:if="{{item.isPinned}}" class="badge">楼主置顶</text>
+      <text wx:if="{{item.viewer.isSelf}}" class="badge">我</text>
+    </view>
+    <view class="meta">{{item.createdAt}} · {{item.likeCount}} 赞 · {{item.replyCount === null ? '—' : item.replyCount}} 条回复</view>
+    <view class="body"><wu-reference-text source="{{item.text}}" row-key="{{'comment:' + item.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" /></view>
+    <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[item.id]}}" />
+    <button wx:if="{{item.images.length}}" class="secondary" data-kind="comment" data-id="{{item.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{item.images.length}} 张）</button>
+    <view class="comment-actions">
+      <wu-f7-button data-id="{{item.id}}" bind:press="onLikeComment" disabled="{{busy || interaction.busy || interaction.frozen}}" class="text-action">{{item.viewer.isLiked ? '已点赞' : '赞'}} · {{item.likeCount}}</wu-f7-button>
+      <wu-f7-button class="more-button" data-menu="{{'comment:' + item.id}}" bind:press="onToggleMenu" aria-label="展开更多操作">{{uiExpandedMenu === 'comment:' + item.id ? '收起' : '更多'}}</wu-f7-button>
+    </view>
+    <view class="context-menu comment-menu" wx:if="{{uiExpandedMenu === 'comment:' + item.id}}">
+      <wu-f7-button wx:if="{{!item.viewer.isSelf}}" data-id="{{item.id}}" bind:press="onReportComment" disabled="{{busy || report.busy || report.frozen}}">举报此内容</wu-f7-button>
+      <wu-f7-button wx:if="{{!item.viewer.isSelf}}" data-kind="comment" data-id="{{item.id}}" bind:press="onPrivateMessage" disabled="{{busy || needsReload || block.busy || block.frozen}}">{{item.author.kind === 'anonymous' ? '以本帖分身私信' : '以公开身份私信'}}</wu-f7-button>
+      <wu-f7-button wx:if="{{!item.viewer.isSelf}}" data-surface="root" data-kind="comment" data-id="{{item.id}}" bind:press="onAdminDiscussionRemoval" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">管理员删除此回复（先核验权限）</wu-f7-button>
+      <navigator class="link" url="/pages/report-progress/report-progress?kind=comment&amp;id={{item.id}}">举报进度 <wu-icon name="chevron-right" size="16" /></navigator>
+      <navigator wx:if="{{item.author.kind === 'named' &amp;&amp; !busy &amp;&amp; !needsReload &amp;&amp; !block.busy &amp;&amp; !block.frozen}}" class="link" url="/pages/profile-moderation/profile-moderation?kind=comment&amp;id={{item.id}}">处理昵称（先核验权限） <wu-icon name="chevron-right" size="16" /></navigator>
+      <navigator wx:if="{{item.author.kind === 'named' &amp;&amp; !busy &amp;&amp; !needsReload &amp;&amp; !block.busy &amp;&amp; !block.frozen}}" class="link" bindtap="onAvatarModerationNavigate" url="/pages/profile-avatar-moderation/profile-avatar-moderation?kind=comment&amp;id={{item.id}}">清除当前自定义头像（先核验权限） <wu-icon name="chevron-right" size="16" /></navigator>
+      <wu-f7-button wx:if="{{item.author.kind === 'named' &amp;&amp; !item.viewer.isSelf}}" data-id="{{item.id}}" bind:press="onBlockComment" disabled="{{busy || block.busy || block.frozen}}" class="destructive-text" tone="danger">拉黑此公开身份作者</wu-f7-button>
+      <wu-f7-button wx:if="{{item.viewer.canPin}}" data-id="{{item.id}}" bind:press="onPinComment" disabled="{{busy || interaction.busy || interaction.frozen}}">{{item.isPinned ? '取消置顶' : '置顶根回复'}}</wu-f7-button>
+      <navigator wx:if="{{post.viewer.canComment &amp;&amp; item.text}}" class="link" url="/pages/community-compose/community-compose?postId={{post.id}}&amp;copyCommentId={{item.id}}{{viewSpaceQuery}}">复制文字 +1（先确认） <wu-icon name="chevron-right" size="16" /></navigator>
+      <wu-f7-button wx:if="{{item.viewer.canDelete}}" data-id="{{item.id}}" bind:press="onDeleteComment" disabled="{{busy || interaction.busy}}" class="destructive-text" tone="danger">删除我的回复</wu-f7-button>
+    </view>
+    <view wx:for="{{item.replyPreview.items}}" wx:for-item="reply" wx:key="id" class="reply-preview">
+      <view class="author author-line">
+        <button wx:if="{{reply.author.kind === 'named'}}" size="mini" data-kind="reply" data-id="{{reply.id}}" bindtap="onAuthorAvatar" disabled="{{busy || needsReload || block.busy || block.frozen}}" class="avatar-button" aria-label="查看公开头像"><wu-icon name="person" size="24" tone="muted" /></button>
+        <text wx:if="{{reply.author.kind === 'named'}}" class="author-name" data-kind="reply" data-id="{{reply.id}}" bindtap="onAuthor">{{reply.author.displayName}}</text>
+        <text wx:else>{{reply.author.displayName}}</text>
+        <template wx:if="{{reply.author.kind === 'named'}}" is="public-experience-display" data="{{display:reply.author.experienceDisplay,colors:experienceColorStyles}}" />
+      </view>
+      <view class="meta">
+        回复
+        <text>{{reply.target.status === 'available' ? reply.target.author.displayName : '当前不可查看的对象'}}</text>
+        <template wx:if="{{reply.target.status === 'available' &amp;&amp; reply.target.author.kind === 'named'}}" is="public-experience-display" data="{{display:reply.target.author.experienceDisplay,colors:experienceColorStyles}}" />
+      </view>
+      <view class="link"><wu-reference-text source="{{reply.text}}" row-key="{{'reply:' + reply.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" fallback="{{true}}" placeholder="查看图片回复" bind:plaintextpress="onReferenceThread"><wu-icon name="chevron-right" size="16" /></wu-reference-text></view>
+      <button wx:if="{{reply.images.length}}" class="secondary" data-kind="reply" data-id="{{reply.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{reply.images.length}} 张）</button>
+      <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[reply.id]}}" />
+      <wu-f7-button class="more-button" data-menu="{{'reply:' + reply.id}}" bind:press="onToggleMenu" aria-label="展开更多操作">{{uiExpandedMenu === 'reply:' + reply.id ? '收起' : '更多'}}</wu-f7-button>
+      <view class="context-menu reply-menu" wx:if="{{uiExpandedMenu === 'reply:' + reply.id}}">
+        <wu-f7-button wx:if="{{!reply.viewer.isSelf}}" data-id="{{reply.id}}" bind:press="onReportReply" disabled="{{busy || report.busy || report.frozen}}">举报此内容</wu-f7-button>
+        <wu-f7-button wx:if="{{!reply.viewer.isSelf}}" data-kind="reply" data-id="{{reply.id}}" bind:press="onPrivateMessage" disabled="{{busy || needsReload || block.busy || block.frozen}}">{{reply.author.kind === 'anonymous' ? '以本帖分身私信' : '以公开身份私信'}}</wu-f7-button>
+        <wu-f7-button wx:if="{{!reply.viewer.isSelf}}" data-surface="preview" data-kind="reply" data-id="{{reply.id}}" bind:press="onAdminDiscussionRemoval" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">管理员删除此回复（先核验权限）</wu-f7-button>
+        <navigator class="link" url="/pages/report-progress/report-progress?kind=reply&amp;id={{reply.id}}">举报进度 <wu-icon name="chevron-right" size="16" /></navigator>
+        <navigator wx:if="{{reply.author.kind === 'named' &amp;&amp; !busy &amp;&amp; !needsReload &amp;&amp; !block.busy &amp;&amp; !block.frozen}}" class="link" url="/pages/profile-moderation/profile-moderation?kind=reply&amp;id={{reply.id}}">处理昵称（先核验权限） <wu-icon name="chevron-right" size="16" /></navigator>
+        <navigator wx:if="{{reply.author.kind === 'named' &amp;&amp; !busy &amp;&amp; !needsReload &amp;&amp; !block.busy &amp;&amp; !block.frozen}}" class="link" bindtap="onAvatarModerationNavigate" url="/pages/profile-avatar-moderation/profile-avatar-moderation?kind=reply&amp;id={{reply.id}}">清除当前自定义头像（先核验权限） <wu-icon name="chevron-right" size="16" /></navigator>
+        <wu-f7-button wx:if="{{reply.author.kind === 'named' &amp;&amp; !reply.viewer.isSelf}}" data-id="{{reply.id}}" bind:press="onBlockReply" disabled="{{busy || block.busy || block.frozen}}" class="destructive-text" tone="danger">拉黑此公开身份作者</wu-f7-button>
+      </view>
+    </view>
+    <wu-f7-button wx:if="{{item.replyPreview.nextCursor}}" data-id="{{item.id}}" bind:press="onMoreReplies" disabled="{{busy}}" class="text-action">继续加载回复</wu-f7-button>
+    <navigator class="reply-link" url="/pages/community-thread/community-thread?postId={{post.id}}&amp;rootCommentId={{item.id}}{{viewSpaceQuery}}">查看 {{item.replyCount === null ? '—' : item.replyCount}} 条回复 <wu-icon name="chevron-right" size="16" /></navigator>
+  </view>
+</template>
+<view class="screen detail-screen f7-ios-theme f7-composer-screen">
+  <view class="detail-heading"><text>主题</text><wu-f7-button class="refresh-button" bind:press="onReload" disabled="{{busy}}" loading="{{busy}}" aria-label="刷新主题"><wu-icon name="refresh" size="20" /></wu-f7-button></view>
+  <view class="status page-status" aria-role="status" wx:if="{{status &amp;&amp; (busy || !loaded || needsReload)}}">{{status}}</view>
+  <view wx:if="{{identityOverlay.notice}}" class="notice">{{identityOverlay.notice}}</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+  <view wx:if="{{references.error}}" class="error" aria-role="alert">{{references.error}}</view>
+  <wu-f7-button wx:if="{{busy}}" bind:press="onCancel" class="text-button">停止等待</wu-f7-button>
+  <navigator wx:if="{{!hasSession}}" class="link" url="/pages/login/login">登录后查看详情</navigator>
+  <template is="report-recovery" data="{{report}}" />
+  <template is="jury-vote-recovery" data="{{juryVote}}" />
+  <template is="block-recovery" data="{{block}}" />
+  <view wx:if="{{post}}" id="view-{{post.id}}" class="card post-card">
+    <view class="author author-line">
+      <button wx:if="{{post.author.kind === 'named'}}" size="mini" data-kind="post" data-id="{{post.id}}" bindtap="onAuthorAvatar" disabled="{{busy || needsReload || block.busy || block.frozen}}" class="avatar-button" aria-label="查看公开头像"><wu-icon name="person" size="24" tone="muted" /></button>
+      <text wx:if="{{post.author.kind === 'named'}}" class="author-name" data-kind="post" data-id="{{post.id}}" bindtap="onAuthor">{{post.author.displayName}}</text>
+      <text wx:else>{{post.author.displayName}}</text>
+      <template wx:if="{{post.author.kind === 'named'}}" is="public-experience-display" data="{{display:post.author.experienceDisplay,colors:experienceColorStyles}}" />
+      <text wx:if="{{post.author.kind === 'anonymous'}}" class="badge">分身</text>
+      <text wx:if="{{post.viewer.isSelf}}" class="badge">我</text>
+    </view>
+    <view class="meta">{{post.space.name}} · {{post.publishedAt}}<text wx:if="{{references.available &amp;&amp; references.codes['post:' + post.id]}}" selectable="{{true}}"> · #{{references.codes['post:' + post.id]}}</text></view>
+    <view wx:if="{{post.isRelatedCampusSync}}" class="badge">来自 {{post.sourceRegion.name}} · 关联学校同步</view>
+    <view class="body">
+      <wu-reference-text source="{{post.text}}" row-key="{{'post:' + post.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" />
+    </view>
+    <template is="rating-target-link-card" data="{{component:post.component,postId:post.id,busy}}" />
+    <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[post.id]}}" />
+    <view wx:if="{{post.images.length === 1 &amp;&amp; mediaGallery.groupKind === 'post'}}" class="private-image">
+      <image wx:if="{{mediaRead.status === 'ready' &amp;&amp; mediaRead.localSrc}}" src="{{mediaRead.localSrc}}" data-src="{{mediaRead.localSrc}}" mode="widthFix" class="{{mediaRead.expanded ? 'private-image-expanded' : 'private-image-inline'}}" bindtap="onOpenMedia" binderror="onMediaError" show-menu-by-longpress="{{false}}" />
+      <view wx:if="{{mediaRead.status === 'loading'}}" class="notice">正在安全读取图片…</view>
+      <view wx:elif="{{mediaRead.status !== 'ready'}}" class="notice">{{mediaRead.status === 'denied' ? '当前无法查看这张图片' : '图片暂不可用，请重新加载帖子'}}</view>
+      <button wx:if="{{mediaRead.expanded}}" bindtap="onCloseMedia">关闭图片</button>
+    </view>
+    <view wx:if="{{post.images.length &gt; 1 &amp;&amp; mediaGallery.groupKind === 'post'}}" class="private-gallery">
+      <view class="notice">{{mediaGallery.expanded ? '大图' : '图片'}} · {{post.images.length}} 张</view>
+      <view wx:for="{{mediaGallery.slots}}" wx:key="index" class="private-gallery-slot {{mediaGallery.expanded ? 'private-gallery-slot-expanded' : ''}}">
+        <image wx:if="{{item.status === 'ready' &amp;&amp; item.localSrc}}" src="{{item.localSrc}}" data-index="{{item.index}}" data-src="{{item.localSrc}}" data-view-id="{{item.viewId}}" mode="widthFix" class="{{mediaGallery.expanded ? 'private-image-expanded' : 'private-gallery-thumb'}}" bindtap="onGalleryOpen" binderror="onGalleryError" show-menu-by-longpress="{{false}}" />
+        <view wx:else class="notice">第 {{item.index + 1}} 张：{{item.status === 'loading' ? '正在读取' : '暂不可用'}}</view>
+        <button wx:if="{{item.status === 'unavailable'}}" data-index="{{item.index}}" bindtap="onGalleryRetry">重试此图</button>
+      </view>
+      <view wx:if="{{mediaGallery.status === 'unavailable'}}" class="notice">图片暂不可用，请重新加载帖子</view>
+      <view wx:if="{{mediaGallery.expanded}}">
+        <button data-index="{{mediaGallery.selected - 1}}" bindtap="onGalleryOpen" disabled="{{mediaGallery.selected === 0}}">上一张</button>
+        <button data-index="{{mediaGallery.selected + 1}}" bindtap="onGalleryOpen" disabled="{{mediaGallery.selected + 1 &gt;= mediaGallery.total}}">下一张</button>
+        <button bindtap="onGalleryClose">关闭大图</button>
+      </view>
+      <view wx:else>
+        <button data-start="{{mediaGallery.start - 3}}" bindtap="onGalleryWindow" disabled="{{mediaGallery.start &lt; 3}}">上一组</button>
+        <button data-start="{{mediaGallery.start + 3}}" bindtap="onGalleryWindow" disabled="{{mediaGallery.start + 3 &gt;= mediaGallery.total}}">下一组</button>
+      </view>
+    </view>
+    <button wx:if="{{post.images.length &amp;&amp; mediaGallery.groupKind !== 'post'}}" class="secondary" data-kind="post" data-id="{{post.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看帖子图片（{{post.images.length}} 张）</button>
+    <view wx:if="{{post &amp;&amp; post.feedback &amp;&amp; post.feedback.authorSchool}}" class="meta">认证学校：{{post.feedback.authorSchool}}</view>
+    <navigator wx:if="{{post &amp;&amp; post.feedback &amp;&amp; post.feedback.hasContacts}}" class="link" url="/pages/feedback-contacts/feedback-contacts?postId={{post.id}}">查看发布者提供的联系方式 <wu-icon name="chevron-right" size="16" /></navigator>
+    <view class="discussion-count">{{post.discussionCount === null ? '—' : post.discussionCount}} 条回复 · {{post.saveCount}} 人收藏</view>
+    <view class="post-actions">      <view class="comment-entry">
+        <navigator wx:if="{{post.viewer.canComment}}" class="action-button comment-action" url="/pages/community-compose/community-compose?postId={{post.id}}{{viewSpaceQuery}}">写回复</navigator>
+        <view wx:else class="notice unavailable-comments">暂不可回复</view>
+      </view><wu-f7-button class="action-button" bind:press="onLike" disabled="{{busy || needsReload || postLikeMutation.busy || postLikeMutation.frozen}}"><wu-icon name="{{post.viewer.isLiked ? 'heart-filled' : 'heart'}}" tone="{{post.viewer.isLiked ? 'accent' : 'default'}}" size="23" /><text>{{post.likeCount}}</text></wu-f7-button><wu-f7-button bind:press="onSavedToggle" disabled="{{busy || needsReload || savedMutation.busy || savedMutation.frozen || !post.viewer.canSave}}" class="action-button"><wu-icon name="bookmark" tone="{{post.viewer.isSaved ? 'accent' : 'default'}}" size="23" /><text>{{post.viewer.isSaved ? '已收藏' : '收藏'}}</text></wu-f7-button><wu-f7-button class="more-button" data-menu="post" bind:press="onToggleMenu" aria-label="展开更多操作"><wu-icon name="more" size="22" /></wu-f7-button></view>
+    <view class="context-menu post-menu" wx:if="{{uiExpandedMenu === 'post'}}">
+      <wu-f7-button wx:if="{{!post.viewer.isSelf}}" data-kind="post" data-id="{{post.id}}" bind:press="onPrivateMessage" disabled="{{busy || needsReload || block.busy || block.frozen}}">{{post.author.kind === 'anonymous' ? '以本帖分身私信' : '以公开身份私信'}}</wu-f7-button>
+      <wu-f7-button wx:if="{{!post.viewer.isSelf &amp;&amp; post.author.kind === 'named' &amp;&amp; post.allowAnonymousDm}}" data-kind="post" data-id="{{post.id}}" data-mode="anonymous" bind:press="onPrivateMessage" disabled="{{busy || needsReload || block.busy || block.frozen}}">以本帖分身私信此作者</wu-f7-button>
+      <wu-f7-button wx:if="{{!post.viewer.isSelf}}" bind:press="onReportPost" disabled="{{busy || report.busy || report.frozen}}">举报此内容</wu-f7-button>
+      <navigator class="link" url="/pages/report-progress/report-progress?kind=post&amp;id={{post.id}}">举报进度与陪审 <wu-icon name="chevron-right" size="16" /></navigator>
+      <wu-f7-button wx:if="{{post.author.kind === 'named' &amp;&amp; !post.viewer.isSelf}}" class="destructive-text" bind:press="onBlockPost" disabled="{{busy || needsReload || block.busy || block.frozen}}" tone="danger">拉黑此公开身份作者</wu-f7-button>
+      <navigator wx:if="{{post.author.kind === 'named' &amp;&amp; !busy &amp;&amp; !needsReload &amp;&amp; !block.busy &amp;&amp; !block.frozen}}" class="link" url="/pages/profile-moderation/profile-moderation?kind=post&amp;id={{post.id}}">处理昵称（先核验权限） <wu-icon name="chevron-right" size="16" /></navigator>
+      <navigator wx:if="{{post.author.kind === 'named' &amp;&amp; !busy &amp;&amp; !needsReload &amp;&amp; !block.busy &amp;&amp; !block.frozen}}" class="link" bindtap="onAvatarModerationNavigate" url="/pages/profile-avatar-moderation/profile-avatar-moderation?kind=post&amp;id={{post.id}}">清除当前自定义头像（先核验权限） <wu-icon name="chevron-right" size="16" /></navigator>
+      <wu-f7-button wx:if="{{!post.viewer.isSelf}}" bind:press="onAdminPostRemoval" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen}}">管理员删除帖子（先核验权限）</wu-f7-button>
+      <wu-f7-button wx:if="{{post.viewer.canDelete}}" bind:press="onDeletePost" disabled="{{busy}}" class="destructive-text" tone="danger">删除我的帖子</wu-f7-button>
+    </view>
+  </view>
+  <template is="post-like-recovery" data="{{postLikeMutation}}" />
+  <template is="saved-recovery" data="{{savedMutation}}" />
+  <wu-f7-block wx:if="{{post &amp;&amp; post.trading}}" class="card" spacing="compact">
+    <template is="trading-summary" data="{{listing:post.trading,tradingLabels}}" />
+    <view class="notice">急出与售出／解决是独立状态。撤销已解决会保留原急出模式。当前仅作者可修改状态，群推送与付款、担保、配送均未接入。</view>
+    <wu-f7-button wx:if="{{post.trading.viewer.canSetResolution}}" bind:press="onTradingResolution" disabled="{{busy || needsReload || tradingMutation.busy || tradingMutation.frozen}}">{{post.trading.resolution === 'resolved' ? '撤销已解决／恢复出售' : '标记售出／已解决'}}</wu-f7-button>
+    <button open-type="share" disabled="{{busy || !loaded}}">分享交易详情</button>
+    <wu-f7-button bind:press="onTradingContacts" disabled="{{busy || !tradingContacts.enabled || tradingContacts.busy}}" loading="{{tradingContacts.busy}}">查看发布者公开联系方式</wu-f7-button>
+    <view class="notice">{{tradingContacts.status}}</view>
+    <view wx:if="{{tradingContacts.error}}" class="error">{{tradingContacts.error}}</view>
+    <view wx:if="{{tradingContacts.contacts}}">
+      <view wx:if="{{tradingContacts.contacts.wechat}}">
+        <text selectable="true">微信：{{tradingContacts.contacts.wechat}}</text>
+        <wu-f7-button data-field="wechat" bind:press="onCopyTradingContact" disabled="{{tradingContacts.busy}}">复制微信</wu-f7-button>
+      </view>
+      <view wx:if="{{tradingContacts.contacts.qq}}">
+        <text selectable="true">QQ：{{tradingContacts.contacts.qq}}</text>
+        <wu-f7-button data-field="qq" bind:press="onCopyTradingContact" disabled="{{tradingContacts.busy}}">复制 QQ</wu-f7-button>
+      </view>
+      <view wx:if="{{tradingContacts.contacts.phone}}">
+        <text selectable="true">电话：{{tradingContacts.contacts.phone}}</text>
+        <wu-f7-button data-field="phone" bind:press="onCopyTradingContact" disabled="{{tradingContacts.busy}}">复制电话</wu-f7-button>
+      </view>
+      <view class="meta">只显示与复制发布者填写的原文，不自动拨号或打开网址。联系方式不代表已认证。</view>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{tradingMutation.frozen || tradingMutation.receiptStatus || tradingMutation.error}}" class="card" spacing="compact">
+    <view class="section-title">交易状态结果恢复</view>
+    <view class="notice">{{tradingMutation.actionLabel}} · {{tradingMutation.status}}</view>
+    <view wx:if="{{tradingMutation.error}}" class="error">{{tradingMutation.error}}</view>
+    <view class="status">{{tradingMutation.receiptStatus}}</view>
+    <view wx:if="{{tradingMutation.frozen}}">
+      <wu-f7-button bind:press="onTradingReceipt" disabled="{{tradingMutation.busy}}">查询原状态回执</wu-f7-button>
+      <wu-f7-button bind:press="onTradingRetry" disabled="{{tradingMutation.busy}}">重试完全相同的状态请求</wu-f7-button>
+      <navigator wx:if="{{tradingMutation.recoveryPostId &amp;&amp; tradingMutation.recoveryPostId !== postId}}" class="link" url="/pages/community-detail/community-detail?postId={{tradingMutation.recoveryPostId}}">打开原交易 <wu-icon name="chevron-right" size="16" /></navigator>
+    </view>
+    <wu-f7-button wx:if="{{tradingMutation.busy}}" bind:press="onTradingCancel">停止等待（不撤销请求）</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{formationView.active}}" class="card" spacing="compact">
+    <view class="section-title">组队</view>
+    <view wx:if="{{formationIdentityOverlay.notice}}" class="notice">{{formationIdentityOverlay.notice}}</view>
+    <view class="status">{{formationView.status}}</view>
+    <view wx:if="{{formationView.error}}" class="error">{{formationView.error}}</view>
+    <view wx:if="{{formationView.formation}}">
+      <view class="body">{{formationView.formation.theme}}</view>
+      <view class="meta">{{formationView.formation.memberCount}} / {{formationView.formation.capacity}} 人（包含发起者） · {{formationView.formation.status === 'full' ? '已满员' : formationView.formation.status === 'open' ? '可加入' : '暂不可用'}}</view>
+      <view wx:for="{{formationView.formation.members}}" wx:key="id" class="roster-member">
+        <button wx:if="{{item.author.kind === 'named'}}" size="mini" data-kind="member" data-id="{{item.id}}" bindtap="onAuthorAvatar" disabled="{{busy || needsReload || block.busy || block.frozen}}" class="avatar-button" aria-label="查看公开头像"><wu-icon name="person" size="24" tone="muted" /></button>
+        <text wx:if="{{item.author.kind === 'named'}}" class="author-name" data-kind="member" data-id="{{item.id}}" bindtap="onAuthor">{{item.author.displayName}}</text>
+        <text wx:else>{{item.author.displayName}}</text>
+        <template wx:if="{{item.author.kind === 'named'}}" is="public-experience-display" data="{{display:item.author.experienceDisplay,colors:experienceColorStyles}}" />
+        <text class="badge">{{item.isCreator ? '发起者' : '成员'}}</text>
+        <text wx:if="{{item.author.kind === 'anonymous'}}" class="badge">分身身份</text>
+        <text wx:if="{{item.viewer.isSelf}}" class="badge">我</text>
+        <view class="meta">{{item.joinedAt}}</view>
+        <template wx:if="{{formationIdentityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:formationIdentityOverlay.items[item.id]}}" />
+      </view>
+      <view class="notice">名单按发起者、加入时间排序。部分成员可能因当前查看权限不展示，人数仍计入席位。</view>
+      <view wx:if="{{formationView.canJoin &amp;&amp; !formationView.frozen}}">
+        <view class="section-title">加入组队</view>
+        <view class="notice">加入后使用你的公开个人资料展示。请填写至少一种你愿意分享的联系方式，不会自动使用认证手机号。</view>
+        <wu-f7-input data-field="wechat" bind:input="onFormationContact" value="{{formationView.contacts.wechat}}" maxlength="-1" placeholder="微信（选填）" disabled="{{formationView.busy}}" placeholder-class="input-placeholder" />
+        <wu-f7-input data-field="qq" bind:input="onFormationContact" value="{{formationView.contacts.qq}}" maxlength="-1" placeholder="QQ（选填）" disabled="{{formationView.busy}}" placeholder-class="input-placeholder" />
+        <wu-f7-input data-field="phone" bind:input="onFormationContact" value="{{formationView.contacts.phone}}" maxlength="-1" placeholder="电话（选填）" disabled="{{formationView.busy}}" placeholder-class="input-placeholder" />
+        <view class="notice">{{formationView.disclosure}}</view>
+        <label>
+          <switch bindchange="onFormationConsent" checked="{{formationView.contactConsent}}" disabled="{{formationView.busy}}" color="#007aff" />
+          我同意以公开身份加入，并向有权限的成员分享以上联系方式
+        </label>
+        <wu-f7-button bind:press="onFormationJoin" disabled="{{formationView.busy || !formationView.contactConsent}}" loading="{{formationView.busy}}" class="primary" variant="fill" size="large" round="{{true}}">确认加入（占用一个席位）</wu-f7-button>
+      </view>
+      <wu-f7-button wx:if="{{formationContacts.enabled}}" bind:press="onFormationContacts" disabled="{{formationContacts.busy || formationView.busy}}">查看成员分享的联系方式</wu-f7-button>
+    </view>
+    <view wx:if="{{formationView.blocker}}" class="notice">{{formationView.blocker}}</view>
+    <view class="status">{{formationView.receiptStatus}}</view>
+    <view class="notice">{{formationView.ownStatus}}</view>
+    <view wx:if="{{formationView.frozen}}">
+      <wu-f7-button bind:press="onFormationReceipt" disabled="{{formationView.busy}}">查询原加入回执</wu-f7-button>
+      <wu-f7-button bind:press="onFormationRetry" disabled="{{formationView.busy}}">重试完全相同的加入请求</wu-f7-button>
+      <wu-f7-button bind:press="onFormationOwn" disabled="{{formationView.busy}}">检查本账号成员记录</wu-f7-button>
+      <navigator wx:if="{{formationView.recoveryPostId &amp;&amp; formationView.recoveryPostId !== postId}}" class="link" url="/pages/community-detail/community-detail?postId={{formationView.recoveryPostId}}">打开原组队的恢复入口 <wu-icon name="chevron-right" size="16" /></navigator>
+    </view>
+    <wu-f7-button wx:if="{{formationView.busy}}" bind:press="onFormationCancel">停止等待（不撤销加入）</wu-f7-button>
+    <view wx:if="{{formationContacts.error}}" class="error">{{formationContacts.error}}</view>
+    <view class="notice">{{formationContacts.status}}</view>
+    <view wx:if="{{formationContacts.open}}" class="formation-contact-backdrop" bindtap="onDismissFormationContacts"></view>
+    <view wx:if="{{formationContacts.open}}" class="contact-panel" aria-role="dialog" aria-label="组队成员分享的联系方式">
+      <view class="section-title">成员分享的联系方式</view>
+      <button bindtap="onDismissFormationContacts">关闭并清除本页显示</button>
+      <view wx:for="{{formationContacts.rows}}" wx:key="membershipId">
+        <view>{{item.displayName}} · {{item.isCreator ? '发起者' : '成员'}}</view>
+        <view wx:if="{{item.contacts.wechat}}">
+          微信：{{item.contacts.wechat}}
+          <button data-id="{{item.membershipId}}" data-field="wechat" bindtap="onCopyFormationContact" disabled="{{formationContacts.busy}}">重新核验权限并复制微信</button>
+        </view>
+        <view wx:if="{{item.contacts.qq}}">
+          QQ：{{item.contacts.qq}}
+          <button data-id="{{item.membershipId}}" data-field="qq" bindtap="onCopyFormationContact" disabled="{{formationContacts.busy}}">重新核验权限并复制 QQ</button>
+        </view>
+        <view wx:if="{{item.contacts.phone}}">
+          电话：{{item.contacts.phone}}
+          <button data-id="{{item.membershipId}}" data-field="phone" bindtap="onCopyFormationContact" disabled="{{formationContacts.busy}}">重新核验权限并复制电话</button>
+        </view>
+      </view>
+      <view class="notice">只复制填写的原文，不自动拨号或打开链接。已复制到系统剪贴板的内容不随本页清除。</view>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{pollView.active}}" class="card" spacing="compact">
+    <view class="section-title">投票</view>
+    <view class="status" aria-role="status">{{pollView.status}}</view>
+    <view wx:if="{{pollView.error}}" class="error" aria-role="alert">{{pollView.error}}</view>
+    <view wx:if="{{pollView.poll}}">
+      <view class="body">{{pollView.poll.question}}</view>
+      <view class="meta">{{pollView.poll.selectionMode === 'single' ? '单选 · 点选即提交' : '多选 · 选好后确认提交'}} · {{pollView.poll.expired ? '已结束' : '进行中'}}</view>
+      <view class="meta">{{pollView.poll.deadline ? '截止时间：' + pollView.poll.deadline : '无预定截止时间'}}</view>
+      <view wx:for="{{pollView.rows}}" wx:key="id" class="poll-option">
+        <wu-f7-button class="secondary" data-id="{{item.id}}" bind:press="onPollOption" disabled="{{pollView.busy || !pollView.canVote || pollView.frozen}}" variant="tonal"><wu-icon wx:if="{{item.selected}}" name="check" tone="accent" size="18" />{{item.label}}</wu-f7-button>
+        <view wx:if="{{pollView.revealResults}}">
+          <view class="poll-track">
+            <view class="poll-bar" style="width: {{item.percent}}%;"></view>
+          </view>
+          <view class="meta">{{item.count}} 次选择 · {{item.percent}}%（占全部选择）</view>
+        </view>
+      </view>
+      <view wx:if="{{pollView.revealResults}}" class="meta">{{pollView.poll.voterCount}} 人投票 · {{pollView.poll.selectionCount}} 次选择。多选时一人可产生多次选择，百分比以全部选择次数为分母。</view>
+      <view wx:else class="meta">投票后或结束后展示结果。选项汇总对有权阅读此帖的人可通过接口获取，此展示顺序不代表结果保密。</view>
+      <wu-f7-button wx:if="{{pollView.poll.selectionMode === 'multiple' &amp;&amp; pollView.canVote}}" class="primary" bind:press="onPollSubmit" disabled="{{pollView.busy || !pollView.canSubmit}}" variant="fill" size="large" round="{{true}}">确认提交所选选项（不可修改）</wu-f7-button>
+    </view>
+    <view wx:if="{{pollView.blocker}}" class="notice">{{pollView.blocker}}</view>
+    <view wx:if="{{pollView.receiptStatus}}" class="status">{{pollView.receiptStatus}}</view>
+    <view wx:if="{{pollView.frozen}}">
+      <wu-f7-button class="primary" bind:press="onPollReceipt" disabled="{{pollView.busy}}" variant="fill" size="large" round="{{true}}">查询原投票回执</wu-f7-button>
+      <wu-f7-button class="secondary" bind:press="onPollRetry" disabled="{{pollView.busy}}" variant="tonal">重试完全相同的原投票</wu-f7-button>
+      <wu-f7-button class="secondary" bind:press="onPollOwnStatus" disabled="{{pollView.busy}}" variant="tonal">检查此账号是否已有投票</wu-f7-button>
+      <navigator wx:if="{{pollView.recoveryPostId &amp;&amp; pollView.recoveryPostId !== post.id}}" class="link" url="/pages/community-detail/community-detail?postId={{pollView.recoveryPostId}}">打开原投票所在帖子 <wu-icon name="chevron-right" size="16" /></navigator>
+    </view>
+    <view wx:if="{{pollView.ownStatus}}" class="notice">{{pollView.ownStatus}}</view>
+    <wu-f7-button wx:if="{{pollView.busy}}" bind:press="onPollCancel">停止等待（不撤销投票）</wu-f7-button>
+    <view class="notice">作者也可投票；每个账号仅有一次，不支持修改或撤回。关闭页面、返回或换账号后，未确认的原请求仍保留在原账号下。</view>
+  </wu-f7-block>
+  <view wx:if="{{deleteTarget}}" class="confirm">
+    <view class="section-title">确认删除自己的{{deleteTarget.kind === 'post' ? '帖子' : '回复'}}？</view>
+    <view class="notice">删除后不再展示。停止网络等待不代表撤销删除；未确认时需要重新加载。</view>
+    <button class="danger" bindtap="onConfirmDelete" disabled="{{busy}}">确认删除</button>
+    <button class="secondary" bindtap="onDismissDelete" disabled="{{busy}}">保留内容</button>
+  </view>
+  <template is="discussion-recovery" data="{{interaction}}" />
+  <wu-f7-block wx:if="{{locatedComment}}" class="card located-comment" spacing="compact">
+    <view class="section-title">正在查看的回复</view>
+    <view class="notice">单独定位不会跳过前面的根回复或改变下方分页</view>
+    <view class="author author-line">
+      <text>{{locatedComment.author.displayName}}</text>
+      <template wx:if="{{locatedComment.author.kind === 'named'}}" is="public-experience-display" data="{{display:locatedComment.author.experienceDisplay,colors:experienceColorStyles}}" />
+    </view>
+    <view class="link"><wu-reference-text source="{{locatedComment.text}}" row-key="{{'comment:' + locatedComment.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" fallback="{{true}}" placeholder="查看图片回复" bind:plaintextpress="onReferenceThread"><wu-icon name="chevron-right" size="16" /></wu-reference-text></view>
+    <button wx:if="{{locatedComment.images.length}}" class="secondary" data-kind="comment" data-id="{{locatedComment.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{locatedComment.images.length}} 张）</button>
+    <wu-f7-button class="more-button" data-menu="located" bind:press="onToggleMenu" aria-label="回复的更多操作"><wu-icon name="more" size="20" /></wu-f7-button>
+    <view wx:if="{{uiExpandedMenu === 'located'}}" class="context-menu">    <wu-f7-button wx:if="{{!locatedComment.viewer.isSelf}}" data-id="{{locatedComment.id}}" bind:press="onReportComment" disabled="{{busy || report.busy || report.frozen}}">举报此内容</wu-f7-button>
+    <wu-f7-button wx:if="{{!locatedComment.viewer.isSelf}}" data-kind="comment" data-id="{{locatedComment.id}}" bind:press="onPrivateMessage" disabled="{{busy || needsReload || block.busy || block.frozen}}">{{locatedComment.author.kind === 'anonymous' ? '以本帖分身私信' : '以公开身份私信'}}</wu-f7-button>
+    <wu-f7-button wx:if="{{!locatedComment.viewer.isSelf}}" data-surface="located-comment" data-kind="comment" data-id="{{locatedComment.id}}" bind:press="onAdminDiscussionRemoval" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">管理员删除此回复（先核验权限）</wu-f7-button>
+    <navigator class="link" url="/pages/report-progress/report-progress?kind=comment&amp;id={{locatedComment.id}}">举报进度 <wu-icon name="chevron-right" size="16" /></navigator>
+    <wu-f7-button wx:if="{{locatedComment.author.kind === 'named' &amp;&amp; !locatedComment.viewer.isSelf}}" data-id="{{locatedComment.id}}" bind:press="onBlockComment" disabled="{{busy || needsReload || block.busy || block.frozen}}" class="destructive-text" tone="danger">拉黑此公开身份作者</wu-f7-button>
+    <wu-f7-button wx:if="{{locatedComment.viewer.canDelete}}" data-id="{{locatedComment.id}}" bind:press="onDeleteComment" disabled="{{busy || interaction.busy}}" class="destructive-text" tone="danger">删除我的回复</wu-f7-button>
+    <view wx:if="{{locatedReply}}">
+      <wu-f7-button wx:if="{{!locatedReply.viewer.isSelf}}" data-surface="located-reply" data-kind="reply" data-id="{{locatedReply.id}}" bind:press="onAdminDiscussionRemoval" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">管理员删除此回复（先核验权限）</wu-f7-button>
+    </view>
+</view>
+    <navigator wx:if="{{locatedReplyId}}" class="link" url="/pages/community-thread/community-thread?postId={{post.id}}&amp;rootCommentId={{locatedComment.id}}&amp;replyId={{locatedReplyId}}{{viewSpaceQuery}}">打开定位到的回复 <wu-icon name="chevron-right" size="16" /></navigator>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{loaded}}" class="card comments-card" spacing="compact">
+    <view class="section-heading">
+      <view class="section-title">回复</view>
+      <view class="page-count">第 {{pageNumber}} 页</view>
+    </view>
+    <view class="chips sort-options">
+      <wu-f7-button data-sort="likes" data-order="desc" bind:press="onOrder" disabled="{{busy}}" class="sort-option {{sort === 'likes' &amp;&amp; order === 'desc' ? 'active' : ''}}" variant="{{sort === 'likes' &amp;&amp; order === 'desc' ? 'tonal' : 'plain'}}">最热</wu-f7-button>
+      <wu-f7-button data-sort="likes" data-order="asc" bind:press="onOrder" disabled="{{busy}}" class="sort-option {{sort === 'likes' &amp;&amp; order === 'asc' ? 'active' : ''}}" variant="{{sort === 'likes' &amp;&amp; order === 'asc' ? 'tonal' : 'plain'}}">赞数升序</wu-f7-button>
+      <wu-f7-button data-sort="time" data-order="desc" bind:press="onOrder" disabled="{{busy}}" class="sort-option {{sort === 'time' &amp;&amp; order === 'desc' ? 'active' : ''}}" variant="{{sort === 'time' &amp;&amp; order === 'desc' ? 'tonal' : 'plain'}}">最新</wu-f7-button>
+      <wu-f7-button data-sort="time" data-order="asc" bind:press="onOrder" disabled="{{busy}}" class="sort-option {{sort === 'time' &amp;&amp; order === 'asc' ? 'active' : ''}}" variant="{{sort === 'time' &amp;&amp; order === 'asc' ? 'tonal' : 'plain'}}">最早</wu-f7-button>
+    </view>
+
+    <view wx:if="{{!comments.length}}" class="empty">本页暂无可查看的回复</view>
+    <view wx:for="{{comments}}" wx:key="id">
+      <view class="divider"></view>
+      <template is="root-comment" data="{{item,post,busy,needsReload,block,report,interaction,identityOverlay,experienceColorStyles,viewSpaceQuery,uiExpandedMenu,references}}" />
+    </view>
+    <view class="chips">
+      <wu-f7-button wx:if="{{canPrevious}}" class="secondary" bind:press="onPrevious" disabled="{{busy}}" variant="tonal">上一页</wu-f7-button>
+      <wu-f7-button wx:if="{{canLoadMore}}" class="secondary" bind:press="onMore" disabled="{{busy}}" variant="tonal">下一页</wu-f7-button>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{post}}" class="card settings-card" spacing="compact">
+    <wu-f7-list spacing="compact"><wu-f7-list-item class="settings-toggle" data-panel="preferences" bind:press="onTogglePanel" link="{{true}}" last="{{true}}" aria-label="收藏与通知设置"><view class="f7-composer-disclosure">
+      <text>收藏与通知设置</text>
+      <text class="chevron">{{uiShowPreferences ? '收起' : '展开'}}</text>
+    </view></wu-f7-list-item></wu-f7-list>
+    <view class="settings-content" wx:if="{{uiShowPreferences}}">
+      <view class="meta">{{post.saveCount}} 人收藏 · {{post.viewer.isSaved ? '你已收藏' : '尚未收藏'}}</view>
+      <view class="notice">收藏自己或已解决的帖子也可以；实际权限以服务端为准。取消后保留本帖的两项偏好，重新收藏不会重置。</view>
+      <view wx:if="{{savedMutation.preferences}}">
+        <label>
+          <switch data-channel="saved" bindchange="onSavedPreference" checked="{{savedMutation.preferences.savedUpdatesEnabled}}" disabled="{{busy || needsReload || savedMutation.busy || savedMutation.frozen || !savedMutation.preferences.canSetPreference || !post.viewer.canSetUpdatePreference}}" color="#007aff" />
+          收藏帖新回复更新（关闭后仅作书签）
+        </label>
+        <view class="notice">只控制收藏帖新根回复的更新分支，不影响直接回复你的站内通知。{{savedMutation.processingStatus}}。设置表示偏好，不证明某条通知已生成或送达。</view>
+        <label>
+          <switch data-channel="external" bindchange="onSavedPreference" checked="{{savedMutation.preferences.externalUpdatesEnabled}}" disabled="{{busy || needsReload || savedMutation.busy || savedMutation.frozen || !savedMutation.preferences.canSetPreference || !post.viewer.canSetUpdatePreference}}" color="#007aff" />
+          此帖外部通知意向
+        </label>
+        <view class="notice">外部通知尚不可用；开启仅保存偏好，不代表订阅同意、模板额度或设备授权。关闭同时排除此帖直接回复／回复及收藏更新的外部通知，不改变站内偏好。</view>
+      </view>
+      <view wx:else class="notice">{{savedMutation.busy ? '正在读取本帖偏好' : '偏好尚未确认，请重新加载帖子'}}</view>
+      <navigator class="link" url="/pages/community-updates/community-updates">查看社区更新 <wu-icon name="chevron-right" size="16" /></navigator>
+      <navigator class="link" url="/pages/community-saved/community-saved">查看我的收藏 <wu-icon name="chevron-right" size="16" /></navigator>
+    </view>
+  </wu-f7-block>
+  <wu-f7-block class="card settings-card" spacing="compact">
+    <wu-f7-list spacing="compact"><wu-f7-list-item class="settings-toggle" data-panel="safety" bind:press="onTogglePanel" link="{{true}}" last="{{true}}" aria-label="举报与陪审进度"><view class="f7-composer-disclosure">
+      <text>举报与陪审进度</text>
+      <text class="chevron">{{uiShowSafety ? '收起' : '查看'}}</text>
+    </view></wu-f7-list-item></wu-f7-list>
+    <view class="settings-content" wx:if="{{uiShowSafety || reportProgress.busy || reportProgress.error || juryVote.busy || juryVote.frozen}}">
+      <template is="report-progress" data="{{reportProgress,juryVote}}" />
+    </view>
+  </wu-f7-block>
+  <wu-f7-list spacing="compact"><wu-f7-list-item wx:if="{{(categoryManagement.management &amp;&amp; categoryManagement.management.canChange) || ownerVisibility.management || (postPin.detail &amp;&amp; (postPin.detail.canPin || postPin.detail.canUnpin))}}" class="settings-toggle" data-menu="management" bind:press="onToggleMenu" link="{{true}}" last="{{true}}" aria-label="主题管理"><view class="f7-composer-disclosure"><text>主题管理</text><wu-icon name="chevron-right" size="14" tone="muted" /></view></wu-f7-list-item></wu-f7-list>
+  <view wx:if="{{uiExpandedMenu === 'management' || categoryManagement.frozen || categoryManagement.error || categoryManagement.confirming || categoryManagement.receiptStatus || ownerVisibility.frozen || ownerVisibility.error || ownerVisibility.confirming || ownerVisibility.receiptStatus || postPin.frozen || postPin.confirming || postPin.error || postPin.receiptStatus}}" class="post-management">
+  <template is="category-reclassification" data="{{category:categoryManagement,labels:reclassificationLabels}}" />
+  <template is="owner-post-visibility" data="{{visibility:ownerVisibility}}" />
+  <wu-f7-block wx:if="{{loaded &amp;&amp; postPin.loaded &amp;&amp; (postPin.detail.pin || postPin.detail.canPin || postPin.detail.canUnpin)}}" class="card" spacing="compact">
+    <view wx:if="{{postPin.detail.pin}}" class="meta">当前置顶 · {{postPin.detail.pin.readState === 'read' ? '已读' : '未读'}} · 至 {{postPin.detail.pin.pinnedUntil}}</view>
+    <wu-f7-button wx:if="{{postPin.detail.canPin}}" bind:press="onPinCreate" disabled="{{postPin.busy || postPin.frozen}}">{{postPin.detail.pin ? '续期为新的置顶' : '置顶此帖'}}</wu-f7-button>
+    <wu-f7-button wx:if="{{postPin.detail.canUnpin}}" bind:press="onPinUnpin" disabled="{{postPin.busy || postPin.frozen}}">取消当前这次置顶</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{postPin.confirming === 'pin' || postPin.confirming === 'unpin'}}" class="card" spacing="compact">
+    <view class="section-title">{{postPin.confirming === 'pin' ? '确认新置顶' : '确认取消这次置顶'}}</view>
+    <view wx:if="{{postPin.confirming === 'pin'}}">
+      <view>时长 1–168 小时，当前 {{postPin.durationHours}} 小时</view>
+      <wu-f7-button data-hours="1" bind:press="onPinDuration">1 小时</wu-f7-button>
+      <wu-f7-button data-hours="6" bind:press="onPinDuration">6 小时</wu-f7-button>
+      <wu-f7-button data-hours="12" bind:press="onPinDuration">12 小时</wu-f7-button>
+      <wu-f7-button data-hours="24" bind:press="onPinDuration">24 小时</wu-f7-button>
+      <wu-f7-input type="number" value="{{postPin.durationHours}}" bind:input="onPinHours" maxlength="3" placeholder-class="input-placeholder" />
+      <view>优先级 {{postPin.level}}</view>
+      <wu-f7-button data-level="1" bind:press="onPinLevel">1</wu-f7-button>
+      <wu-f7-button data-level="2" bind:press="onPinLevel">2</wu-f7-button>
+      <view>同范围只有一个置顶位。续期会创建新的置顶和独立已读状态。</view>
+    </view>
+    <wu-f7-button bind:press="onPinSubmit" disabled="{{postPin.busy || postPin.frozen}}">确认执行置顶操作</wu-f7-button>
+    <wu-f7-button bind:press="onPinClose" disabled="{{postPin.busy}}">返回</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{postPin.frozen}}" class="card" spacing="compact">
+    <view>原置顶请求待确认：{{postPin.pendingOperation}} · {{postPin.pendingPostId}} · {{postPin.pendingPhase}}</view>
+    <wu-f7-button bind:press="onPinRecover" disabled="{{postPin.busy}}">查询原置顶回执</wu-f7-button>
+    <wu-f7-button bind:press="onPinRetry" disabled="{{postPin.busy}}">重试原置顶请求</wu-f7-button>
+    <wu-f7-button bind:press="onPinCancel" disabled="{{postPin.busy}}">取消原置顶请求</wu-f7-button>
+  </wu-f7-block>
+  <wu-f7-block wx:if="{{postPin.confirming === 'cancel'}}" class="card" spacing="compact">
+    取消会保留原编号；已完成的操作仍返回原结果。
+    <wu-f7-button bind:press="onPinConfirmCancel" disabled="{{postPin.busy}}">确认取消原请求</wu-f7-button>
+    <wu-f7-button bind:press="onPinClose">返回</wu-f7-button>
+  </wu-f7-block>
+  <view wx:if="{{postPin.error || postPin.receiptStatus || postPin.status}}" class="meta">{{postPin.error || postPin.receiptStatus || postPin.status}}</view>
+  </view>
+  <navigator class="link" url="/pages/community-feed/community-feed">返回校园社区 <wu-icon name="chevron-right" size="16" /></navigator>
+
+  <view wx:if="{{mediaGallery.groupId &amp;&amp; mediaGallery.groupKind !== 'post'}}" class="private-gallery-backdrop" bindtap="onGalleryDismiss" catchtouchmove="onGalleryTouchMove"></view>
+  <view wx:if="{{mediaGallery.groupId &amp;&amp; mediaGallery.groupKind !== 'post'}}" class="private-gallery-panel" aria-role="dialog" aria-label="{{mediaGallery.title}}" catchtouchmove="onGalleryTouchMove">
+    <view class="section-title">{{mediaGallery.title}}{{mediaGallery.total ? ' · ' + mediaGallery.total + ' 张' : ''}}</view>
+    <button bindtap="onGalleryDismiss">关闭并清除图片</button>
+    <scroll-view scroll-y="{{true}}" class="private-gallery-content">
+      <view wx:for="{{mediaGallery.slots}}" wx:key="index" class="private-gallery-slot {{mediaGallery.expanded ? 'private-gallery-slot-expanded' : ''}}">
+        <image wx:if="{{item.status === 'ready' &amp;&amp; item.localSrc}}" src="{{item.localSrc}}" data-index="{{item.index}}" data-src="{{item.localSrc}}" data-view-id="{{item.viewId}}" mode="widthFix" class="{{mediaGallery.expanded ? 'private-image-expanded' : 'private-gallery-thumb'}}" bindtap="onGalleryOpen" binderror="onGalleryError" show-menu-by-longpress="{{false}}" />
+        <view wx:else class="notice">第 {{item.index + 1}} 张：{{item.status === 'loading' ? '正在安全读取' : '暂不可用'}}</view>
+        <button wx:if="{{item.status === 'unavailable'}}" data-index="{{item.index}}" bindtap="onGalleryRetry">重试此图</button>
+      </view>
+      <view wx:if="{{mediaGallery.status === 'unavailable'}}" class="notice">图片暂不可用，请关闭图片并重新加载当前讨论</view>
+    </scroll-view>
+    <view wx:if="{{mediaGallery.expanded}}" class="chips">
+      <button data-index="{{mediaGallery.selected - 1}}" bindtap="onGalleryOpen" disabled="{{mediaGallery.selected === 0}}">上一张</button>
+      <button data-index="{{mediaGallery.selected + 1}}" bindtap="onGalleryOpen" disabled="{{mediaGallery.selected + 1 &gt;= mediaGallery.total}}">下一张</button>
+      <button bindtap="onGalleryClose">返回缩略图</button>
+    </view>
+    <view wx:elif="{{mediaGallery.total &gt; 3}}" class="chips">
+      <button data-start="{{mediaGallery.start - 3}}" bindtap="onGalleryWindow" disabled="{{mediaGallery.start &lt; 3}}">上一组</button>
+      <button data-start="{{mediaGallery.start + 3}}" bindtap="onGalleryWindow" disabled="{{mediaGallery.start + 3 &gt;= mediaGallery.total}}">下一组</button>
+    </view>
+    <view class="notice">仅保留当前选中的一组图片；关闭、刷新或离开页面会清除显示。</view>
+  </view>
+  <template is="named-avatar-preview" data="{{avatar:namedAvatar}}" />
+</view>

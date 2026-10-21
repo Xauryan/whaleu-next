@@ -1,7 +1,8 @@
+import { assertReviewedReadingSuccessor } from './reviewed-reading-successor';
 import { assertReviewedNoticeExposureSuccessor } from './reviewed-notice-exposure-successor';
 import { assertReviewedNoticeReadSuccessor } from './reviewed-notice-read-successor';
 import { assertReviewedSocialSuccessor } from './reviewed-social-successor';
-import { assertReviewedBusinessSuccessor } from './reviewed-business-successor';
+import { assertReviewedBusinessSuccessor } from './reviewed-reading-successor';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -187,6 +188,7 @@ test('all 307 protected controller, reader, media, privacy, accepted-root and pi
   for (const [file, hash] of Object.entries(protectedFiles).filter(
     ([file, expected]) =>
       !assertReviewedNoticeExposureSuccessor(file, expected) &&
+      !assertReviewedReadingSuccessor(file, expected) &&
       !assertReviewedBusinessSuccessor(file, expected) &&
       !assertReviewedNoticeReadSuccessor(file, expected) &&
       !assertReviewedSocialSuccessor(file, expected),

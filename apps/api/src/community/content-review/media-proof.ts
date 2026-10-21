@@ -27,6 +27,23 @@ export class CurrentContentMediaProof implements ContentMediaProof {
   private readonly assets = new MediaAssetRepository(
     new MediaOwnerProofRegistry([]),
   );
+  /** Explicit Media-owned absent-binding proof, never a blanket empty allow. */
+  async absent(
+    kind: ContentKind,
+    id: string,
+    tx: PoolClient,
+  ): Promise<Decision> {
+    await this.assets.verifyAbsentContentBindings(
+      {
+        ownerKind: 'community',
+        resourceKind: kind,
+        resourceId: id,
+        contentVersion: 1,
+      },
+      tx,
+    );
+    return { kind: 'allow', value: undefined };
+  }
   async current(
     kind: ContentKind,
     id: string,

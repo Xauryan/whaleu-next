@@ -4,11 +4,12 @@ import {
   initialCommunityView,
   type CommunityView,
 } from '../../community/controller';
-import type { Comment, Post } from '../../community/contract';
-import {
-  checkDiscussionPrivacy,
-  type Reply,
-} from '../../community/discussion-contract';
+import type {
+  ReadingComment as Comment,
+  ReadingPost as Post,
+  ReadingReply as Reply,
+} from '../../community/reading-contract';
+import { checkDiscussionPrivacy } from '../../community/discussion-contract';
 import type { CommunityRuntime } from '../../community/runtime';
 export interface ThreadView extends CommunityView {
   readonly viewSpaceQuery: string;

@@ -25,7 +25,7 @@ export interface StoredPost {
   author_mode: AuthorMode;
   comments_policy: 'open' | 'restricted';
   /** Missing on historical fixture projections; absent is always ineligible. */
-  publication_envelope_version?: 1 | 2 | 3 | 4 | 5;
+  publication_envelope_version?: 1 | 2 | 3 | 4 | 5 | 6;
   feedback?: import('./feedback/contracts.js').FeedbackInput | null;
   allow_anonymous_dm?: boolean | null;
   owner_hidden?: boolean;

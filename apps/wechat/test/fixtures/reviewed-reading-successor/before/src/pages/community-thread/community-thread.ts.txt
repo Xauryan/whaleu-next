@@ -1,0 +1,650 @@
+import {
+  NamedAvatarController,
+  initialNamedAvatarView,
+} from '../../profile/named-avatar';
+import {
+  DiscussionGalleryController,
+  discussionImageGroups,
+  initialDiscussionGalleryView,
+} from '../../media/discussion-gallery';
+import {
+  MessagingEntryNavigator,
+  postEntry,
+  commentEntry,
+  replyEntry,
+} from '../../messaging/entry';
+import { PUBLIC_EXPERIENCE_COLOR_STYLES } from '../../experience/public-display';
+import { AuthorNavigator } from '../../profile/author-navigation';
+import {
+  ReportMutationController,
+  initialReportMutationView,
+} from '../../community/report-controller';
+import {
+  BlockMutationController,
+  initialBlockMutationView,
+} from '../../community/block-controller';
+import type { WhaleuApp } from '../../app';
+import { isUuid } from '../../profile/contract';
+import {
+  IdentityOverlayController,
+  initialOverlayView,
+  type DisplayTarget,
+} from '../../identity-privacy/overlay';
+import { systemClock } from '../../platform/clock';
+import {
+  DiscussionMutationController,
+  initialDiscussionMutationView,
+} from '../../community/discussion-controller';
+import { ThreadController, initialThreadView } from './controller';
+Page({
+  data: {
+    namedAvatar: initialNamedAvatarView(),
+    mediaGallery: initialDiscussionGalleryView(),
+    experienceColorStyles: PUBLIC_EXPERIENCE_COLOR_STYLES,
+    report: initialReportMutationView(),
+    block: initialBlockMutationView(),
+    ...initialThreadView(),
+    interaction: initialDiscussionMutationView(),
+    identityOverlay: initialOverlayView(),
+    requestedReplyId: '',
+    uiExpandedMenu: '',
+  },
+  namedAvatarController: undefined as NamedAvatarController | undefined,
+  mediaGalleryController: undefined as DiscussionGalleryController | undefined,
+  reportMutations: undefined as ReportMutationController | undefined,
+  blockMutations: undefined as BlockMutationController | undefined,
+  blockTargets: '',
+  controller: undefined as ThreadController | undefined,
+  mutations: undefined as DiscussionMutationController | undefined,
+  identityOverlay: undefined as IdentityOverlayController | undefined,
+  postId: '',
+  viewSpaceId: '',
+  rootCommentId: '',
+  replyId: null as string | null,
+  overlayTargets: '',
+  onToggleThreadMenu(event: { currentTarget: { dataset: { menu: string } } }) {
+    const menu = event.currentTarget.dataset.menu;
+    if (typeof menu !== 'string') return;
+    this.setData({
+      uiExpandedMenu: this.data.uiExpandedMenu === menu ? '' : menu,
+    });
+  },
+  onLoad(
+    query: {
+      postId?: string;
+      rootCommentId?: string;
+      replyId?: string;
+      viewSpaceId?: string;
+    } = {},
+  ) {
+    const valid =
+      isUuid(query.postId) &&
+      (query.viewSpaceId === undefined || isUuid(query.viewSpaceId)) &&
+      isUuid(query.rootCommentId) &&
+      (query.replyId === undefined || isUuid(query.replyId));
+    this.postId = valid ? query.postId! : '';
+    this.viewSpaceId = isUuid(query.viewSpaceId) ? query.viewSpaceId : '';
+    this.rootCommentId = valid ? query.rootCommentId! : '';
+    this.replyId = valid ? (query.replyId ?? null) : null;
+    this.setData({ requestedReplyId: this.replyId ?? '' });
+  },
+  authorNavigator: undefined as AuthorNavigator | undefined,
+  messagingEntry: undefined as MessagingEntryNavigator | undefined,
+  onShow() {
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = new NamedAvatarController(
+      getApp<WhaleuApp>().profileAvatar,
+      (view) => this.setData({ namedAvatar: view }),
+    );
+    this.mediaGalleryController?.dispose();
+    this.mediaGalleryController = new DiscussionGalleryController(
+      getApp<WhaleuApp>().mediaRead,
+      (view) => this.setData({ mediaGallery: view }),
+    );
+    this.messagingEntry?.dispose();
+    this.messagingEntry = new MessagingEntryNavigator(
+      wx,
+      getApp<WhaleuApp>().community,
+      () => this.setData({ error: '暂不能打开私信，请重试' }),
+    );
+    this.authorNavigator?.dispose();
+    this.authorNavigator = new AuthorNavigator(
+      wx,
+      () => this.setData({ error: '暂不能打开主页，请重试' }),
+      getApp<WhaleuApp>().community,
+    );
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
+    this.controller?.dispose();
+    this.mutations?.dispose();
+    this.identityOverlay?.dispose();
+    this.overlayTargets = '';
+    const runtime = getApp<WhaleuApp>().community;
+    if (!runtime || !this.postId || !this.rootCommentId) {
+      this.setData({ error: '讨论地址无效或环境尚未初始化' });
+      return;
+    }
+    this.reportMutations = new ReportMutationController(
+      runtime,
+      'report',
+      (view) => {
+        this.setData({ report: view });
+        if (view.busy || view.frozen) {
+          this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        }
+      },
+    );
+    this.reportMutations.load();
+    this.blockMutations = new BlockMutationController(runtime, (view) => {
+      this.setData({ block: view });
+      if (view.busy || view.frozen) {
+        this.mediaGalleryController?.clear();
+        this.namedAvatarController?.clear();
+        this.identityOverlay?.clear();
+        this.overlayTargets = '';
+      }
+    });
+    this.blockMutations.load();
+    this.identityOverlay = new IdentityOverlayController(
+      runtime.sessions,
+      runtime.identityPrivacy,
+      systemClock,
+      (view) => this.setData({ identityOverlay: view }),
+      runtime.privateViews,
+    );
+    this.mutations = new DiscussionMutationController(
+      runtime,
+      (view) => {
+        this.setData({ interaction: view });
+        if (view.busy || view.frozen) {
+          this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        }
+      },
+      () => {
+        void this.controller?.load();
+      },
+    );
+    this.mutations.load();
+    this.controller = new ThreadController(
+      runtime,
+      this.postId,
+      this.rootCommentId,
+      this.replyId,
+      (view) => {
+        this.mediaGalleryController?.reconcile(
+          view.busy ||
+            !view.loaded ||
+            view.needsReload ||
+            !view.post ||
+            !view.root
+            ? null
+            : discussionImageGroups(
+                view.post,
+                [view.root],
+                [
+                  ...view.replies,
+                  ...view.contextReplies,
+                  ...(view.locatedReply ? [view.locatedReply] : []),
+                ],
+              ),
+        );
+        if (view.busy || view.needsReload || !view.post)
+          this.namedAvatarController?.clear();
+        this.setData({
+          ...(!view.hasSession ? { uiExpandedMenu: '' } : {}),
+          ...view,
+        });
+        const targets: DisplayTarget[] =
+          view.post && view.root
+            ? [
+                {
+                  kind: 'post',
+                  id: view.post.id,
+                  authorMode: view.post.author.kind,
+                },
+                {
+                  kind: 'comment',
+                  id: view.root.id,
+                  authorMode: view.root.author.kind,
+                },
+                ...[
+                  ...new Map(
+                    [
+                      ...view.replies,
+                      ...view.contextReplies,
+                      ...(view.locatedReply ? [view.locatedReply] : []),
+                    ].map((item) => [item.id, item]),
+                  ).values(),
+                ].map((item) => ({
+                  kind: 'reply' as const,
+                  id: item.id,
+                  authorMode: item.author.kind,
+                })),
+              ]
+            : [];
+        const key = targets
+          .map((item) => item.kind + ':' + item.id + ':' + item.authorMode)
+          .join(',');
+        if (view.busy || !view.loaded || key !== this.blockTargets) {
+          this.reportMutations?.dismiss();
+          this.blockMutations?.dismissBlock();
+        }
+        this.blockTargets = key;
+        if (
+          view.busy ||
+          !view.loaded ||
+          this.data.report.busy ||
+          this.data.report.frozen ||
+          this.data.block.busy ||
+          this.data.block.frozen ||
+          this.data.interaction.busy ||
+          this.data.interaction.frozen
+        ) {
+          this.mediaGalleryController?.clear();
+          this.namedAvatarController?.clear();
+          this.identityOverlay?.clear();
+          this.overlayTargets = '';
+        } else if (key !== this.overlayTargets) {
+          this.overlayTargets = key;
+          void this.identityOverlay?.show(targets);
+        }
+      },
+      this.viewSpaceId || undefined,
+    );
+    void this.controller.load();
+  },
+  onSelectGallery(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (
+      !this.data.post ||
+      !this.data.root ||
+      !this.data.loaded ||
+      this.data.busy ||
+      this.data.needsReload ||
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen ||
+      this.data.interaction.busy ||
+      this.data.interaction.frozen
+    )
+      return;
+    this.namedAvatarController?.clear();
+    const { kind, id } = event.currentTarget.dataset;
+    const group = discussionImageGroups(
+      this.data.post,
+      [this.data.root],
+      [
+        ...this.data.replies,
+        ...this.data.contextReplies,
+        ...(this.data.locatedReply ? [this.data.locatedReply] : []),
+      ],
+    ).find((item) => item.kind === kind && item.id === id);
+    if (group) void this.mediaGalleryController?.select(group);
+  },
+  onGalleryOpen(event: { currentTarget: { dataset: { index: number } } }) {
+    void this.mediaGalleryController?.open(
+      Number(event.currentTarget.dataset.index),
+    );
+  },
+  onGalleryWindow(event: { currentTarget: { dataset: { start: number } } }) {
+    void this.mediaGalleryController?.window(
+      Number(event.currentTarget.dataset.start),
+    );
+  },
+  onGalleryRetry(event: { currentTarget: { dataset: { index: number } } }) {
+    void this.mediaGalleryController?.retry(
+      Number(event.currentTarget.dataset.index),
+    );
+  },
+  onGalleryClose() {
+    void this.mediaGalleryController?.close();
+  },
+  onGalleryError(event: {
+    currentTarget: { dataset: { index: number; src: string; viewId: string } };
+  }) {
+    this.mediaGalleryController?.imageFailed(
+      Number(event.currentTarget.dataset.index),
+      event.currentTarget.dataset.src,
+      event.currentTarget.dataset.viewId,
+    );
+  },
+  onGalleryDismiss() {
+    this.mediaGalleryController?.clear();
+  },
+  onGalleryTouchMove() {
+    // Keep overlay gestures from scrolling the content behind the selected group.
+  },
+  onPageScroll() {
+    this.namedAvatarController?.clear();
+    this.mediaGalleryController?.clear();
+  },
+  onReportPost() {
+    const post = this.data.post;
+    if (post && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.reportMutations?.requestReport('post', post);
+  },
+  onReportRoot() {
+    const root = this.data.root;
+    if (root && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.reportMutations?.requestReport('comment', root);
+  },
+  onReportReply(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id,
+      reply =
+        [...this.data.replies, ...this.data.contextReplies].find(
+          (item) => item.id === id,
+        ) ??
+        (this.data.locatedReply?.id === id ? this.data.locatedReply : null);
+    if (reply && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.reportMutations?.requestReport('reply', reply);
+  },
+  onConfirmReport() {
+    void this.reportMutations?.confirm();
+  },
+  onDismissReport() {
+    this.reportMutations?.dismiss();
+  },
+  onReportReceipt() {
+    void this.reportMutations?.recover();
+  },
+  onReportRetry() {
+    void this.reportMutations?.recover(true);
+  },
+  onReportCancel() {
+    this.reportMutations?.cancel();
+  },
+  onBlockPost() {
+    const post = this.data.post;
+    if (post && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.blockMutations?.requestBlock('post', post);
+  },
+  onBlockRoot() {
+    const root = this.data.root;
+    if (root && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.blockMutations?.requestBlock('comment', root);
+  },
+  onBlockReply(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id,
+      reply =
+        [...this.data.replies, ...this.data.contextReplies].find(
+          (item) => item.id === id,
+        ) ??
+        (this.data.locatedReply?.id === id ? this.data.locatedReply : null);
+    if (reply && this.data.loaded && !this.data.busy && !this.data.needsReload)
+      this.blockMutations?.requestBlock('reply', reply);
+  },
+  onConfirmBlock() {
+    void this.blockMutations?.confirmBlock();
+  },
+  onDismissBlock() {
+    this.blockMutations?.dismissBlock();
+  },
+  onBlockReceipt() {
+    void this.blockMutations?.recover();
+  },
+  onBlockRetry() {
+    void this.blockMutations?.recover(true);
+  },
+  onBlockCancel() {
+    this.blockMutations?.cancel();
+  },
+  onPrivateMessage(event: {
+    currentTarget: { dataset: { kind: string; id: string; mode?: string } };
+  }) {
+    if (
+      !this.data.loaded ||
+      this.data.busy ||
+      this.data.needsReload ||
+      this.data.block.busy ||
+      this.data.block.frozen
+    )
+      return;
+    const post = this.data.post,
+      root = this.data.root;
+    if (!post || !root) return;
+    const { kind, id, mode } = event.currentTarget.dataset;
+    if (kind === 'post' && post.id === id) {
+      this.messagingEntry?.open(postEntry(post, mode === 'anonymous'));
+      return;
+    }
+    if (kind === 'comment' && root.id === id) {
+      this.messagingEntry?.open(commentEntry(post.id, root));
+      return;
+    }
+    if (kind === 'reply') {
+      const reply = [
+        ...this.data.replies,
+        ...this.data.contextReplies,
+        ...(this.data.locatedReply ? [this.data.locatedReply] : []),
+      ].find((item) => item.id === id);
+      if (reply) this.messagingEntry?.open(replyEntry(post.id, root.id, reply));
+    }
+  },
+  onAuthor(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (!this.data.loaded || this.data.busy || this.data.needsReload) return;
+    const { kind, id } = event.currentTarget.dataset;
+    const reply = [
+      ...this.data.replies,
+      ...this.data.contextReplies,
+      ...(this.data.locatedReply ? [this.data.locatedReply] : []),
+    ].find((item) => item.id === id);
+    const author =
+      kind === 'post' && this.data.post?.id === id
+        ? this.data.post.author
+        : kind === 'comment' && this.data.root?.id === id
+          ? this.data.root.author
+          : kind === 'reply'
+            ? reply?.author
+            : kind === 'reply_target' && reply?.target.status === 'available'
+              ? reply.target.author
+              : undefined;
+    this.authorNavigator?.open(author);
+  },
+  onAuthorAvatar(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (!this.data.loaded || this.data.busy || this.data.needsReload) return;
+    if (
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen
+    )
+      return;
+    // Avatar admission is non-preemptive: retain Community sources and budget.
+    const { kind, id } = event.currentTarget.dataset;
+    const reply = [
+      ...this.data.replies,
+      ...this.data.contextReplies,
+      ...(this.data.locatedReply ? [this.data.locatedReply] : []),
+    ].find((item) => item.id === id);
+    const author =
+      kind === 'post' && this.data.post?.id === id
+        ? this.data.post.author
+        : kind === 'comment' && this.data.root?.id === id
+          ? this.data.root.author
+          : kind === 'reply'
+            ? reply?.author
+            : kind === 'reply_target' && reply?.target.status === 'available'
+              ? reply.target.author
+              : undefined;
+    void this.namedAvatarController?.open(author);
+  },
+  onAvatarModerationNavigate() {
+    this.namedAvatarController?.clear();
+  },
+  onNamedAvatarClose() {
+    this.namedAvatarController?.clear();
+  },
+  onNamedAvatarError() {
+    this.namedAvatarController?.imageFailed();
+  },
+  onReload() {
+    this.namedAvatarController?.clear();
+    this.reportMutations?.dismiss();
+    this.blockMutations?.dismissBlock();
+    void this.controller?.load();
+  },
+  onMore() {
+    void this.controller?.more();
+  },
+  onCancel() {
+    this.controller?.cancel();
+  },
+  onLikeRoot() {
+    const root = this.data.root;
+    if (root && this.data.loaded && !this.data.busy)
+      void this.mutations?.apply(
+        'set_comment_like',
+        this.postId,
+        root.id,
+        root.id,
+        !root.viewer.isLiked,
+      );
+  },
+  onPinRoot() {
+    const root = this.data.root;
+    if (root?.viewer.canPin && this.data.loaded && !this.data.busy)
+      void this.mutations?.apply(
+        'set_comment_pin',
+        this.postId,
+        root.id,
+        root.id,
+        !root.isPinned,
+      );
+  },
+  onLikeReply(event: { currentTarget: { dataset: { id: string } } }) {
+    const id = event.currentTarget.dataset.id,
+      reply =
+        [...this.data.replies, ...this.data.contextReplies].find(
+          (item) => item.id === id,
+        ) ??
+        (this.data.locatedReply?.id === id ? this.data.locatedReply : null);
+    if (reply && this.data.loaded && !this.data.busy)
+      void this.mutations?.apply(
+        'set_reply_like',
+        this.postId,
+        this.rootCommentId,
+        id,
+        !reply.viewer.isLiked,
+      );
+  },
+  onAdminDiscussionRemoval(event: {
+    currentTarget: { dataset: { kind: string; id: string } };
+  }) {
+    if (
+      !this.data.loaded ||
+      !this.data.post ||
+      this.data.busy ||
+      this.data.needsReload ||
+      this.data.block.busy ||
+      this.data.block.frozen ||
+      this.data.report.busy ||
+      this.data.report.frozen ||
+      this.data.interaction.busy ||
+      this.data.interaction.frozen
+    )
+      return;
+    const { kind, id } = event.currentTarget.dataset;
+    if (kind !== 'comment' && kind !== 'reply') return;
+    const selected =
+      kind === 'comment'
+        ? this.data.root?.id === id
+          ? this.data.root
+          : null
+        : ([...this.data.replies, ...this.data.contextReplies].find(
+            (item) => item.id === id,
+          ) ??
+          (this.data.locatedReply?.id === id ? this.data.locatedReply : null));
+    if (!selected) return;
+    if (selected.viewer.isSelf) {
+      if (kind === 'reply') {
+        this.controller?.requestDelete(selected.id);
+        return;
+      }
+      this.namedAvatarController?.clear();
+      this.mediaGalleryController?.clear();
+      this.identityOverlay?.clear();
+      wx.navigateTo?.({
+        url: `/pages/community-detail/community-detail?postId=${encodeURIComponent(this.postId)}&rootCommentId=${encodeURIComponent(selected.id)}${this.viewSpaceId ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
+        success: () => undefined,
+        fail: () => this.setData({ error: '暂不能返回自己的回复，请重试' }),
+      });
+      return;
+    }
+    this.namedAvatarController?.clear();
+    this.mediaGalleryController?.clear();
+    this.identityOverlay?.clear();
+    this.overlayTargets = '';
+    if (!wx.navigateTo) {
+      this.setData({ error: '当前环境不能打开回复管理，请重试' });
+      return;
+    }
+    wx.navigateTo({
+      success: () => undefined,
+      url: `/pages/admin-discussion-removal/admin-discussion-removal?kind=${kind}&id=${encodeURIComponent(selected.id)}${this.viewSpaceId && this.viewSpaceId !== this.data.post?.space.id ? `&viewSpaceId=${encodeURIComponent(this.viewSpaceId)}` : ''}`,
+      fail: () => this.setData({ error: '暂不能打开回复管理，请重试' }),
+    });
+  },
+  onDeleteReply(event: { currentTarget: { dataset: { id: string } } }) {
+    this.controller?.requestDelete(event.currentTarget.dataset.id);
+  },
+  onConfirmDelete() {
+    this.mediaGalleryController?.clear();
+    void this.controller?.confirmDelete();
+  },
+  onDismissDelete() {
+    this.controller?.dismissDelete();
+  },
+  onInteractionReceipt() {
+    void this.mutations?.recover();
+  },
+  onInteractionRetry() {
+    void this.mutations?.recover(true);
+  },
+  onInteractionCancel() {
+    this.mutations?.cancel();
+  },
+  onHide() {
+    this.setData({ uiExpandedMenu: '' });
+    this.namedAvatarController?.dispose();
+    this.namedAvatarController = undefined;
+    this.mediaGalleryController?.dispose();
+    this.mediaGalleryController = undefined;
+    this.messagingEntry?.dispose();
+    this.messagingEntry = undefined;
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
+    this.reportMutations?.dispose();
+    this.reportMutations = undefined;
+    this.blockMutations?.dispose();
+    this.blockMutations = undefined;
+    this.blockTargets = '';
+    this.controller?.dispose();
+    this.controller = undefined;
+    this.mutations?.dispose();
+    this.mutations = undefined;
+    this.identityOverlay?.dispose();
+    this.identityOverlay = undefined;
+  },
+  onUnload() {
+    this.messagingEntry?.dispose();
+    this.messagingEntry = undefined;
+    this.authorNavigator?.dispose();
+    this.authorNavigator = undefined;
+    this.onHide();
+  },
+});

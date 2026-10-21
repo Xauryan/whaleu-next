@@ -1,0 +1,1015 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Community explicit immutable source: provisional fragment",
+    "version": "1-candidate"
+  },
+  "x-admission-status": "draft-unrun-not-deployed",
+  "x-core-provenance": "M1a v2 independently reviewed pure API core; endpoint/backend protocol provisional",
+  "x-semantic-refinements": "See COMMUNITY_TEXT_SOURCE.md. JSON Schema cannot encode independent source hashes, actor/target current proof, immutable source TX, Markdown #[0-9] admission fence or all existing Zod refinements.",
+  "paths": {
+    "/v1/community/text-source-capabilities": {
+      "get": {
+        "operationId": "communityTextSourceCapabilities",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "spaceId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "discussion",
+                "feedback",
+                "confession",
+                "companions",
+                "pets",
+                "internships",
+                "scenery",
+                "dorms",
+                "research",
+                "deep_sea",
+                "trading"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "authorMode",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["named", "anonymous"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Strict versioned result; semantic refinements in source remain mandatory.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "const": "Authorization"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextSourceCapability"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/community/text-sources/{kind}/{id}": {
+      "get": {
+        "operationId": "communityTextSource",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "enum": ["post", "comment", "reply"]
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Lowercase canonical UUID; query must be empty."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Strict versioned result; semantic refinements in source remain mandatory.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              },
+              "Vary": {
+                "schema": {
+                  "const": "Authorization"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextSourceRead"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Existing error. Never permission to fall back to legacy or cached source.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "accessToken": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "TextSourceDescriptor": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "const": 1
+              },
+              "format": {
+                "type": "string",
+                "const": "plain"
+              },
+              "readingFormatting": {
+                "type": "string",
+                "enum": ["auto", "off"]
+              }
+            },
+            "required": ["version", "format", "readingFormatting"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "const": 1
+              },
+              "format": {
+                "type": "string",
+                "const": "markdown"
+              }
+            },
+            "required": ["version", "format"],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "TextSourceRead": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "const": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["post", "comment", "reply"]
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "postId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "rootCommentId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "text": {
+                "type": "string"
+              },
+              "classification": {
+                "type": "string",
+                "const": "legacyPlain"
+              }
+            },
+            "required": [
+              "version",
+              "kind",
+              "id",
+              "postId",
+              "rootCommentId",
+              "text",
+              "classification"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "const": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["post", "comment", "reply"]
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "postId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "rootCommentId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "text": {
+                "type": "string"
+              },
+              "classification": {
+                "type": "string",
+                "const": "reviewedSource"
+              },
+              "sourceRevision": {
+                "type": "number",
+                "const": 1
+              },
+              "textSource": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "format": {
+                        "type": "string",
+                        "const": "plain"
+                      },
+                      "readingFormatting": {
+                        "type": "string",
+                        "enum": ["auto", "off"]
+                      },
+                      "sourceHash": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "format",
+                      "readingFormatting",
+                      "sourceHash"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "format": {
+                        "type": "string",
+                        "const": "markdown"
+                      },
+                      "sourceHash": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": ["version", "format", "sourceHash"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "readingFormattingEligible": {
+                "type": "boolean"
+              },
+              "presentationStatus": {
+                "type": "string",
+                "enum": ["not_configured", "ineligible"]
+              }
+            },
+            "required": [
+              "version",
+              "kind",
+              "id",
+              "postId",
+              "rootCommentId",
+              "text",
+              "classification",
+              "sourceRevision",
+              "textSource",
+              "readingFormattingEligible",
+              "presentationStatus"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "TextSourceCapability": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "const": 1
+          },
+          "authorMode": {
+            "type": "string",
+            "enum": ["named", "anonymous"]
+          },
+          "availability": {
+            "type": "string",
+            "enum": ["available", "unavailable"]
+          },
+          "operations": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["publish_post", "publish_comment", "publish_reply"]
+            }
+          },
+          "formats": {
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["plain", "markdown"]
+            }
+          },
+          "readingFormatting": {
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["auto", "off"]
+            }
+          },
+          "media": {
+            "type": "string",
+            "const": "unavailable"
+          },
+          "markdownReferences": {
+            "type": "string",
+            "const": "unavailable"
+          },
+          "formatter": {
+            "type": "string",
+            "const": "not_configured"
+          }
+        },
+        "required": [
+          "version",
+          "authorMode",
+          "availability",
+          "operations",
+          "formats",
+          "readingFormatting",
+          "media",
+          "markdownReferences",
+          "formatter"
+        ],
+        "additionalProperties": false
+      },
+      "SafeErrorResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$ref": "#/$defs/SafeErrorResponse",
+        "$defs": {
+          "SafeErrorResponse": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "requestId": {
+                    "type": "string"
+                  }
+                },
+                "required": ["code", "message", "requestId"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["error"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "PublishPostWithOptionalTextSource": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "clientRequestId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+          },
+          "spaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "discussion",
+              "feedback",
+              "confession",
+              "companions",
+              "pets",
+              "internships",
+              "scenery",
+              "dorms",
+              "research",
+              "deep_sea",
+              "trading"
+            ]
+          },
+          "text": {},
+          "imageAssetIds": {
+            "default": [],
+            "maxItems": 9,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "authorMode": {
+            "type": "string",
+            "enum": ["named", "anonymous"]
+          },
+          "commentsPolicy": {
+            "default": "open",
+            "type": "string",
+            "enum": ["open", "restricted"]
+          },
+          "allowAnonymousDm": {
+            "type": "boolean"
+          },
+          "syncToRelatedCampuses": {
+            "type": "boolean"
+          },
+          "component": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "none"
+                  }
+                },
+                "required": ["kind"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "poll"
+                  },
+                  "question": {},
+                  "selectionMode": {
+                    "type": "string",
+                    "enum": ["single", "multiple"]
+                  },
+                  "options": {
+                    "minItems": 2,
+                    "maxItems": 5,
+                    "type": "array",
+                    "items": {}
+                  }
+                },
+                "required": ["kind", "question", "selectionMode", "options"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "formation"
+                  },
+                  "capacity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                  },
+                  "theme": {},
+                  "contacts": {
+                    "type": "object",
+                    "properties": {
+                      "wechat": {},
+                      "qq": {},
+                      "phone": {}
+                    },
+                    "required": ["wechat", "qq", "phone"],
+                    "additionalProperties": false
+                  },
+                  "contactSharing": {
+                    "type": "string",
+                    "const": "members_v1"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "capacity",
+                  "theme",
+                  "contacts",
+                  "contactSharing"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "targetId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "selector": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "global"
+                          }
+                        },
+                        "required": ["kind"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "campus"
+                          },
+                          "campusId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": ["kind", "campusId"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "expectedTargetRevision": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "expectedCategoryRevision": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "expectedSourceRevision": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "rating_target_link"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "targetId",
+                  "selector",
+                  "expectedTargetRevision",
+                  "expectedCategoryRevision",
+                  "expectedSourceRevision",
+                  "kind",
+                  "label"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "trading": {},
+          "feedback": {
+            "type": "object",
+            "properties": {
+              "contacts": {
+                "type": "object",
+                "properties": {
+                  "wechat": {},
+                  "qq": {},
+                  "phone": {}
+                },
+                "required": ["wechat", "qq", "phone"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["contacts"],
+            "additionalProperties": false
+          },
+          "textSource": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "format": {
+                    "type": "string",
+                    "const": "plain"
+                  },
+                  "readingFormatting": {
+                    "type": "string",
+                    "enum": ["auto", "off"]
+                  }
+                },
+                "required": ["version", "format", "readingFormatting"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "format": {
+                    "type": "string",
+                    "const": "markdown"
+                  }
+                },
+                "required": ["version", "format"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "clientRequestId",
+          "spaceId",
+          "category",
+          "text",
+          "imageAssetIds",
+          "authorMode",
+          "commentsPolicy"
+        ],
+        "additionalProperties": false
+      },
+      "PublishCommentWithOptionalTextSource": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "clientRequestId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+          },
+          "text": {},
+          "imageAssetIds": {
+            "default": [],
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "authorMode": {
+            "type": "string",
+            "enum": ["named", "anonymous"]
+          },
+          "textSource": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "format": {
+                    "type": "string",
+                    "const": "plain"
+                  },
+                  "readingFormatting": {
+                    "type": "string",
+                    "enum": ["auto", "off"]
+                  }
+                },
+                "required": ["version", "format", "readingFormatting"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "format": {
+                    "type": "string",
+                    "const": "markdown"
+                  }
+                },
+                "required": ["version", "format"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": ["clientRequestId", "text", "imageAssetIds", "authorMode"],
+        "additionalProperties": false
+      },
+      "PublishReplyWithOptionalTextSource": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "clientRequestId": {},
+          "text": {},
+          "imageAssetIds": {
+            "default": [],
+            "maxItems": 3,
+            "type": "array",
+            "items": {}
+          },
+          "authorMode": {
+            "type": "string",
+            "enum": ["named", "anonymous"]
+          },
+          "textSource": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "format": {
+                    "type": "string",
+                    "const": "plain"
+                  },
+                  "readingFormatting": {
+                    "type": "string",
+                    "enum": ["auto", "off"]
+                  }
+                },
+                "required": ["version", "format", "readingFormatting"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "format": {
+                    "type": "string",
+                    "const": "markdown"
+                  }
+                },
+                "required": ["version", "format"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "targetReplyId": {
+            "default": null,
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "clientRequestId",
+          "text",
+          "imageAssetIds",
+          "authorMode",
+          "targetReplyId"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

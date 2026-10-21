@@ -1,3 +1,8 @@
+import {
+  reviewedTextSourceSchema,
+  reviewedTextSourceMatches,
+} from '../text-source/protocol.js';
+import type { ReviewedTextSource } from '../text-source/protocol.js';
 import { reviewedRatingTargetLinkSchema } from '../rating-target-link/contracts.js';
 import type { ReviewedRatingTargetLink } from '../rating-target-link/contracts.js';
 import { feedbackInputSchema } from '../feedback/contracts.js';
@@ -109,6 +114,16 @@ const contentEnvelopeV5Schema = z.strictObject({
     (scope) => scope.originalRegionId !== null,
   ),
 });
+const contentEnvelopeV6Schema = z.strictObject({
+  ...contentEnvelopeShape,
+  version: z.literal(6),
+  images: z.tuple([]),
+  commentsPolicy: z.literal('open'),
+  component: z.strictObject({ kind: z.literal('none') }),
+  trading: z.null(),
+  allowAnonymousDm: z.literal(false).nullable(),
+  textSource: reviewedTextSourceSchema,
+});
 const exactContentEnvelopeSchema = z
   .discriminatedUnion('version', [
     contentEnvelopeV1Schema,
@@ -116,10 +131,31 @@ const exactContentEnvelopeSchema = z
     contentEnvelopeV3Schema,
     contentEnvelopeV4Schema,
     contentEnvelopeV5Schema,
+    contentEnvelopeV6Schema,
   ])
   .superRefine((value, ctx) => {
     const invalid = (message: string) =>
       ctx.addIssue({ code: 'custom', message });
+    if (value.version === 6) {
+      if (
+        value.category === 'feedback' ||
+        value.category === 'trading' ||
+        value.scope.sync !== 'none' ||
+        ((value.purpose !== 'publish_post' ||
+          value.authorMode === 'anonymous') &&
+          value.allowAnonymousDm !== null) ||
+        !reviewedTextSourceMatches(
+          value.text,
+          value.textSource,
+          value.purpose === 'publish_post'
+            ? 'post'
+            : value.purpose === 'publish_comment'
+              ? 'comment'
+              : 'reply',
+        )
+      )
+        invalid('Invalid ordinary reviewed source');
+    }
     if (value.version === 4) {
       if (
         value.category === 'feedback' ||
@@ -261,22 +297,37 @@ export interface EffectiveContentEnvelopeV5 extends Omit<
   component: ReviewedRatingTargetLink;
   scope: LegacyContentScope;
 }
+export interface EffectiveContentEnvelopeV6 extends Omit<
+  ContentEnvelopeFields,
+  'component' | 'images' | 'trading' | 'commentsPolicy'
+> {
+  version: 6;
+  images: [];
+  scope: LegacyContentScope;
+  component: { kind: 'none' };
+  trading: null;
+  commentsPolicy: 'open';
+  allowAnonymousDm: false | null;
+  textSource: ReviewedTextSource;
+}
 export type EffectiveContentEnvelope =
   | EffectiveContentEnvelopeV1
   | EffectiveContentEnvelopeV2
   | EffectiveContentEnvelopeV3
   | EffectiveContentEnvelopeV4
-  | EffectiveContentEnvelopeV5;
+  | EffectiveContentEnvelopeV5
+  | EffectiveContentEnvelopeV6;
 export type EffectiveContentEnvelopeDraft =
   | Omit<EffectiveContentEnvelopeV1, 'images'>
   | Omit<EffectiveContentEnvelopeV2, 'images'>
   | Omit<EffectiveContentEnvelopeV3, 'images'>
   | Omit<EffectiveContentEnvelopeV4, 'images'>
-  | Omit<EffectiveContentEnvelopeV5, 'images'>;
+  | Omit<EffectiveContentEnvelopeV5, 'images'>
+  | Omit<EffectiveContentEnvelopeV6, 'images'>;
 export interface AcceptedApproval {
   decisionId: string;
   digest: string;
-  version: 1 | 2 | 3 | 4 | 5;
+  version: 1 | 2 | 3 | 4 | 5 | 6;
   envelope: EffectiveContentEnvelope;
 }
 export interface ContentApprovalInput {

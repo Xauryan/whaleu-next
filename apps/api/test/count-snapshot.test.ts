@@ -1,3 +1,7 @@
+import { withReviewedTextSource } from '../src/community/text-source/publication.js';
+import { sourceOriginalIntentHash } from '../src/community/text-source/protocol.js';
+import { readTextSources } from '../src/community/text-source/repository.js';
+import type { StoredTextSource } from '../src/community/text-source/repository.js';
 import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
 import {
   untouchedCategoryRows,
@@ -201,7 +205,7 @@ function fixture(collision = false) {
         sync: 'none',
       },
     });
-    const row: ApprovalRow = {
+    const row: ApprovalRow & { envelope: EffectiveContentEnvelope } = {
       id: randomUUID(),
       account_id: node.account_id,
       operation: env.purpose,
@@ -299,6 +303,25 @@ function fixture(collision = false) {
       if (sql.includes('clock_timestamp')) return one({ now: new Date(now) });
       if (sql.includes('pg_advisory')) return { rows: [] };
       if (sql.includes('whaleu_identity.accounts')) return one({ id: args[0] });
+      // Exact new source-domain query. An absent map is a proven empty legacy
+      // source relation; do not make the fallback accept other unknown SQL.
+      if (
+        sql.startsWith(
+          'SELECT s.content_kind,s.content_id,s.source_revision,',
+        ) &&
+        sql.includes('JOIN whaleu_community.community_text_sources s')
+      ) {
+        const kinds = args[0] as ContentKind[],
+          ids = args[1] as string[];
+        return {
+          rows: kinds.flatMap((kind, index) => {
+            const row = snapshot.textSources?.get(
+              contentKey(kind, ids[index]!),
+            );
+            return row ? [row] : [];
+          }),
+        };
+      }
       if (sql.includes('content_approval_bindings'))
         return one(
           snapshot.bindings.get(
@@ -720,9 +743,12 @@ test('conditional denial horizons are retained without registering locked transa
 
 test('snapshot repository uses bounded set-oriented SQL with byte guards and no row locks', async () => {
   const queries: string[] = [];
+  let sourceValues: unknown[] = [];
   const tx = {
     query: async (sql: string, values: unknown[] = []) => {
       queries.push(sql);
+      if (sql.includes('JOIN whaleu_community.community_text_sources s'))
+        sourceValues = values;
       if (sql.startsWith('SELECT requested.post_id'))
         return {
           rows: untouchedCategoryRows(values[0] as string[], new Map()),
@@ -741,7 +767,7 @@ test('snapshot repository uses bounded set-oriented SQL with byte guards and no 
     },
     tx,
   );
-  assert.equal(queries.length, 10);
+  assert.equal(queries.length, 11);
   assert.equal(
     queries.filter((sql) => sql.startsWith('SELECT requested.post_id')).length,
     1,
@@ -749,12 +775,28 @@ test('snapshot repository uses bounded set-oriented SQL with byte guards and no 
   assert.ok(queries.every((sql) => !/FOR (SHARE|UPDATE)/.test(sql)));
   assert.equal(
     queries.filter((sql) => sql.includes('count_snapshot_source')).length,
-    8,
+    9,
   );
   assert.ok(
     queries
       .filter((sql) => sql.includes('count_snapshot_source'))
       .every((sql) => sql.includes('octet_length') && sql.includes('LIMIT')),
+  );
+  const sourceQueries = queries.filter((sql) =>
+    sql.includes('JOIN whaleu_community.community_text_sources s'),
+  );
+  assert.equal(
+    sourceQueries.length,
+    1,
+    'one bounded source query, never per-node N+1',
+  );
+  assert.match(sourceQueries[0]!, /FROM unnest\(\$1::text\[\],\$2::uuid\[\]\)/);
+  assert.match(sourceQueries[0]!, /LIMIT 769/);
+  assert.equal((sourceValues[0] as string[]).length, 768);
+  assert.equal((sourceValues[1] as string[]).length, 768);
+  assert.deepEqual(
+    [...new Set(sourceValues[0] as string[])],
+    ['post', 'comment', 'reply'],
   );
   const bindingQuery = queries.find((sql) =>
     sql.includes('JOIN whaleu_community.content_approval_bindings b'),
@@ -1516,4 +1558,121 @@ test('v5 discussion optional counts do not enter a dependency that lacks the sha
   assert.deepEqual(f.mediaState.inputs, []);
   assert.deepEqual(f.safetyInputs, []);
   assert.equal(result.optionalUntil, null);
+});
+
+function bindExplicitSource(f: ReturnType<typeof fixture>, kind: ContentKind) {
+  const node = kind === 'post' ? f.post : kind === 'comment' ? f.root : f.reply;
+  // Actual migrated owner rows always carry their explicit version marker.
+  f.post.publication_envelope_version ??= 1;
+  const prior = f.bind(kind);
+  const envelope = canonicalEnvelope({
+    ...withReviewedTextSource(prior.envelope, {
+      version: 1,
+      format: 'plain',
+      readingFormatting: 'auto',
+    }),
+    images: [],
+  });
+  assert.equal(envelope.version, 6);
+  if (envelope.version !== 6) throw new Error('source fixture');
+  const digest = approvalDigest(envelope);
+  Object.assign(prior, {
+    envelope,
+    envelope_version: 6,
+    digest,
+    policy_key: 'local-text-source-v1',
+  });
+  Object.assign(f.snapshot.bindings.get(contentKey(kind, node.id))!, {
+    envelope,
+    envelope_version: 6,
+    digest,
+  });
+  const row: StoredTextSource = {
+    content_kind: kind,
+    content_id: node.id,
+    source_revision: 1,
+    source_version: 1,
+    source_format: 'plain',
+    reading_formatting: 'auto',
+    source_hash: envelope.textSource.sourceHash,
+    account_id: node.account_id,
+    client_request_id: randomUUID(),
+    requested_author_mode: node.author_mode,
+    original_intent_hash: sourceOriginalIntentHash(envelope, node.author_mode),
+    decision_id: prior.id,
+    approval_digest: digest,
+  };
+  f.snapshot.textSources ??= new Map();
+  f.snapshot.textSources.set(contentKey(kind, node.id), row);
+  if (kind === 'post') f.post.publication_envelope_version = 6;
+  return row;
+}
+test('v6 source snapshot and scalar agree across independently classified post/root/reply and fail closed on metadata loss or transplants', async () => {
+  for (const kinds of [
+    ['post'],
+    ['comment'],
+    ['reply'],
+    ['post', 'comment', 'reply'],
+  ] as ContentKind[][]) {
+    for (const defect of [
+      'none',
+      'missing',
+      'hash',
+      'intent',
+      'decision',
+      'target',
+      'account',
+      'format',
+      'policy',
+    ]) {
+      const f = fixture();
+      for (const kind of kinds) bindExplicitSource(f, kind);
+      const kind = kinds.at(-1)!;
+      const node =
+        kind === 'post' ? f.post : kind === 'comment' ? f.root : f.reply;
+      const key = contentKey(kind, node.id),
+        row = f.snapshot.textSources!.get(key)!;
+      if (defect === 'missing') f.snapshot.textSources!.delete(key);
+      if (defect === 'hash') row.source_hash = '0'.repeat(64);
+      if (defect === 'intent') row.original_intent_hash = '0'.repeat(64);
+      if (defect === 'decision') row.decision_id = randomUUID();
+      if (defect === 'target') row.content_id = randomUUID();
+      if (defect === 'account') row.account_id = randomUUID();
+      if (defect === 'format')
+        Object.assign(row, {
+          source_format: 'markdown',
+          reading_formatting: null,
+        });
+      if (defect === 'policy') row.reading_formatting = 'off';
+      const actual = (
+        await f.facade.evaluateLiked([f.membership], f.viewer, f.tx)
+      ).facts.get(`reply:${f.membership.like_id}`)?.decision;
+      assert.equal(
+        actual,
+        await f.scalarLiked(),
+        `${kinds.join(',')}/${defect}`,
+      );
+      assert.equal(
+        actual,
+        defect === 'none' ? 'allow' : 'unknown',
+        `${kinds.join(',')}/${defect}`,
+      );
+    }
+  }
+});
+test('source query failure and duplicate source facts never become empty-domain permission', async () => {
+  const f = fixture();
+  bindExplicitSource(f, 'post');
+  const original = f.tx.query.bind(f.tx);
+  f.tx.query = ((sql: string, ...args: unknown[]) => {
+    if (sql.includes('JOIN whaleu_community.community_text_sources s'))
+      return Promise.reject(new Error('source query unavailable'));
+    return original(sql, ...(args as []));
+  }) as typeof f.tx.query;
+  assert.equal(await f.scalarPost(), 'unknown');
+  const row = f.snapshot.textSources!.get(contentKey('post', f.post.id))!;
+  const duplicate = {
+    query: async () => ({ rows: [row, row] }),
+  } as unknown as PoolClient;
+  await assert.rejects(readTextSources(['post'], [f.post.id], duplicate));
 });

@@ -1,3 +1,4 @@
+import { readTextSources } from '../text-source/repository.js';
 import { readRatingTargetLinks } from '../rating-target-link/binding.js';
 import { readDistributionBindings } from '../related-sync/binding.js';
 import { readPostCategorySnapshot } from '../category-reclassification/read-proof.js';
@@ -197,6 +198,7 @@ export class ContentReviewCountRepository {
       ...replyIds.map(() => 'reply' as const),
     ];
     const nodeIds = [...postIds, ...rootIds, ...replyIds];
+    const textSources = await readTextSources(kinds, nodeIds, tx, budget);
     // Account existence is the same binding anchor as ApprovalRepository.current;
     // no lifecycle, verification or publication-eligibility query is introduced.
     const bindingRows = await budget.rows<ApprovalBinding>(
@@ -302,6 +304,7 @@ export class ContentReviewCountRepository {
       ).rows[0]?.now.getTime() ?? NaN;
     return {
       posts,
+      ...(textSources.size ? { textSources } : {}),
       ...(ratingTargetLinks.size ? { ratingTargetLinks } : {}),
       ...(distributionBindings ? { distributionBindings } : {}),
       roots,

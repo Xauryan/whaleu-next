@@ -142,6 +142,15 @@ Page({
       return;
     this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
   },
+  onSourceFormat(event: { currentTarget: { dataset: { format: string } } }) {
+    this.controller?.setSourceFormat(event.currentTarget.dataset.format);
+  },
+  onReadingFormatting(event: { detail: { value: boolean } }) {
+    this.controller?.setReadingFormatting(event.detail.value);
+  },
+  onSourcePreview() {
+    this.controller?.toggleSourcePreview();
+  },
   onSelectImage() {
     void this.controller?.selectImage();
   },

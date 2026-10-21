@@ -40,7 +40,9 @@ export function validateApprovalMetadata(
   now: number,
   currentDeniedReason: ApplicationErrorCode = 'POST_NOT_FOUND',
   expectedPolicyKey:
-    'local-explicit-v1' | 'local-related-v1' = 'local-explicit-v1',
+    | 'local-explicit-v1'
+    | 'local-related-v1'
+    | 'local-text-source-v1' = 'local-explicit-v1',
 ): { decision: Decision; optionalUntil: number | null } {
   let optionalUntil: number | null = null;
   const retain = (until: number | null) => {

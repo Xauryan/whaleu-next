@@ -1,3 +1,7 @@
+import {
+  decodeTextSourceDescriptor,
+  type TextSourceDescriptor,
+} from './text-source-contract';
 import type { PendingRatingLinkAttempt } from './rating-link-pending';
 import { decodeFeedbackDraft, type FeedbackDraft } from './feedback-contract';
 import {
@@ -216,6 +220,7 @@ export class PendingAttemptStore {
   }
 }
 export interface Draft {
+  readonly textSource?: TextSourceDescriptor;
   readonly feedback?: FeedbackDraft;
   readonly allowAnonymousDm?: boolean;
   readonly trading?: TradingDraft;
@@ -288,6 +293,13 @@ export class DraftStore {
       const value = this.storage.get(this.key(accountId, target));
       if (value === undefined || value === null || value === '') return null;
       if (!isRecord(value)) throw storageError();
+      const hasSource = Object.prototype.hasOwnProperty.call(
+        value,
+        'textSource',
+      );
+      const textSource = hasSource
+        ? decodeTextSourceDescriptor(value.textSource)
+        : undefined;
       const hasAnonymousDm = Object.prototype.hasOwnProperty.call(
         value,
         'allowAnonymousDm',
@@ -316,6 +328,7 @@ export class DraftStore {
       )
         throw storageError();
       exact(value, [
+        ...(hasSource ? ['textSource'] : []),
         ...(hasFeedback ? ['feedback'] : []),
         ...(hasAnonymousDm ? ['allowAnonymousDm'] : []),
         'version',
@@ -343,6 +356,7 @@ export class DraftStore {
       if (poll?.enabled && formation?.enabled) throw storageError();
       return Object.freeze({
         version: 1,
+        ...(textSource ? { textSource } : {}),
         ...(hasFeedback
           ? { feedback: decodeFeedbackDraft(value.feedback) }
           : {}),
@@ -396,6 +410,9 @@ export class DraftStore {
         throw storageError();
       const checked: Draft = {
         version: 1,
+        ...(draft.textSource
+          ? { textSource: decodeTextSourceDescriptor(draft.textSource) }
+          : {}),
         ...(draft.feedback
           ? { feedback: decodeFeedbackDraft(draft.feedback) }
           : {}),

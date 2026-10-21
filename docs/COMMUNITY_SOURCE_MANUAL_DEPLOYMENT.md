@@ -1,0 +1,183 @@
+# Explicit human review for immutable text sources
+
+This is a source-only human-review deployment procedure, not an automatic WeChat
+moderation integration or a claim of completed production acceptance. It requires
+the `source_manual` implementation in the deployed API. Normal installation keeps
+`COMMUNITY_TEXT_REVIEW=disabled`: migrations and API startup alone do not authorize
+source publication. Do not copy development database credentials into production.
+
+## Preconditions and startup
+
+1. Use the normal accepted migration sequence with `npm run db:migrate` and inspect
+   `npm run db:status`. It must include `0175_community_text_sources.sql`; do not
+   apply that file alone or use draft migrations. It installs immutable source
+   storage, not a review policy, a reviewer, a campus catalog or publication rights.
+2. Independently provision the real existing regional space/operating region and
+   accepted publication policy, account/session, phone and affiliation evidence.
+   Never replace missing production facts with test fixtures. This operator cannot
+   provision regions, grant identities, or administer unrelated policies.
+3. Supply database and application configuration through the deployment's secure
+   process environment. Production requires `NODE_ENV=production` and
+   `PG_SSL_MODE=verify-full` with a valid trusted certificate matching the database
+   host. Do not bypass TLS or put credentials in commands, client code or this file.
+4. Build the integrated API using `npm run build -w @whaleu/api` and start the built
+   API with `npm run start -w @whaleu/api`. These are existing scripts; the review
+   CLI below runs TypeScript through the existing `tsx` dependency, so its secured
+   operator installation must retain that dependency and source files. A
+   production-only dependency install without `tsx` cannot run that CLI.
+
+Supply these explicit values to both API and authorized reviewer process. The
+angle-bracket values below are placeholders, not usable fixture identities:
+
+```text
+NODE_ENV=production
+PG_SSL_MODE=verify-full
+COMMUNITY_TEXT_REVIEW=source_manual
+COMMUNITY_TEXT_REVIEW_SPACE_ID=<existing regional space UUID>
+COMMUNITY_TEXT_REVIEW_REGION_ID=<matching operating-region UUID>
+COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID=<new authorized policy UUID>
+COMMUNITY_TEXT_REVIEW_OPERATOR=manual:<actual hostname>:<actual OS username>
+```
+
+Leave `COMMUNITY_TEXT_REVIEW_POLICY_ID`, `COMMUNITY_RELATED_REVIEW_POLICY_ID` and
+`COMMUNITY_FEEDBACK_SPACE_ID` unset. Setting them in `source_manual` is a
+configuration error, not a way to enable legacy, related or feedback publication.
+The existing `local_manual` mode remains non-production-only; its region-policy
+commands must not be used as a production bootstrap shortcut.
+
+The CLI derives the reviewer label from `node:os` hostname and username and
+requires exact equality with the configured operator **before connecting**. Obtain
+that label on the actual authorized reviewer host, not on the API host:
+
+```sh
+node --input-type=module -e 'import {hostname,userInfo} from "node:os"; console.log(`manual:${hostname()}:${userInfo().username}`)'
+```
+
+The API uses the same configured label to verify the policy issuer. The label is
+attribution, not authentication or an independent security boundary. Restrict
+operator host/shell and database access; use separately controlled database roles
+with reviewed grants. The source-only human-review TLS acceptance used a shared disposable database
+role and did not validate a least-privilege reviewer deployment. The separate M2
+worker test did verify its own restricted direct LOGIN contract; that result does
+not qualify the human reviewer role. A database superuser can alter
+evidence outside the application boundary. No HTTP admin endpoint is added.
+
+## Initialize the source policy and review each request
+
+`review:text` does **not** load `.env`; inject the approved environment into the
+operator process. Run the following from the repository root. Initialization is
+an explicit one-time insert with an approved basis, not an idempotent repair tool.
+Keep its resulting policy ID and issuer consistent with the deployed environment.
+
+```sh
+npm run review:text -w @whaleu/api -- '{"command":"init-source-policy","basis":"<authorized human source-review policy reference>"}'
+npm run review:text -w @whaleu/api -- '{"command":"list"}'
+npm run review:text -w @whaleu/api -- '{"command":"show","accountId":"<queued account UUID>","requestId":"<queued request UUID>"}'
+```
+
+`list` returns at most 100 oldest live source requests, excluding expired or
+cancelled entries. Map its `account_id` and `client_request_id` to the `show`
+arguments. `show` requires a private interactive stdout terminal, refuses pipes
+and displays private content: do not record, screen-share or send it to CI logs.
+Inspect the complete canonical envelope, source text/format/hash, account, scope
+and ancestry. Copy that exact displayed digest; never invent an approval based on
+a client digest, a matching-looking body or another request's result.
+
+```sh
+npm run review:text -w @whaleu/api -- '{"command":"decide","accountId":"<queued account UUID>","requestId":"<queued request UUID>","digest":"<exact displayed 64-character SHA-256>","decision":"allow","basis":"<specific human review basis/reference>"}'
+```
+
+Choose `"decision":"reject"` instead when appropriate. There is no default
+approval, bulk allow or automatic publication. Decisions preserve reviewer and
+actual database-principal attribution and bind the canonical version-6 envelope,
+source hash/format and original publication intent/request. The historical storage
+policy key `local-text-source-v1` is not a claim of external provider approval.
+
+The client submits its original post/comment/reply intent to the corresponding
+`POST /v1/community/reviews/...` route, polls its owner-only request status, and
+retries the **same original publish request** after approval. Current authorization,
+policy, deadline, ancestry and cancellation checks still apply at consumption.
+Do not generate another request ID to recover a lost response or bypass a conflict.
+
+## Capability and reading checks
+
+API `/health/ready` confirms database readiness, not reviewer or publication
+availability. With the actual signed-in eligible account, check
+`GET /v1/community/text-source-capabilities` with `spaceId`, `category` and
+`authorMode=named`. Only a current matching source policy, scope and current
+publication eligibility can advertise source operations. Before explicit setup,
+expect `availability: "unavailable"` and empty source operations/formats. A
+configuration flag alone is insufficient. Native composer choices are not proof
+of an accepted review; Markdown must not silently downgrade to legacy plain text.
+
+Source coverage is named, text-only, empty-image, no structured components,
+non-trading, no related synchronization, no feedback, open-comment mode and no
+anonymous-DM opt-in. Markdown asset references and `#` followed by a digit remain
+unsupported. Both plain and Markdown support post, comment and reply creation.
+Draft text can be edited before its intent freezes; **published-source editing is
+not implemented**. Submitted intent changes require explicit recovery/cancellation,
+not in-place modification of the pending review or immutable source revision.
+
+Migration 0175 and source review do not require the optional M2 formatter/queue or
+worker. Without them, the six v2 detail/thread readers retain canonical source:
+post detail, post comments, comment detail, comment replies, reply detail and post
+discussion context. The v1 capability's `formatter: "not_configured"` is a fixed
+wire contract, not proof of running worker health. Formatting never grants reader
+access or changes the reviewed source. Check M2 through its separately versioned
+capability/operations contract if that optional implementation is deployed.
+
+## Expiry, withdrawal and operational limits
+
+```sh
+npm run review:text -w @whaleu/api -- '{"command":"expire","limit":32}'
+npm run review:text -w @whaleu/api -- '{"command":"withdraw","accountId":"<queued account UUID>","requestId":"<queued request UUID>","digest":"<exact displayed SHA-256>","state":"held","basis":"<hold reference>"}'
+```
+
+Use `"state":"revoked"` for explicit revocation. Neither operation rewrites
+an applied receipt. Pending review expires after seven days; an allow has a
+24-hour consumption window. Expiry closes requests with the original cancellation
+fence, subject to existing quotas. Repeat bounded expiry work as permitted;
+never delete evidence or bypass quotas. Client cancellation retains its original
+operation/intent hash; late decisions cannot resurrect that cancelled key.
+
+For incident admission shutdown, set `COMMUNITY_TEXT_REVIEW=disabled` and unset the
+source-policy variable before restarting; do not assume disabling issuance
+withdraws existing decisions or already published content. Use explicit authorized
+withdrawal and separately defined content/safety procedures where required.
+Review evidence retention/redaction, reviewer staffing and private-terminal
+handling require an operational policy before processing real sensitive content.
+
+## Acceptance and provider boundary
+
+The separate CI lane uses `npm run test:source-manual:production`, backed by
+`scripts/source-manual-tls-sandbox.sh run`, on an owned disposable loopback
+PostgreSQL 18.6 container with temporary test-only trust. Do not run that sandbox
+against production. Its database tests use `NODE_ENV=production` and verified TLS,
+but synthetic account/scope fixtures. Its test invokes real private-TTY CLI
+subprocesses for policy initialization, display, decisions, withdrawal and listing.
+The earlier source-only PostgreSQL-backed whole-file test passed 1/1 on exact
+`reading-c27-production-manual-v3` under C/verified TLS with formal 0175 and no M2.
+It exercised the real production-mode API/HTTP and private-TTY operator, including
+rejected/stored receipts and no-side-effects checks. Synthetic identities/scopes
+and a shared disposable role limit that evidence. The source-review runtime and
+operator remain unchanged in the current integration, but this earlier pass is
+not a rerun of the combined 0176/worker tree.
+
+Separately, exact `reading-c27-deployable-cli-stage-v1` passed 6/6 reported tests
+for actual source/ordinary compiled worker entries, direct restricted LOGIN,
+queued-source processing, automatic serve shutdown after a completed tick and
+privileged-login denial. That fixture used local review to create its genuine
+source; it does not replace the production `source_manual` API/PTY test. Both
+local TLS acceptances explicitly used loopback trust, not password
+authentication. Docker/password CI, the original single-Program full API cloud
+typecheck, production reviewer grants/secret custody and real account/device
+acceptance remain required. Local full build/OpenAPI checks have passed on the
+runtime-identical preceding stage. See [READING_C27_INTEGRATION.md](READING_C27_INTEGRATION.md)
+for exact snapshot hashes, current results and remaining boundaries.
+
+No WeChat moderation or model request occurs in `source_manual`. A dormant WeChat
+transport assessment adapter is not registered as an issuer, does not persist
+approval and is **not** an automatic production integration. Historical SDK
+behavior is not current provider-contract or account-qualification acceptance.
+Never substitute an adapter result, external callback or fabricated decision for
+the explicit authorized human review above.

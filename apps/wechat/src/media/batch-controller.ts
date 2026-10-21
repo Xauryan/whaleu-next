@@ -109,6 +109,11 @@ export class MediaBatchController {
           this.hide();
       }) ?? (() => undefined);
   }
+  /** Checked local journal presence only; never a publication or source authority. */
+  get hasPendingDraft(): boolean {
+    const actor = this.options.sessions.snapshot().credentials?.accountId;
+    return actor ? this.options.pending.load(actor) !== null : false;
+  }
   get available(): boolean {
     const actor = this.options.sessions.snapshot().credentials?.accountId;
     const version =

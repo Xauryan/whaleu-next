@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { normalizeFramework7ActionNode } from './framework7-action-parity';
-import { reviewedReferencePresentation } from './reviewed-reference-successor';
+import { reviewedReferencePresentation } from './reviewed-reading-successor';
 
 type Action = { tag: string; attrs: Record<string, string> };
 const root = path.join(__dirname, '../src/pages');

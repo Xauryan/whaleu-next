@@ -296,6 +296,26 @@ jobs:
             docker rm --force --volumes "$SEMANTIC_PG_CONTAINER"
           fi
 
+  source-manual-production:
+    name: Production source review · verified TLS
+    needs: [api-checks]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      WHALEU_TEST_MAINTENANCE: controlled
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+      - name: Build actual API worker entrypoint
+        run: npm run build -w @whaleu/api
+      - name: Run owned production-mode source review TLS acceptance
+        run: bash scripts/source-manual-tls-sandbox.sh run
+      - name: Remove only this job's TLS sandbox
+        if: always()
+        run: bash scripts/source-manual-tls-sandbox.sh cleanup
+
   verify:
     # Keep the existing required-check name; skipped/cancelled jobs are failures.
     if: always()
@@ -307,6 +327,7 @@ jobs:
         native-checks,
         main-integration,
         semantic-integration,
+        source-manual-production,
       ]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -319,6 +340,7 @@ jobs:
           NATIVE_RESULT: ${{ needs.native-checks.result }}
           MAIN_RESULT: ${{ needs.main-integration.result }}
           SEMANTIC_RESULT: ${{ needs.semantic-integration.result }}
+          SOURCE_MANUAL_RESULT: ${{ needs.source-manual-production.result }}
         run: |
           test "$PLAN_RESULT" = success
           test "$FOUNDATION_RESULT" = success
@@ -326,3 +348,4 @@ jobs:
           test "$NATIVE_RESULT" = success
           test "$MAIN_RESULT" = success
           test "$SEMANTIC_RESULT" = success
+          test "$SOURCE_MANUAL_RESULT" = success

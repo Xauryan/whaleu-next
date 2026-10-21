@@ -11838,6 +11838,191 @@
     ]
   },
   {
+    "handler": "ReadingContentController.comment",
+    "method": "GET",
+    "path": "/v2/community/comments/:id",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/reading-content/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "DiscussionReadService",
+        "method": "projectComment",
+        "file": "apps/api/src/community/discussion/read.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      },
+      {
+        "owner": "ReadingContentService",
+        "method": "comment",
+        "file": "apps/api/src/community/reading-content/service.ts",
+        "policy": [],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ReadingContentController.comments",
+    "method": "GET",
+    "path": "/v2/community/posts/:id/comments",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/reading-content/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "DiscussionReadService",
+        "method": "projectComments",
+        "file": "apps/api/src/community/discussion/read.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      },
+      {
+        "owner": "ReadingContentService",
+        "method": "comment",
+        "file": "apps/api/src/community/reading-content/service.ts",
+        "policy": [],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ReadingContentController.context",
+    "method": "GET",
+    "path": "/v2/community/posts/:id/discussion-context",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/reading-content/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "DiscussionReadService",
+        "method": "projectContext",
+        "file": "apps/api/src/community/discussion/read.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      },
+      {
+        "owner": "ReadingContentService",
+        "method": "comment",
+        "file": "apps/api/src/community/reading-content/service.ts",
+        "policy": [],
+        "resolution": "concrete"
+      },
+      {
+        "owner": "ReadingContentService",
+        "method": "reply",
+        "file": "apps/api/src/community/reading-content/service.ts",
+        "policy": [],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ReadingContentController.detail",
+    "method": "GET",
+    "path": "/v2/community/posts/:id",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/reading-content/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "FeedService",
+        "method": "projectDetail",
+        "file": "apps/api/src/community/feed.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      },
+      {
+        "owner": "ReadingContentService",
+        "method": "post",
+        "file": "apps/api/src/community/reading-content/service.ts",
+        "policy": [],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ReadingContentController.replies",
+    "method": "GET",
+    "path": "/v2/community/comments/:id/replies",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/reading-content/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "DiscussionReadService",
+        "method": "projectReplies",
+        "file": "apps/api/src/community/discussion/read.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      },
+      {
+        "owner": "ReadingContentService",
+        "method": "reply",
+        "file": "apps/api/src/community/reading-content/service.ts",
+        "policy": [],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ReadingContentController.reply",
+    "method": "GET",
+    "path": "/v2/community/replies/:id",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/reading-content/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "DiscussionReadService",
+        "method": "projectReply",
+        "file": "apps/api/src/community/discussion/read.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      },
+      {
+        "owner": "ReadingContentService",
+        "method": "reply",
+        "file": "apps/api/src/community/reading-content/service.ts",
+        "policy": [],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ReadingFormattingController.capabilities",
+    "method": "GET",
+    "path": "/v2/community/text-source-capabilities",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/reading-formatting/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "TextSourceReadService",
+        "method": "capabilitiesV2",
+        "file": "apps/api/src/community/text-source/read.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "ReadingFormattingController.source",
+    "method": "GET",
+    "path": "/v2/community/text-sources/:kind/:id",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/reading-formatting/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "TextSourceReadService",
+        "method": "sourceV2",
+        "file": "apps/api/src/community/text-source/read.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
     "handler": "ReportingController.progress",
     "method": "GET",
     "path": "/v1/me/safety/report-progress/:kind/:id",
@@ -12971,6 +13156,40 @@
         "method": "reviewStatus",
         "file": "apps/api/src/community/publication.repository.ts",
         "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "TextSourceController.capabilities",
+    "method": "GET",
+    "path": "/v1/community/text-source-capabilities",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/text-source/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "TextSourceReadService",
+        "method": "capabilities",
+        "file": "apps/api/src/community/text-source/read.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "TextSourceController.source",
+    "method": "GET",
+    "path": "/v1/community/text-sources/:kind/:id",
+    "action": "browse",
+    "phase": "entry",
+    "controllerFile": "apps/api/src/community/text-source/controller.ts",
+    "ownerCalls": [
+      {
+        "owner": "TextSourceReadService",
+        "method": "source",
+        "file": "apps/api/src/community/text-source/read.service.ts",
+        "policy": ["AccountPolicy('browse', 'entry')"],
         "resolution": "concrete"
       }
     ]

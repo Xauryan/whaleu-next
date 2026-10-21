@@ -36,7 +36,8 @@ export interface FollowDeletionSource {
 }
 
 export async function accountDeletionFollowSocialFixture() {
-  const base = await accountDeletionFixture();
+  // Historical follow/social erasure owner, not current-catalog qualification.
+  const base = await accountDeletionFixture({ throughMigration: 174 });
   let app: INestApplication | undefined;
   try {
     const config = loadConfig({

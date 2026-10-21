@@ -86,6 +86,7 @@ for (const relative of [
   'ratings/assistance-contract.js',
   'ratings/assistance-controller.js',
   'community/rating-link-contract.js',
+  'community/text-source-contract.js',
   'ratings/scoped-contract.js',
   'ratings/category-scoped-contract.js',
   'ratings/category-icon-media-contract.js',

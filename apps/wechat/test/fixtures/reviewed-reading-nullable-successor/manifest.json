@@ -1,0 +1,10 @@
+{
+  "reason": "guard nullable legacy source descriptor without changing controller or pending state",
+  "path": "src/pages/community-compose/community-compose.wxml",
+  "sourceManifestSha256": "3b7a3281fbf23af3f88fedd64614f8ab935977cc71b6a0dcf887153b3979bec2",
+  "nativeV2ManifestSha256": "6f42a9eabca1f43cdec61baf878059bc10a2b173d5c803e382ae980da5b15bba",
+  "before": "bb7db0663f501411b319bed3a7252aeed135141e9bebec0c49bdcd3db6054f0d",
+  "after": "6958d1570c8ba993688996d1ae115d467904618593beadc9a7da6722b62bfa18",
+  "evidence": "community-compose.wxml.before.txt",
+  "patchSha256": "a442f2969a0889231f26dde314edaaf69615c4de33dbfb0d9af931b38b01c336"
+}

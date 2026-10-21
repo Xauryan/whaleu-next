@@ -1,3 +1,4 @@
+import { textSourceDescriptorSchema } from './text-source/protocol.js';
 import type { PublishPost } from './contracts.js';
 /** Keep C1 property order and absent-component hashes unchanged, including explicit none. */
 export function postIntent(body: PublishPost) {
@@ -35,5 +36,8 @@ export function postIntent(body: PublishPost) {
     ...(body.syncToRelatedCampuses === true
       ? { syncToRelatedCampuses: true as const }
       : {}),
+    ...(body.textSource === undefined
+      ? {}
+      : { textSource: textSourceDescriptorSchema.parse(body.textSource) }),
   };
 }

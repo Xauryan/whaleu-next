@@ -1,4 +1,9 @@
 import {
+  decodeTextSourceDescriptor,
+  sourceTextAvailable,
+  type TextSourceDescriptor,
+} from './text-source-contract';
+import {
   decodeRatingTargetLinkComponent,
   type RatingTargetLinkComponent,
 } from './rating-link-contract';
@@ -244,6 +249,7 @@ export interface Capabilities {
   };
 }
 export interface PostIntent {
+  readonly textSource?: TextSourceDescriptor;
   readonly syncToRelatedCampuses?: boolean;
   readonly feedback?: FeedbackInput;
   readonly allowAnonymousDm?: boolean;
@@ -259,6 +265,7 @@ export interface PostIntent {
   readonly commentsPolicy: CommentsPolicy;
 }
 export interface CommentIntent {
+  readonly textSource?: TextSourceDescriptor;
   readonly clientRequestId: string;
   readonly text: string;
   readonly imageAssetIds: readonly string[];
@@ -911,6 +918,10 @@ function assets(value: unknown, max: number): readonly string[] {
 }
 export function decodePostIntent(value: unknown): PostIntent {
   if (!isRecord(value)) invalid();
+  const hasSource = Object.prototype.hasOwnProperty.call(value, 'textSource');
+  const textSource = hasSource
+    ? decodeTextSourceDescriptor(value.textSource)
+    : undefined;
   const hasSync = Object.prototype.hasOwnProperty.call(
     value,
     'syncToRelatedCampuses',
@@ -923,6 +934,7 @@ export function decodePostIntent(value: unknown): PostIntent {
   const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
   const hasComponent = Object.prototype.hasOwnProperty.call(value, 'component');
   exact(value, [
+    ...(hasSource ? ['textSource'] : []),
     ...(hasSync ? ['syncToRelatedCampuses'] : []),
     ...(hasFeedback ? ['feedback'] : []),
     'clientRequestId',
@@ -981,7 +993,21 @@ export function decodePostIntent(value: unknown): PostIntent {
         (component && component.kind !== 'none')))
   )
     invalid();
+  if (
+    textSource &&
+    (value.category === 'trading' ||
+      value.category === 'feedback' ||
+      value.syncToRelatedCampuses === true ||
+      value.allowAnonymousDm === true ||
+      value.commentsPolicy !== 'open' ||
+      (component && component.kind !== 'none') ||
+      !Array.isArray(value.imageAssetIds) ||
+      value.imageAssetIds.length !== 0 ||
+      !sourceTextAvailable(value.text, textSource))
+  )
+    invalid();
   return Object.freeze({
+    ...(textSource ? { textSource } : {}),
     ...(hasFeedback ? { feedback: decodeFeedbackInput(value.feedback) } : {}),
     ...(hasAnonymousDm
       ? { allowAnonymousDm: value.allowAnonymousDm as boolean }
@@ -1001,7 +1027,19 @@ export function decodePostIntent(value: unknown): PostIntent {
   });
 }
 export function decodeCommentIntent(value: unknown): CommentIntent {
-  exact(value, ['clientRequestId', 'text', 'imageAssetIds', 'authorMode']);
+  const hasSource =
+    isRecord(value) &&
+    Object.prototype.hasOwnProperty.call(value, 'textSource');
+  exact(value, [
+    'clientRequestId',
+    'text',
+    'imageAssetIds',
+    'authorMode',
+    ...(hasSource ? ['textSource'] : []),
+  ]);
+  const textSource = hasSource
+    ? decodeTextSourceDescriptor(value.textSource)
+    : undefined;
   if (
     !uuid4(value.clientRequestId) ||
     !boundedText(value.text, 0, 500) ||
@@ -1011,7 +1049,13 @@ export function decodeCommentIntent(value: unknown): CommentIntent {
     invalid();
   const images = assets(value.imageAssetIds, 3);
   if (!value.text.trim() && !images.length) invalid();
+  if (
+    textSource &&
+    (images.length !== 0 || !sourceTextAvailable(value.text, textSource))
+  )
+    invalid();
   return Object.freeze({
+    ...(textSource ? { textSource } : {}),
     clientRequestId: value.clientRequestId,
     text: value.text,
     imageAssetIds: images,

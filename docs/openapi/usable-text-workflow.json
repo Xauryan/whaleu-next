@@ -43,7 +43,7 @@
   "paths": {
     "/v1/community/reviews/comments/{id}/replies": {
       "post": {
-        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative. Replies inherit the canonical root. Their existing path/root-comment identifier, optional targetReplyId and imageAssetIds handling already canonicalizes UUIDs to lowercase before constructing the inherited envelope; this rule does not impose a new lowercase-input rejection on replies. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase.",
+        "description": "Explicit human review; original publication receipt and current authorization remain authoritative. Replies inherit the canonical root. Their existing path/root-comment identifier, optional targetReplyId and imageAssetIds handling already canonicalizes UUIDs to lowercase before constructing the inherited envelope; this rule does not impose a new lowercase-input rejection on replies. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase.",
         "operationId": "textReviewReply",
         "parameters": [
           {
@@ -88,6 +88,44 @@
                   },
                   "text": {
                     "type": "string"
+                  },
+                  "textSource": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["plain"],
+                            "type": "string"
+                          },
+                          "readingFormatting": {
+                            "enum": ["auto", "off"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format", "readingFormatting"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["markdown"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format"],
+                        "type": "object"
+                      }
+                    ]
                   }
                 },
                 "required": ["clientRequestId", "text", "authorMode"],
@@ -202,7 +240,7 @@
                 }
               }
             },
-            "description": "Explicit local non-production mode, current policy or review unavailable."
+            "description": "Explicit human-review mode, current policy or review unavailable."
           }
         },
         "security": [
@@ -211,12 +249,12 @@
           }
         ],
         "summary": "",
-        "tags": ["Non-production text review"]
+        "tags": ["Explicit human text review"]
       }
     },
     "/v1/community/reviews/posts": {
       "post": {
-        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative. When syncToRelatedCampuses is exactly true, spaceId and every imageAssetIds entry must be canonical lowercase UUIDs. With false or an absent flag, existing legacy UUID handling remains unchanged. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase.",
+        "description": "Explicit human review; original publication receipt and current authorization remain authoritative. When syncToRelatedCampuses is exactly true, spaceId and every imageAssetIds entry must be canonical lowercase UUIDs. With false or an absent flag, existing legacy UUID handling remains unchanged. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase.",
         "operationId": "textReviewPost",
         "parameters": [],
         "requestBody": {
@@ -520,6 +558,44 @@
                   "text": {
                     "type": "string"
                   },
+                  "textSource": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["plain"],
+                            "type": "string"
+                          },
+                          "readingFormatting": {
+                            "enum": ["auto", "off"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format", "readingFormatting"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["markdown"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format"],
+                        "type": "object"
+                      }
+                    ]
+                  },
                   "trading": {
                     "additionalProperties": false,
                     "properties": {
@@ -722,7 +798,7 @@
                 }
               }
             },
-            "description": "Explicit local non-production mode, current policy or review unavailable."
+            "description": "Explicit human-review mode, current policy or review unavailable."
           }
         },
         "security": [
@@ -731,12 +807,12 @@
           }
         ],
         "summary": "",
-        "tags": ["Non-production text review"]
+        "tags": ["Explicit human text review"]
       }
     },
     "/v1/community/reviews/posts/{id}/comments": {
       "post": {
-        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative. When the server-resolved canonical root post uses related-sync v4, the raw post path identifier and every imageAssetIds entry must be canonical lowercase UUIDs. This condition depends on the existing root, not a client field; legacy none-root input handling remains unchanged. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase.",
+        "description": "Explicit human review; original publication receipt and current authorization remain authoritative. When the server-resolved canonical root post uses related-sync v4, the raw post path identifier and every imageAssetIds entry must be canonical lowercase UUIDs. This condition depends on the existing root, not a client field; legacy none-root input handling remains unchanged. The v4-only check runs after original-key receipt recovery and before new Review submission or approval issuance. Legacy none input schemas, normalization and hash bytes are unchanged; never rewrite a frozen historical request to lowercase.",
         "operationId": "textReviewComment",
         "parameters": [
           {
@@ -776,6 +852,44 @@
                   },
                   "text": {
                     "type": "string"
+                  },
+                  "textSource": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["plain"],
+                            "type": "string"
+                          },
+                          "readingFormatting": {
+                            "enum": ["auto", "off"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format", "readingFormatting"],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "format": {
+                            "enum": ["markdown"],
+                            "type": "string"
+                          },
+                          "version": {
+                            "enum": [1],
+                            "type": "number"
+                          }
+                        },
+                        "required": ["version", "format"],
+                        "type": "object"
+                      }
+                    ]
                   }
                 },
                 "required": ["clientRequestId", "text", "authorMode"],
@@ -921,7 +1035,7 @@
                 }
               }
             },
-            "description": "Explicit local non-production mode, current policy or review unavailable."
+            "description": "Explicit human-review mode, current policy or review unavailable."
           }
         },
         "security": [
@@ -930,7 +1044,7 @@
           }
         ],
         "summary": "",
-        "tags": ["Non-production text review"],
+        "tags": ["Explicit human text review"],
         "x-related-canonical-identifiers": {
           "bodyProperties": {
             "imageAssetIds": {
@@ -972,7 +1086,7 @@
     },
     "/v1/community/reviews/requests/{requestId}": {
       "get": {
-        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative.",
+        "description": "Explicit human review; original publication receipt and current authorization remain authoritative.",
         "operationId": "textReviewStatus",
         "parameters": [
           {
@@ -1089,7 +1203,7 @@
                 }
               }
             },
-            "description": "Explicit local non-production mode, current policy or review unavailable."
+            "description": "Explicit human-review mode, current policy or review unavailable."
           }
         },
         "security": [
@@ -1098,12 +1212,12 @@
           }
         ],
         "summary": "",
-        "tags": ["Non-production text review"]
+        "tags": ["Explicit human text review"]
       }
     },
     "/v1/community/reviews/requests/{requestId}/cancel": {
       "post": {
-        "description": "Explicit local manual review; original publication receipt and current authorization remain authoritative.",
+        "description": "Explicit human review; original publication receipt and current authorization remain authoritative.",
         "operationId": "textReviewCancel",
         "parameters": [
           {
@@ -1423,7 +1537,7 @@
                 }
               }
             },
-            "description": "Explicit local non-production mode, current policy or review unavailable."
+            "description": "Explicit human-review mode, current policy or review unavailable."
           }
         },
         "security": [
@@ -1432,7 +1546,7 @@
           }
         ],
         "summary": "",
-        "tags": ["Non-production text review"]
+        "tags": ["Explicit human text review"]
       }
     },
     "/v1/me/phone-binding/requests": {

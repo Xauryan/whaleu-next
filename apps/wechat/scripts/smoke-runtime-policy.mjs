@@ -67,6 +67,7 @@ export async function smokeRuntimePolicy({
       httpStatus: 503,
     });
   const requests = [];
+  const decodedSourceModes = [];
   let leakAuthority = false,
     receiptReady = false,
     contentAvailable = true;
@@ -79,6 +80,31 @@ export async function smokeRuntimePolicy({
         body: options.body,
       });
       let result;
+      if (endpoint.path === '/v1/community/text-source-capabilities') {
+        assert.equal(endpoint.method, 'GET');
+        assert.equal(options.body, undefined);
+        assert.ok(['named', 'anonymous'].includes(options.query?.authorMode));
+        assert.deepEqual(options.query, {
+          spaceId: publicPost.space.id,
+          category: 'discussion',
+          authorMode: options.query.authorMode,
+        });
+        // This legacy journey has no source publisher. Exercise the real strict
+        // decoder rather than treating a missing fixture route as unavailability.
+        const decoded = endpoint.decode({
+          version: 1,
+          authorMode: options.query.authorMode,
+          availability: 'unavailable',
+          operations: [],
+          formats: [],
+          readingFormatting: [],
+          media: 'unavailable',
+          markdownReferences: 'unavailable',
+          formatter: 'not_configured',
+        });
+        decodedSourceModes.push(decoded.authorMode);
+        return decoded;
+      }
       if (endpoint.path === '/v1/community/capabilities') {
         assert.deepEqual(options.query, {
           spaceId: publicPost.space.id,
@@ -185,6 +211,8 @@ export async function smokeRuntimePolicy({
     compose.onText({ detail: { value: '审核提交尚未开放时只保存草稿' } });
     compose.onRestricted({ detail: { value: true } });
     assert.equal(compose.data.loaded, true);
+    assert.equal(compose.data.textSource, null);
+    assert.deepEqual(decodedSourceModes, ['named', 'anonymous']);
     assert.equal(compose.data.canDisableComments, true);
     assert.equal(compose.data.canSubmit, false);
     assert.match(compose.data.blocker, /尚未开放审核/);
@@ -239,6 +267,11 @@ export async function smokeRuntimePolicy({
     await flush();
     assert.equal(compose.data.canSubmit, false);
     assert.match(compose.data.error, /格式异常/);
+    assert.deepEqual(
+      decodedSourceModes,
+      ['named', 'anonymous'],
+      'Malformed mandatory capability must not reach optional source loading',
+    );
     assert.equal(detail.data.post.text, publicPost.text);
     leakAuthority = false;
 
@@ -363,6 +396,7 @@ export async function smokeRuntimePolicy({
     contentAvailable = false;
     const before = requests.length,
       profilesBefore = profileReads;
+    const sourceModesBeforeRecovery = [...decodedSourceModes];
     const recovery = mount(composeModule, {});
     const recoveryBridge = createNativePressBridge({
       page: recovery,
@@ -392,6 +426,11 @@ export async function smokeRuntimePolicy({
     await flush();
     assert.equal(app.community.pending.load(accountId), null);
     assert.equal(recovery.data.receiptStatus, '发布已确认');
+    assert.deepEqual(
+      decodedSourceModes,
+      sourceModesBeforeRecovery,
+      'Legacy receipt recovery must not consult source capabilities',
+    );
     assert.deepEqual(
       requests.slice(before).map(({ path }) => path),
       [

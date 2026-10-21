@@ -1,0 +1,933 @@
+--- a/apps/wechat/scripts/build.mjs
++++ b/apps/wechat/scripts/build.mjs
+@@ -86,6 +86,7 @@
+   'ratings/assistance-contract.js',
+   'ratings/assistance-controller.js',
+   'community/rating-link-contract.js',
++  'community/text-source-contract.js',
+   'ratings/scoped-contract.js',
+   'ratings/category-scoped-contract.js',
+   'ratings/category-icon-media-contract.js',
+--- a/apps/wechat/src/community/contract.ts
++++ b/apps/wechat/src/community/contract.ts
+@@ -1,3 +1,8 @@
++import {
++  decodeTextSourceDescriptor,
++  sourceTextAvailable,
++  type TextSourceDescriptor,
++} from './text-source-contract';
+ import {
+   decodeRatingTargetLinkComponent,
+   type RatingTargetLinkComponent,
+@@ -244,6 +249,7 @@
+   };
+ }
+ export interface PostIntent {
++  readonly textSource?: TextSourceDescriptor;
+   readonly syncToRelatedCampuses?: boolean;
+   readonly feedback?: FeedbackInput;
+   readonly allowAnonymousDm?: boolean;
+@@ -259,6 +265,7 @@
+   readonly commentsPolicy: CommentsPolicy;
+ }
+ export interface CommentIntent {
++  readonly textSource?: TextSourceDescriptor;
+   readonly clientRequestId: string;
+   readonly text: string;
+   readonly imageAssetIds: readonly string[];
+@@ -911,6 +918,10 @@
+ }
+ export function decodePostIntent(value: unknown): PostIntent {
+   if (!isRecord(value)) invalid();
++  const hasSource = Object.prototype.hasOwnProperty.call(value, 'textSource');
++  const textSource = hasSource
++    ? decodeTextSourceDescriptor(value.textSource)
++    : undefined;
+   const hasSync = Object.prototype.hasOwnProperty.call(
+     value,
+     'syncToRelatedCampuses',
+@@ -923,6 +934,7 @@
+   const hasTrading = Object.prototype.hasOwnProperty.call(value, 'trading');
+   const hasComponent = Object.prototype.hasOwnProperty.call(value, 'component');
+   exact(value, [
++    ...(hasSource ? ['textSource'] : []),
+     ...(hasSync ? ['syncToRelatedCampuses'] : []),
+     ...(hasFeedback ? ['feedback'] : []),
+     'clientRequestId',
+@@ -981,7 +993,21 @@
+         (component && component.kind !== 'none')))
+   )
+     invalid();
+-  return Object.freeze({
++  if (
++    textSource &&
++    (value.category === 'trading' ||
++      value.category === 'feedback' ||
++      value.syncToRelatedCampuses === true ||
++      value.allowAnonymousDm === true ||
++      value.commentsPolicy !== 'open' ||
++      (component && component.kind !== 'none') ||
++      !Array.isArray(value.imageAssetIds) ||
++      value.imageAssetIds.length !== 0 ||
++      !sourceTextAvailable(value.text, textSource))
++  )
++    invalid();
++  return Object.freeze({
++    ...(textSource ? { textSource } : {}),
+     ...(hasFeedback ? { feedback: decodeFeedbackInput(value.feedback) } : {}),
+     ...(hasAnonymousDm
+       ? { allowAnonymousDm: value.allowAnonymousDm as boolean }
+@@ -1001,7 +1027,19 @@
+   });
+ }
+ export function decodeCommentIntent(value: unknown): CommentIntent {
+-  exact(value, ['clientRequestId', 'text', 'imageAssetIds', 'authorMode']);
++  const hasSource =
++    isRecord(value) &&
++    Object.prototype.hasOwnProperty.call(value, 'textSource');
++  exact(value, [
++    'clientRequestId',
++    'text',
++    'imageAssetIds',
++    'authorMode',
++    ...(hasSource ? ['textSource'] : []),
++  ]);
++  const textSource = hasSource
++    ? decodeTextSourceDescriptor(value.textSource)
++    : undefined;
+   if (
+     !uuid4(value.clientRequestId) ||
+     !boundedText(value.text, 0, 500) ||
+@@ -1011,7 +1049,13 @@
+     invalid();
+   const images = assets(value.imageAssetIds, 3);
+   if (!value.text.trim() && !images.length) invalid();
+-  return Object.freeze({
++  if (
++    textSource &&
++    (images.length !== 0 || !sourceTextAvailable(value.text, textSource))
++  )
++    invalid();
++  return Object.freeze({
++    ...(textSource ? { textSource } : {}),
+     clientRequestId: value.clientRequestId,
+     text: value.text,
+     imageAssetIds: images,
+--- a/apps/wechat/src/community/discussion-contract.ts
++++ b/apps/wechat/src/community/discussion-contract.ts
+@@ -64,7 +64,11 @@
+       readonly code: string;
+     };
+ export function decodeReplyIntent(value: unknown): ReplyIntent {
++  const hasSource =
++    isRecord(value) &&
++    Object.prototype.hasOwnProperty.call(value, 'textSource');
+   exact(value, [
++    ...(hasSource ? ['textSource'] : []),
+     'clientRequestId',
+     'text',
+     'imageAssetIds',
+--- a/apps/wechat/src/community/gateway.ts
++++ b/apps/wechat/src/community/gateway.ts
+@@ -1,3 +1,7 @@
++import {
++  decodeTextSourceCapability,
++  type TextSourceCapability,
++} from './text-source-contract';
+ import {
+   decodeFeedbackContacts,
+   type FeedbackContacts,
+@@ -136,6 +140,12 @@
+   readonly cursor?: string;
+ }
+ export interface CommunityGateway {
++  textSourceCapabilities?(
++    spaceId: string,
++    category: Category,
++    authorMode: 'named' | 'anonymous',
++    cancel: Cancellation,
++  ): Promise<TextSourceCapability>;
+   feedbackTopic?(
+     cancel: Cancellation,
+   ): Promise<{ topic: 'feedback'; space: CommunitySpace }>;
+@@ -336,6 +346,27 @@
+         ? { ...component, selector: { ...component.selector } }
+         : { kind: 'none' as const };
+ export class HttpCommunityGateway implements CommunityGateway {
++  async textSourceCapabilities(
++    spaceId: string,
++    category: Category,
++    authorMode: 'named' | 'anonymous',
++    cancel: Cancellation,
++  ): Promise<TextSourceCapability> {
++    if (!isCategory(category) || !['named', 'anonymous'].includes(authorMode))
++      invalid();
++    const result = await this.api.request(
++      endpoint(
++        '/v1/community/text-source-capabilities',
++        decodeTextSourceCapability,
++      ),
++      {
++        query: { spaceId: id(spaceId), category, authorMode },
++        cancellation: cancel,
++      },
++    );
++    if (result.authorMode !== authorMode) invalid();
++    return result;
++  }
+   constructor(private readonly api: ApiClient) {}
+   async feedbackTopic(
+     cancel: Cancellation,
+@@ -425,6 +456,9 @@
+           authorMode: payload.authorMode,
+           commentsPolicy: payload.commentsPolicy,
+           imageAssetIds: [...payload.imageAssetIds],
++          ...(payload.textSource
++            ? { textSource: { ...payload.textSource } }
++            : {}),
+           ...(payload.feedback
+             ? { feedback: { contacts: { ...payload.feedback.contacts } } }
+             : {}),
+--- a/apps/wechat/src/community/pending-attempt.ts
++++ b/apps/wechat/src/community/pending-attempt.ts
+@@ -1,3 +1,7 @@
++import {
++  decodeTextSourceDescriptor,
++  type TextSourceDescriptor,
++} from './text-source-contract';
+ import type { PendingRatingLinkAttempt } from './rating-link-pending';
+ import { decodeFeedbackDraft, type FeedbackDraft } from './feedback-contract';
+ import {
+@@ -216,6 +220,7 @@
+   }
+ }
+ export interface Draft {
++  readonly textSource?: TextSourceDescriptor;
+   readonly feedback?: FeedbackDraft;
+   readonly allowAnonymousDm?: boolean;
+   readonly trading?: TradingDraft;
+@@ -288,6 +293,13 @@
+       const value = this.storage.get(this.key(accountId, target));
+       if (value === undefined || value === null || value === '') return null;
+       if (!isRecord(value)) throw storageError();
++      const hasSource = Object.prototype.hasOwnProperty.call(
++        value,
++        'textSource',
++      );
++      const textSource = hasSource
++        ? decodeTextSourceDescriptor(value.textSource)
++        : undefined;
+       const hasAnonymousDm = Object.prototype.hasOwnProperty.call(
+         value,
+         'allowAnonymousDm',
+@@ -316,6 +328,7 @@
+       )
+         throw storageError();
+       exact(value, [
++        ...(hasSource ? ['textSource'] : []),
+         ...(hasFeedback ? ['feedback'] : []),
+         ...(hasAnonymousDm ? ['allowAnonymousDm'] : []),
+         'version',
+@@ -343,6 +356,7 @@
+       if (poll?.enabled && formation?.enabled) throw storageError();
+       return Object.freeze({
+         version: 1,
++        ...(textSource ? { textSource } : {}),
+         ...(hasFeedback
+           ? { feedback: decodeFeedbackDraft(value.feedback) }
+           : {}),
+@@ -396,6 +410,9 @@
+         throw storageError();
+       const checked: Draft = {
+         version: 1,
++        ...(draft.textSource
++          ? { textSource: decodeTextSourceDescriptor(draft.textSource) }
++          : {}),
+         ...(draft.feedback
+           ? { feedback: decodeFeedbackDraft(draft.feedback) }
+           : {}),
+--- a/apps/wechat/src/community/review-contract.ts
++++ b/apps/wechat/src/community/review-contract.ts
+@@ -60,6 +60,8 @@
+ 
+ export function supportsTextReview(attempt: PendingAttempt): boolean {
+   const payload = attempt.payload;
++  // Explicit source has its own separately admitted Review lane, including anonymous source.
++  if (payload.textSource) return payload.imageAssetIds.length === 0;
+   if (
+     attempt.operation === 'publish_post' &&
+     attempt.payload.component?.kind === 'rating_target_link'
+--- a/apps/wechat/src/media/batch-controller.ts
++++ b/apps/wechat/src/media/batch-controller.ts
+@@ -109,6 +109,11 @@
+           this.hide();
+       }) ?? (() => undefined);
+   }
++  /** Checked local journal presence only; never a publication or source authority. */
++  get hasPendingDraft(): boolean {
++    const actor = this.options.sessions.snapshot().credentials?.accountId;
++    return actor ? this.options.pending.load(actor) !== null : false;
++  }
+   get available(): boolean {
+     const actor = this.options.sessions.snapshot().credentials?.accountId;
+     const version =
+--- a/apps/wechat/src/media/batch-publication.ts
++++ b/apps/wechat/src/media/batch-publication.ts
+@@ -1,3 +1,4 @@
++import { textSourceIntentHash } from '../community/text-source-contract';
+ import { ratingLinkPublicationHash } from '../community/rating-link-contract';
+ import { sha256 } from 'js-sha256';
+ import { decodeCommentIntent } from '../community/contract';
+@@ -46,9 +47,12 @@
+   return Object.freeze({
+     clientRequestId: body.clientRequestId,
+     operation: attempt.operation,
+-    intentHash: sha256(
+-      JSON.stringify({ operation: attempt.operation, intent }),
+-    ),
++    intentHash: body.textSource
++      ? textSourceIntentHash(attempt.operation, {
++          ...intent,
++          textSource: body.textSource,
++        })
++      : sha256(JSON.stringify({ operation: attempt.operation, intent })),
+   });
+ }
+ export function discussionTarget(
+--- a/apps/wechat/src/media/upload-controller.ts
++++ b/apps/wechat/src/media/upload-controller.ts
+@@ -93,6 +93,11 @@
+           this.hide();
+       }) ?? (() => undefined);
+   }
++  /** Checked local journal presence only; never a publication or source authority. */
++  get hasPendingDraft(): boolean {
++    const actor = this.sessions.snapshot().credentials?.accountId;
++    return actor ? this.pending.load(actor) !== null : false;
++  }
+   get available(): boolean {
+     return !!this.transfer;
+   }
+--- a/apps/wechat/src/media/upload-runtime.ts
++++ b/apps/wechat/src/media/upload-runtime.ts
+@@ -1,3 +1,4 @@
++import { textSourceIntentHash } from '../community/text-source-contract';
+ import { sha256 } from 'js-sha256';
+ import { ClientError } from '../api/errors';
+ import type { SessionStore } from '../auth/session';
+@@ -47,11 +48,14 @@
+     ...(body.syncToRelatedCampuses === true
+       ? { syncToRelatedCampuses: true }
+       : {}),
++    ...(body.textSource ? { textSource: body.textSource } : {}),
+   };
+   return Object.freeze({
+     clientRequestId: body.clientRequestId,
+     operation: 'publish_post',
+-    intentHash: sha256(JSON.stringify({ operation: 'publish_post', intent })),
++    intentHash: body.textSource
++      ? textSourceIntentHash('publish_post', intent)
++      : sha256(JSON.stringify({ operation: 'publish_post', intent })),
+   });
+ }
+ export function mediaPublicationOwner(
+--- a/apps/wechat/src/pages/community-compose/community-compose.json
++++ b/apps/wechat/src/pages/community-compose/community-compose.json
+@@ -1,6 +1,7 @@
+ {
+   "navigationBarTitleText": "发布",
+   "usingComponents": {
++    "wu-source-text": "../../components/source-text/source-text",
+     "wu-icon": "../../components/icon/icon",
+     "wu-f7-button": "../../components/f7-button/f7-button",
+     "wu-f7-block": "../../components/f7-block/f7-block",
+--- a/apps/wechat/src/pages/community-compose/community-compose.ts
++++ b/apps/wechat/src/pages/community-compose/community-compose.ts
+@@ -142,6 +142,15 @@
+       return;
+     this.setData({ uiPanel: this.data.uiPanel === panel ? '' : panel });
+   },
++  onSourceFormat(event: { currentTarget: { dataset: { format: string } } }) {
++    this.controller?.setSourceFormat(event.currentTarget.dataset.format);
++  },
++  onReadingFormatting(event: { detail: { value: boolean } }) {
++    this.controller?.setReadingFormatting(event.detail.value);
++  },
++  onSourcePreview() {
++    this.controller?.toggleSourcePreview();
++  },
+   onSelectImage() {
+     void this.controller?.selectImage();
+   },
+--- a/apps/wechat/src/pages/community-compose/community-compose.wxml
++++ b/apps/wechat/src/pages/community-compose/community-compose.wxml
+@@ -8,6 +8,16 @@
+       <view wx:if="{{replyTargetName}}" class="scope">回复：{{replyTargetName}}</view>
+       <textarea value="{{text}}" bindinput="onText" maxlength="-1" disabled="{{frozen || busy || !loaded}}" placeholder="{{isTrading ? '介绍一下物品、成色或你的需求…' : maxText === 500 ? '写下你的回复…' : '分享你的校园生活…'}}" class="writing-canvas" placeholder-class="input-placeholder" />
+       <view class="canvas-counter">最多 {{maxText}} 字</view>
++      <view wx:if="{{canChooseTextSource || textSource}}" class="source-options">
++        <view class="chips" wx:if="{{!frozen}}">
++          <wu-f7-button data-format="plain" bind:press="onSourceFormat" disabled="{{busy}}" variant="{{(!textSource || textSource.format === 'plain') ? 'tonal' : 'plain'}}">纯文字</wu-f7-button>
++          <wu-f7-button data-format="markdown" bind:press="onSourceFormat" disabled="{{busy}}" variant="{{textSource.format === 'markdown' ? 'tonal' : 'plain'}}">Markdown</wu-f7-button>
++        </view>
++        <view wx:if="{{textSource.format === 'plain'}}" class="row"><text>允许长文阅读排版</text><switch checked="{{textSource.readingFormatting === 'auto'}}" bindchange="onReadingFormatting" disabled="{{frozen || busy}}" color="#007aff" /></view>
++        <view class="notice">{{sourceNotice}}</view>
++        <wu-f7-button wx:if="{{textSource}}" bind:press="onSourcePreview" disabled="{{busy}}">{{sourcePreview ? '关闭预览' : '预览原文格式'}}</wu-f7-button>
++        <wu-source-text wx:if="{{sourcePreview &amp;&amp; textSource}}" source="{{text}}" descriptor="{{textSource}}" preview="{{true}}" disabled="{{busy}}" />
++      </view>
+     </wu-f7-block>
+     <wu-f7-block wx:if="{{hasRatingLink}}" class="card" spacing="compact">
+       <view class="section-title">关联评分</view>
+--- a/apps/wechat/src/pages/community-compose/controller.ts
++++ b/apps/wechat/src/pages/community-compose/controller.ts
+@@ -1,3 +1,10 @@
++import {
++  DEFAULT_TEXT_SOURCE,
++  decodeTextSourceDescriptor,
++  sourceTextAvailable,
++  type TextSourceDescriptor,
++  type TextSourceCapability,
++} from '../../community/text-source-contract';
+ import { systemClock } from '../../platform/clock';
+ import {
+   AssistanceController,
+@@ -101,6 +108,10 @@
+     }
+ );
+ export interface ComposeView extends CommunityView {
++  readonly textSource: TextSourceDescriptor | null;
++  readonly canChooseTextSource: boolean;
++  readonly sourcePreview: boolean;
++  readonly sourceNotice: string;
+   readonly assistance: AssistanceView;
+   readonly ratingLinkName: string;
+   readonly ratingLinkLabel: string;
+@@ -155,6 +166,10 @@
+ }
+ export const initialComposeView = (): ComposeView => ({
+   ...initialCommunityView(),
++  textSource: null,
++  canChooseTextSource: false,
++  sourcePreview: false,
++  sourceNotice: '',
+   assistance: initialAssistanceView(),
+   ratingLinkName: '',
+   ratingLinkLabel: '',
+@@ -270,6 +285,7 @@
+   private mediaGeneration = 0;
+   private mediaDisposed = false;
+   private mediaAction: { kind: string; task: Promise<void> } | null = null;
++  private sourceCapabilities: readonly TextSourceCapability[] = [];
+   private capabilities: Capabilities | null = null;
+   private commentCapabilities: CommentCapabilities | null = null;
+   private parentPost: Post | null = null;
+@@ -524,6 +540,7 @@
+     }
+   }
+   protected override resetPrivate(): void {
++    this.sourceCapabilities = [];
+     this.assistance?.invalidate();
+     this.ratingLink = null;
+     this.ratingLinkContext = null;
+@@ -728,7 +745,51 @@
+             throw new ClientError('protocol', 'Root copy must create a root');
+           copiedText = source.text;
+         }
++        const sourceContext =
++          target.operation === 'publish_post'
++            ? { spaceId: target.spaceId, category: target.category }
++            : post
++              ? { spaceId: post.space.id, category: post.category }
++              : null;
++        const canChooseTextSource =
++          !!this.runtime.gateway!.textSourceCapabilities &&
++          !!sourceContext &&
++          sourceContext.category !== 'trading' &&
++          sourceContext.category !== 'feedback' &&
++          !linkRead;
++        // Source advisory failure cannot silently downgrade a new source draft,
++        // and must not prevent recovery of an already-existing legacy draft.
++        const sourceCapabilities: TextSourceCapability[] = [];
++        if (canChooseTextSource && sourceContext) {
++          try {
++            sourceCapabilities.push(
++              ...(await Promise.all(
++                (['named', 'anonymous'] as const).map((mode) =>
++                  this.runtime.gateway!.textSourceCapabilities!(
++                    sourceContext.spaceId,
++                    sourceContext.category,
++                    mode,
++                    cancel,
++                  ),
++                ),
++              )),
++            );
++          } catch (error) {
++            if (
++              !(error instanceof ClientError) ||
++              [
++                'auth-required',
++                'auth-expired',
++                'stale-session',
++                'cancelled',
++              ].includes(error.kind)
++            )
++              throw error;
++          }
++        }
+         return {
++          canChooseTextSource,
++          sourceCapabilities,
+           profile,
+           post,
+           capability,
+@@ -745,6 +806,7 @@
+           this.showPending(pending);
+           return;
+         }
++        this.sourceCapabilities = result.sourceCapabilities;
+         this.capabilities = result.capability;
+         this.commentCapabilities = result.commentCapability;
+         this.parentPost = result.post;
+@@ -832,6 +894,22 @@
+         this.identityConflict = chosen.conflict;
+         this.update({
+           loaded: true,
++          canChooseTextSource: result.canChooseTextSource,
++          // Absent legacy draft descriptors remain absent; never auto-upgrade.
++          textSource: draft
++            ? (draft.textSource ?? null)
++            : result.canChooseTextSource &&
++                result.sourceCapabilities.some(
++                  (item) =>
++                    item.authorMode === chosen.mode &&
++                    item.availability === 'available' &&
++                    item.operations.includes(target.operation),
++                ) &&
++                !this.activeUploader()?.hasPendingDraft &&
++                !result.profile.preferences.defaultAllowAnonymousDm
++              ? DEFAULT_TEXT_SOURCE
++              : null,
++          sourcePreview: false,
+           hasRatingLink: !!result.linkRead,
+           ratingLinkName: result.linkRead?.name ?? '',
+           ratingLinkLabel: result.linkRead
+@@ -932,6 +1010,12 @@
+     this.ratingLinkContext = null;
+     this.pending = pending;
+     this.update({
++      textSource: pending.payload.textSource ?? null,
++      canChooseTextSource: false,
++      sourcePreview: false,
++      sourceNotice: pending.payload.textSource
++        ? '原文格式与排版选择已随原请求冻结；恢复不会更换请求编号。'
++        : '',
+       hasRatingLink: pending.version === 5,
+       ratingLinkName: '',
+       // Original-owner recovery never releases target-identifying text before fresh public proof.
+@@ -1062,6 +1146,45 @@
+     this.persistDraft();
+     this.recompute();
+   }
++  setSourceFormat(format: string): void {
++    if (
++      !this.editable() ||
++      !this.view.canChooseTextSource ||
++      !['plain', 'markdown', 'legacy'].includes(format)
++    )
++      return;
++    const textSource =
++      format === 'legacy'
++        ? null
++        : format === 'markdown'
++          ? decodeTextSourceDescriptor({ version: 1, format: 'markdown' })
++          : DEFAULT_TEXT_SOURCE;
++    this.update({ textSource, sourcePreview: false });
++    this.persistDraft();
++    this.recompute();
++  }
++  setReadingFormatting(enabled: boolean): void {
++    if (!this.editable() || this.view.textSource?.format !== 'plain') return;
++    this.update({
++      textSource: {
++        version: 1,
++        format: 'plain',
++        readingFormatting: enabled ? 'auto' : 'off',
++      },
++    });
++    this.persistDraft();
++    this.recompute();
++  }
++  toggleSourcePreview(): void {
++    if (
++      !this.view.loaded ||
++      !this.accountId() ||
++      this.view.busy ||
++      !this.view.textSource
++    )
++      return;
++    this.update({ sourcePreview: !this.view.sourcePreview });
++  }
+   setAuthorMode(mode: string): void {
+     if (
+       !this.editable() ||
+@@ -1277,6 +1400,7 @@
+     try {
+       this.runtime.drafts.save(accountId, targetKey(this.target), {
+         version: 1,
++        ...(this.view.textSource ? { textSource: this.view.textSource } : {}),
+         text: this.view.text,
+         ...(this.target.operation === 'publish_post'
+           ? { allowAnonymousDm: this.view.allowAnonymousDm }
+@@ -1307,6 +1431,44 @@
+       this.draftSaved = false;
+       this.update({ error: communityError(error) });
+     }
++  }
++  private sourceShapeSupported(): boolean {
++    return (
++      !this.view.isTrading &&
++      !this.view.isFeedback &&
++      !this.ratingLink &&
++      !this.view.syncToRelatedCampuses &&
++      !this.view.pollDraft.enabled &&
++      !this.view.formationDraft.enabled &&
++      !this.view.allowAnonymousDm &&
++      this.view.commentsPolicy === 'open' &&
++      this.view.mediaSelected === 0 &&
++      ['idle', 'terminal', 'bound_history'].includes(this.view.mediaStatus)
++    );
++  }
++  private sourceCapabilityCurrent(): boolean {
++    return (
++      !!this.target &&
++      !!this.runtime.gateway?.submitReview &&
++      !!this.runtime.gateway.reviewStatus &&
++      this.sourceCapabilities.some(
++        (item) =>
++          item.authorMode === this.view.authorMode &&
++          item.availability === 'available' &&
++          item.operations.includes(this.target!.operation),
++      )
++    );
++  }
++  /** Format preference is not an immutable request. Ordinary plain media/components
++   * use the existing reviewed publication path; explicit Markdown is never rerouted.
++   * Called only before freeze, never as recovery from source-owner rejection. */
++  private effectiveTextSource(): TextSourceDescriptor | undefined {
++    const descriptor = this.view.textSource;
++    if (!descriptor) return undefined;
++    return descriptor.format === 'markdown' ||
++      (this.sourceShapeSupported() && this.sourceCapabilityCurrent())
++      ? descriptor
++      : undefined;
+   }
+   private recompute(): void {
+     const cap = this.capabilities,
+@@ -1449,6 +1611,17 @@
+         this.view.mediaSelected > 0)
+     )
+       blocker = '评分卡片不能与同步、图片、投票、组队或分身私信同时发布';
++    if (!blocker && this.view.textSource?.format === 'markdown') {
++      if (!this.sourceCapabilityCurrent())
++        blocker =
++          'Markdown 原文审核能力暂不可确认，请重新加载；不会自动更改格式';
++      else if (!this.sourceShapeSupported())
++        blocker =
++          'Markdown 当前仅支持纯文字、开放回复；请保留原文并明确处理图片、组件、同步和分身私信，或自行选择纯文字格式';
++      else if (!sourceTextAvailable(this.view.text, this.view.textSource))
++        blocker =
++          'Markdown 的图片和内部内容引用尚未支持；请保留原文并明确修改，不会自动删除引用';
++    }
+     if (!blocker && this.view.mediaBusy) blocker = '请先等待当前图片操作完成';
+     if (
+       !blocker &&
+@@ -1459,6 +1632,16 @@
+       blocker = '请先确认原图片的上传、审核或取消结果';
+     this.update({
+       blocker,
++      sourceNotice:
++        this.view.textSource?.format === 'markdown'
++          ? 'Markdown 为明确选择的纯文字格式，不会自动排版或调用 AI；当前预览不执行 HTML、图片或链接。'
++          : this.view.textSource?.format === 'plain'
++            ? !this.effectiveTextSource()
++              ? '当前内容按原有发布方式发送；图片、组件等内容暂不提供长文阅读排版，文字与附件保持不变。'
++              : this.view.textSource.readingFormatting === 'auto'
++                ? '纯文字原文完整保留；帖子满 300 字、回复满 200 字时允许后台生成可选阅读排版，未完成仍显示原文。'
++                : '已关闭本次阅读排版，仍完整保留纯文字原文。'
++            : '纯文字不推断 Markdown；原有图片、组件、草稿与发布记录保持不变。',
+       canDisableComments,
+       canSubmit: !blocker && !this.view.frozen && this.view.loaded,
+       canOpenIdentityCampus:
+@@ -1498,7 +1681,9 @@
+     const trading = this.view.isTrading
+       ? tradingDraftIntent(this.view.tradingDraft)
+       : undefined;
++    const source = this.effectiveTextSource();
+     const draft = {
++      ...(source ? { textSource: source } : {}),
+       ...(component.kind !== 'none' ? { component } : {}),
+       ...(trading ? { trading } : {}),
+       ...(this.view.isFeedback
+@@ -1550,6 +1735,7 @@
+                   ...(draft.trading ? { trading: draft.trading } : {}),
+                   ...(draft.feedback ? { feedback: draft.feedback } : {}),
+                   text: draft.text,
++                  ...(draft.textSource ? { textSource: draft.textSource } : {}),
+                   authorMode: draft.authorMode,
+                   commentsPolicy: draft.commentsPolicy,
+                   imageAssetIds,
+@@ -1576,6 +1762,9 @@
+                   payload: decodeReplyIntent({
+                     clientRequestId: requestId,
+                     text: draft.text,
++                    ...(draft.textSource
++                      ? { textSource: draft.textSource }
++                      : {}),
+                     authorMode: draft.authorMode,
+                     imageAssetIds,
+                     targetReplyId: target.targetReplyId,
+@@ -1592,6 +1781,9 @@
+                   payload: decodeCommentIntent({
+                     clientRequestId: requestId,
+                     text: draft.text,
++                    ...(draft.textSource
++                      ? { textSource: draft.textSource }
++                      : {}),
+                     authorMode: draft.authorMode,
+                     imageAssetIds,
+                   }),
+@@ -1694,6 +1886,41 @@
+       throw new ClientError('business', 'Review unavailable', {
+         serverCode: capability.reason ?? 'COMMUNITY_UNAVAILABLE',
+       });
++    if (attempt.payload.textSource) {
++      if (!this.runtime.gateway?.textSourceCapabilities)
++        throw new ClientError(
++          'configuration',
++          'Source review owner unavailable',
++        );
++      const parent =
++        attempt.operation === 'publish_post'
++          ? null
++          : await this.runtime.gateway.post(
++              attempt.postId,
++              cancel,
++              attempt.viewSpaceId,
++            );
++      const context =
++        attempt.operation === 'publish_post'
++          ? {
++              spaceId: attempt.payload.spaceId,
++              category: attempt.payload.category,
++            }
++          : { spaceId: parent!.space.id, category: parent!.category };
++      const source = await this.runtime.gateway.textSourceCapabilities(
++        context.spaceId,
++        context.category,
++        attempt.payload.authorMode,
++        cancel,
++      );
++      if (
++        source.availability !== 'available' ||
++        !source.operations.includes(attempt.operation)
++      )
++        throw new ClientError('business', 'Source review unavailable', {
++          serverCode: 'CONTENT_REVIEW_UNAVAILABLE',
++        });
++    }
+     this.assertOriginalAttempt(attempt);
+     const review = matchPublicationReview(
+       attempt,
+--- a/apps/wechat/src/pages/community-detail/community-detail.json
++++ b/apps/wechat/src/pages/community-detail/community-detail.json
+@@ -7,6 +7,7 @@
+     "wu-f7-block": "../../components/f7-block/f7-block",
+     "wu-f7-list": "../../components/f7-list/f7-list",
+     "wu-f7-list-item": "../../components/f7-list-item/f7-list-item",
+-    "wu-f7-input": "../../components/f7-input/f7-input"
++    "wu-f7-input": "../../components/f7-input/f7-input",
++    "wu-source-text": "../../components/source-text/source-text"
+   }
+ }
+--- a/apps/wechat/src/pages/community-detail/community-detail.ts
++++ b/apps/wechat/src/pages/community-detail/community-detail.ts
+@@ -1,3 +1,4 @@
++import { withReadingSources } from '../../community/reading-gateway';
+ import {
+   ContentReferenceController,
+   initialReferenceView,
+@@ -101,6 +102,28 @@
+   onReferenceThread(event: { detail: ReferencePress }) {
+     if (this.referenceInteractionBlocked()) return;
+     this.referenceController?.openThread(event.detail);
++  },
++  onSourceThread(event: {
++    currentTarget: { dataset: { rowKey?: string; generation?: number } };
++  }) {
++    if (this.referenceInteractionBlocked()) return;
++    const { rowKey, generation } = event.currentTarget.dataset;
++    if (typeof rowKey !== 'string' || typeof generation !== 'number') return;
++    const roots = [
++      ...this.data.comments,
++      ...(this.data.locatedComment ? [this.data.locatedComment] : []),
++    ];
++    const source =
++      roots.find((root) => `comment:${root.id}` === rowKey) ??
++      roots
++        .flatMap((root) => root.replyPreview.items)
++        .find((reply) => `reply:${reply.id}` === rowKey);
++    if (
++      source?.readingBody?.classification !== 'reviewedSource' ||
++      source.readingUseReferences
++    )
++      return;
++    this.referenceController?.openThread({ rowKey, generation });
+   },
+   referenceInteractionBlocked() {
+     return (
+@@ -397,7 +420,10 @@
+     this.formationIdentityOverlay?.dispose();
+     this.overlayTargets = '';
+     this.formationOverlayTargets = '';
+-    const runtime = getApp<WhaleuApp>().community;
++    const existingRuntime = getApp<WhaleuApp>().community;
++    const runtime = existingRuntime
++      ? withReadingSources(existingRuntime, getApp<WhaleuApp>().identity?.api)
++      : undefined;
+     if (!runtime || !this.postId) {
+       this.setData({ error: '帖子地址无效或环境尚未初始化' });
+       return;
+--- a/apps/wechat/src/pages/community-detail/community-detail.wxml
++++ b/apps/wechat/src/pages/community-detail/community-detail.wxml
+@@ -23,7 +23,7 @@
+       <text wx:if="{{item.viewer.isSelf}}" class="badge">我</text>
+     </view>
+     <view class="meta">{{item.createdAt}} · {{item.likeCount}} 赞 · {{item.replyCount === null ? '—' : item.replyCount}} 条回复</view>
+-    <view class="body"><wu-reference-text source="{{item.text}}" row-key="{{'comment:' + item.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" /></view>
++    <view class="body"><wu-source-text wx:if="{{item.readingBody &amp;&amp; item.readingBody.classification === 'reviewedSource' &amp;&amp; !item.readingUseReferences}}" presentation="{{item.readingBody.value}}" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" /><wu-reference-text wx:else source="{{item.text}}" row-key="{{'comment:' + item.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" /></view>
+     <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[item.id]}}" />
+     <button wx:if="{{item.images.length}}" class="secondary" data-kind="comment" data-id="{{item.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{item.images.length}} 张）</button>
+     <view class="comment-actions">
+@@ -54,7 +54,7 @@
+         <text>{{reply.target.status === 'available' ? reply.target.author.displayName : '当前不可查看的对象'}}</text>
+         <template wx:if="{{reply.target.status === 'available' &amp;&amp; reply.target.author.kind === 'named'}}" is="public-experience-display" data="{{display:reply.target.author.experienceDisplay,colors:experienceColorStyles}}" />
+       </view>
+-      <view class="link"><wu-reference-text source="{{reply.text}}" row-key="{{'reply:' + reply.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" fallback="{{true}}" placeholder="查看图片回复" bind:plaintextpress="onReferenceThread"><wu-icon name="chevron-right" size="16" /></wu-reference-text></view>
++      <view class="link"><wu-source-text wx:if="{{reply.readingBody &amp;&amp; reply.readingBody.classification === 'reviewedSource' &amp;&amp; !reply.readingUseReferences}}" presentation="{{reply.readingBody.value}}" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" /><wu-reference-text wx:else source="{{reply.text}}" row-key="{{'reply:' + reply.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" fallback="{{true}}" placeholder="查看图片回复" bind:plaintextpress="onReferenceThread"><wu-icon name="chevron-right" size="16" /></wu-reference-text></view><button wx:if="{{reply.readingBody &amp;&amp; reply.readingBody.classification === 'reviewedSource' &amp;&amp; !reply.readingUseReferences}}" class="link" data-row-key="{{'reply:' + reply.id}}" data-generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bindtap="onSourceThread">查看此条回复</button>
+       <button wx:if="{{reply.images.length}}" class="secondary" data-kind="reply" data-id="{{reply.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{reply.images.length}} 张）</button>
+       <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[reply.id]}}" />
+       <wu-f7-button class="more-button" data-menu="{{'reply:' + reply.id}}" bind:press="onToggleMenu" aria-label="展开更多操作">{{uiExpandedMenu === 'reply:' + reply.id ? '收起' : '更多'}}</wu-f7-button>
+@@ -95,7 +95,7 @@
+     <view class="meta">{{post.space.name}} · {{post.publishedAt}}<text wx:if="{{references.available &amp;&amp; references.codes['post:' + post.id]}}" selectable="{{true}}"> · #{{references.codes['post:' + post.id]}}</text></view>
+     <view wx:if="{{post.isRelatedCampusSync}}" class="badge">来自 {{post.sourceRegion.name}} · 关联学校同步</view>
+     <view class="body">
+-      <wu-reference-text source="{{post.text}}" row-key="{{'post:' + post.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" />
++      <wu-source-text wx:if="{{post.readingBody &amp;&amp; post.readingBody.classification === 'reviewedSource' &amp;&amp; !post.readingUseReferences}}" presentation="{{post.readingBody.value}}" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" /><wu-reference-text wx:else source="{{post.text}}" row-key="{{'post:' + post.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" />
+     </view>
+     <template is="rating-target-link-card" data="{{component:post.component,postId:post.id,busy}}" />
+     <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[post.id]}}" />
+@@ -297,7 +297,7 @@
+       <text>{{locatedComment.author.displayName}}</text>
+       <template wx:if="{{locatedComment.author.kind === 'named'}}" is="public-experience-display" data="{{display:locatedComment.author.experienceDisplay,colors:experienceColorStyles}}" />
+     </view>
+-    <view class="link"><wu-reference-text source="{{locatedComment.text}}" row-key="{{'comment:' + locatedComment.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" fallback="{{true}}" placeholder="查看图片回复" bind:plaintextpress="onReferenceThread"><wu-icon name="chevron-right" size="16" /></wu-reference-text></view>
++    <view class="link"><wu-source-text wx:if="{{locatedComment.readingBody &amp;&amp; locatedComment.readingBody.classification === 'reviewedSource' &amp;&amp; !locatedComment.readingUseReferences}}" presentation="{{locatedComment.readingBody.value}}" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" /><wu-reference-text wx:else source="{{locatedComment.text}}" row-key="{{'comment:' + locatedComment.id}}" available="{{references.available}}" generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bind:referencepress="onReferencePress" fallback="{{true}}" placeholder="查看图片回复" bind:plaintextpress="onReferenceThread"><wu-icon name="chevron-right" size="16" /></wu-reference-text></view><button wx:if="{{locatedComment.readingBody &amp;&amp; locatedComment.readingBody.classification === 'reviewedSource' &amp;&amp; !locatedComment.readingUseReferences}}" class="link" data-row-key="{{'comment:' + locatedComment.id}}" data-generation="{{references.generation}}" disabled="{{busy || needsReload || references.busy || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" bindtap="onSourceThread">打开这条讨论</button>
+     <button wx:if="{{locatedComment.images.length}}" class="secondary" data-kind="comment" data-id="{{locatedComment.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{locatedComment.images.length}} 张）</button>
+     <wu-f7-button class="more-button" data-menu="located" bind:press="onToggleMenu" aria-label="回复的更多操作"><wu-icon name="more" size="20" /></wu-f7-button>
+     <view wx:if="{{uiExpandedMenu === 'located'}}" class="context-menu">    <wu-f7-button wx:if="{{!locatedComment.viewer.isSelf}}" data-id="{{locatedComment.id}}" bind:press="onReportComment" disabled="{{busy || report.busy || report.frozen}}">举报此内容</wu-f7-button>
+--- a/apps/wechat/src/pages/community-detail/controller.ts
++++ b/apps/wechat/src/pages/community-detail/controller.ts
+@@ -1,8 +1,5 @@
+ import { countsAfterRootDeletion } from '../../community/discussion-counts';
+-import {
+-  checkDiscussionPrivacy,
+-  type Reply,
+-} from '../../community/discussion-contract';
++import { checkDiscussionPrivacy } from '../../community/discussion-contract';
+ import type { CommentQuery } from '../../community/gateway';
+ import { ClientError } from '../../api/errors';
+ import {
+@@ -10,7 +7,11 @@
+   initialCommunityView,
+   type CommunityView,
+ } from '../../community/controller';
+-import type { Comment, Post } from '../../community/contract';
++import type {
++  ReadingComment as Comment,
++  ReadingPost as Post,
++  ReadingReply as Reply,
++} from '../../community/reading-contract';
+ import type { CommunityRuntime } from '../../community/runtime';
+ export interface DetailView extends CommunityView {
+   readonly viewSpaceQuery: string;
+--- a/apps/wechat/src/pages/community-thread/community-thread.json
++++ b/apps/wechat/src/pages/community-thread/community-thread.json
+@@ -5,6 +5,7 @@
+     "wu-f7-button": "../../components/f7-button/f7-button",
+     "wu-f7-block": "../../components/f7-block/f7-block",
+     "wu-f7-list": "../../components/f7-list/f7-list",
+-    "wu-f7-list-item": "../../components/f7-list-item/f7-list-item"
++    "wu-f7-list-item": "../../components/f7-list-item/f7-list-item",
++    "wu-source-text": "../../components/source-text/source-text"
+   }
+ }
+--- a/apps/wechat/src/pages/community-thread/community-thread.ts
++++ b/apps/wechat/src/pages/community-thread/community-thread.ts
+@@ -1,3 +1,4 @@
++import { withReadingSources } from '../../community/reading-gateway';
+ import {
+   NamedAvatarController,
+   initialNamedAvatarView,
+@@ -122,7 +123,10 @@
+     this.mutations?.dispose();
+     this.identityOverlay?.dispose();
+     this.overlayTargets = '';
+-    const runtime = getApp<WhaleuApp>().community;
++    const existingRuntime = getApp<WhaleuApp>().community;
++    const runtime = existingRuntime
++      ? withReadingSources(existingRuntime, getApp<WhaleuApp>().identity?.api)
++      : undefined;
+     if (!runtime || !this.postId || !this.rootCommentId) {
+       this.setData({ error: '讨论地址无效或环境尚未初始化' });
+       return;
+--- a/apps/wechat/src/pages/community-thread/community-thread.wxml
++++ b/apps/wechat/src/pages/community-thread/community-thread.wxml
+@@ -20,7 +20,7 @@
+ <text wx:else>{{reply.target.status === 'available' ? reply.target.author.displayName : '当前不可查看的对象'}}</text>
+ <template wx:if="{{reply.target.status === 'available' &amp;&amp; reply.target.author.kind === 'named'}}" is="public-experience-display" data="{{display:reply.target.author.experienceDisplay,colors:experienceColorStyles}}" />
+ </view>
+-<view class="body">{{reply.text}}</view>
++<wu-source-text wx:if="{{reply.readingBody &amp;&amp; reply.readingBody.classification === 'reviewedSource'}}" presentation="{{reply.readingBody.value}}" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" /><view wx:else class="body">{{reply.text}}</view>
+ <button wx:if="{{reply.images.length}}" class="secondary" data-kind="reply" data-id="{{reply.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{reply.images.length}} 张）</button>
+ <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[reply.id]}}" />
+ <wu-f7-button class="more-button" data-menu="{{'reply:' + reply.id}}" bind:press="onToggleThreadMenu" aria-label="回复的更多操作"><wu-icon name="more" size="20" /></wu-f7-button>
+@@ -60,7 +60,7 @@
+ <template wx:if="{{root.author.kind === 'named'}}" is="public-experience-display" data="{{display:root.author.experienceDisplay,colors:experienceColorStyles}}" />
+ <text wx:if="{{root.author.kind === 'anonymous'}}" class="badge">分身</text>
+ </view>
+-<view class="body">{{root.text}}</view>
++<wu-source-text wx:if="{{root.readingBody &amp;&amp; root.readingBody.classification === 'reviewedSource'}}" presentation="{{root.readingBody.value}}" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}" /><view wx:else class="body">{{root.text}}</view>
+ <button wx:if="{{root.images.length}}" class="secondary" data-kind="comment" data-id="{{root.id}}" bindtap="onSelectGallery" disabled="{{busy || needsReload || block.busy || block.frozen || report.busy || report.frozen || interaction.busy || interaction.frozen}}">查看回复图片（{{root.images.length}} 张）</button>
+ <template wx:if="{{identityOverlay.developerEnabled}}" is="identity-overlay" data="{{identity:identityOverlay.items[root.id]}}" />
+ <view class="meta">{{root.likeCount}} 赞 · {{root.replyCount === null ? '—' : root.replyCount}} 条回复</view>
+--- a/apps/wechat/src/pages/community-thread/controller.ts
++++ b/apps/wechat/src/pages/community-thread/controller.ts
+@@ -4,11 +4,12 @@
+   initialCommunityView,
+   type CommunityView,
+ } from '../../community/controller';
+-import type { Comment, Post } from '../../community/contract';
+-import {
+-  checkDiscussionPrivacy,
+-  type Reply,
+-} from '../../community/discussion-contract';
++import type {
++  ReadingComment as Comment,
++  ReadingPost as Post,
++  ReadingReply as Reply,
++} from '../../community/reading-contract';
++import { checkDiscussionPrivacy } from '../../community/discussion-contract';
+ import type { CommunityRuntime } from '../../community/runtime';
+ export interface ThreadView extends CommunityView {
+   readonly viewSpaceQuery: string;

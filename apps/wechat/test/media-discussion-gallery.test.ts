@@ -18,7 +18,7 @@ import {
 } from '../src/media/read-controller';
 import { comment, post, reply } from './community-helpers';
 import { credentials, deferred, flush, signedIn } from './helpers';
-import { reviewedReferencePresentation } from './reviewed-reference-successor';
+import { reviewedReferencePresentation } from './reviewed-reading-successor';
 import { attachment, ReadFiles } from './support/media-read-fixtures';
 
 const uuid = (n: number): string =>

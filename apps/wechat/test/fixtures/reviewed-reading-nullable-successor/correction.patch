@@ -1,0 +1,15 @@
+--- a/apps/wechat/src/pages/community-compose/community-compose.wxml
++++ b/apps/wechat/src/pages/community-compose/community-compose.wxml
+@@ -11,9 +11,9 @@
+       <view wx:if="{{canChooseTextSource || textSource}}" class="source-options">
+         <view class="chips" wx:if="{{!frozen}}">
+           <wu-f7-button data-format="plain" bind:press="onSourceFormat" disabled="{{busy}}" variant="{{(!textSource || textSource.format === 'plain') ? 'tonal' : 'plain'}}">纯文字</wu-f7-button>
+-          <wu-f7-button data-format="markdown" bind:press="onSourceFormat" disabled="{{busy}}" variant="{{textSource.format === 'markdown' ? 'tonal' : 'plain'}}">Markdown</wu-f7-button>
+-        </view>
+-        <view wx:if="{{textSource.format === 'plain'}}" class="row"><text>允许长文阅读排版</text><switch checked="{{textSource.readingFormatting === 'auto'}}" bindchange="onReadingFormatting" disabled="{{frozen || busy}}" color="#007aff" /></view>
++          <wu-f7-button data-format="markdown" bind:press="onSourceFormat" disabled="{{busy}}" variant="{{textSource &amp;&amp; textSource.format === 'markdown' ? 'tonal' : 'plain'}}">Markdown</wu-f7-button>
++        </view>
++        <view wx:if="{{textSource &amp;&amp; textSource.format === 'plain'}}" class="row"><text>允许长文阅读排版</text><switch checked="{{textSource.readingFormatting === 'auto'}}" bindchange="onReadingFormatting" disabled="{{frozen || busy}}" color="#007aff" /></view>
+         <view class="notice">{{sourceNotice}}</view>
+         <wu-f7-button wx:if="{{textSource}}" bind:press="onSourcePreview" disabled="{{busy}}">{{sourcePreview ? '关闭预览' : '预览原文格式'}}</wu-f7-button>
+         <wu-source-text wx:if="{{sourcePreview &amp;&amp; textSource}}" source="{{text}}" descriptor="{{textSource}}" preview="{{true}}" disabled="{{busy}}" />

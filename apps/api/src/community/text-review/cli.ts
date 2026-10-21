@@ -18,7 +18,9 @@ async function main(): Promise<void> {
   if (command.command === 'show' && !process.stdout.isTTY)
     throw new Error('Content display requires a private interactive terminal');
   const config = loadConfig(process.env);
-  const operator = `local:${hostname()}:${userInfo().username}`;
+  const operator = `${config.COMMUNITY_TEXT_REVIEW === 'source_manual' ? 'manual' : 'local'}:${hostname()}:${userInfo().username}`;
+  if (config.COMMUNITY_TEXT_REVIEW_OPERATOR !== operator)
+    throw new Error('Configured operator does not match this OS identity');
   const service = new TextReviewOperator(
     new TextReviewRuntime(
       config,
@@ -32,7 +34,7 @@ async function main(): Promise<void> {
   );
   const pool = new Pool({ ...poolOptions(config), max: 1 });
   pool.on('error', () =>
-    process.stderr.write('Local review database connection failed\n'),
+    process.stderr.write('Human review database connection failed\n'),
   );
   try {
     const result = await inTransaction(pool, (tx) => service.run(command, tx));
@@ -45,7 +47,7 @@ async function main(): Promise<void> {
 }
 main().catch(() => {
   process.stderr.write(
-    'Local review failed; check command, operator, non-production configuration and pending request\n',
+    'Human review failed; check command, operator, explicit configuration and pending request\n',
   );
   process.exitCode = 1;
 });

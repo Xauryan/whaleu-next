@@ -1,3 +1,9 @@
+import {
+  withReviewedTextSource,
+  requireOrdinarySourceParent,
+} from '../text-source/publication.js';
+import { insertTextSource } from '../text-source/repository.js';
+import { appendTextSource } from '../text-source/protocol.js';
 import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { bindCategoryChildContext } from '../category-reclassification/child-context.js';
 import type { TextReviewStatus } from '../text-review/contracts.js';
@@ -19,13 +25,16 @@ import { PublicationService } from '../publication.service.js';
 import type { AuthorMode, PublicationReceipt } from '../contracts.js';
 import type { PublishReply } from './contracts.js';
 export function replyIntent(rootCommentId: string, body: PublishReply) {
-  return {
-    rootCommentId: rootCommentId.toLowerCase(),
-    targetReplyId: body.targetReplyId,
-    text: body.text,
-    imageAssetIds: body.imageAssetIds,
-    authorMode: body.authorMode,
-  };
+  return appendTextSource(
+    {
+      rootCommentId: rootCommentId.toLowerCase(),
+      targetReplyId: body.targetReplyId,
+      text: body.text,
+      imageAssetIds: body.imageAssetIds,
+      authorMode: body.authorMode,
+    },
+    body.textSource,
+  );
 }
 export function replyApprovalHash(
   postId: string,
@@ -92,6 +101,8 @@ export class ReplyPublicationService {
               body.authorMode,
             );
           if (!root) throw new ApplicationError('REPLY_NOT_FOUND');
+          if (body.textSource !== undefined)
+            await requireOrdinarySourceParent(post.id, tx);
           const { images: assets, approval } = await this.approval.approved(
             actor,
             'publish_reply',
@@ -111,27 +122,30 @@ export class ReplyPublicationService {
               targetReplyId: body.targetReplyId,
               effectiveAuthorMode: mode,
             },
-            {
-              ...(await this.approval.discussionScope(
-                authority,
-                space,
-                post.id,
-                post.publication_envelope_version,
-                tx,
-              )),
-              accountId: actor,
-              purpose: 'publish_reply',
-              spaceId: space.id,
-              category: post.category,
-              authorMode: mode,
-              commentsPolicy: post.comments_policy,
-              postId: post.id,
-              rootCommentId: root.id,
-              targetReplyId: body.targetReplyId,
-              text: body.text,
-              component: { kind: 'none' },
-              trading: null,
-            },
+            withReviewedTextSource(
+              {
+                ...(await this.approval.discussionScope(
+                  authority,
+                  space,
+                  post.id,
+                  post.publication_envelope_version,
+                  tx,
+                )),
+                accountId: actor,
+                purpose: 'publish_reply',
+                spaceId: space.id,
+                category: post.category,
+                authorMode: mode,
+                commentsPolicy: post.comments_policy,
+                postId: post.id,
+                rootCommentId: root.id,
+                targetReplyId: body.targetReplyId,
+                text: body.text,
+                component: { kind: 'none' },
+                trading: null,
+              },
+              body.textSource,
+            ),
             {
               clientRequestId: body.clientRequestId,
               operation: 'publish_reply',
@@ -150,6 +164,23 @@ export class ReplyPublicationService {
             [id, post.id, root.id, body.targetReplyId, actor, body.text, mode],
           );
           await this.repository.attach('reply', id, assets, tx);
+          await insertTextSource(
+            {
+              kind: 'reply',
+              id,
+              accountId: actor,
+              requestId: body.clientRequestId,
+              requestedAuthorMode: body.authorMode,
+              originalIntentHash: publicationHash(
+                'publish_reply',
+                replyIntent(rootId, body),
+              ),
+              text: body.text,
+              source: body.textSource,
+              approval,
+            },
+            tx,
+          );
           await this.approval.bind(approval, 'reply', id, tx, assets);
           if (approval)
             await bindCategoryChildContext(

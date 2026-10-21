@@ -63,6 +63,7 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
     LocalApprovedContentVisibility,
   ],
   exports: [
+    ContentDefinitionRepository,
     CurrentRatingLinkDependency,
     CommunityDistributionService,
     WindowDiscussionReviewFacade,

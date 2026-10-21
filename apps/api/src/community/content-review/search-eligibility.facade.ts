@@ -309,7 +309,11 @@ export function evaluateSearchContentCertificate(
       false,
       now,
       'POST_NOT_FOUND',
-      node.envelope_version === 4 ? 'local-related-v1' : 'local-explicit-v1',
+      node.envelope_version === 6
+        ? 'local-text-source-v1'
+        : node.envelope_version === 4
+          ? 'local-related-v1'
+          : 'local-explicit-v1',
     );
     until = minimum(until, reviewed.optionalUntil);
     if (reviewed.decision.kind !== 'allow')
@@ -632,9 +636,11 @@ export class ContentReviewSearchEligibilityFacade {
           false,
           node.read_at?.getTime() ?? NaN,
           'POST_NOT_FOUND',
-          node.envelope_version === 4
-            ? 'local-related-v1'
-            : 'local-explicit-v1',
+          node.envelope_version === 6
+            ? 'local-text-source-v1'
+            : node.envelope_version === 4
+              ? 'local-related-v1'
+              : 'local-explicit-v1',
         );
         const expected = exactNodeImages(node);
         if (
@@ -877,7 +883,11 @@ export class ContentReviewSearchEligibilityFacade {
         false,
         current.now.getTime(),
         'POST_NOT_FOUND',
-        node.envelope_version === 4 ? 'local-related-v1' : 'local-explicit-v1',
+        node.envelope_version === 6
+          ? 'local-text-source-v1'
+          : node.envelope_version === 4
+            ? 'local-related-v1'
+            : 'local-explicit-v1',
       );
       if (evaluated.decision.kind === 'unavailable')
         return { decision: 'unknown' };

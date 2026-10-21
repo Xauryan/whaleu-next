@@ -1,3 +1,16 @@
+import type { PoolClient } from 'pg';
+import type { StoredComment, StoredReply } from '../community.repository.js';
+import type { ReplyView } from '../contracts.js';
+type ProjectComment<T> = (
+  content: CommentView,
+  row: StoredComment,
+  tx: PoolClient,
+) => Promise<T>;
+type ProjectReply<T> = (
+  content: ReplyView,
+  row: StoredReply,
+  tx: PoolClient,
+) => Promise<T>;
 import { DiscussionPages } from './pages.js';
 import { AccountPolicy } from '../../safety/account-policy/decorator.js';
 import { enableSafetyRelationshipProof } from '../../safety/relationship-proof.js';
@@ -21,6 +34,20 @@ export class DiscussionReadService {
   ) {}
   @AccountPolicy('browse', 'entry')
   comments(token: string, postId: string, query: CommentsQuery) {
+    return this.projectComments(
+      token,
+      postId,
+      query,
+      async (content) => content,
+    );
+  }
+  @AccountPolicy('browse', 'entry')
+  projectComments<T>(
+    token: string,
+    postId: string,
+    query: CommentsQuery,
+    project: ProjectComment<T>,
+  ) {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
@@ -35,18 +62,22 @@ export class DiscussionReadService {
         );
         const authority = await this.access.advisory(actor, space, tx);
         const page = await this.pages.roots(post, actor, sessionId, query, tx);
-        const items: CommentView[] = [];
+        const items: T[] = [];
         for (const selected of page.rows)
           items.push(
-            await this.serializer.comment(
+            await project(
+              await this.serializer.comment(
+                selected.row,
+                post,
+                actor,
+                authority,
+                tx,
+                query.previewLimit,
+                selected.metadata,
+                sessionId,
+              ),
               selected.row,
-              post,
-              actor,
-              authority,
               tx,
-              query.previewLimit,
-              selected.metadata,
-              sessionId,
             ),
           );
         const result = { items, nextCursor: page.nextCursor };
@@ -59,6 +90,10 @@ export class DiscussionReadService {
   }
   @AccountPolicy('browse', 'entry')
   comment(token: string, id: string) {
+    return this.projectComment(token, id, async (content) => content);
+  }
+  @AccountPolicy('browse', 'entry')
+  projectComment<T>(token: string, id: string, project: ProjectComment<T>) {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
@@ -78,26 +113,35 @@ export class DiscussionReadService {
           undefined,
           sessionId,
         );
+        const projected = await project(result, comment, tx);
         await this.pages.flush(tx);
-        return result;
+        return projected;
       },
       { isolationLevel: 'read committed' },
     );
   }
   @AccountPolicy('browse', 'entry')
   reply(token: string, id: string) {
+    return this.projectReply(token, id, async (content) => content);
+  }
+  @AccountPolicy('browse', 'entry')
+  projectReply<T>(token: string, id: string, project: ProjectReply<T>) {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
         const { accountId: actor } = await this.access.mediaSession(token, tx);
         const { post, comment, reply, authority } =
           await this.access.accessibleReply(id, actor, tx);
-        return this.serializer.reply(
+        return project(
+          await this.serializer.reply(
+            reply,
+            post,
+            comment,
+            actor,
+            authority,
+            tx,
+          ),
           reply,
-          post,
-          comment,
-          actor,
-          authority,
           tx,
         );
       },
@@ -106,6 +150,15 @@ export class DiscussionReadService {
   }
   @AccountPolicy('browse', 'entry')
   replies(token: string, id: string, query: PageQuery) {
+    return this.projectReplies(token, id, query, async (content) => content);
+  }
+  @AccountPolicy('browse', 'entry')
+  projectReplies<T>(
+    token: string,
+    id: string,
+    query: PageQuery,
+    project: ProjectReply<T>,
+  ) {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
@@ -124,15 +177,19 @@ export class DiscussionReadService {
           query.limit,
           query.cursor,
         );
-        const items = [];
+        const items: T[] = [];
         for (const row of page.rows)
           items.push(
-            await this.serializer.reply(
+            await project(
+              await this.serializer.reply(
+                row,
+                post,
+                comment,
+                actor,
+                authority,
+                tx,
+              ),
               row,
-              post,
-              comment,
-              actor,
-              authority,
               tx,
             ),
           );
@@ -149,6 +206,22 @@ export class DiscussionReadService {
     token: string,
     postId: string,
     query: { commentId?: string; replyId?: string },
+  ) {
+    return this.projectContext(
+      token,
+      postId,
+      query,
+      async (content) => content,
+      async (content) => content,
+    );
+  }
+  @AccountPolicy('browse', 'entry')
+  projectContext<C, R>(
+    token: string,
+    postId: string,
+    query: { commentId?: string; replyId?: string },
+    projectComment: ProjectComment<C>,
+    projectReply: ProjectReply<R>,
   ) {
     return this.repository.database.transaction(
       async (tx) => {
@@ -178,36 +251,48 @@ export class DiscussionReadService {
           tx,
           target,
         );
-        const items = [];
+        const items: R[] = [];
         for (const row of window)
           items.push(
-            await this.serializer.reply(
-              row,
-              post,
-              comment,
-              actor,
-              authority,
-              tx,
-            ),
-          );
-        const result = {
-          comment: await this.serializer.comment(
-            comment,
-            post,
-            actor,
-            authority,
-            tx,
-            2,
-            undefined,
-            sessionId,
-          ),
-          reply: query.replyId
-            ? await this.serializer.reply(
-                target!,
+            await projectReply(
+              await this.serializer.reply(
+                row,
                 post,
                 comment,
                 actor,
                 authority,
+                tx,
+              ),
+              row,
+              tx,
+            ),
+          );
+        const result = {
+          comment: await projectComment(
+            await this.serializer.comment(
+              comment,
+              post,
+              actor,
+              authority,
+              tx,
+              2,
+              undefined,
+              sessionId,
+            ),
+            comment,
+            tx,
+          ),
+          reply: query.replyId
+            ? await projectReply(
+                await this.serializer.reply(
+                  target!,
+                  post,
+                  comment,
+                  actor,
+                  authority,
+                  tx,
+                ),
+                target!,
                 tx,
               )
             : null,

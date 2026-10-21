@@ -44,12 +44,13 @@ const schema = z.object({
     .enum(['disabled', 'manual'])
     .default('disabled'),
   COMMUNITY_TEXT_REVIEW: z
-    .enum(['disabled', 'local_manual'])
+    .enum(['disabled', 'local_manual', 'source_manual'])
     .default('disabled'),
   COMMUNITY_FEEDBACK_SPACE_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_SPACE_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_REGION_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_POLICY_ID: z.uuid().optional(),
+  COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID: z.uuid().optional(),
   COMMUNITY_RELATED_REVIEW_POLICY_ID: z.uuid().optional(),
   COMMUNITY_TEXT_REVIEW_OPERATOR: z.string().min(1).max(200).optional(),
   COMMUNITY_SEMANTIC_SEARCH: z
@@ -71,6 +72,16 @@ const schema = z.object({
     .regex(/^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$/)
     .optional(),
   COMMUNITY_SEMANTIC_TIMEOUT_MS: positiveInteger(5000, 30000),
+  COMMUNITY_READING_FORMATTING_PROCESSING: z
+    .enum(['disabled', 'manual_only', 'automatic'])
+    .default('disabled'),
+  COMMUNITY_READING_FORMATTING_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .min(1000)
+    .max(60000)
+    .default(5000),
+  COMMUNITY_READING_FORMATTING_TICKS_PER_CYCLE: positiveInteger(1, 32),
   COMMUNITY_UPDATES_PROCESSING: z
     .enum(['disabled', 'manual_only', 'automatic'])
     .default('manual_only'),
@@ -150,6 +161,30 @@ export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
   )
     throw new Error(
       'Related review requires explicit non-production local manual review',
+    );
+  // Production-capable HUMAN review, explicitly source-only. No policy or
+  // decision is seeded, and this is not an automatic provider admission.
+  if (
+    config.COMMUNITY_TEXT_REVIEW === 'source_manual' &&
+    (!config.COMMUNITY_TEXT_REVIEW_SPACE_ID ||
+      !config.COMMUNITY_TEXT_REVIEW_REGION_ID ||
+      !config.COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID ||
+      !config.COMMUNITY_TEXT_REVIEW_OPERATOR ||
+      config.COMMUNITY_TEXT_REVIEW_POLICY_ID ||
+      config.COMMUNITY_RELATED_REVIEW_POLICY_ID ||
+      config.COMMUNITY_FEEDBACK_SPACE_ID)
+  )
+    throw new Error(
+      'Source manual review requires an explicit single scope, source policy and operator; unrelated review is not admitted',
+    );
+  if (
+    config.COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID &&
+    config.COMMUNITY_TEXT_REVIEW !== 'source_manual' &&
+    (config.NODE_ENV === 'production' ||
+      config.COMMUNITY_TEXT_REVIEW !== 'local_manual')
+  )
+    throw new Error(
+      'Source review requires explicit local manual or source manual review',
     );
   if (
     config.COMMUNITY_SEMANTIC_SEARCH === 'enabled' &&

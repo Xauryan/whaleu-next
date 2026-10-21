@@ -1,3 +1,10 @@
+import { ReadingFormattingRuntime } from './reading-formatting/runtime.js';
+import {
+  textSourceIntentHash,
+  textSourceDescriptorSchema,
+  sourceTextAvailable,
+  sourceDescriptor,
+} from './text-source/protocol.js';
 import { AccountPolicy } from '../safety/account-policy/decorator.js';
 import { ContentReferenceAllocation } from './content-references/allocation.js';
 import { CommunityMediaBatchPublicationProof } from './media/batch-publication-proof.js';
@@ -64,12 +71,44 @@ export function publicationHash(
     intent.component !== null &&
     'kind' in intent.component &&
     intent.component.kind === 'rating_target_link';
+  const source =
+    typeof intent === 'object' &&
+    intent !== null &&
+    Object.hasOwn(intent, 'textSource');
+  if (source) {
+    if (card) throw new TypeError('Invalid source intent');
+    return textSourceIntentHash(operation, intent);
+  }
   return createHash('sha256')
     .update(
       (card ? 'whaleu-community-rating-target-link:v1\n' : '') +
         JSON.stringify({ operation, intent }),
     )
     .digest('hex');
+}
+/** Narrow startup admission only. Real actor, scope, parent and exact v6
+ * envelope are rebuilt below; this descriptor is never authorization evidence. */
+function sourceManualIntent(intent: unknown): boolean {
+  if (!intent || typeof intent !== 'object') return false;
+  const value = intent as Record<string, unknown>;
+  const source = textSourceDescriptorSchema.safeParse(value['textSource']);
+  return (
+    source.success &&
+    typeof value['text'] === 'string' &&
+    sourceTextAvailable(value['text'], source.data) &&
+    Array.isArray(value['imageAssetIds']) &&
+    value['imageAssetIds'].length === 0 &&
+    value['category'] !== 'feedback' &&
+    value['category'] !== 'trading' &&
+    value['syncToRelatedCampuses'] !== true &&
+    value['allowAnonymousDm'] !== true &&
+    (value['commentsPolicy'] === undefined ||
+      value['commentsPolicy'] === 'open') &&
+    value['trading'] === undefined &&
+    value['feedback'] === undefined &&
+    (value['component'] === undefined ||
+      canonicalJson(value['component']) === canonicalJson({ kind: 'none' }))
+  );
 }
 @Injectable()
 export class PublicationRepository {
@@ -94,6 +133,9 @@ export class PublicationRepository {
     @Optional()
     @Inject(TextReviewRuntime)
     private readonly reviews?: TextReviewRuntime,
+    @Optional()
+    @Inject(ReadingFormattingRuntime)
+    private readonly reading?: ReadingFormattingRuntime,
   ) {}
   execute(
     token: string,
@@ -138,9 +180,19 @@ export class PublicationRepository {
     ) => Promise<{ resourceId: string; createdAt: string }>,
     reviewOnly = false,
   ): Promise<PublicationReceipt | TextReviewStatus> {
-    if (reviewOnly && !this.reviews?.configured())
+    const sourceOnlyReview = reviewOnly && !this.reviews?.configured();
+    if (
+      sourceOnlyReview &&
+      !(this.reviews?.sourceConfigured() && sourceManualIntent(intent))
+    )
       return Promise.reject(new ApplicationError('CONTENT_REVIEW_UNAVAILABLE'));
-    return this.repository.database.transaction(async (tx) => {
+    const transaction = (
+      work: (tx: PoolClient) => Promise<PublicationReceipt | TextReviewStatus>,
+    ) =>
+      this.repository.database.transaction(work, {
+        isolationLevel: 'read committed',
+      });
+    return transaction(async (tx) => {
       // Nonempty Media publication writes the Media owner and must take its
       // outer writer gate before actor/business locks, never upgrade afterwards.
       if (
@@ -236,6 +288,17 @@ export class PublicationRepository {
             canonicalJson(current.envelope) !== canonicalJson(error.envelope)
           )
             throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+          // Even a source-shaped intent must produce the exact real source
+          // envelope twice; never queue a legacy or unrelated prepared result.
+          if (
+            sourceOnlyReview &&
+            (current.envelope.version !== 6 ||
+              canonicalJson(sourceDescriptor(current.envelope.textSource)) !==
+                canonicalJson(
+                  (intent as Record<string, unknown>)['textSource'],
+                ))
+          )
+            throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
           const status = await this.reviews.submit(
             current.envelope,
             {
@@ -320,6 +383,17 @@ export class PublicationRepository {
         await enrollPublishedHotProcessing(receipt.resourceId, tx);
       }
       await this.access.actor(token, tx);
+      if (receipt.outcome === 'created' && this.reading)
+        await this.reading.enrollCreated(
+          operation === 'publish_post'
+            ? 'post'
+            : operation === 'publish_comment'
+              ? 'comment'
+              : 'reply',
+          receipt.resourceId,
+          requestId,
+          tx,
+        );
       return receipt;
     });
   }

@@ -41,7 +41,8 @@
     "ratings:subscriptions:process": "npm run ratings:subscriptions:process -w @whaleu/api --",
     "search:eval:test": "node --test scripts/search-eval.test.mjs",
     "test:simulated:e2e": "bash scripts/run-simulated-native-e2e.sh",
-    "ci:check": "node --test scripts/run-integration-shard.test.mjs scripts/run-integration-module.test.mjs scripts/ci-native-artifact.test.mjs scripts/ci-workflow.test.mjs"
+    "ci:check": "node --test scripts/run-integration-shard.test.mjs scripts/run-integration-module.test.mjs scripts/ci-native-artifact.test.mjs scripts/ci-workflow.test.mjs",
+    "test:source-manual:production": "npm run test:source-manual:production -w @whaleu/api"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -1,3 +1,4 @@
+import { textSourceDescriptorSchema } from './text-source/protocol.js';
 import type { RatingTargetLinkView } from './rating-target-link/contracts.js';
 import { feedbackInputSchema } from './feedback/contracts.js';
 import type { FeedbackView } from './feedback/contracts.js';
@@ -51,7 +52,23 @@ export const publishPostSchema = z
     component: postComponentSchema.optional(),
     trading: tradingInputSchema.optional(),
     feedback: feedbackInputSchema.optional(),
+    textSource: textSourceDescriptorSchema.optional(),
   })
+  .refine(
+    (body) =>
+      body.textSource === undefined ||
+      (body.clientRequestId === body.clientRequestId.toLowerCase() &&
+        body.spaceId === body.spaceId.toLowerCase() &&
+        body.category !== 'feedback' &&
+        body.category !== 'trading' &&
+        body.commentsPolicy === 'open' &&
+        body.syncToRelatedCampuses !== true &&
+        body.allowAnonymousDm !== true &&
+        (!body.component || body.component.kind === 'none') &&
+        body.trading === undefined &&
+        body.feedback === undefined),
+    'Explicit source supports ordinary publications only',
+  )
   .refine(
     (body) =>
       body.component?.kind !== 'rating_target_link' ||
@@ -89,9 +106,16 @@ export const publishCommentSchema = z
     text: textSchema(500),
     imageAssetIds: imagesSchema(3),
     authorMode: authorModeSchema,
+    textSource: textSourceDescriptorSchema.optional(),
   })
   .refine(
     (value) => value.text.trim().length > 0 || value.imageAssetIds.length > 0,
+  )
+  .refine(
+    (value) =>
+      value.textSource === undefined ||
+      value.clientRequestId === value.clientRequestId.toLowerCase(),
+    'Source request identifiers must be canonical',
   );
 export type PublishPost = z.infer<typeof publishPostSchema>;
 export type PublishComment = z.infer<typeof publishCommentSchema>;

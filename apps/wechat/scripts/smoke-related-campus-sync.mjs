@@ -30,6 +30,7 @@ export async function smokeRelatedCampusSync({
     destination = 'abababab-abab-4bab-8bab-abababababab',
     requestId = 'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd';
   const requests = [];
+  const decodedSourceModes = [];
   let reviewStatus = 'pending',
     published = false,
     page;
@@ -48,6 +49,31 @@ export async function smokeRelatedCampusSync({
         query: options.query,
       });
       let result;
+      if (endpoint.path === '/v1/community/text-source-capabilities') {
+        assert.equal(endpoint.method, 'GET');
+        assert.equal(options.body, undefined);
+        assert.ok(['named', 'anonymous'].includes(options.query?.authorMode));
+        assert.deepEqual(options.query, {
+          spaceId: post.space.id,
+          category: 'discussion',
+          authorMode: options.query.authorMode,
+        });
+        // This legacy journey has no source publisher. Exercise the real strict
+        // decoder rather than treating a missing fixture route as unavailability.
+        const decoded = endpoint.decode({
+          version: 1,
+          authorMode: options.query.authorMode,
+          availability: 'unavailable',
+          operations: [],
+          formats: [],
+          readingFormatting: [],
+          media: 'unavailable',
+          markdownReferences: 'unavailable',
+          formatter: 'not_configured',
+        });
+        decodedSourceModes.push(decoded.authorMode);
+        return decoded;
+      }
       if (endpoint.path === '/v1/community/capabilities')
         result = {
           publish: { availability: 'allowed', reason: null },
@@ -64,6 +90,7 @@ export async function smokeRelatedCampusSync({
         };
       else if (endpoint.path === '/v1/community/reviews/posts') {
         assert.equal(options.body.syncToRelatedCampuses, true);
+        assert.equal(Object.hasOwn(options.body, 'textSource'), false);
         assert.equal(
           app.community.pending.load(accountId).viewSpaceId,
           destination,
@@ -78,6 +105,7 @@ export async function smokeRelatedCampusSync({
         endpoint.method === 'POST'
       ) {
         assert.equal(options.body.syncToRelatedCampuses, true);
+        assert.equal(Object.hasOwn(options.body, 'textSource'), false);
         published = true;
         throw new ClientError(
           'timeout',
@@ -113,6 +141,10 @@ export async function smokeRelatedCampusSync({
       },
     );
     await flush();
+    assert.equal(page.data.loaded, true);
+    assert.equal(page.data.canChooseRelatedCampusSync, true);
+    assert.equal(page.data.textSource, null);
+    assert.deepEqual(decodedSourceModes, ['named', 'anonymous']);
     assert.equal(page.data.syncToRelatedCampuses, false);
     page.onText({ detail: { value: '合成关联学校同步正文' } });
     page.onRelatedCampusSync({ detail: { value: true } });
@@ -120,11 +152,18 @@ export async function smokeRelatedCampusSync({
     page.onReload();
     await flush();
     assert.equal(page.data.syncToRelatedCampuses, false);
+    assert.deepEqual(decodedSourceModes, [
+      'named',
+      'anonymous',
+      'named',
+      'anonymous',
+    ]);
     page.onRelatedCampusSync({ detail: { value: true } });
     page.onSubmit();
     await flush();
     const frozen = app.community.pending.load(accountId);
     assert.equal(frozen.payload.syncToRelatedCampuses, true);
+    assert.equal(Object.hasOwn(frozen.payload, 'textSource'), false);
     assert.equal(frozen.viewSpaceId, destination);
     const originalHash = batchPublicationReference(frozen).intentHash;
     page.onHide();
@@ -146,6 +185,11 @@ export async function smokeRelatedCampusSync({
     page.onReceipt();
     await flush();
     assert.equal(app.community.pending.load(accountId), null);
+    assert.deepEqual(
+      decodedSourceModes,
+      ['named', 'anonymous', 'named', 'anonymous'],
+      'Frozen legacy Review, retry and receipt must not become source requests',
+    );
     assert.equal(page.data.resourcePostId, post.id);
     assert.equal(
       requests.filter((item) => item.path === '/v1/community/posts').length,

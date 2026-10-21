@@ -1,6 +1,7 @@
 import type { RuntimeConfig } from './config.js';
 
 const processingFields = {
+  reading: 'COMMUNITY_READING_FORMATTING_PROCESSING',
   updates: 'COMMUNITY_UPDATES_PROCESSING',
   ratingsUpdates: 'RATINGS_UPDATES_PROCESSING',
   jury: 'SAFETY_JURY_PROCESSING',
@@ -21,6 +22,7 @@ export function manualProcessingConfig(
   const field = processingFields[owner];
   return Object.freeze({
     ...config,
+    COMMUNITY_READING_FORMATTING_PROCESSING: 'disabled',
     COMMUNITY_UPDATES_PROCESSING: 'disabled',
     RATINGS_UPDATES_PROCESSING: 'disabled',
     SAFETY_JURY_PROCESSING: 'disabled',

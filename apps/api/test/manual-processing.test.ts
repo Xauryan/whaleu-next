@@ -4,6 +4,7 @@ import { loadConfig } from '../src/config/config.js';
 import { manualProcessingConfig } from '../src/config/manual-processing.js';
 
 const fields = {
+  reading: 'COMMUNITY_READING_FORMATTING_PROCESSING',
   updates: 'COMMUNITY_UPDATES_PROCESSING',
   jury: 'SAFETY_JURY_PROCESSING',
   experience: 'EXPERIENCE_PROCESSING',
@@ -17,6 +18,7 @@ for (const owner of Object.keys(fields) as (keyof typeof fields)[]) {
       DATABASE_URL: 'postgresql://dev:test@127.0.0.1:55432/whaleu_test',
       PG_SSL_MODE: 'disable',
       COMMUNITY_UPDATES_PROCESSING: 'automatic',
+      COMMUNITY_READING_FORMATTING_PROCESSING: 'automatic',
       SAFETY_JURY_PROCESSING: 'automatic',
       EXPERIENCE_PROCESSING: 'automatic',
       SUBSCRIPTION_COMPONENT_PROCESSING: 'manual_only',

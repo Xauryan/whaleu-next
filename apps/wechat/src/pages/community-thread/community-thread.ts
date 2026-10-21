@@ -1,3 +1,4 @@
+import { withReadingSources } from '../../community/reading-gateway';
 import {
   NamedAvatarController,
   initialNamedAvatarView,
@@ -122,7 +123,10 @@ Page({
     this.mutations?.dispose();
     this.identityOverlay?.dispose();
     this.overlayTargets = '';
-    const runtime = getApp<WhaleuApp>().community;
+    const existingRuntime = getApp<WhaleuApp>().community;
+    const runtime = existingRuntime
+      ? withReadingSources(existingRuntime, getApp<WhaleuApp>().identity?.api)
+      : undefined;
     if (!runtime || !this.postId || !this.rootCommentId) {
       this.setData({ error: '讨论地址无效或环境尚未初始化' });
       return;

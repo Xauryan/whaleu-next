@@ -1,3 +1,8 @@
+import {
+  reviewedTextSource,
+  sourceOriginalIntentHash,
+} from '../src/community/text-source/protocol.js';
+import type { StoredTextSource } from '../src/community/text-source/repository.js';
 import { unpunishedAccountPolicyObservation } from './support/unpunished-account-policy-observation.js';
 import {
   untouchedCategoryRows,
@@ -357,7 +362,10 @@ test('nested and concurrent different-key loads preserve all same-owner entries'
   }
 });
 
-function fixture(collision = false, options: { ratingLink?: boolean } = {}) {
+function fixture(
+  collision = false,
+  options: { ratingLink?: boolean; textSource?: boolean } = {},
+) {
   const author = randomUUID(),
     viewer = randomUUID(),
     spaceId = randomUUID(),
@@ -409,6 +417,7 @@ function fixture(collision = false, options: { ratingLink?: boolean } = {}) {
     published_at: new Date(now - 10000),
     publication_state: 'published',
     ...(ratingLink ? { publication_envelope_version: 5 as const } : {}),
+    ...(options.textSource ? { publication_envelope_version: 6 as const } : {}),
   };
   const root: StoredComment = {
     id: collision ? post.id : randomUUID(),
@@ -448,10 +457,21 @@ function fixture(collision = false, options: { ratingLink?: boolean } = {}) {
   const bindings = new Map<string, ApprovalBinding>(),
     approvals = new Map<string, ApprovalRow>();
   const key = (kind: ContentKind, id: string) => `${kind}:${id}`;
+  const sources = new Map<string, StoredTextSource>();
   for (const { kind, node } of nodes) {
     const ownLink = kind === 'post' ? ratingLink : null;
     const envelope = canonicalEnvelope({
-      version: ownLink ? 5 : 1,
+      version: options.textSource ? 6 : ownLink ? 5 : 1,
+      ...(options.textSource
+        ? {
+            allowAnonymousDm: null,
+            textSource: reviewedTextSource(
+              node.text,
+              { version: 1, format: 'plain', readingFormatting: 'off' },
+              kind,
+            ),
+          }
+        : {}),
       accountId: node.account_id,
       purpose: operationForKind(kind),
       spaceId,
@@ -491,7 +511,9 @@ function fixture(collision = false, options: { ratingLink?: boolean } = {}) {
       consume_until: new Date(now - 4000),
       visibility_model: 'durable',
       visibility_until: null,
-      policy_key: 'local-explicit-v1',
+      policy_key: options.textSource
+        ? 'local-text-source-v1'
+        : 'local-explicit-v1',
       policy_version: 1,
       policy_coverage: 'complete',
       policy_provenance: 'accepted',
@@ -519,6 +541,25 @@ function fixture(collision = false, options: { ratingLink?: boolean } = {}) {
       scope: envelope.scope,
     });
     approvals.set(row.id, row);
+    if (envelope.version === 6)
+      sources.set(key(kind, node.id), {
+        content_kind: kind,
+        content_id: node.id,
+        source_revision: 1,
+        source_version: 1,
+        source_format: 'plain',
+        reading_formatting: 'off',
+        source_hash: envelope.textSource.sourceHash,
+        account_id: node.account_id,
+        client_request_id: randomUUID(),
+        requested_author_mode: node.author_mode,
+        original_intent_hash: sourceOriginalIntentHash(
+          envelope,
+          node.author_mode,
+        ),
+        decision_id: row.id,
+        approval_digest: row.digest,
+      });
   }
   const calls: { sql: string; args: unknown[] }[] = [];
   let accountExists = true,
@@ -545,6 +586,25 @@ function fixture(collision = false, options: { ratingLink?: boolean } = {}) {
             new Map([[post.id, post]]),
           ),
         };
+      // Legacy v1/v5 fixtures have no stored source; v6 rows stay independent
+      // from approval envelopes and use the real kind-qualified locked query.
+      if (sql.includes('JOIN whaleu_community.community_text_sources s')) {
+        assert.equal(
+          sql,
+          'SELECT s.content_kind,s.content_id,s.source_revision,s.source_version,s.source_format,s.reading_formatting,s.source_hash,s.account_id,s.client_request_id,s.requested_author_mode,s.original_intent_hash,s.decision_id,s.approval_digest FROM unnest($1::text[],$2::uuid[]) wanted(kind,id) JOIN whaleu_community.community_text_sources s ON s.content_kind=wanted.kind AND s.content_id=wanted.id FOR SHARE OF s',
+        );
+        assert.equal(args.length, 2);
+        const kinds = args[0] as ContentKind[],
+          ids = args[1] as string[];
+        assert.equal(kinds.length, 1);
+        assert.equal(ids.length, 1);
+        assert.ok(
+          nodes.some(
+            ({ kind, node }) => kind === kinds[0] && node.id === ids[0],
+          ),
+        );
+        return one(sources.get(key(kinds[0]!, ids[0]!)));
+      }
       if (sql.includes('clock_timestamp')) return one({ now: new Date(now) });
       if (sql.includes('whaleu_identity.accounts'))
         return one(accountExists ? { id: args[0] } : undefined);
@@ -710,6 +770,7 @@ function fixture(collision = false, options: { ratingLink?: boolean } = {}) {
     calls,
     bindings,
     approvals,
+    sources,
     subject,
     count,
     key,
@@ -1352,6 +1413,76 @@ test('v5 current target qualification cannot authorize malformed canonical appro
         0,
         'Canonical validation must finish before target qualification',
       );
+    } finally {
+      read.close();
+      clearTransactionDeadlines(f.tx);
+    }
+  }
+});
+
+test('v6 source and current Review remain mandatory across canonical cache epochs and parent proofs', async () => {
+  for (const collision of [false, true]) {
+    const f = fixture(collision, { textSource: true });
+    const check = (read?: SearchReadContext) =>
+      f.base.check(
+        f.viewer,
+        f.subject('reply', f.reply),
+        f.tx,
+        'list_projection',
+        read,
+      );
+    let read = new SearchReadContext(f.tx);
+    try {
+      assert.deepEqual(await check(read), { kind: 'allow', value: undefined });
+      assert.deepEqual(await check(read), { kind: 'allow', value: undefined });
+      assert.equal(
+        f.calls.filter(({ sql }) =>
+          sql.includes('JOIN whaleu_community.community_text_sources s'),
+        ).length,
+        3,
+      );
+      const source = f.sources.get(f.key('post', f.post.id))!;
+      const decision = f.approvals.get(source.decision_id)!;
+      for (const mutation of [
+        'missing',
+        'hash',
+        'decision',
+        'review',
+        'parent',
+      ] as const) {
+        read.close();
+        startTransactionDeadlines(f.tx);
+        read = new SearchReadContext(f.tx);
+        if (mutation === 'missing') f.sources.delete(f.key('post', f.post.id));
+        if (mutation === 'hash')
+          f.sources.set(f.key('post', f.post.id), {
+            ...source,
+            source_hash: '0'.repeat(64),
+          });
+        if (mutation === 'decision')
+          f.sources.set(f.key('post', f.post.id), {
+            ...source,
+            decision_id: randomUUID(),
+          });
+        if (mutation === 'review') decision.state = 'revoked';
+        if (mutation === 'parent') f.root.post_id = randomUUID();
+        assert.deepEqual(
+          await check(read),
+          mutation === 'parent' || mutation === 'review'
+            ? { kind: 'deny', reason: 'POST_NOT_FOUND' }
+            : { kind: 'unavailable' },
+          mutation,
+        );
+        f.sources.set(f.key('post', f.post.id), source);
+        decision.state = 'allow';
+        f.root.post_id = f.post.id;
+        // A failed proof cannot be retained and poison a restored valid source.
+        assert.deepEqual(
+          await check(read),
+          { kind: 'allow', value: undefined },
+          mutation,
+        );
+      }
     } finally {
       read.close();
       clearTransactionDeadlines(f.tx);

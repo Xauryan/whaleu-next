@@ -67,7 +67,11 @@ export function validateApprovalRow(
     consume,
     now,
     'POST_NOT_FOUND',
-    envelope.version === 4 ? 'local-related-v1' : 'local-explicit-v1',
+    envelope.version === 6
+      ? 'local-text-source-v1'
+      : envelope.version === 4
+        ? 'local-related-v1'
+        : 'local-explicit-v1',
   );
   return {
     optionalUntil: result.optionalUntil,

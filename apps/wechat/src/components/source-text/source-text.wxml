@@ -1,0 +1,11 @@
+<view wx:if="{{active && visible}}" class="source-text">
+  <text wx:if="{{mode === 'unavailable'}}" class="source-unavailable">内容暂不可用</text>
+  <text wx:elif="{{showingRaw}}" class="source-raw" selectable="{{true}}" user-select="{{true}}" decode="{{false}}">{{rawSource}}</text>
+  <view wx:else class="source-body source-mode-{{mode}}">
+    <view wx:for="{{blocks}}" wx:key="key" wx:for-item="block" class="source-block source-block-{{block.kind}} source-heading-{{block.level}}">
+      <text wx:if="{{block.marker}}" class="source-list-marker" decode="{{false}}">{{block.marker}}</text>
+      <text class="source-block-text" selectable="{{true}}" user-select="{{true}}" decode="{{false}}"><text wx:for="{{block.runs}}" wx:key="key" wx:for-item="run" class="source-run-{{run.style}}" decode="{{false}}">{{run.text}}</text></text>
+    </view>
+  </view>
+  <button wx:if="{{canToggleSource}}" class="source-toggle" disabled="{{disabled}}" aria-label="{{showingRaw ? (preview ? '返回预览' : '返回阅读') : '查看原文'}}" data-revision="{{revision}}" catchtap="onToggleSource">{{showingRaw ? (preview ? '返回预览' : '返回阅读') : '查看原文'}}</button>
+</view>

@@ -1,3 +1,11 @@
+import { ReadingContentController } from './reading-content/controller.js';
+import { ReadingContentService } from './reading-content/service.js';
+import { ReadingFormattingController } from './reading-formatting/controller.js';
+import { ReadingFormattingRuntime } from './reading-formatting/runtime.js';
+import { ReadingSourceOwner } from './reading-formatting/source-owner.js';
+import { ReadingFormattingWorker } from './reading-formatting/worker.js';
+import { TextSourceController } from './text-source/controller.js';
+import { TextSourceReadService } from './text-source/read.service.js';
 import { SocialUpdatesIngressModule } from '../notifications/social/ingress.js';
 import { CommunitySocialSourceCapture } from './social-source/capture.js';
 import { CommunitySocialSourceFacade } from './social-source/facade.js';
@@ -338,6 +346,9 @@ export class CommunityRecoveryController {
     ContentReviewModule,
   ],
   controllers: [
+    ReadingContentController,
+    TextSourceController,
+    ReadingFormattingController,
     ContentReferenceController,
     FollowingController,
     AdminPostRemovalController,
@@ -391,6 +402,11 @@ export class CommunityRecoveryController {
     CommunityModerationRemovalFacade,
   ],
   providers: [
+    ReadingContentService,
+    TextSourceReadService,
+    ReadingSourceOwner,
+    ReadingFormattingRuntime,
+    ReadingFormattingWorker,
     ContentReferenceRepository,
     ContentReferenceAllocation,
     ContentReferenceService,

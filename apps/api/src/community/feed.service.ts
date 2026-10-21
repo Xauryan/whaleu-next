@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { FollowingService, followingRevision } from './following/service.js';
 import type { RelatedCampusDisplay } from './related-sync/contracts.js';
 import { CommunityDistributionService } from './related-sync/service.js';
@@ -495,6 +496,22 @@ export class FeedService {
   }
   @AccountPolicy('browse', 'entry')
   detail(token: string, id: string, viewSpaceId?: string): Promise<PostView> {
+    return this.projectDetail(
+      token,
+      id,
+      viewSpaceId,
+      async (content) => content,
+    );
+  }
+  /** Versioned projections run only after the existing exact current detail
+   * and view-space owners, and before the same managed transaction commits. */
+  @AccountPolicy('browse', 'entry')
+  projectDetail<T>(
+    token: string,
+    id: string,
+    viewSpaceId: string | undefined,
+    project: (content: PostView, row: StoredPost, tx: PoolClient) => Promise<T>,
+  ): Promise<T> {
     return this.repository.database.transaction(
       async (tx) => {
         enableSafetyRelationshipProof(tx);
@@ -529,7 +546,7 @@ export class FeedService {
             throw new ApplicationError('POST_NOT_FOUND');
           projection = decision.value;
         }
-        return this.serializer.post(
+        const content = await this.serializer.post(
           post,
           space,
           actor,
@@ -538,6 +555,7 @@ export class FeedService {
           'direct-content',
           projection,
         );
+        return project(content, post, tx);
       },
       { isolationLevel: 'read committed' },
     );
