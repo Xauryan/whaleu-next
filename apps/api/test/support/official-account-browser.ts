@@ -3,6 +3,7 @@
  * this gate (never a skipped successful journey). Installation is not done here.
  */
 import assert from 'node:assert/strict';
+import { browserVisibilityDiagnostics } from './browser-visibility-diagnostics.js';
 import { browserDiagnostics } from './browser-test-diagnostics.js';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -248,6 +249,9 @@ export async function officialBrowser() {
     await command('Page.enable');
     await command('Runtime.enable');
     await command('Network.enable');
+    const visibility = browserVisibilityDiagnostics(command);
+    listeners.add(visibility.record);
+    await visibility.enable();
     const evaluate = async <T>(expression: string): Promise<T> => {
       const answer = await command<{
         result: { value: T };
@@ -341,20 +345,36 @@ export async function officialBrowser() {
           { url: 'about:blank' },
           '',
         );
-        await command(
-          'Target.activateTarget',
-          { targetId: other.targetId },
-          '',
-        );
-        await until('document.hidden', 'real tab background visibility');
-        return async () => {
+        const targets = [
+          { role: 'primary' as const, targetId: target.targetId, sessionId },
+          { role: 'other' as const, targetId: other.targetId },
+        ];
+        await visibility.around('background', targets, async () => {
+          visibility.mark('background-activate-start');
           await command(
             'Target.activateTarget',
-            { targetId: target.targetId },
+            { targetId: other.targetId },
             '',
           );
-          await command('Target.closeTarget', { targetId: other.targetId }, '');
-          await until('!document.hidden', 'real tab foreground visibility');
+          visibility.mark('background-activate-complete');
+          await until('document.hidden', 'real tab background visibility');
+        });
+        return async () => {
+          await visibility.around('foreground', targets, async () => {
+            visibility.mark('foreground-activate-start');
+            await command(
+              'Target.activateTarget',
+              { targetId: target.targetId },
+              '',
+            );
+            visibility.mark('foreground-activate-complete');
+            await command(
+              'Target.closeTarget',
+              { targetId: other.targetId },
+              '',
+            );
+            await until('!document.hidden', 'real tab foreground visibility');
+          });
         };
       },
     };

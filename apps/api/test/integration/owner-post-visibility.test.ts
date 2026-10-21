@@ -18,6 +18,7 @@ import { UpdatesWorker } from '../../src/notifications/worker.js';
 import { MediaDeliveryBudgetPool } from '../../src/media/delivery-budget.js';
 import { sha256 } from '../../src/media/processing/protocol.js';
 import { syntheticMediaRuntimeFixture } from '../support/media/runtime-fixture.js';
+import { observeMediaDeliveryBudget } from '../support/media/delivery-budget-observer.js';
 import {
   readyDiscussionBatch,
   sealDiscussionBatch,
@@ -75,7 +76,15 @@ test(
         },
       },
     );
-    t.after(() => f.close());
+    const mediaPool = f.app.get(MediaDeliveryBudgetPool);
+    const mediaBudget = observeMediaDeliveryBudget(mediaPool);
+    t.after(async () => {
+      try {
+        await f.close();
+      } finally {
+        mediaBudget.restore();
+      }
+    });
     await seedReviewPolicy(f.pool);
     const owner = await f.actor(),
       reader = await f.actor(),
@@ -844,6 +853,11 @@ test(
         await setHidden(post.id, false);
         for (const binding of bindings) ok(await get(bytePath(binding.id)));
         const pool = f.app.get(MediaDeliveryBudgetPool);
+        assert.equal(pool, mediaPool);
+        // A received image does not prove the native file descriptor has closed.
+        // Include earlier subtests and both restored reads, without changing the
+        // real pool's release decisions, per-account limit or 64-credit bound.
+        await mediaBudget.waitForQuiet();
         const leases: (() => void)[] = [];
         try {
           for (let i = 0; i < 64; i++)
