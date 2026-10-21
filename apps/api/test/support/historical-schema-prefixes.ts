@@ -31,4 +31,5 @@ export const historicalPrefixes = new Map<number, string>([
     'institutional-sso historical exact descendants before additive admission',
   ],
   [145, 'institutional-sso exact continuity checkpoint upgrade'],
+  [174, 'follow-social deletion exact pre-text-source owner boundary'],
 ]);

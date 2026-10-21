@@ -1,3 +1,4 @@
+import type { ReadingCommunityGateway } from '../../community/reading-gateway';
 import { countsAfterRootDeletion } from '../../community/discussion-counts';
 import { checkDiscussionPrivacy } from '../../community/discussion-contract';
 import type { CommentQuery } from '../../community/gateway';
@@ -70,6 +71,7 @@ export class DetailController extends CommunityController<DetailView> {
     private readonly located:
       { commentId: string } | { replyId: string } | null = null,
     private readonly viewSpaceId?: string,
+    private readonly readingGateway?: ReadingCommunityGateway,
   ) {
     super(runtime, initialDetailView, render);
     this.update({
@@ -78,6 +80,10 @@ export class DetailController extends CommunityController<DetailView> {
         : '',
     });
     if (this.located) this.update({ sort: 'time' });
+  }
+  private get reads() {
+    this.readingGateway?.assertCurrent();
+    return this.readingGateway ?? this.runtime.gateway!;
   }
   protected override resetPrivate(): void {
     this.resetNavigation();
@@ -130,23 +136,17 @@ export class DetailController extends CommunityController<DetailView> {
     // Never expose comments until a fresh parent visibility decision has succeeded.
     await this.run(
       async (cancel) => {
-        const post = await this.runtime.gateway!.post(
+        const post = await this.reads.post(
           this.postId,
           cancel,
           this.viewSpaceId,
         );
-        const comments = await this.runtime.gateway!.comments(
-          this.postId,
-          after,
-          cancel,
-          { sort: this.view.sort, order: this.view.order },
-        );
+        const comments = await this.reads.comments(this.postId, after, cancel, {
+          sort: this.view.sort,
+          order: this.view.order,
+        });
         const context = this.located
-          ? await this.runtime.gateway!.discussionContext(
-              post.id,
-              this.located,
-              cancel,
-            )
+          ? await this.reads.discussionContext(post.id, this.located, cancel)
           : null;
         this.checkCommentPrivacy(post, [
           ...comments.items,
@@ -162,6 +162,7 @@ export class DetailController extends CommunityController<DetailView> {
         return { post, comments, context };
       },
       (result) => {
+        this.readingGateway?.assertCurrent();
         if (
           result.comments.nextCursor !== null &&
           (result.comments.nextCursor === after ||
@@ -227,20 +228,13 @@ export class DetailController extends CommunityController<DetailView> {
     await this.run(
       async (cancel) => {
         const post = this.viewSpaceId
-          ? await this.runtime.gateway!.post(
-              this.postId,
-              cancel,
-              this.viewSpaceId,
-            )
+          ? await this.reads.post(this.postId, cancel, this.viewSpaceId)
           : this.view.post!;
-        const replies = await this.runtime.gateway!.replies(
-          root.id,
-          after,
-          cancel,
-        );
+        const replies = await this.reads.replies(root.id, after, cancel);
         return { post, replies };
       },
       ({ post, replies: result }) => {
+        this.readingGateway?.assertCurrent();
         if (
           result.nextCursor === after ||
           result.items.some((item) => item.postId !== this.postId)

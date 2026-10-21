@@ -6,7 +6,7 @@ import { ApiClient } from '../src/api/client';
 import { Cancellation } from '../src/platform/contracts';
 import {
   HttpReadingCommunityGateway,
-  withReadingSources,
+  readingSourceGateway,
 } from '../src/community/reading-gateway';
 import {
   decodeReadingPost,
@@ -124,7 +124,7 @@ function http() {
     transport,
     api,
     reading: new HttpReadingCommunityGateway(api),
-    readingRuntime: withReadingSources(s.runtime, api),
+    readingGateway: readingSourceGateway(s.runtime, () => api),
   };
 }
 test('versioned source discriminator, exact preview binding and native rendering compose without changing legacy DTO', () => {
@@ -236,15 +236,19 @@ test('actual feature gateway uses all six authenticated v2 routes and preserves 
     new URL(s.transport.requests[5]!.url).searchParams.get('replyId'),
     replyId,
   );
-  assert.equal(s.readingRuntime.sessions, s.runtime.sessions);
-  assert.equal(s.readingRuntime.pending, s.runtime.pending);
-  assert.equal(s.readingRuntime.privateViews, s.runtime.privateViews);
+  assert.equal(s.runtime.gateway, s.gateway);
 });
 test('source denial is terminal and never retried through v1 or legacy cached content', async () => {
   const s = http(),
     views: DetailView[] = [];
-  const controller = new DetailController(s.readingRuntime, postId, (v) =>
-    views.push(v),
+  const controller = new DetailController(
+    s.runtime,
+    postId,
+    (v) => views.push(v),
+    undefined,
+    null,
+    undefined,
+    s.readingGateway,
   );
   s.transport.reply(pd());
   s.transport.reply(cp());
@@ -271,8 +275,14 @@ test('source denial is terminal and never retried through v1 or legacy cached co
 test('optional malformed plan falls back only within the same valid authorized source, hash failure clears the page', async () => {
   const s = http(),
     views: DetailView[] = [],
-    controller = new DetailController(s.readingRuntime, postId, (v) =>
-      views.push(v),
+    controller = new DetailController(
+      s.runtime,
+      postId,
+      (v) => views.push(v),
+      undefined,
+      null,
+      undefined,
+      s.readingGateway,
     );
   const value = pd();
   s.transport.reply({
@@ -312,8 +322,14 @@ test('account switch and root hide clear source/plan/author state and late real 
   for (const hide of [false, true]) {
     const s = http(),
       views: DetailView[] = [],
-      controller = new DetailController(s.readingRuntime, postId, (v) =>
-        views.push(v),
+      controller = new DetailController(
+        s.runtime,
+        postId,
+        (v) => views.push(v),
+        undefined,
+        null,
+        undefined,
+        s.readingGateway,
       );
     s.transport.reply(pd());
     s.transport.reply(cp());
@@ -345,11 +361,13 @@ test('thread source/preview/context retains original ancestry and anonymous-pare
   const s = http(),
     views: ThreadView[] = [],
     controller = new ThreadController(
-      s.readingRuntime,
+      s.runtime,
       postId,
       commentId,
       replyId,
       (v) => views.push(v),
+      undefined,
+      s.readingGateway,
     );
   for (const value of [pd(), cd(), rp(), ctx()]) s.transport.reply(value);
   await controller.load();
@@ -379,7 +397,7 @@ test('thread source/preview/context retains original ancestry and anonymous-pare
   assert.deepEqual(views[views.length - 1]?.replies, []);
   controller.dispose();
 });
-test('main gateway has no feature read/renderer import and detail/thread select the actual feature facade', () => {
+test('main gateway has no feature read/renderer import and detail/thread select the read-only gateway without cloning shared runtime', () => {
   const shared = readFileSync(
     path.join(__dirname, '../src/community/gateway.ts'),
     'utf8',
@@ -397,7 +415,8 @@ test('main gateway has no feature read/renderer import and detail/thread select 
       path.join(__dirname, `../src/pages/${page}/${page}.wxml`),
       'utf8',
     );
-    assert.match(script, /withReadingSources\(existingRuntime,/);
+    assert.match(script, /const runtime = getApp<WhaleuApp>\(\)\.community/);
+    assert.match(script, /readingSourceGateway\(runtime, \(\) =>/);
     assert.match(template, /readingBody\.classification === 'reviewedSource'/);
     assert.match(template, /wu-source-text/);
   }

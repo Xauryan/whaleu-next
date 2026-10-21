@@ -1,0 +1,432 @@
+diff --git a/apps/wechat/src/api/client.ts b/apps/wechat/src/api/client.ts
+index 42a1544..11561fe 100644
+--- a/apps/wechat/src/api/client.ts
++++ b/apps/wechat/src/api/client.ts
+@@ -23,6 +23,8 @@ export interface Endpoint<T> {
+ export interface RequestOptions {
+   readonly body?: Json;
+   readonly cancellation?: Cancellation;
++  /** Optional owner guard for this request only, including authentication replay. */
++  readonly assertEnvironment?: () => void;
+   readonly query?: Readonly<Record<string, string | number>>;
+ }
+ 
+@@ -43,6 +45,7 @@ export class ApiClient {
+     endpoint: Endpoint<T>,
+     options: RequestOptions = {},
+   ): Promise<T> {
++    options.assertEnvironment?.();
+     const owner = this.sessions.snapshot();
+     if (endpoint.authentication === 'required' && !owner.credentials)
+       throw new ClientError('auth-required', 'Login is required');
+@@ -61,6 +64,7 @@ export class ApiClient {
+       );
+     }
+     for (let attempt = 0; attempt <= 1; attempt += 1) {
++      options.assertEnvironment?.();
+       this.sessions.assertCurrent(owner);
+       if (options.cancellation?.isCancelled)
+         throw new ClientError('cancelled', 'The request was cancelled');
+@@ -72,6 +76,7 @@ export class ApiClient {
+         headers.Authorization = `Bearer ${sent.credentials.accessToken}`;
+       const response = await Promise.resolve()
+         .then(() => {
++          options.assertEnvironment?.();
+           this.sessions.assertCurrent(owner);
+           if (options.cancellation?.isCancelled)
+             throw new ClientError('cancelled', 'The request was cancelled');
+@@ -90,6 +95,7 @@ export class ApiClient {
+           this.sessions.assertCurrent(owner);
+           throw clientError(error);
+         });
++      options.assertEnvironment?.();
+       this.sessions.assertCurrent(owner);
+       if (options.cancellation?.isCancelled)
+         throw new ClientError('cancelled', 'The request was cancelled');
+diff --git a/apps/wechat/src/community/reading-gateway.ts b/apps/wechat/src/community/reading-gateway.ts
+index 2a457fd..f430700 100644
+--- a/apps/wechat/src/community/reading-gateway.ts
++++ b/apps/wechat/src/community/reading-gateway.ts
+@@ -1,8 +1,13 @@
+ /** Detail/thread-only transport: no additional session, journal or authorization owner. */
+-import { ApiClient, type Endpoint } from '../api/client';
++import { ApiClient, type Endpoint, type RequestOptions } from '../api/client';
++import { ClientError } from '../api/errors';
+ import { isUuid } from '../profile/contract';
+ import type { Cancellation } from '../platform/contracts';
+-import { HttpCommunityGateway, type CommentQuery } from './gateway';
++import {
++  HttpCommunityGateway,
++  type CommentQuery,
++  type CommunityGateway,
++} from './gateway';
+ import { cursor, exact, invalid } from './contract';
+ import {
+   decodeReadingPost,
+@@ -34,17 +39,38 @@ const page = (after: string | null) => {
+   if (!cursor(after)) invalid();
+   return after ? { cursor: after } : {};
+ };
++export interface ReadingCommunityGateway extends Pick<
++  CommunityGateway,
++  'post' | 'comments' | 'comment' | 'replies' | 'reply' | 'discussionContext'
++> {
++  assertCurrent(): void;
++}
+ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
+-  constructor(private readonly readingApi: ApiClient) {
++  constructor(
++    private readonly readingApi: ApiClient,
++    private readonly assertEnvironment: () => void = () => undefined,
++  ) {
+     super(readingApi);
+   }
++  assertCurrent(): void {
++    this.assertEnvironment();
++  }
++  private request<T>(
++    endpoint: Endpoint<T>,
++    options: RequestOptions,
++  ): Promise<T> {
++    return this.readingApi.request(endpoint, {
++      ...options,
++      assertEnvironment: () => this.assertCurrent(),
++    });
++  }
+   async textSource(kind: SourceKind, contentId: string, cancel: Cancellation) {
+     if (
+       !['post', 'comment', 'reply'].includes(kind) ||
+       contentId !== contentId.toLowerCase()
+     )
+       invalid();
+-    const result = await this.readingApi.request(
++    const result = await this.request(
+       endpoint(
+         `/v2/community/text-sources/${kind}/${id(contentId)}`,
+         decodeSourcePresentation,
+@@ -60,7 +86,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
+     cancel: Cancellation,
+     viewSpaceId?: string,
+   ) {
+-    const result = await this.readingApi.request(
++    const result = await this.request(
+       endpoint(`/v2/community/posts/${id(postId)}`, decodeReadingPost),
+       {
+         cancellation: cancel,
+@@ -97,7 +123,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
+       previewLimit > 5
+     )
+       invalid();
+-    const result = await this.readingApi.request(
++    const result = await this.request(
+       endpoint(
+         `/v2/community/posts/${id(postId)}/comments`,
+         decodeReadingComments,
+@@ -117,7 +143,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
+     return result;
+   }
+   async readingComment(commentId: string, cancel: Cancellation) {
+-    const result = await this.readingApi.request(
++    const result = await this.request(
+       endpoint(`/v2/community/comments/${id(commentId)}`, decodeReadingComment),
+       { cancellation: cancel },
+     );
+@@ -125,7 +151,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
+     return result;
+   }
+   async readingReply(replyId: string, cancel: Cancellation) {
+-    const result = await this.readingApi.request(
++    const result = await this.request(
+       endpoint(`/v2/community/replies/${id(replyId)}`, decodeReadingReply),
+       { cancellation: cancel },
+     );
+@@ -139,7 +165,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
+     limit = 20,
+   ) {
+     if (!Number.isInteger(limit) || limit < 1 || limit > 50) invalid();
+-    const result = await this.readingApi.request(
++    const result = await this.request(
+       endpoint(
+         `/v2/community/comments/${id(commentId)}/replies`,
+         decodeReadingReplies,
+@@ -160,7 +186,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
+       'commentId' in target
+         ? { commentId: id(target.commentId) }
+         : { replyId: id(target.replyId) };
+-    const result = await this.readingApi.request(
++    const result = await this.request(
+       endpoint(
+         `/v2/community/posts/${id(postId)}/discussion-context`,
+         decodeReadingContext,
+@@ -197,13 +223,26 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
+     return this.readingContext(...args);
+   }
+ }
+-/** Feature facade shares every store/lifecycle and the original authenticated ApiClient.
+- * API denial is terminal; no retry through a legacy or guest reader. */
+-export function withReadingSources(
++/** Only read transport is adapted. Every controller retains the original runtime.
++ * A changed runtime or API requires a fresh page; never replay through an old origin. */
++export function readingSourceGateway(
+   runtime: CommunityRuntime,
+-  api: ApiClient | undefined,
+-): CommunityRuntime {
+-  return api && runtime.gateway
+-    ? { ...runtime, gateway: new HttpReadingCommunityGateway(api) }
+-    : runtime;
++  currentApi: () => ApiClient | undefined,
++): ReadingCommunityGateway | undefined {
++  const api = currentApi(),
++    gateway = runtime.gateway,
++    sessions = runtime.sessions,
++    privateViews = runtime.privateViews,
++    safetyChanges = runtime.safetyChanges;
++  if (!api || !gateway) return undefined;
++  return new HttpReadingCommunityGateway(api, () => {
++    if (
++      currentApi() !== api ||
++      runtime.gateway !== gateway ||
++      runtime.sessions !== sessions ||
++      runtime.privateViews !== privateViews ||
++      runtime.safetyChanges !== safetyChanges
++    )
++      throw new ClientError('configuration', 'Reading environment changed');
++  });
+ }
+diff --git a/apps/wechat/src/pages/community-detail/community-detail.ts b/apps/wechat/src/pages/community-detail/community-detail.ts
+index ff7e919..09c587e 100644
+--- a/apps/wechat/src/pages/community-detail/community-detail.ts
++++ b/apps/wechat/src/pages/community-detail/community-detail.ts
+@@ -1,4 +1,4 @@
+-import { withReadingSources } from '../../community/reading-gateway';
++import { readingSourceGateway } from '../../community/reading-gateway';
+ import {
+   ContentReferenceController,
+   initialReferenceView,
+@@ -420,10 +420,7 @@ Page({
+     this.formationIdentityOverlay?.dispose();
+     this.overlayTargets = '';
+     this.formationOverlayTargets = '';
+-    const existingRuntime = getApp<WhaleuApp>().community;
+-    const runtime = existingRuntime
+-      ? withReadingSources(existingRuntime, getApp<WhaleuApp>().identity?.api)
+-      : undefined;
++    const runtime = getApp<WhaleuApp>().community;
+     if (!runtime || !this.postId) {
+       this.setData({ error: '帖子地址无效或环境尚未初始化' });
+       return;
+@@ -847,6 +844,7 @@ Page({
+       },
+       this.located,
+       this.viewSpaceId || undefined,
++      readingSourceGateway(runtime, () => getApp<WhaleuApp>().identity?.api),
+     );
+     void this.controller.load();
+   },
+diff --git a/apps/wechat/src/pages/community-detail/controller.ts b/apps/wechat/src/pages/community-detail/controller.ts
+index dbd0a2a..28ceebb 100644
+--- a/apps/wechat/src/pages/community-detail/controller.ts
++++ b/apps/wechat/src/pages/community-detail/controller.ts
+@@ -1,3 +1,4 @@
++import type { ReadingCommunityGateway } from '../../community/reading-gateway';
+ import { countsAfterRootDeletion } from '../../community/discussion-counts';
+ import { checkDiscussionPrivacy } from '../../community/discussion-contract';
+ import type { CommentQuery } from '../../community/gateway';
+@@ -70,6 +71,7 @@ export class DetailController extends CommunityController<DetailView> {
+     private readonly located:
+       { commentId: string } | { replyId: string } | null = null,
+     private readonly viewSpaceId?: string,
++    private readonly readingGateway?: ReadingCommunityGateway,
+   ) {
+     super(runtime, initialDetailView, render);
+     this.update({
+@@ -79,6 +81,10 @@ export class DetailController extends CommunityController<DetailView> {
+     });
+     if (this.located) this.update({ sort: 'time' });
+   }
++  private get reads() {
++    this.readingGateway?.assertCurrent();
++    return this.readingGateway ?? this.runtime.gateway!;
++  }
+   protected override resetPrivate(): void {
+     this.resetNavigation();
+     this.onPost?.(null, this.postReadGeneration);
+@@ -130,23 +136,17 @@ export class DetailController extends CommunityController<DetailView> {
+     // Never expose comments until a fresh parent visibility decision has succeeded.
+     await this.run(
+       async (cancel) => {
+-        const post = await this.runtime.gateway!.post(
++        const post = await this.reads.post(
+           this.postId,
+           cancel,
+           this.viewSpaceId,
+         );
+-        const comments = await this.runtime.gateway!.comments(
+-          this.postId,
+-          after,
+-          cancel,
+-          { sort: this.view.sort, order: this.view.order },
+-        );
++        const comments = await this.reads.comments(this.postId, after, cancel, {
++          sort: this.view.sort,
++          order: this.view.order,
++        });
+         const context = this.located
+-          ? await this.runtime.gateway!.discussionContext(
+-              post.id,
+-              this.located,
+-              cancel,
+-            )
++          ? await this.reads.discussionContext(post.id, this.located, cancel)
+           : null;
+         this.checkCommentPrivacy(post, [
+           ...comments.items,
+@@ -162,6 +162,7 @@ export class DetailController extends CommunityController<DetailView> {
+         return { post, comments, context };
+       },
+       (result) => {
++        this.readingGateway?.assertCurrent();
+         if (
+           result.comments.nextCursor !== null &&
+           (result.comments.nextCursor === after ||
+@@ -227,20 +228,13 @@ export class DetailController extends CommunityController<DetailView> {
+     await this.run(
+       async (cancel) => {
+         const post = this.viewSpaceId
+-          ? await this.runtime.gateway!.post(
+-              this.postId,
+-              cancel,
+-              this.viewSpaceId,
+-            )
++          ? await this.reads.post(this.postId, cancel, this.viewSpaceId)
+           : this.view.post!;
+-        const replies = await this.runtime.gateway!.replies(
+-          root.id,
+-          after,
+-          cancel,
+-        );
++        const replies = await this.reads.replies(root.id, after, cancel);
+         return { post, replies };
+       },
+       ({ post, replies: result }) => {
++        this.readingGateway?.assertCurrent();
+         if (
+           result.nextCursor === after ||
+           result.items.some((item) => item.postId !== this.postId)
+diff --git a/apps/wechat/src/pages/community-thread/community-thread.ts b/apps/wechat/src/pages/community-thread/community-thread.ts
+index 4b5d1a4..73940bc 100644
+--- a/apps/wechat/src/pages/community-thread/community-thread.ts
++++ b/apps/wechat/src/pages/community-thread/community-thread.ts
+@@ -1,4 +1,4 @@
+-import { withReadingSources } from '../../community/reading-gateway';
++import { readingSourceGateway } from '../../community/reading-gateway';
+ import {
+   NamedAvatarController,
+   initialNamedAvatarView,
+@@ -123,10 +123,7 @@ Page({
+     this.mutations?.dispose();
+     this.identityOverlay?.dispose();
+     this.overlayTargets = '';
+-    const existingRuntime = getApp<WhaleuApp>().community;
+-    const runtime = existingRuntime
+-      ? withReadingSources(existingRuntime, getApp<WhaleuApp>().identity?.api)
+-      : undefined;
++    const runtime = getApp<WhaleuApp>().community;
+     if (!runtime || !this.postId || !this.rootCommentId) {
+       this.setData({ error: '讨论地址无效或环境尚未初始化' });
+       return;
+@@ -263,6 +260,7 @@ Page({
+         }
+       },
+       this.viewSpaceId || undefined,
++      readingSourceGateway(runtime, () => getApp<WhaleuApp>().identity?.api),
+     );
+     void this.controller.load();
+   },
+diff --git a/apps/wechat/src/pages/community-thread/controller.ts b/apps/wechat/src/pages/community-thread/controller.ts
+index d12846d..b3220b0 100644
+--- a/apps/wechat/src/pages/community-thread/controller.ts
++++ b/apps/wechat/src/pages/community-thread/controller.ts
+@@ -1,3 +1,4 @@
++import type { ReadingCommunityGateway } from '../../community/reading-gateway';
+ import { ClientError } from '../../api/errors';
+ import {
+   CommunityController,
+@@ -45,6 +46,7 @@ export class ThreadController extends CommunityController<ThreadView> {
+     private readonly replyId: string | null,
+     render: (view: ThreadView) => void,
+     private readonly viewSpaceId?: string,
++    private readonly readingGateway?: ReadingCommunityGateway,
+   ) {
+     super(runtime, initialThreadView, render);
+     this.update({
+@@ -53,6 +55,10 @@ export class ThreadController extends CommunityController<ThreadView> {
+         : '',
+     });
+   }
++  private get reads() {
++    this.readingGateway?.assertCurrent();
++    return this.readingGateway ?? this.runtime.gateway!;
++  }
+   protected override resetPrivate(): void {
+     this.nextCursor = null;
+   }
+@@ -104,22 +110,15 @@ export class ThreadController extends CommunityController<ThreadView> {
+     if (!this.available()) return;
+     await this.run(
+       async (cancel) => {
+-        const post = await this.runtime.gateway!.post(
++        const post = await this.reads.post(
+           this.postId,
+           cancel,
+           this.viewSpaceId,
+         );
+-        const root = await this.runtime.gateway!.comment(
+-          this.rootCommentId,
+-          cancel,
+-        );
+-        const replies = await this.runtime.gateway!.replies(
+-          root.id,
+-          null,
+-          cancel,
+-        );
++        const root = await this.reads.comment(this.rootCommentId, cancel);
++        const replies = await this.reads.replies(root.id, null, cancel);
+         const context = this.replyId
+-          ? await this.runtime.gateway!.discussionContext(
++          ? await this.reads.discussionContext(
+               post.id,
+               { replyId: this.replyId },
+               cancel,
+@@ -145,6 +144,7 @@ export class ThreadController extends CommunityController<ThreadView> {
+         };
+       },
+       (result) => {
++        this.readingGateway?.assertCurrent();
+         this.nextCursor = result.replies.nextCursor;
+         this.update({
+           post: result.post,
+@@ -184,13 +184,9 @@ export class ThreadController extends CommunityController<ThreadView> {
+         // B is only a view selector. Every continuation rechecks current B
+         // visibility before using the canonical discussion endpoint.
+         const post = this.viewSpaceId
+-          ? await this.runtime.gateway!.post(
+-              this.postId,
+-              cancel,
+-              this.viewSpaceId,
+-            )
++          ? await this.reads.post(this.postId, cancel, this.viewSpaceId)
+           : this.view.post!;
+-        const replies = await this.runtime.gateway!.replies(
++        const replies = await this.reads.replies(
+           this.rootCommentId,
+           after,
+           cancel,
+@@ -198,6 +194,7 @@ export class ThreadController extends CommunityController<ThreadView> {
+         return { post, replies };
+       },
+       ({ post, replies: result }) => {
++        this.readingGateway?.assertCurrent();
+         if (result.nextCursor === after)
+           throw new ClientError('protocol', 'Cursor did not advance');
+         this.check(post, this.view.root!, result.items);

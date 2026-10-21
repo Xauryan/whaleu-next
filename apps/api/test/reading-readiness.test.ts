@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../src/http/application-error.js';
+import { readingCatalogSnapshotSql } from '../src/community/reading-formatting/catalog.js';
 import {
   inspectReadingSchema,
   retainReadingSchema,
@@ -63,7 +64,12 @@ function fixture() {
     fail?: '55P03' | '57014' | '42P01' | 'rollback';
   } = {
     presence,
-    snapshot: { catalog, slots: [1, 2] },
+    snapshot: {
+      catalog,
+      slots: [1, 2],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: true,
+    },
     queries: [],
   };
   const tx = {
@@ -83,15 +89,14 @@ function fixture() {
         });
       if (
         (state.fail === '55P03' || state.fail === '57014') &&
-        sql.startsWith('SELECT whaleu_community.reading_format_catalog()')
+        sql === readingCatalogSnapshotSql
       )
         throw Object.assign(new Error('Fixture schema query cancelled'), {
           code: state.fail,
         });
       if (sql.includes('count(*)::integer FROM pg_class'))
         return { rows: [state.presence] };
-      if (sql.startsWith('SELECT whaleu_community.reading_format_catalog()'))
-        return { rows: [state.snapshot] };
+      if (sql === readingCatalogSnapshotSql) return { rows: [state.snapshot] };
       if (sql.includes("current_setting('transaction_isolation')"))
         return {
           rows: [
@@ -160,16 +165,55 @@ for (const [name, mutate] of Object.entries({
     f.presence.catalogFunction.config = ['search_path=public'];
   },
   'guard catalog changed': (f: ReturnType<typeof fixture>) => {
-    f.state.snapshot = { catalog: 'b'.repeat(64), slots: [1, 2] };
+    f.state.snapshot = {
+      catalog: 'b'.repeat(64),
+      slots: [1, 2],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: true,
+    };
+  },
+  'wrong deparser path': (f: ReturnType<typeof fixture>) => {
+    f.state.snapshot = {
+      catalog,
+      slots: [1, 2],
+      deparsePath: 'public',
+      searchPathRestored: true,
+    };
+  },
+  'unrestored caller path': (f: ReturnType<typeof fixture>) => {
+    f.state.snapshot = {
+      catalog,
+      slots: [1, 2],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: false,
+    };
+  },
+  'missing path attestation': (f: ReturnType<typeof fixture>) => {
+    f.state.snapshot = { catalog, slots: [1, 2] };
   },
   'missing slot': (f: ReturnType<typeof fixture>) => {
-    f.state.snapshot = { catalog, slots: [1] };
+    f.state.snapshot = {
+      catalog,
+      slots: [1],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: true,
+    };
   },
   'extra slot': (f: ReturnType<typeof fixture>) => {
-    f.state.snapshot = { catalog, slots: [1, 2, 3] };
+    f.state.snapshot = {
+      catalog,
+      slots: [1, 2, 3],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: true,
+    };
   },
   'reordered seed': (f: ReturnType<typeof fixture>) => {
-    f.state.snapshot = { catalog, slots: [2, 1] };
+    f.state.snapshot = {
+      catalog,
+      slots: [2, 1],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: true,
+    };
   },
 }))
   test(`readiness rejects ${name}`, async () => {
@@ -183,7 +227,12 @@ test('required write readiness needs managed transaction and rejects schema muta
   startTransactionDeadlines(f.tx);
   try {
     await requireReadingSchema(f.tx);
-    f.state.snapshot = { catalog: 'b'.repeat(64), slots: [1, 2] };
+    f.state.snapshot = {
+      catalog: 'b'.repeat(64),
+      slots: [1, 2],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: true,
+    };
     await assert.rejects(checkTransactionDeadlines(f.tx), unavailable);
     assert.ok(
       f.state.queries.some((s) =>
@@ -212,7 +261,12 @@ test('v2 diagnostic installed state downgrades only its optional schema fact at 
     const value = await observeReadingFormatter(f.tx, 'automatic');
     assert.equal(value.schema, 'installed');
     assert.equal(value.worker.readiness, 'not_observed');
-    f.state.snapshot = { catalog: 'b'.repeat(64), slots: [1, 2] };
+    f.state.snapshot = {
+      catalog: 'b'.repeat(64),
+      slots: [1, 2],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: true,
+    };
     await checkTransactionDeadlines(f.tx);
     assert.equal(value.schema, 'unavailable');
   } finally {
@@ -224,7 +278,12 @@ test('v2 schema unavailable does not discard earlier mandatory proof', async () 
   startTransactionDeadlines(f.tx);
   try {
     await requireReadingSchema(f.tx);
-    f.state.snapshot = { catalog: 'b'.repeat(64), slots: [1, 2] };
+    f.state.snapshot = {
+      catalog: 'b'.repeat(64),
+      slots: [1, 2],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: true,
+    };
     const value = await observeReadingFormatter(f.tx, 'disabled');
     assert.equal(value.schema, 'unavailable');
     await assert.rejects(checkTransactionDeadlines(f.tx), unavailable);
@@ -303,7 +362,12 @@ test('capability final rollback failure remains fatal', async () => {
   try {
     const value = await observeReadingFormatter(f.tx, 'disabled');
     assert.equal(value.schema, 'installed');
-    f.state.snapshot = { catalog: 'b'.repeat(64), slots: [1, 2] };
+    f.state.snapshot = {
+      catalog: 'b'.repeat(64),
+      slots: [1, 2],
+      deparsePath: 'pg_catalog',
+      searchPathRestored: true,
+    };
     f.state.fail = 'rollback';
     await assert.rejects(
       checkTransactionDeadlines(f.tx),
@@ -311,5 +375,33 @@ test('capability final rollback failure remains fatal', async () => {
     );
   } finally {
     clearTransactionDeadlines(f.tx);
+  }
+});
+
+test('raw readiness and managed final proof execute the same collector without fallback', async () => {
+  const raw = fixture();
+  await inspectReadingSchema(raw.tx);
+  assert.equal(
+    raw.state.queries.filter((sql) => sql === readingCatalogSnapshotSql).length,
+    1,
+  );
+  const managed = fixture();
+  startTransactionDeadlines(managed.tx);
+  try {
+    await requireReadingSchema(managed.tx);
+    await checkTransactionDeadlines(managed.tx);
+    assert.equal(
+      managed.state.queries.filter((sql) => sql === readingCatalogSnapshotSql)
+        .length,
+      2,
+    );
+    assert.equal(
+      managed.state.queries.some((sql) =>
+        sql.includes('SELECT whaleu_community.reading_format_catalog()'),
+      ),
+      false,
+    );
+  } finally {
+    clearTransactionDeadlines(managed.tx);
   }
 });

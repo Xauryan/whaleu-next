@@ -172,3 +172,51 @@ The later native announcement-authoring/Media12 increment is not covered by this
 baseline run. Its local verification is recorded in
 [announcement authoring](ANNOUNCEMENT_AUTHORING.md); its own hosted run remains
 pending until performed on that increment's final tree.
+
+### Per-file ordinary CI cluster lifetime
+
+Ordinary module shards now opt in to `WHALEU_TEST_PG_ISOLATION=per-file-docker`.
+The complete inventory, stable module assignments and native-artifact provenance
+checks remain unchanged. Each selected ordinary file runs serially in its own
+new, unmounted PostgreSQL 18.6 container, with command-line `autovacuum=off` and
+loopback-only listening on the existing host network. This bounds accumulation
+of dead system-catalog entries across destructive fixture files without adding
+background maintenance, changing migrations or increasing any test/SQL deadline.
+All tests, concurrent writers and shared state inside a file remain together.
+The two browser-only single-file shards keep their existing service setup and
+TAP diagnostics; optional semantic and production strict-TLS lanes are unchanged.
+
+The runner requires explicit controlled CI admission and the exact synthetic
+loopback target before creating anything. It creates a unique container, checks
+its full ID, exact job-owner label, pinned image, server command, network and
+absence of host/reused named mounts, then starts it and waits for health. The
+[official PostgreSQL 18.6 Bookworm Dockerfile](https://github.com/docker-library/postgres/blob/master/18/bookworm/Dockerfile)
+defines `PGDATA=/var/lib/postgresql/18/docker` and its anonymous volume at
+`/var/lib/postgresql`, which is the exact mount destination admitted here. The
+existing read-only database freshness admission runs before the file. Each child
+receives its own full container ID in `MAIN_PG_CONTAINER`, preserving restore and
+`pg_dump` fixtures. No existing cluster or container name is adopted.
+
+A start/end JSON record identifies each file, source-content SHA-256, workflow
+source SHA, owner, container and child exit status. The file content is rehashed
+immediately before and after its child process; changed content fails closed
+rather than being attributed to the initial hash. Assertion failures retain a
+nonzero aggregate while later files still run. Infrastructure, admission, signal
+or cleanup failures stop execution and are never recorded as successful tests.
+The end record is successful only after the original test command and owned
+container cleanup both succeed. An infrastructure failure can leave selected
+files unrun: a manifest is a plan, not a pass record. For leaf totals, sum each
+single-file Node process's terminal summary once, and require zero unexpected
+skips/cancellations plus all expected successful per-file records. Do not count
+JSON records as extra tests or count parent failures twice.
+
+Cleanup removes only a full ID whose owner and configuration still match,
+including its anonymous volume. CI's unconditional cleanup separately discovers
+only containers bearing this exact job-owner label and repeats ownership checks
+before removal, covering interrupted execution or uncertain container creation.
+Unknown ownership or failed inspection/removal fails closed; it never triggers
+broad pruning. The original 7,200-second ordinary outer deadline and 150-minute
+job deadline remain unchanged. Image pull occurs once per ordinary job. Additional
+container startup/teardown overhead has not yet been measured in hosted CI;
+mock lifecycle/guard tests establish wiring and failure behavior, not real
+PostgreSQL correctness or a successful complete hosted run.

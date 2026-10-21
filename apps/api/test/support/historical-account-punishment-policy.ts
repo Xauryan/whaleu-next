@@ -11,6 +11,10 @@ import { AccountPunishmentPolicy } from '../../src/safety/account-moderation/pol
 import { historicalPrefixes } from './historical-schema-prefixes.js';
 import { historicalCommunityDistribution } from './historical-community-distribution.js';
 import { configureHistoricalAvatarModeration } from './historical-avatar-moderation/configure.js';
+import {
+  configureHistoricalContentDefinitions,
+  historicalContentDefinitionPrefixes,
+} from './historical-content-definition/configure.js';
 import { configureHistoricalIdentity } from './historical-identity/configure.js';
 import { CommunityDistributionService } from '../../src/community/related-sync/service.js';
 import { ContentReferenceAllocation } from '../../src/community/content-references/allocation.js';
@@ -123,6 +127,8 @@ export async function configureHistoricalAccountPolicy(
       .useValue(await historicalContentReferences(config, prefix));
   if (prefix === 132)
     await configureHistoricalAvatarModeration(builder, config, prefix);
+  if (historicalContentDefinitionPrefixes.includes(prefix))
+    await configureHistoricalContentDefinitions(builder, config, prefix);
   // Boundaries at or after 0138 retain the real distribution owner. The
   // historical adapter remains restricted to its exact pre-0138 registry.
   if (prefix < 138)

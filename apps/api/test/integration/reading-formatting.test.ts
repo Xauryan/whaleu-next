@@ -1,3 +1,4 @@
+import { verifyReadingCatalogParity } from '../support/reading-catalog-parity.js';
 import { ReadingSourceOwner } from '../../src/community/reading-formatting/source-owner.js';
 import {
   createReadingWorkerRole,
@@ -401,6 +402,10 @@ test(
       readinessTimings.sort((a, b) => a - b);
       t.diagnostic(
         `M2 readiness two-query actual PG cost ms: median=${readinessTimings[5]!.toFixed(3)} max=${readinessTimings[9]!.toFixed(3)}`,
+      );
+      await t.test(
+        'catalog collector preserves exact preimage and restores raw, managed, prepared and failed query paths',
+        () => verifyReadingCatalogParity(pool, suite!),
       );
       await t.test(
         'normal migration protocol rejects missing/extra/disabled/changed schema and missing fixed slot',

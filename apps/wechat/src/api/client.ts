@@ -23,6 +23,8 @@ export interface Endpoint<T> {
 export interface RequestOptions {
   readonly body?: Json;
   readonly cancellation?: Cancellation;
+  /** Optional owner guard for this request only, including authentication replay. */
+  readonly assertEnvironment?: () => void;
   readonly query?: Readonly<Record<string, string | number>>;
 }
 
@@ -43,6 +45,7 @@ export class ApiClient {
     endpoint: Endpoint<T>,
     options: RequestOptions = {},
   ): Promise<T> {
+    options.assertEnvironment?.();
     const owner = this.sessions.snapshot();
     if (endpoint.authentication === 'required' && !owner.credentials)
       throw new ClientError('auth-required', 'Login is required');
@@ -61,6 +64,7 @@ export class ApiClient {
       );
     }
     for (let attempt = 0; attempt <= 1; attempt += 1) {
+      options.assertEnvironment?.();
       this.sessions.assertCurrent(owner);
       if (options.cancellation?.isCancelled)
         throw new ClientError('cancelled', 'The request was cancelled');
@@ -72,6 +76,7 @@ export class ApiClient {
         headers.Authorization = `Bearer ${sent.credentials.accessToken}`;
       const response = await Promise.resolve()
         .then(() => {
+          options.assertEnvironment?.();
           this.sessions.assertCurrent(owner);
           if (options.cancellation?.isCancelled)
             throw new ClientError('cancelled', 'The request was cancelled');
@@ -90,6 +95,7 @@ export class ApiClient {
           this.sessions.assertCurrent(owner);
           throw clientError(error);
         });
+      options.assertEnvironment?.();
       this.sessions.assertCurrent(owner);
       if (options.cancellation?.isCancelled)
         throw new ClientError('cancelled', 'The request was cancelled');

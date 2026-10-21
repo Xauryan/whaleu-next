@@ -1,0 +1,10 @@
+{
+  "source": "apps/api/src/community/publication.repository.ts",
+  "commit": "c27f173d8057f349469f4f96855d31edb9cff7c5",
+  "blob": "ff722c45940018fa2477237b0c3f7ad2527f73f1",
+  "sourceSha256": "845a750998dcdb5c1b41b4ca7f70b8ea531e2df0e1879e7b6de1a955c1a061ff",
+  "executeTail": "        await enrollPublishedHotProcessing(receipt.resourceId, tx);\n      }\n      await this.access.actor(token, tx);\n      return receipt;\n    });\n  }\n",
+  "readingRuntimeOccurrences": 0,
+  "enrollCreatedOccurrences": 0,
+  "interpretation": "The c27 execute path returns after final actor revalidation; no reading enrollment owner was present. Existing request receipts return earlier, before creating new content."
+}

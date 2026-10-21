@@ -1,3 +1,4 @@
+import { runtimeIdentityPredecessor } from './reviewed-reading-runtime-identity-successor';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -294,7 +295,17 @@ function authenticate(
     );
     assert.equal(bytes.length, entry.beforeBytes);
     assert.equal(
-      sha(nullablePredecessor(entry.path, readSource(entry.path), readSource)),
+      sha(
+        nullablePredecessor(
+          entry.path,
+          runtimeIdentityPredecessor(
+            entry.path,
+            readSource(entry.path),
+            readSource,
+          ),
+          readSource,
+        ),
+      ),
       entry.after,
       `${entry.path}: exact reading successor`,
     );
@@ -305,7 +316,17 @@ function authenticate(
       !inventory.some((row) => row.path === `apps/wechat/${entry.path}`),
     );
     assert.equal(
-      sha(cssPredecessor(entry.path, readSource(entry.path), readSource)),
+      sha(
+        cssPredecessor(
+          entry.path,
+          runtimeIdentityPredecessor(
+            entry.path,
+            readSource(entry.path),
+            readSource,
+          ),
+          readSource,
+        ),
+      ),
       entry.sha256,
       `${entry.path}: exact added reading owner`,
     );
@@ -333,7 +354,13 @@ export function readingPredecessor(
   if (!key) return current;
   const entry = readingSuccessors.find((item) => item.path === key)!;
   assert.equal(
-    sha(nullablePredecessor(key, current, readSource)),
+    sha(
+      nullablePredecessor(
+        key,
+        runtimeIdentityPredecessor(key, current, readSource),
+        readSource,
+      ),
+    ),
     entry.after,
     `${key}: exact reading presentation successor`,
   );

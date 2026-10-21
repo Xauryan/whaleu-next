@@ -156,6 +156,7 @@ test(
               'whaleu_campus.operating_regions',
               'whaleu_community.comment_images',
               'whaleu_community.comment_likes',
+              'whaleu_community.community_text_sources',
               'whaleu_community.content_approval_bindings',
               'whaleu_community.content_approval_decisions',
               'whaleu_community.content_approval_events',
@@ -233,6 +234,22 @@ test(
               assert.equal(BigInt(await epoch(owner)), before, relation);
               // Their permitted zero-row INSERT still claims the writer slot
               // and advances the same Safety vector without fabricating rows.
+              await pool.query(
+                `INSERT INTO ${relation} SELECT * FROM ${relation} WHERE false`,
+              );
+            } else if (relation === 'whaleu_community.community_text_sources') {
+              // 0175 sources are statement-immutable, even with no matching
+              // rows. A rejected write must roll the earlier epoch back.
+              await assert.rejects(
+                pool.query(update),
+                (error: unknown) =>
+                  sqlCode('23514')(error) &&
+                  error instanceof Error &&
+                  error.message === 'Content approval evidence is immutable',
+              );
+              assert.equal(BigInt(await epoch(owner)), before, relation);
+              // The admitted empty INSERT exercises the real writer epoch
+              // without fabricating source, Review or publication evidence.
               await pool.query(
                 `INSERT INTO ${relation} SELECT * FROM ${relation} WHERE false`,
               );

@@ -1,0 +1,62 @@
+{
+  "reason": "Preserve exact native runtime identity for mutation owners; inject guarded read transport and request-local API guards only.",
+  "predecessorCommit": "b53198d394546c2e07c51440169a63db45cf164d",
+  "readingManifestSha256": "3b7a3281fbf23af3f88fedd64614f8ab935977cc71b6a0dcf887153b3979bec2",
+  "sources": [
+    {
+      "path": "src/api/client.ts",
+      "before": "c7f340534bde17711894e950cbeab36a2aed54091127b50af4d2867e9d7f80af",
+      "after": "bc30a29c3255f78a36b462be1a409c44457ae78301b67e6683cc7847f19bd582",
+      "beforeBytes": 4568,
+      "afterBytes": 4847,
+      "evidence": "before/src/api/client.ts.txt",
+      "gitBlob": "42a154459bc5daebae2ae8da8e562af51344f504"
+    },
+    {
+      "path": "src/community/reading-gateway.ts",
+      "before": "e0728ee9b0c056181467da164bb7d484699564d26286fedd1b5a9148a81d632f",
+      "after": "af0c928fd302a0b2a46a97944e9d438d8e3fffb7d777f0cb1c959e06ac3f4394",
+      "beforeBytes": 6535,
+      "afterBytes": 7601,
+      "evidence": "before/src/community/reading-gateway.ts.txt",
+      "gitBlob": "2a457fdef55a83bff2cd4f95cc06901c5b86a6b1"
+    },
+    {
+      "path": "src/pages/community-detail/community-detail.ts",
+      "before": "d27bd38fb7bab974f322e843998d0924e7dce4a522775821eec7cb2802b7680c",
+      "after": "f912899e7bbbb3adee93f41d9739e996c51f34586ba7b7a34731c410afe3ee4e",
+      "beforeBytes": 54807,
+      "afterBytes": 54745,
+      "evidence": "before/src/pages/community-detail/community-detail.ts.txt",
+      "gitBlob": "ff7e919ce8a7709c8a5cd12ec238135146bb88ad"
+    },
+    {
+      "path": "src/pages/community-detail/controller.ts",
+      "before": "0b1ca1029a817daffcb2d87e59f6ff9b40572b2964bbac95aa144a60924ee339",
+      "after": "2154c01da6dfe09ac85c0c8ef45f4650ff119b7680bec56d5eccd5560ef029dd",
+      "beforeBytes": 11604,
+      "afterBytes": 11734,
+      "evidence": "before/src/pages/community-detail/controller.ts.txt",
+      "gitBlob": "dbd0a2a6c93401979365120e9c12360ddf1e89f4"
+    },
+    {
+      "path": "src/pages/community-thread/community-thread.ts",
+      "before": "8290e45faa90a0e8ea9131b9275d26c76928dd54880ff452b51fcb723b56279d",
+      "after": "504f5ce58b3465bed8aa80d39bdcb4fd5ab921183fef61b547ba393a276ee718",
+      "beforeBytes": 21953,
+      "afterBytes": 21891,
+      "evidence": "before/src/pages/community-thread/community-thread.ts.txt",
+      "gitBlob": "4b5d1a412711261ff59b40f2a32c61098c465e7b"
+    },
+    {
+      "path": "src/pages/community-thread/controller.ts",
+      "before": "910c2ab44d3a338d10b8359ee276f0d0d6619a4201d8b741fadbc2f05713daec",
+      "after": "c1e301377fbb92326817cf813b20d46af741ddbd83cf1d99d448fb2e3861e4e5",
+      "beforeBytes": 7834,
+      "afterBytes": 8001,
+      "evidence": "before/src/pages/community-thread/controller.ts.txt",
+      "gitBlob": "d12846d8d863fe44558598bc2ea0d8d142765e90"
+    }
+  ],
+  "patchSha256": "e59e7d076e37ae8b76b0ba2ccfc4ceb3f67d3b6dffba1651bd0a081f43753ccc"
+}

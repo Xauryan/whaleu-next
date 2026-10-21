@@ -13,3 +13,6 @@ apps/wechat/release
 # Byte-preserved predecessor fixture: hash-tested after import-path relocation.
 # Formatting would invalidate the historical migration proof, not improve runtime code.
 apps/api/test/support/historical-identity/repository.ts
+
+# Byte-preserved c27 definition reader; source hash is checked after import relocation.
+apps/api/test/support/historical-content-definition/content-definition.repository.ts

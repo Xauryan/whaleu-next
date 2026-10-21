@@ -15,6 +15,12 @@ import {
 } from '../support/community-scope-fixtures.js';
 import { ApprovalRepository } from '../../src/community/content-review/approval.repository.js';
 import { ContentDefinitionRepository } from '../../src/community/content-review/content-definition.repository.js';
+import { ReadingFormattingRuntime } from '../../src/community/reading-formatting/runtime.js';
+import { HistoricalReadingFormattingRuntime } from '../support/historical-content-definition/reading-enrollment.js';
+import {
+  HistoricalContentDefinitionRepository,
+  historicalTextSourceAbsenceSql,
+} from '../support/historical-content-definition/configure.js';
 import {
   approvalDigest,
   canonicalEnvelope,
@@ -1501,6 +1507,22 @@ test(
         COMMUNITY_TEXT_REVIEW_OPERATOR: issuer,
       };
       await f.restartApp(137);
+      assert.ok(
+        f.app.get(ReadingFormattingRuntime) instanceof
+          HistoricalReadingFormattingRuntime,
+      );
+      assert.ok(
+        f.app.get(ContentDefinitionRepository) instanceof
+          HistoricalContentDefinitionRepository,
+      );
+      assert.equal(
+        (
+          await f.pool.query<{ absent: boolean }>(
+            historicalTextSourceAbsenceSql,
+          )
+        ).rows[0]!.absent,
+        true,
+      );
       const historicalOwner = f.app.get(CommunityDistributionService);
       assert.notEqual(
         Object.getPrototypeOf(historicalOwner),
@@ -1661,6 +1683,19 @@ test(
       );
       await f.restartApp();
       assertRelatedSyncRuntimeWiring(f.app);
+      assert.equal(
+        f.app.get(ReadingFormattingRuntime).constructor,
+        ReadingFormattingRuntime,
+      );
+      assert.ok(
+        f.app.get(ContentDefinitionRepository) instanceof
+          ContentDefinitionRepository,
+      );
+      assert.equal(
+        f.app.get(ContentDefinitionRepository) instanceof
+          HistoricalContentDefinitionRepository,
+        false,
+      );
       assert.deepEqual((await post(input)).body, root.body);
       assert.deepEqual(
         (await post({ ...input, syncToRelatedCampuses: false })).body,

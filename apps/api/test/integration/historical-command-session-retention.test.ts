@@ -8,6 +8,10 @@ import test from 'node:test';
 import request from 'supertest';
 import { ProfileAvatarModerationService } from '../../src/profile/avatar-moderation/service.js';
 import { ProfileAvatarModerationService as HistoricalAvatarModerationService } from '../support/historical-avatar-moderation/service.js';
+import { ContentDefinitionRepository } from '../../src/community/content-review/content-definition.repository.js';
+import { HistoricalContentDefinitionRepository } from '../support/historical-content-definition/configure.js';
+import { historicalTextSourceAbsenceSql } from '../support/historical-content-definition/configure.js';
+import { CampusService } from '../../src/campus/campus.service.js';
 import { DatabaseService } from '../../src/database/database.js';
 import {
   readMigrations,
@@ -20,6 +24,7 @@ import { hashToken, mintToken } from '../../src/identity/tokens.js';
 import { profileAvatarModerationFixture } from '../support/profile-avatar-moderation-fixture.js';
 import { profileOk } from '../support/media/profile-runtime-fixture.js';
 import type { EffectiveContentEnvelopeV1 } from '../../src/community/content-review/contracts.js';
+import type { ContentScopeSnapshot } from '../../src/community/content-review/contracts.js';
 import { CommunitySubscriptionEnrollment } from '../../src/community/subscription-component/enrollment.js';
 import { CommunityLikeEnrollment } from '../../src/community/like-component/enrollment.js';
 import { CommunityViewEnrollment } from '../../src/community/view-component/enrollment.js';
@@ -162,6 +167,12 @@ test(
         HistoricalAvatarModerationService,
       'Pre-upgrade HTTP commands use the exact signed predecessor owner',
     );
+    const historicalDefinitions: unknown = f.moderationApp.get(
+      ContentDefinitionRepository,
+    );
+    assert.ok(
+      historicalDefinitions instanceof HistoricalContentDefinitionRepository,
+    );
     const identityService = () => f.app.get(IdentityService);
     const maintenance = () =>
       new IdentityMaintenance(f.moderationApp.get(DatabaseService));
@@ -184,6 +195,36 @@ test(
       f,
       subject.accountId,
       discussionPost.id,
+    );
+    const postScope = (
+      await f.pool.query<{ scope: ContentScopeSnapshot }>(
+        "SELECT scope FROM whaleu_community.content_approval_bindings WHERE content_kind='post' AND content_id=$1",
+        [post.id],
+      )
+    ).rows[0]!.scope;
+    assert.equal(
+      (await f.pool.query<{ absent: boolean }>(historicalTextSourceAbsenceSql))
+        .rows[0]!.absent,
+      true,
+      'No future text-source table, function, index, trigger, column, constraint or type is installed',
+    );
+    const database = f.moderationApp.get(DatabaseService);
+    assert.equal(
+      (
+        await database.transaction((tx) =>
+          historicalDefinitions.current('post', post.id, postScope, tx),
+        )
+      ).kind,
+      'allow',
+    );
+    await assert.rejects(
+      database.transaction((tx) =>
+        new ContentDefinitionRepository(
+          f.moderationApp.get(CampusService),
+        ).current('post', post.id, postScope, tx),
+      ),
+      { code: '42P01' },
+      'Current reader still fails closed on the deliberately absent source schema',
     );
     type Actor = Awaited<ReturnType<typeof f.actor>>;
     const records: {
@@ -354,6 +395,12 @@ test(
         ),
       /Historical avatar owner cannot cross an upgrade/,
     );
+    await assert.rejects(
+      database.transaction((tx) =>
+        historicalDefinitions.current('post', post.id, postScope, tx),
+      ),
+      /Historical content definitions cannot cross an upgrade/,
+    );
     await f.restartApp();
     assert.ok(
       f.moderationApp.get(ProfileAvatarModerationService) instanceof
@@ -364,6 +411,16 @@ test(
         HistoricalAvatarModerationService,
       false,
       'Upgrade restart restores the current owner without a historical adapter',
+    );
+    assert.ok(
+      f.moderationApp.get(ContentDefinitionRepository) instanceof
+        ContentDefinitionRepository,
+    );
+    assert.equal(
+      f.moderationApp.get(ContentDefinitionRepository) instanceof
+        HistoricalContentDefinitionRepository,
+      false,
+      'Upgrade restart restores the source-aware current definition reader',
     );
     for (const { schemaname, tablename, columns } of auditTables) {
       const added = (

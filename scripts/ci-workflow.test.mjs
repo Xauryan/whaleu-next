@@ -255,7 +255,7 @@ test('browser-only deadline fails closed and kills only its own unresponsive pro
   );
   assert.match(
     commands,
-    /else\n {2}timeout 7200 node scripts\/run-integration-module\.mjs/,
+    /else\n {2}export WHALEU_TEST_PG_ISOLATION=per-file-docker\n {2}timeout 7200 node scripts\/run-integration-module\.mjs/,
   );
   assert.doesNotMatch(
     commands,
@@ -664,4 +664,44 @@ test('reading worker production acceptance requires the real build and password-
     ],
     'node --import tsx --test --test-concurrency=1 test/production-integration/reading-worker-process-production.test.ts',
   );
+});
+
+test('ordinary CI files use fresh-cluster lifecycle while browser setup and original outer deadlines remain intact', () => {
+  const integration = jobs['main-integration'];
+  const step = (name) =>
+    integration.split(`      - name: ${name}\n`)[1]?.split('      - name:')[0];
+  for (const name of [
+    'Start fresh controlled-maintenance PostgreSQL',
+    'Verify fresh controlled-maintenance service',
+  ])
+    assert.match(
+      step(name),
+      /^ {8}if: matrix.module == 'official-account-browser'$/m,
+    );
+  assert.match(
+    step('Pull pinned per-file PostgreSQL image'),
+    /^ {8}if: matrix.module != 'official-account-browser'\n {8}run: docker pull postgres:18\.6-bookworm$/m,
+  );
+  assert.ok(
+    integration.indexOf('ci-native-artifact.mjs restore') <
+      integration.indexOf('docker pull'),
+  );
+  assert.match(
+    step('Real PostgreSQL integration tests'),
+    /else\n {12}export WHALEU_TEST_PG_ISOLATION=per-file-docker\n {12}timeout 7200 node scripts\/run-integration-module\.mjs/,
+  );
+  assert.match(integration, /timeout-minutes: 150/);
+  const cleanup = step('Remove disposable database container');
+  assert.match(cleanup, /^ {8}if: always\(\)$/m);
+  assert.match(
+    cleanup,
+    /else\n {12}export WHALEU_TEST_PG_ISOLATION=per-file-docker\n {12}node scripts\/run-integration-shard\.mjs --cleanup-per-file/,
+  );
+  assert.match(cleanup, /^ {10}NODE_ENV: test$/m);
+  assert.match(
+    cleanup,
+    /^ {10}TEST_DATABASE_URL: postgresql:\/\/whaleu_test:local_ci_only@127\.0\.0\.1:5432\/whaleu_test$/m,
+  );
+  for (const job of ['semantic-integration', 'source-manual-production'])
+    assert.doesNotMatch(jobs[job], /WHALEU_TEST_PG_ISOLATION|cleanup-per-file/);
 });

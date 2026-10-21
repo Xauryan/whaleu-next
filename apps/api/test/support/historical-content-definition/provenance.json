@@ -1,0 +1,18 @@
+[
+  {
+    "source": "apps/api/src/community/content-review/content-definition.repository.ts",
+    "commit": "c27f173d8057f349469f4f96855d31edb9cff7c5",
+    "blob": "c8fcd226f17120c0973fb6d1e9da0d6f7d0af626",
+    "sourceSha256": "c49a61c9e08b80eb3b685314f87f10a5b41ad2cc0c0fa29d5cbfd96b26e2e343",
+    "snapshot": "apps/api/test/support/historical-content-definition/content-definition.repository.ts",
+    "adaptation": "Only relative imports relocated. All runtime dependencies remain current; definition-validation snapshot is a pure-test differential oracle, never installed in DI."
+  },
+  {
+    "source": "apps/api/src/community/content-review/definition-validation.ts",
+    "commit": "c27f173d8057f349469f4f96855d31edb9cff7c5",
+    "blob": "ba9f5552a7ad064444d1d360a672c1e0aad5f5a9",
+    "sourceSha256": "1c33d5da252b38520b01769e17585b3838af022168145eeb3adabbcf0074d951",
+    "snapshot": "apps/api/test/support/historical-content-definition/definition-validation.ts",
+    "adaptation": "Only relative imports relocated. All runtime dependencies remain current; definition-validation snapshot is a pure-test differential oracle, never installed in DI."
+  }
+]

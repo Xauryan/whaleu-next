@@ -5,7 +5,18 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { Test } from '@nestjs/testing';
+import { ReadingFormattingRuntime } from '../../src/community/reading-formatting/runtime.js';
+import {
+  HistoricalReadingFormattingRuntime,
+  historicalReadingAbsenceSql,
+} from './historical-content-definition/reading-enrollment.js';
+import { ContentDefinitionRepository } from '../../src/community/content-review/content-definition.repository.js';
+import {
+  configureHistoricalContentDefinitions,
+  HistoricalContentDefinitionRepository,
+  historicalTextSourceAbsenceSql,
+} from './historical-content-definition/configure.js';
 import { AppModule } from '../../src/app.module.js';
 import { loadConfig } from '../../src/config/config.js';
 import { configureHttp } from '../../src/http/http.js';
@@ -50,11 +61,36 @@ export async function accountDeletionFollowSocialFixture() {
       COMMUNITY_UPDATES_PROCESSING: 'manual_only',
       EXPERIENCE_PROCESSING: 'disabled',
     });
-    app = await NestFactory.create(AppModule.register(config), {
-      logger: false,
+    // Test-only 0174 adapters: exact predecessor definition reads and guarded
+    // source-free same-transaction enrollment absence. All other reading
+    // runtime methods remain current.
+    // Deletion, Review, publication, social and validation owners remain current.
+    const builder = Test.createTestingModule({
+      imports: [AppModule.register(config)],
     });
+    await configureHistoricalContentDefinitions(builder, config, 174);
+    app = (await builder.compile()).createNestApplication({ logger: false });
+    const reader = app.get(ContentDefinitionRepository);
+    assert.ok(reader instanceof HistoricalContentDefinitionRepository);
+    const reading = app.get(ReadingFormattingRuntime);
+    assert.ok(reading instanceof HistoricalReadingFormattingRuntime);
+    assert.equal(
+      (await base.pool.query<{ absent: boolean }>(historicalReadingAbsenceSql))
+        .rows[0]?.absent,
+      true,
+    );
+    assert.equal(
+      (
+        await base.pool.query<{ absent: boolean }>(
+          historicalTextSourceAbsenceSql,
+        )
+      ).rows[0]?.absent,
+      true,
+    );
     configureHttp(app);
     await app.init();
+    assert.equal(app.get(ContentDefinitionRepository), reader);
+    assert.equal(app.get(ReadingFormattingRuntime), reading);
     await app.get(SocialUpdatesDispatcher).beforeApplicationShutdown();
     await app.get(UpdatesDispatcher).stop();
     const following = app.get(FollowingService);

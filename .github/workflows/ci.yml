@@ -157,7 +157,11 @@ jobs:
         env:
           # A failed-job retry may reuse its successful producer's immutable ID.
           WHALEU_ARTIFACT_ATTEMPT: ${{ needs.native-checks.outputs.artifact-attempt }}
+      - name: Pull pinned per-file PostgreSQL image
+        if: matrix.module != 'official-account-browser'
+        run: docker pull postgres:18.6-bookworm
       - name: Start fresh controlled-maintenance PostgreSQL
+        if: matrix.module == 'official-account-browser'
         shell: bash
         run: |
           [[ "$WHALEU_TEST_MAINTENANCE" == controlled ]]
@@ -179,6 +183,7 @@ jobs:
           docker logs "$MAIN_PG_CONTAINER"
           exit 1
       - name: Verify fresh controlled-maintenance service
+        if: matrix.module == 'official-account-browser'
         run: node scripts/verify-test-postgres.mjs
         env:
           NODE_ENV: test
@@ -191,6 +196,7 @@ jobs:
             # Preserve failure and let GNU timeout terminate only its own process group.
             timeout --verbose --kill-after=10s 900s node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD"
           else
+            export WHALEU_TEST_PG_ISOLATION=per-file-docker
             timeout 7200 node scripts/run-integration-module.mjs --module "$CI_MODULE" --shard "$CI_SHARD"
           fi
         env:
@@ -199,14 +205,22 @@ jobs:
           WHALEU_SCALABLE_PROFILE_CI_DIAGNOSTICS: '1'
           TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:5432/whaleu_test
       - name: Show disposable database diagnostics on failure
-        if: failure()
+        if: failure() && matrix.module == 'official-account-browser'
         run: docker logs "$MAIN_PG_CONTAINER"
       - name: Remove disposable database container
         if: always()
         run: |
-          if docker inspect "$MAIN_PG_CONTAINER" >/dev/null 2>&1; then
-            docker rm --force --volumes "$MAIN_PG_CONTAINER"
+          if [[ "$CI_MODULE" == official-account-browser ]]; then
+            if docker inspect "$MAIN_PG_CONTAINER" >/dev/null 2>&1; then
+              docker rm --force --volumes "$MAIN_PG_CONTAINER"
+            fi
+          else
+            export WHALEU_TEST_PG_ISOLATION=per-file-docker
+            node scripts/run-integration-shard.mjs --cleanup-per-file
           fi
+        env:
+          NODE_ENV: test
+          TEST_DATABASE_URL: postgresql://whaleu_test:local_ci_only@127.0.0.1:5432/whaleu_test
 
   semantic-integration:
     runs-on: ubuntu-24.04

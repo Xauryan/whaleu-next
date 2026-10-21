@@ -18,6 +18,7 @@ import {
 import { formatSource } from '../src/community/reading-formatting/formatter.js';
 import { reviewedTextSource } from '../src/community/text-source/protocol.js';
 import { ApplicationError } from '../src/http/application-error.js';
+import { readingCatalogSnapshotSql } from '../src/community/reading-formatting/catalog.js';
 import {
   startTransactionDeadlines,
   checkTransactionDeadlines,
@@ -134,7 +135,7 @@ function fixture(
             },
           ],
         };
-      if (sql.startsWith('SELECT whaleu_community.reading_format_catalog()')) {
+      if (sql === readingCatalogSnapshotSql) {
         if (
           finalPhase &&
           (finalFailure === '55P03' || finalFailure === '57014')
@@ -147,6 +148,8 @@ function fixture(
             {
               catalog: (finalPhase && finalFailure ? 'b' : 'a').repeat(64),
               slots: [1, 2],
+              deparsePath: 'pg_catalog',
+              searchPathRestored: true,
             },
           ],
         };

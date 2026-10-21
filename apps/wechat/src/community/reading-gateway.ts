@@ -1,8 +1,13 @@
 /** Detail/thread-only transport: no additional session, journal or authorization owner. */
-import { ApiClient, type Endpoint } from '../api/client';
+import { ApiClient, type Endpoint, type RequestOptions } from '../api/client';
+import { ClientError } from '../api/errors';
 import { isUuid } from '../profile/contract';
 import type { Cancellation } from '../platform/contracts';
-import { HttpCommunityGateway, type CommentQuery } from './gateway';
+import {
+  HttpCommunityGateway,
+  type CommentQuery,
+  type CommunityGateway,
+} from './gateway';
 import { cursor, exact, invalid } from './contract';
 import {
   decodeReadingPost,
@@ -34,9 +39,30 @@ const page = (after: string | null) => {
   if (!cursor(after)) invalid();
   return after ? { cursor: after } : {};
 };
+export interface ReadingCommunityGateway extends Pick<
+  CommunityGateway,
+  'post' | 'comments' | 'comment' | 'replies' | 'reply' | 'discussionContext'
+> {
+  assertCurrent(): void;
+}
 export class HttpReadingCommunityGateway extends HttpCommunityGateway {
-  constructor(private readonly readingApi: ApiClient) {
+  constructor(
+    private readonly readingApi: ApiClient,
+    private readonly assertEnvironment: () => void = () => undefined,
+  ) {
     super(readingApi);
+  }
+  assertCurrent(): void {
+    this.assertEnvironment();
+  }
+  private request<T>(
+    endpoint: Endpoint<T>,
+    options: RequestOptions,
+  ): Promise<T> {
+    return this.readingApi.request(endpoint, {
+      ...options,
+      assertEnvironment: () => this.assertCurrent(),
+    });
   }
   async textSource(kind: SourceKind, contentId: string, cancel: Cancellation) {
     if (
@@ -44,7 +70,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
       contentId !== contentId.toLowerCase()
     )
       invalid();
-    const result = await this.readingApi.request(
+    const result = await this.request(
       endpoint(
         `/v2/community/text-sources/${kind}/${id(contentId)}`,
         decodeSourcePresentation,
@@ -60,7 +86,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
     cancel: Cancellation,
     viewSpaceId?: string,
   ) {
-    const result = await this.readingApi.request(
+    const result = await this.request(
       endpoint(`/v2/community/posts/${id(postId)}`, decodeReadingPost),
       {
         cancellation: cancel,
@@ -97,7 +123,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
       previewLimit > 5
     )
       invalid();
-    const result = await this.readingApi.request(
+    const result = await this.request(
       endpoint(
         `/v2/community/posts/${id(postId)}/comments`,
         decodeReadingComments,
@@ -117,7 +143,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
     return result;
   }
   async readingComment(commentId: string, cancel: Cancellation) {
-    const result = await this.readingApi.request(
+    const result = await this.request(
       endpoint(`/v2/community/comments/${id(commentId)}`, decodeReadingComment),
       { cancellation: cancel },
     );
@@ -125,7 +151,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
     return result;
   }
   async readingReply(replyId: string, cancel: Cancellation) {
-    const result = await this.readingApi.request(
+    const result = await this.request(
       endpoint(`/v2/community/replies/${id(replyId)}`, decodeReadingReply),
       { cancellation: cancel },
     );
@@ -139,7 +165,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
     limit = 20,
   ) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 50) invalid();
-    const result = await this.readingApi.request(
+    const result = await this.request(
       endpoint(
         `/v2/community/comments/${id(commentId)}/replies`,
         decodeReadingReplies,
@@ -160,7 +186,7 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
       'commentId' in target
         ? { commentId: id(target.commentId) }
         : { replyId: id(target.replyId) };
-    const result = await this.readingApi.request(
+    const result = await this.request(
       endpoint(
         `/v2/community/posts/${id(postId)}/discussion-context`,
         decodeReadingContext,
@@ -197,13 +223,26 @@ export class HttpReadingCommunityGateway extends HttpCommunityGateway {
     return this.readingContext(...args);
   }
 }
-/** Feature facade shares every store/lifecycle and the original authenticated ApiClient.
- * API denial is terminal; no retry through a legacy or guest reader. */
-export function withReadingSources(
+/** Only read transport is adapted. Every controller retains the original runtime.
+ * A changed runtime or API requires a fresh page; never replay through an old origin. */
+export function readingSourceGateway(
   runtime: CommunityRuntime,
-  api: ApiClient | undefined,
-): CommunityRuntime {
-  return api && runtime.gateway
-    ? { ...runtime, gateway: new HttpReadingCommunityGateway(api) }
-    : runtime;
+  currentApi: () => ApiClient | undefined,
+): ReadingCommunityGateway | undefined {
+  const api = currentApi(),
+    gateway = runtime.gateway,
+    sessions = runtime.sessions,
+    privateViews = runtime.privateViews,
+    safetyChanges = runtime.safetyChanges;
+  if (!api || !gateway) return undefined;
+  return new HttpReadingCommunityGateway(api, () => {
+    if (
+      currentApi() !== api ||
+      runtime.gateway !== gateway ||
+      runtime.sessions !== sessions ||
+      runtime.privateViews !== privateViews ||
+      runtime.safetyChanges !== safetyChanges
+    )
+      throw new ClientError('configuration', 'Reading environment changed');
+  });
 }

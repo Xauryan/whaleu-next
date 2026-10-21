@@ -10,6 +10,7 @@ import {
 } from '../../database/transaction-deadlines.js';
 import type { RequiredTransactionProof } from '../../database/transaction-deadlines.js';
 import { FORMATTER } from './contracts.js';
+import { readingCatalogSnapshotSql } from './catalog.js';
 
 /** Fixed formal-migration function body, not a self-attesting SQL return value. */
 const catalogBodySha256 =
@@ -24,6 +25,8 @@ const protocolSchema = z.strictObject({
 const snapshotSchema = z.strictObject({
   catalog: z.string().regex(/^[a-f0-9]{64}$/),
   slots: z.tuple([z.literal(1), z.literal(2)]),
+  deparsePath: z.literal('pg_catalog'),
+  searchPathRestored: z.literal(true),
 });
 export type ReadingSchema =
   | Readonly<{ status: 'missing' }>
@@ -105,11 +108,7 @@ async function inspect(tx: PoolClient): Promise<ReadingSchema> {
   if (!literal) throw unavailable();
   const protocol = protocolSchema.safeParse(JSON.parse(literal[1]!));
   if (!protocol.success) throw unavailable();
-  const raw = (
-    await tx.query(
-      `SELECT whaleu_community.reading_format_catalog() catalog,(SELECT array_agg(slot_id ORDER BY slot_id) FROM whaleu_community.reading_format_slots) slots`,
-    )
-  ).rows[0];
+  const raw = (await tx.query(readingCatalogSnapshotSql)).rows[0];
   const parsed = snapshotSchema.safeParse(raw);
   if (!parsed.success || parsed.data.catalog !== protocol.data.catalog)
     throw unavailable();

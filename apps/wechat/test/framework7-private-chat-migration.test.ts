@@ -1,3 +1,4 @@
+import { runtimeIdentityPredecessor } from './reviewed-reading-runtime-identity-successor';
 import { assertReviewedBusinessSuccessor } from './reviewed-business-successor';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -140,7 +141,15 @@ test('private chat preserves all 124 controller/runtime/component/accepted-layou
   for (const [file, expected] of Object.entries(protectedFiles).filter(
     ([file, expected]) => !assertReviewedBusinessSuccessor(file, expected),
   ))
-    assert.equal(hash(read(file)), expected, file);
+    assert.equal(
+      hash(
+        runtimeIdentityPredecessor(file, Buffer.from(read(file))).toString(
+          'utf8',
+        ),
+      ),
+      expected,
+      file,
+    );
 });
 test('native longpress anchors, keyboard textarea, image and accessibility expansion controls remain native', () => {
   for (const [page, before] of Object.entries(baseline)) {

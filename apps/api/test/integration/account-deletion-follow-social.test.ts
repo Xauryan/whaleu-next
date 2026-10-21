@@ -4,6 +4,14 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { CommunitySocialSourceCapture } from '../../src/community/social-source/capture.js';
 import request from 'supertest';
+import { CampusService } from '../../src/campus/campus.service.js';
+import { DatabaseService } from '../../src/database/database.js';
+import { ReadingFormattingRuntime } from '../../src/community/reading-formatting/runtime.js';
+import { ReadingSourceOwner } from '../../src/community/reading-formatting/source-owner.js';
+import { HistoricalReadingFormattingRuntime } from '../support/historical-content-definition/reading-enrollment.js';
+import { ContentDefinitionRepository } from '../../src/community/content-review/content-definition.repository.js';
+import type { ContentScopeSnapshot } from '../../src/community/content-review/contracts.js';
+import { HistoricalContentDefinitionRepository } from '../support/historical-content-definition/configure.js';
 import {
   accountDeletionFollowSocialFixture,
   deletionRequest,
@@ -1373,6 +1381,60 @@ for (const kind of ['like', 'save'] as const) {
         .send(body);
       assert.equal(post.status, 201, JSON.stringify(post.body));
       assert.equal(post.body.outcome, 'created');
+      // New 0174 qualification: the genuine publication used the exact injected
+      // predecessor reader, not a current-runtime missing-table fallback.
+      // Read the actual token as unknown, then prove the replacement class.
+      // The current and predecessor classes have distinct private members.
+      const definitions: unknown = f.app.get(ContentDefinitionRepository);
+      assert.ok(definitions instanceof HistoricalContentDefinitionRepository);
+      const postScope = (
+        await f.pool.query<{ scope: ContentScopeSnapshot }>(
+          "SELECT scope FROM whaleu_community.content_approval_bindings WHERE content_kind='post' AND content_id=$1",
+          [post.body.resourceId],
+        )
+      ).rows[0]!.scope;
+      const database = f.app.get(DatabaseService);
+      assert.equal(
+        (
+          await database.transaction((tx) =>
+            definitions.current('post', post.body.resourceId, postScope, tx),
+          )
+        ).kind,
+        'allow',
+      );
+      await assert.rejects(
+        database.transaction((tx) =>
+          new ContentDefinitionRepository(f.app.get(CampusService)).current(
+            'post',
+            post.body.resourceId,
+            postScope,
+            tx,
+          ),
+        ),
+        { code: '42P01' },
+        'Unmodified current reader rejects the deliberately absent 0175 source schema',
+      );
+      assert.equal(f.app.get(ContentDefinitionRepository), definitions);
+      const reading = f.app.get(ReadingFormattingRuntime);
+      assert.ok(reading instanceof HistoricalReadingFormattingRuntime);
+      // Independent rollback-only probe: the unchanged current enrollment
+      // query must reject missing storage, not silently accept a legacy post.
+      await assert.rejects(
+        database.transaction((tx) =>
+          new ReadingFormattingRuntime(
+            database,
+            f.app.get(ReadingSourceOwner),
+          ).enrollCreated(
+            'post',
+            post.body.resourceId,
+            body.clientRequestId,
+            tx,
+          ),
+        ),
+        { code: '42P01' },
+        'Unmodified current enrollment rejects the deliberately absent source schema',
+      );
+      assert.equal(f.app.get(ReadingFormattingRuntime), reading);
       const mutation = await request(f.http)
         .put(`/v1/community/posts/${post.body.resourceId}/${kind}`)
         .set('Authorization', auth(actor))

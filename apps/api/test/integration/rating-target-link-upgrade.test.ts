@@ -6,7 +6,10 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import type { RuntimeConfig } from '../../src/config/config.js';
-import { inTransaction } from '../../src/database/database.js';
+import { DatabaseService, inTransaction } from '../../src/database/database.js';
+import { ReadingFormattingRuntime } from '../../src/community/reading-formatting/runtime.js';
+import { ReadingSourceOwner } from '../../src/community/reading-formatting/source-owner.js';
+import { HistoricalReadingFormattingRuntime } from '../support/historical-content-definition/reading-enrollment.js';
 import {
   readMigrations,
   runMigrations,
@@ -20,6 +23,70 @@ import { publicationHash } from '../../src/community/publication.repository.js';
 import { directoryRuntimeFixture } from '../support/directory-runtime-fixture.js';
 import { acceptRelatedSyncPolicy } from '../support/related-sync-fixtures.js';
 import { setRegionPolicy } from '../support/community-scope-fixtures.js';
+import { ContentDefinitionRepository } from '../../src/community/content-review/content-definition.repository.js';
+import {
+  HistoricalContentDefinitionRepository,
+  historicalTextSourceAbsenceSql,
+} from '../support/historical-content-definition/configure.js';
+
+function snapshotDifferenceMessage(before: string, after: string): string {
+  const differences: string[] = [];
+  let total = 0;
+  const describe = (value: unknown): string => {
+    if (value === undefined) return '<absent>';
+    if (Array.isArray(value)) return `<array length=${value.length}>`;
+    if (value !== null && typeof value === 'object')
+      return `<object keys=${Object.keys(value).length}>`;
+    const text = JSON.stringify(value);
+    return text.length <= 160 ? text : `${text.slice(0, 160)}...`;
+  };
+  const record = (path: string, expected: unknown, actual: unknown) => {
+    total += 1;
+    if (differences.length < 32)
+      differences.push(`${path}: ${describe(expected)} -> ${describe(actual)}`);
+  };
+  const visit = (expected: unknown, actual: unknown, path: string): void => {
+    if (Object.is(expected, actual)) return;
+    if (Array.isArray(expected) && Array.isArray(actual)) {
+      for (
+        let index = 0;
+        index < Math.max(expected.length, actual.length);
+        index++
+      )
+        visit(expected[index], actual[index], `${path}[${index}]`);
+      return;
+    }
+    if (
+      expected !== null &&
+      actual !== null &&
+      typeof expected === 'object' &&
+      typeof actual === 'object' &&
+      !Array.isArray(expected) &&
+      !Array.isArray(actual)
+    ) {
+      const left = expected as Record<string, unknown>;
+      const right = actual as Record<string, unknown>;
+      for (const key of [
+        ...new Set([...Object.keys(left), ...Object.keys(right)]),
+      ].sort())
+        visit(
+          Object.hasOwn(left, key) ? left[key] : undefined,
+          Object.hasOwn(right, key) ? right[key] : undefined,
+          `${path}[${JSON.stringify(key)}]`,
+        );
+      return;
+    }
+    record(path, expected, actual);
+  };
+  visit(JSON.parse(before), JSON.parse(after), '$');
+  return [
+    `Whole-row migration snapshot differs at ${total} paths (expected -> actual):`,
+    ...differences,
+    ...(total > differences.length
+      ? [`... ${total - differences.length} additional differences omitted`]
+      : []),
+  ].join('\n');
+}
 
 /** Admission occurs before 0148 exists. Old pending, approved, lost-response and
  * cancel-pending requests keep their original journal/Review protocol on upgrade. */
@@ -50,6 +117,19 @@ test(
       COMMUNITY_FEEDBACK_SPACE_ID: f.scope.global.spaceId,
     };
     await f.restartApp(144);
+    assert.ok(
+      f.app.get(ReadingFormattingRuntime) instanceof
+        HistoricalReadingFormattingRuntime,
+    );
+    assert.ok(
+      f.app.get(ContentDefinitionRepository) instanceof
+        HistoricalContentDefinitionRepository,
+    );
+    assert.equal(
+      (await f.pool.query<{ absent: boolean }>(historicalTextSourceAbsenceSql))
+        .rows[0]!.absent,
+      true,
+    );
     const operator = () =>
       new TextReviewOperator(
         f.app.get(TextReviewRuntime),
@@ -179,6 +259,22 @@ test(
             state === 'cancel_pending' ? 'cancelled' : 'created',
             JSON.stringify(receipt),
           );
+        if (version === 1 && state === 'response_lost')
+          await assert.rejects(
+            inTransaction(f.pool, (tx) =>
+              new ReadingFormattingRuntime(
+                f.app.get(DatabaseService),
+                f.app.get(ReadingSourceOwner),
+              ).enrollCreated(
+                'post',
+                (receipt as { resourceId: string }).resourceId,
+                body.clientRequestId,
+                tx,
+              ),
+            ),
+            { code: '42P01' },
+            'The current enrollment owner still fails closed on missing source storage',
+          );
         records.push({
           version,
           state,
@@ -206,6 +302,20 @@ test(
         ).rows[0].value,
       );
     const before = await snapshot();
+    const expected = JSON.parse(before) as {
+      review: Array<Record<string, unknown>>;
+    };
+    assert.ok(Array.isArray(expected.review));
+    assert.equal(expected.review.length, records.length);
+    for (const row of expected.review) {
+      assert.equal(
+        Object.hasOwn(row, 'text_source_transition_transaction'),
+        false,
+      );
+      // 0175 adds only this nullable cohort observation to these whole rows.
+      // Preserve every predecessor field, including all journal/review bytes.
+      row['text_source_transition_transaction'] = null;
+    }
     await runMigrations(
       f.pool,
       await readMigrations(
@@ -213,8 +323,49 @@ test(
       ),
       { mode: 'up' },
     );
-    assert.equal(await snapshot(), before);
+    assert.deepEqual(
+      (
+        await f.pool.query(
+          `SELECT column_name,udt_schema,udt_name,is_nullable,column_default
+           FROM information_schema.columns
+           WHERE table_schema='whaleu_community'
+             AND table_name='text_review_requests'
+             AND column_name='text_source_transition_transaction'`,
+        )
+      ).rows,
+      [
+        {
+          column_name: 'text_source_transition_transaction',
+          udt_schema: 'pg_catalog',
+          udt_name: 'xid8',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+      ],
+    );
+    const after = await snapshot();
+    const expectedAfter = canonicalJson(expected);
+    assert.equal(
+      after,
+      expectedAfter,
+      after === expectedAfter
+        ? undefined
+        : snapshotDifferenceMessage(expectedAfter, after),
+    );
     await f.restartApp();
+    assert.equal(
+      f.app.get(ReadingFormattingRuntime).constructor,
+      ReadingFormattingRuntime,
+    );
+    assert.ok(
+      f.app.get(ContentDefinitionRepository) instanceof
+        ContentDefinitionRepository,
+    );
+    assert.equal(
+      f.app.get(ContentDefinitionRepository) instanceof
+        HistoricalContentDefinitionRepository,
+      false,
+    );
     for (const record of records) {
       const row = (
         await f.pool.query(
