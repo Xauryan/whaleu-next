@@ -287,3 +287,13 @@ No PostgreSQL or Docker executable is available in the current development
 container. The new integration suite has been type-checked but requires the
 PostgreSQL 18.6 CI job before its runtime behavior can be called verified. Earlier
 foundation-only CI does not verify this new module.
+
+## Ordinary registration and completed-deletion gate (intermediate)
+
+The normal login transaction now checks the persistent [registration-guard
+contract](IDENTITY_REGISTRATION_GUARD.md) only when no provider mapping exists.
+Existing-account login/session rules are unchanged. Apply 0179 after its complete
+0178 predecessor before this runtime. Its initial inactive, empty, unavailable
+completion source preserves ordinary new registration; missing schema or unknown
+policy fails closed. Real account deletion and guard-writing authority are still
+unavailable, not enabled by the optional secret keyring or configuration.

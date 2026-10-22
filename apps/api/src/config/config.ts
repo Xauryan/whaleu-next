@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import type { DynamicModule } from '@nestjs/common';
 import { z } from 'zod';
+import { parseDigestKeyRing } from '../identity/registration/digests.js';
 
 const positiveInteger = (fallback: number, max: number) =>
   z.coerce.number().int().positive().max(max).default(fallback);
@@ -40,6 +41,10 @@ const schema = z.object({
     .string()
     .regex(/^[a-fA-F0-9]{64}$/)
     .optional(),
+  IDENTITY_REGISTRATION_GUARD: z
+    .enum(['automatic', 'required'])
+    .default('automatic'),
+  IDENTITY_DELETION_DIGEST_KEYRING: z.string().max(8192).optional(),
   RATINGS_UPDATES_PROCESSING: z
     .enum(['disabled', 'manual'])
     .default('disabled'),
@@ -143,6 +148,15 @@ export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     throw new Error(`Invalid configuration fields: ${keys.join(', ')}`);
   }
   const config = result.data;
+  if (config.IDENTITY_DELETION_DIGEST_KEYRING)
+    parseDigestKeyRing(config.IDENTITY_DELETION_DIGEST_KEYRING);
+  if (
+    config.IDENTITY_REGISTRATION_GUARD === 'required' &&
+    !config.IDENTITY_DELETION_DIGEST_KEYRING
+  )
+    throw new Error(
+      'Required registration guard needs IDENTITY_DELETION_DIGEST_KEYRING',
+    );
   if (
     config.COMMUNITY_TEXT_REVIEW === 'local_manual' &&
     (config.NODE_ENV === 'production' ||

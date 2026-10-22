@@ -379,6 +379,7 @@
           "dm-owner-proofs.test.ts",
           "identity-campus-native-roundtrip.test.ts",
           "identity-campus.test.ts",
+          "identity-registration-guard.test.ts",
           "identity.test.ts",
           "messaging-cancel-recovery.test.ts",
           "messaging-concurrency.test.ts",

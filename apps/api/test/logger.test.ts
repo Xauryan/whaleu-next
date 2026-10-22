@@ -15,6 +15,10 @@ test('structured logging redacts credential fields and token headers', () => {
     DATABASE_URL: 'secret-db-url',
     WECHAT_APP_SECRET: 'secret-provider',
     AUTH_RATE_LIMIT_KEY: 'secret-risk-key',
+    IDENTITY_DELETION_DIGEST_KEYRING: 'secret-digest-keyring',
+    config: {
+      IDENTITY_DELETION_DIGEST_KEYRING: 'secret-nested-digest-keyring',
+    },
     code: 'secret-code',
     redemptionCode: 'secret-redemption-input',
     body: { nested: { code: 'secret-body-input' } },

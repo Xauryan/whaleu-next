@@ -1,3 +1,4 @@
+import { assertRegistrationAllowed } from './registration/guard.js';
 import { processingAccountState } from './processing-account-proof.js';
 import { SYNTHETIC_APP } from '../account-deletion/synthetic-policy.js';
 import { APP_CONFIG } from '../config/config.js';
@@ -236,82 +237,95 @@ export class IdentityRepository {
     identity: ProviderIdentity,
     tokens: TokenHashes,
   ): Promise<SessionView> {
-    return this.database.transaction(async (client) => {
-      // Serialize first sign-in for the same app-scoped subject. Unique PK is the final invariant.
-      await client.query(
-        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
-        [JSON.stringify([identity.provider, identity.appId, identity.subject])],
-      );
-      const existing = await client.query<{ account_id: string }>(
-        'SELECT account_id FROM whaleu_identity.provider_identities WHERE provider=$1 AND app_id=$2 AND subject=$3',
-        [identity.provider, identity.appId, identity.subject],
-      );
-      const accountId = existing.rows[0]?.account_id ?? randomUUID();
-      if (!existing.rows[0]) {
-        // The explicit synthetic registrar owns its HMAC guard. Never let ordinary
-        // login auto-register that reserved rehearsal namespace around the guard.
-        if (identity.appId === SYNTHETIC_APP)
-          throw new ApplicationError('AUTHENTICATION_REQUIRED');
+    return this.database.transaction(
+      async (client) => {
+        // Serialize first sign-in for the same app-scoped subject. Unique PK is the final invariant.
         await client.query(
-          'INSERT INTO whaleu_identity.accounts (id) VALUES ($1)',
-          [accountId],
-        );
-        await initializeNativeExperienceAccount(accountId, client);
-        await initializeNativeSafetyAccount(accountId, client);
-        await client.query(
-          'INSERT INTO whaleu_identity.provider_identities (provider, app_id, subject, account_id, union_subject) VALUES ($1,$2,$3,$4,$5)',
+          'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
           [
-            identity.provider,
-            identity.appId,
-            identity.subject,
-            accountId,
-            identity.unionSubject ?? null,
+            JSON.stringify([
+              identity.provider,
+              identity.appId,
+              identity.subject,
+            ]),
           ],
         );
-        if (this.config?.NATIVE_VERIFICATION_ENROLLMENT === 'enabled')
-          await initializeNativeVerificationAccount(
-            accountId,
-            identity.appId,
-            client,
+        const existing = await client.query<{ account_id: string }>(
+          'SELECT account_id FROM whaleu_identity.provider_identities WHERE provider=$1 AND app_id=$2 AND subject=$3',
+          [identity.provider, identity.appId, identity.subject],
+        );
+        const accountId = existing.rows[0]?.account_id ?? randomUUID();
+        if (!existing.rows[0]) {
+          // The explicit synthetic registrar owns its HMAC guard. Never let ordinary
+          // login auto-register that reserved rehearsal namespace around the guard.
+          if (identity.appId === SYNTHETIC_APP)
+            throw new ApplicationError('AUTHENTICATION_REQUIRED');
+          await assertRegistrationAllowed(client, identity, this.config);
+          await client.query(
+            'INSERT INTO whaleu_identity.accounts (id) VALUES ($1)',
+            [accountId],
           );
-      }
-      const account = await client.query<{ status: string; lifecycle: string }>(
-        'SELECT status,lifecycle FROM whaleu_identity.accounts WHERE id=$1 FOR UPDATE',
-        [accountId],
-      );
-      if (account.rows[0]?.status !== 'active')
-        throw new ApplicationError('ACCOUNT_BLOCKED');
-      if (account.rows[0]?.lifecycle !== 'active')
-        throw new ApplicationError('SESSION_REVOKED');
-      const now = await databaseTime(client);
-      // A fresh login has a bounded number of active device sessions; do not silently allow unbounded rows.
-      await client.query(
-        `UPDATE whaleu_identity.sessions SET revoked_at=$2, revoke_reason='session_limit'
+          await initializeNativeExperienceAccount(accountId, client);
+          await initializeNativeSafetyAccount(accountId, client);
+          await client.query(
+            'INSERT INTO whaleu_identity.provider_identities (provider, app_id, subject, account_id, union_subject) VALUES ($1,$2,$3,$4,$5)',
+            [
+              identity.provider,
+              identity.appId,
+              identity.subject,
+              accountId,
+              identity.unionSubject ?? null,
+            ],
+          );
+          if (this.config?.NATIVE_VERIFICATION_ENROLLMENT === 'enabled')
+            await initializeNativeVerificationAccount(
+              accountId,
+              identity.appId,
+              client,
+            );
+        }
+        const account = await client.query<{
+          status: string;
+          lifecycle: string;
+        }>(
+          'SELECT status,lifecycle FROM whaleu_identity.accounts WHERE id=$1 FOR UPDATE',
+          [accountId],
+        );
+        if (account.rows[0]?.status !== 'active')
+          throw new ApplicationError('ACCOUNT_BLOCKED');
+        if (account.rows[0]?.lifecycle !== 'active')
+          throw new ApplicationError('SESSION_REVOKED');
+        const now = await databaseTime(client);
+        // A fresh login has a bounded number of active device sessions; do not silently allow unbounded rows.
+        await client.query(
+          `UPDATE whaleu_identity.sessions SET revoked_at=$2, revoke_reason='session_limit'
         WHERE id IN (SELECT id FROM whaleu_identity.sessions WHERE account_id=$1 AND revoked_at IS NULL
           AND refresh_expires_at > $2 ORDER BY created_at DESC, id DESC OFFSET 9)`,
-        [accountId, new Date(now)],
-      );
-      const sessionId = randomUUID();
-      const result = await client.query<SessionRow>(
-        `INSERT INTO whaleu_identity.sessions
+          [accountId, new Date(now)],
+        );
+        const sessionId = randomUUID();
+        const result = await client.query<SessionRow>(
+          `INSERT INTO whaleu_identity.sessions
         (id, account_id, access_expires_at, refresh_expires_at, absolute_expires_at)
         VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-        [
+          [
+            sessionId,
+            accountId,
+            new Date(now + ACCESS_MS),
+            new Date(now + REFRESH_MS),
+            new Date(now + SESSION_MS),
+          ],
+        );
+        await this.insertTokens(
+          client,
           sessionId,
-          accountId,
+          tokens,
           new Date(now + ACCESS_MS),
-          new Date(now + REFRESH_MS),
-          new Date(now + SESSION_MS),
-        ],
-      );
-      await this.insertTokens(
-        client,
-        sessionId,
-        tokens,
-        new Date(now + ACCESS_MS),
-      );
-      return view(result.rows[0]!);
-    });
+        );
+        return view(result.rows[0]!);
+      },
+      { isolationLevel: 'read committed' },
+    );
   }
 
   async rotate(refreshHash: string, tokens: TokenHashes): Promise<SessionView> {
