@@ -27,6 +27,8 @@ import {
   type AcceptDeletion,
   type CancelDeletion,
 } from './contracts.js';
+import { RealRequestCoordinator } from './request-coordinator.js';
+import { RealRequestAdmission } from './admission.js';
 import { RealDeletionService } from './service.js';
 
 @Controller('v1/account-deletion')
@@ -44,7 +46,11 @@ export class RealDeletionController {
       | 'deletion-cancel',
     request: Request,
   ) {
-    if (this.config.REAL_ACCOUNT_DELETION_ENTRY !== 'prepare_only')
+    if (
+      (operation === 'deletion-prepare' &&
+        this.config.REAL_ACCOUNT_DELETION_ENTRY !== 'prepare_only') ||
+      !this.config.AUTH_RATE_LIMIT_KEY
+    )
       throw new ApplicationError('REAL_DELETION_UNAVAILABLE');
     await this.risk.consume(
       operation,
@@ -78,11 +84,12 @@ export class RealDeletionController {
   @HttpCode(200)
   @Header('Cache-Control', 'private, no-store')
   async accept(
+    @Headers('authorization') authorization: unknown,
     @Body(new SchemaValidationPipe(acceptDeletionSchema)) body: AcceptDeletion,
     @Req() request: Request,
   ) {
     await this.limit('deletion-accept', request);
-    return this.service.accept(body);
+    return this.service.accept(body, authorization);
   }
   @Post('cancel')
   @HttpCode(200)
@@ -98,6 +105,10 @@ export class RealDeletionController {
 @Module({
   imports: [DatabaseModule, IdentityModule],
   controllers: [RealDeletionController],
-  providers: [RealDeletionService],
+  providers: [
+    RealDeletionService,
+    RealRequestCoordinator,
+    RealRequestAdmission,
+  ],
 })
 export class RealDeletionModule {}

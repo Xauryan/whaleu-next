@@ -7,14 +7,14 @@ It is not a visibility permission or a replacement for content Review.
 ## Deployment boundaries
 
 Install the normal complete checksum/prefix-verified migration chain through
-`0181_identity_real_deletion_preparations.sql`, including Home 0177/0178 and the
+`0182_real_deletion_request_authority.sql`, including Home 0177/0178 and the
 closed 0180 epoch foundation, before running this application version. The Home
 0177/0178 feature boundaries are not the current application's migration cutoff.
 Neither Home migration seeds an admission or an activation. An installation with
 no activation head continues the existing publication lane. A configured but expired or invalid activation fails closed;
 it never silently falls back to a lane that bypasses the policy.
 
-The full 0181 chain is required even when formatting and preparations are
+The full 0182 chain is required even when formatting and preparations are
 disabled. `REAL_ACCOUNT_DELETION_ENTRY=disabled` remains the default; explicit
 `prepare_only` implements only non-destructive prepare/status, not acceptance,
 cancellation, epoch advancement or erasure. It does not activate Home publication.
@@ -97,7 +97,14 @@ full integration gates finish. Static tests or this document are not deployment
 or production acceptance. Cloud container lifecycle and physical-device checks
 remain separate from a local PostgreSQL run.
 
-The current 0181 deployment requirement is a source contract, not evidence that
+The current 0182 deployment requirement is a source contract, not evidence that
 this new replay stack passed its type, unit, PostgreSQL, CLI, OpenAPI or deployment
 gates. Earlier Home and 0180 results remain tied to their original exact inputs;
 this documentation update neither extends nor invalidates that evidence.
+
+Current0182 boundary: full deployment includes the request substrate and local
+accept/cancel HTTP coordination, but production admission remains explicitly
+unavailable. Neither configuration nor a completed migration establishes owner
+erasure, reader retirement, lost-secret recovery or completed-at guard writing.
+Earlier validation results retain their original exact-source scope; this
+documentation does not inherit them as new-stack passes.

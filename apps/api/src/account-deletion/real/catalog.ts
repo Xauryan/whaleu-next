@@ -1,5 +1,4 @@
-/** Finite0181 preparation catalog: same preconstruction row/byte budgets as0179.
- * Unknown real-namespace relations/functions fail the seal; data is excluded. */
+/** Finite preparation owner seal; successor request authority has a separate seal. */
 export const preparationCatalogBody = `
 WITH relations AS MATERIALIZED (
  SELECT c.oid,c.relname,c.relkind,c.relpersistence,c.relowner,c.relrowsecurity,c.relforcerowsecurity,c.reloptions,c.relispartition,c.relhassubclass FROM (VALUES ('whaleu_real_deletion.preparations')) names(name)
@@ -17,8 +16,10 @@ WITH relations AS MATERIALIZED (
  FROM index_ids ids JOIN pg_index i ON i.indexrelid=ids.id JOIN pg_class ic ON ic.oid=i.indexrelid LIMIT 33
 ), objects AS MATERIALIZED (
  SELECT oid FROM relations UNION ALL SELECT indexrelid FROM indexes
+ UNION ALL SELECT c.oid FROM (VALUES ('whaleu_real_deletion.reauthentication_attempts'),('whaleu_real_deletion.provider_captures'),('whaleu_real_deletion.requests'),('whaleu_real_deletion.cancellations')) names(name) JOIN pg_class c ON c.oid=to_regclass(names.name)
+ UNION ALL SELECT i.indexrelid FROM (VALUES ('whaleu_real_deletion.reauthentication_attempts'),('whaleu_real_deletion.provider_captures'),('whaleu_real_deletion.requests'),('whaleu_real_deletion.cancellations')) names(name) JOIN pg_index i ON i.indrelid=to_regclass(names.name) LIMIT 65
 ), known_functions AS MATERIALIZED (
- SELECT to_regprocedure(name)::oid oid FROM (VALUES ('whaleu_real_deletion.preparation_guard()'),('whaleu_real_deletion.preparation_unavailable()'),('whaleu_real_deletion.preparation_catalog()'),('whaleu_real_deletion.preparation_protocol()')) functions(name)
+ SELECT to_regprocedure(name)::oid oid FROM (VALUES ('whaleu_real_deletion.preparation_guard()'),('whaleu_real_deletion.preparation_unavailable()'),('whaleu_real_deletion.preparation_catalog()'),('whaleu_real_deletion.preparation_protocol()'),('whaleu_real_deletion.request_immutable()'),('whaleu_real_deletion.request_guard()'),('whaleu_real_deletion.request_apply()'),('whaleu_real_deletion.request_complete()'),('whaleu_real_deletion.attempt_guard()'),('whaleu_real_deletion.capture_guard()'),('whaleu_real_deletion.cancellation_guard()'),('whaleu_real_deletion.cancellation_apply()'),('whaleu_real_deletion.account_pointer_guard()'),('whaleu_real_deletion.account_complete()'),('whaleu_real_deletion.request_catalog()'),('whaleu_real_deletion.request_protocol()'),('whaleu_real_deletion.verification_complete()')) functions(name)
 ), columns AS MATERIALIZED (
  SELECT 'column'::text kind,c.relname::text||':'||a.attnum::text key,
  jsonb_build_array(a.attname,a.atttypid,a.atttypmod,a.attnotnull,a.attidentity,a.attgenerated,a.attisdropped,a.attcollation,CASE WHEN octet_length(d.adbin::text)>16384 THEN NULL ELSE pg_get_expr(d.adbin,d.adrelid) END) value,coalesce(octet_length(d.adbin::text)>16384,false) oversized
@@ -36,7 +37,7 @@ WITH relations AS MATERIALIZED (
  SELECT 'function'::text kind,p.proname::text||'('||pg_get_function_identity_arguments(p.oid)||')' key,
  jsonb_build_array(CASE WHEN octet_length(p.prosrc)>16384 THEN NULL ELSE p.prosrc END,p.proowner,p.prolang,p.provolatile,p.prosecdef,p.proleakproof,p.proparallel,p.proisstrict,p.proretset,p.prorettype,CASE WHEN octet_length(p.proconfig::text)>16384 THEN NULL ELSE p.proconfig END) value,octet_length(p.prosrc)>16384 OR coalesce(octet_length(p.proconfig::text)>16384,false) oversized
  FROM known_functions f JOIN pg_proc p ON p.oid=f.oid
- WHERE p.oid IS DISTINCT FROM to_regprocedure('whaleu_real_deletion.preparation_protocol()')::oid
+ WHERE p.oid IN (to_regprocedure('whaleu_real_deletion.preparation_guard()'),to_regprocedure('whaleu_real_deletion.preparation_unavailable()'),to_regprocedure('whaleu_real_deletion.preparation_catalog()'))
 ), facts AS MATERIALIZED (
  SELECT 'relation'::text kind,c.relname::text key,jsonb_build_array(c.relkind,c.relpersistence,c.relowner,c.relrowsecurity,c.relforcerowsecurity,CASE WHEN octet_length(c.reloptions::text)>16384 THEN NULL ELSE c.reloptions END,c.relispartition,c.relhassubclass) value,coalesce(octet_length(c.reloptions::text)>16384,false) oversized FROM relations c
  UNION ALL SELECT * FROM columns
@@ -63,4 +64,4 @@ WITH relations AS MATERIALIZED (
 SELECT CASE WHEN (SELECT valid FROM budget) THEN encode(sha256(convert_to(coalesce(jsonb_agg(jsonb_build_array(kind,key,value) ORDER BY kind COLLATE "C",key COLLATE "C"),'[]'::jsonb)::text,'UTF8')),'hex') ELSE NULL END FROM admitted
 `;
 export const preparationCatalogBodySha256 =
-  '8e0098d98b9e0580a4170c752a19beaa9c57834fd511f649f22783d24dd2170b';
+  'f576794f4a68b2ef9be2e670369203f7d51e0c7208391771eea4e8e242443c68';

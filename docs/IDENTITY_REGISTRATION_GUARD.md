@@ -29,7 +29,7 @@ with synthetic test identities, including the actual Identity repository entry.
   nonempty inactive storage reject new registration as `AUTH_NOT_CONFIGURED`.
   A currently blocked identity receives the existing safe `LOGIN_REJECTED` code;
   no deletion request, completion time or digest is disclosed to the client.
-- Apply the complete chain through 0181 before deploying the current application
+- Apply the complete chain through 0182 before deploying the current application
   runtime, including the closed 0180 epoch foundation.
   The registration guard 0179 still requires the recorded full 0178
   predecessor and runs in the normal transactional, checksum-verified migration
@@ -39,11 +39,12 @@ with synthetic test identities, including the actual Identity repository entry.
   result remains attributed to that exact stack, not qualification of the new
   0181 replay. Earlier 0180 qualification remains limited to its own exact input.
 
-The 0181 installation requirement applies even when preparations are disabled.
+The 0182 installation requirement applies even when preparations are disabled.
 `REAL_ACCOUNT_DELETION_ENTRY=disabled` remains the default; explicit `prepare_only`
 supports only non-destructive prepare/status. Neither that entry nor the migration
-creates acceptance, cancellation, epoch advancement, erasure or registration-ban
-issuance authority. The 0179 completion writer remains unavailable. See
+enables production acceptance, erasure or registration-ban issuance. The0182
+request substrate has separately qualified local-only acceptance/cancellation
+authority, not a production owner. The 0179 completion writer remains unavailable. See
 [real deletion preparations](REAL_DELETION_PREPARATIONS.md). No new-stack 0181
 qualification is claimed here.
 
@@ -268,3 +269,10 @@ failure and verifies all writes plus DDL roll back. These are not PG passes unti
 the separately coordinated integrated run occurs. The final integration base is
 the parent's exact Home commit2f9f77260119664af3a06c488963153fdc12dab3/tree
 4ac8f485cd905d36e900bef15c19d491cd13d062, which includes0177/0178.
+
+Current0182 boundary: full deployment includes the request substrate and local
+accept/cancel HTTP coordination, but production admission remains explicitly
+unavailable. Neither configuration nor a completed migration establishes owner
+erasure, reader retirement, lost-secret recovery or completed-at guard writing.
+Earlier validation results retain their original exact-source scope; this
+documentation does not inherit them as new-stack passes.

@@ -26,6 +26,7 @@ import { hashToken, mintToken } from '../../src/identity/tokens.js';
 import { IdentityRepository as PredecessorIdentityRepository } from './historical-m1/identity.repository.js';
 import { historicalEpochAbsenceSql } from './historical-epoch-absence.js';
 import { historicalRealDeletionAbsenceSql } from './historical-real-deletion-absence.js';
+import { historicalRealRequestAbsenceSql } from './historical-real-request-absence.js';
 
 export const HISTORICAL_DELETION_PEER_APP = 'synthetic-deletion-peer-0174-only';
 export const DELETION_PEER_0174_MANIFEST_SHA256 =
@@ -110,6 +111,7 @@ export const historicalDeletionPeerCatalogSql = `SELECT
        OR (n.nspname='whaleu_identity' AND (starts_with(t.typname,'registration_guard') OR starts_with(t.typname,'_registration_guard'))))
   AND (${historicalEpochAbsenceSql})
   AND (${historicalRealDeletionAbsenceSql})
+  AND (${historicalRealRequestAbsenceSql})
   AND (SELECT count(*)=3 FROM pg_attribute WHERE attrelid='whaleu_identity.accounts'::regclass
     AND NOT attisdropped AND attname=ANY(ARRAY['lifecycle','lifecycle_generation','deletion_request_id'])) AS exact`;
 

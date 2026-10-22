@@ -53,13 +53,38 @@ export function createRealDeletionOpenApiDocument(): OpenAPIObject {
       },
     },
   };
+  const requestResponse = {
+    ...response,
+    description:
+      'Minimum exact existing real request receipt. No ordinary credentials or account history.',
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/RealDeletionRequestReceipt' },
+      },
+    },
+  };
+  const statusResponse = {
+    ...response,
+    description:
+      'This exact preparation or accepted request only; closing new acceptance does not revoke recovery.',
+    content: {
+      'application/json': {
+        schema: {
+          oneOf: [
+            { $ref: '#/components/schemas/RealDeletionPreparationReceipt' },
+            { $ref: '#/components/schemas/RealDeletionRequestReceipt' },
+          ],
+        },
+      },
+    },
+  };
   return {
     openapi: '3.0.3',
     info: {
-      title: 'WhaleU real account deletion preparation foundation',
+      title: 'WhaleU real account deletion non-activated request entry',
       version: '1',
       description:
-        'Disabled by default. Preparation/status are non-destructive and do not reserve generation or revoke sessions. Acceptance, cancellation, fresh-provider cooling recovery and erasure are NOT enabled by0181. Recovery secret is generated and persisted by the native client before prepare, sent only in body and retained server-side only as a purpose/account/intent/generation-bound hash. No environment value can enable acceptance. No ordinary-account deletion availability is claimed.',
+        'Disabled by default. New preparation is non-destructive. The real request coordinator is connected, but installed production admission remains unavailable. Existing exact request receipts and capability cancellation remain recoverable with new requests disabled. Fresh-provider lost-capability recovery and complete erasure are NOT implemented; no production acceptance availability is claimed. Recovery secret is generated and persisted by the native client before prepare, sent only in body and retained server-side only as a purpose/account/intent/generation-bound hash. No environment value can enable acceptance. No ordinary-account deletion availability is claimed.',
     },
     paths: {
       '/v1/account-deletion/prepare': {
@@ -78,25 +103,32 @@ export function createRealDeletionOpenApiDocument(): OpenAPIObject {
         post: {
           operationId: 'RealDeletionController_status',
           requestBody: body('RealDeletionStatus'),
-          responses: { '200': response, ...errors },
+          responses: { '200': statusResponse, ...errors },
         },
       },
       '/v1/account-deletion/accept': {
         post: {
           operationId: 'RealDeletionController_accept',
           description:
-            'Reserved non-activated protocol. Always unavailable in0181, before any provider code dispatch or lifecycle/epoch mutation.',
+            'Exact accepted receipt replay precedes bearer/provider requirements. New acceptance additionally requires an original ordinary bearer, fresh WeChat verification and a fixed legitimate admission owner. The installed production owner is unavailable; configuration alone cannot enable it.',
           requestBody: body('RealDeletionAccept'),
-          responses: errors,
+          responses: {
+            '200': requestResponse,
+            '401': {
+              description:
+                'A verified prepared capability requires an original current bearer for new acceptance; an existing accepted receipt never requires ordinary credentials.',
+            },
+            ...errors,
+          },
         },
       },
       '/v1/account-deletion/cancel': {
         post: {
           operationId: 'RealDeletionController_cancel',
           description:
-            'Reserved non-activated protocol. Never reports a preparation as successfully cancelled.',
+            'Purpose-only exact request cancellation or command replay. No ordinary bearer required; new-acceptance disabled flags do not block recovery. Never reports an unaccepted preparation as successfully cancelled.',
           requestBody: body('RealDeletionCancel'),
-          responses: errors,
+          responses: { '200': requestResponse, ...errors },
         },
       },
     },
@@ -107,6 +139,32 @@ export function createRealDeletionOpenApiDocument(): OpenAPIObject {
         RealDeletionStatus: schema(deletionStatusSchema),
         RealDeletionAccept: schema(acceptDeletionSchema),
         RealDeletionCancel: schema(cancelDeletionSchema),
+        RealDeletionRequestReceipt: {
+          type: 'object',
+          additionalProperties: false,
+          required: [
+            'protocol',
+            'intentId',
+            'phase',
+            'revision',
+            'preparedAt',
+            'preparationExpiresAt',
+            'acceptedAt',
+            'cancelBefore',
+            'completedAt',
+          ],
+          properties: {
+            protocol: { type: 'string', enum: ['real-account-deletion-v1'] },
+            intentId: { type: 'string', format: 'uuid' },
+            phase: { type: 'string', enum: ['cooling', 'cancelled'] },
+            revision: { type: 'string', pattern: '^[1-9][0-9]*$' },
+            preparedAt: { type: 'string', format: 'date-time' },
+            preparationExpiresAt: { type: 'string', format: 'date-time' },
+            acceptedAt: { type: 'string', format: 'date-time' },
+            cancelBefore: { type: 'string', format: 'date-time' },
+            completedAt: { type: 'string', nullable: true, enum: [null] },
+          },
+        },
         RealDeletionPreparationReceipt: {
           type: 'object',
           additionalProperties: false,

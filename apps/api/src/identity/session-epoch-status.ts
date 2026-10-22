@@ -6,10 +6,10 @@ export async function sessionEpochStatus(tx: PoolClient) {
   await tx.query('SET TRANSACTION READ ONLY');
   await retainSessionEpochSchema(tx);
   return Object.freeze({
-    protocol: 'identity-session-revocation-epoch-v1',
+    protocol: 'identity-session-revocation-epoch-v2',
     schema: 'qualified',
-    advanceAuthority: 'unavailable',
-    realDeletionAdmission: 'unavailable',
+    advanceAuthority: 'exact-real-request-with-qualified-admission',
+    realDeletionAdmission: 'requires-independent-owner-qualification',
     legacyReaderCutover: 'unproven',
   });
 }

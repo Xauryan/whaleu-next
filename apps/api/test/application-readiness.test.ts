@@ -29,9 +29,9 @@ const config = loadConfig({
   PG_SSL_MODE: 'disable',
   LOG_LEVEL: 'silent',
 });
-const requirements: Migration[] = Array.from({ length: 181 }, (_, index) => ({
+const requirements: Migration[] = Array.from({ length: 182 }, (_, index) => ({
   name:
-    index === 180
+    index === 181
       ? APPLICATION_SCHEMA_FLOOR
       : `${String(index + 1).padStart(4, '0')}_fixture.sql`,
   sql: `SELECT ${index + 1};\n`,
@@ -108,6 +108,7 @@ test('complete current installation is ready with formatting and providers disab
   assert.equal(config.COMMUNITY_TEXT_REVIEW, 'disabled');
   assert.equal(config.WECHAT_APP_ID, undefined);
   assert.equal(config.REAL_ACCOUNT_DELETION_ENTRY, 'disabled');
+  assert.equal(config.REAL_ACCOUNT_DELETION_NEW_REQUESTS, 'disabled');
   assert.equal(await service.ready(), true);
   assert.deepEqual(state.queries.map(({ sql }) => sql).slice(0, 2), [
     'BEGIN ISOLATION LEVEL READ COMMITTED',
@@ -115,7 +116,7 @@ test('complete current installation is ready with formatting and providers disab
   ]);
   assert.match(state.queries[2]!.sql, /pg_try_advisory_xact_lock_shared/);
   assert.deepEqual(state.queries[2]?.values, [...MIGRATION_LOCK]);
-  assert.deepEqual(state.queries[3]?.values, [182]);
+  assert.deepEqual(state.queries[3]?.values, [183]);
   const sql = state.queries[3]!.sql;
   assert.match(sql, /LIMIT \$1/);
   assert.match(sql, /octet_length\(name\) <= 255/);
@@ -160,12 +161,12 @@ test('missing, unknown, drifted, gapped and malformed ledger histories fail clos
     middleGap: (rows) => rows.filter((_, index) => index !== 70),
     unknown: (rows) => [
       ...rows.slice(0, -1),
-      { ...rows.at(-1)!, name: '0181_unknown.sql' },
+      { ...rows.at(-1)!, name: '0182_unknown.sql' },
     ],
     futureNotPackaged: (rows) => [
       ...rows,
       {
-        name: '0182_future_fixture.sql',
+        name: '0183_future_fixture.sql',
         checksum: 'a'.repeat(64),
       },
     ],
@@ -201,9 +202,10 @@ test('missing or inconsistent deployment files cannot lower current requirements
     historical175: requirements.slice(0, 175),
     truncatedBeforeEpoch179: requirements.slice(0, 179),
     truncatedBeforePreparation180: requirements.slice(0, 180),
+    truncatedBeforeRequest181: requirements.slice(0, 181),
     gap: requirements.filter((_, index) => index !== 2),
     wrongFloor: requirements.map((migration, index) =>
-      index === 180 ? { ...migration, name: '0181_other.sql' } : migration,
+      index === 181 ? { ...migration, name: '0182_other.sql' } : migration,
     ),
     wrongSequence: requirements.map((migration, index) =>
       index === 70
@@ -223,11 +225,11 @@ test('missing or inconsistent deployment files cannot lower current requirements
     });
 });
 
-test('future deployment requirements extend from the same migration source, not a permanent 181 cutoff', async () => {
+test('future deployment requirements extend from the same migration source, not a permanent 182 cutoff', async () => {
   const next = {
-    name: '0182_future_fixture.sql',
+    name: '0183_future_fixture.sql',
     checksum: 'a'.repeat(64),
-    sql: 'SELECT 182;',
+    sql: 'SELECT 183;',
   };
   const migrations = [...requirements, next];
   const { service, state } = fixture({ migrations });
@@ -237,7 +239,7 @@ test('future deployment requirements extend from the same migration source, not 
   assert.deepEqual(
     state.queries.filter(({ sql }) => sql.includes('schema_migrations')).at(-1)
       ?.values,
-    [183],
+    [184],
   );
 });
 

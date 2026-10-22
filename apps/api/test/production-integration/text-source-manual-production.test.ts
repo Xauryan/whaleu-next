@@ -126,7 +126,7 @@ test(
         migrations
           .filter((m) => {
             const version = Number(m.name.slice(0, 4));
-            return version >= 175 && version <= 181;
+            return version >= 175 && version <= 182;
           })
           .map((m) => m.name),
         [
@@ -137,6 +137,7 @@ test(
           '0179_identity_registration_guard.sql',
           '0180_identity_session_revocation_epoch.sql',
           '0181_identity_real_deletion_preparations.sql',
+          '0182_real_deletion_request_authority.sql',
         ],
       );
       await runMigrations(pool, migrations, { mode: 'up' });

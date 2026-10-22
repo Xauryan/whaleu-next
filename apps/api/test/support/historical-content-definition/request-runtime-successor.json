@@ -1,0 +1,13 @@
+{
+  "kind": "0182 additive dependency review, not a replacement historical snapshot",
+  "baseTree": "61669dbb2e0adbb1e12ce4597b2e964be19515c4",
+  "preparationReviewSha256": "115162792b6f5cd348589aadea6e839bfc450f4f49dd2a7fd67f960dcc878ec8",
+  "changed": [
+    {
+      "path": "apps/api/src/config/config.ts",
+      "beforeSha256": "55d5ecdb4a48112659ab9da267212ff345f5de2d5ea71a9c4cd25eb9643b685d",
+      "sha256": "e5797289e280504c5304284f1e32514092aa7192238d0e7fc078f63fb0ba4701",
+      "proof": "Two exact additions restore pinned0181 bytes, then one exact preparation field restores original accepted source; every historical default is independently compared."
+    }
+  ]
+}

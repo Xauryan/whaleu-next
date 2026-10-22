@@ -1,5 +1,6 @@
 import { historicalEpochAbsenceSql } from '../historical-epoch-absence.js';
 import { historicalRealDeletionAbsenceSql } from '../historical-real-deletion-absence.js';
+import { historicalRealRequestAbsenceSql } from '../historical-real-request-absence.js';
 /** Exact-0175 test boundary. Never imported by production source. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -123,6 +124,7 @@ export async function inspectExactM1(tx: PoolClient): Promise<void> {
         OR (attrelid='whaleu_community.text_review_requests'::regclass AND attname='home_transition_transaction')))
     AND (${historicalEpochAbsenceSql})
     AND (${historicalRealDeletionAbsenceSql})
+    AND (${historicalRealRequestAbsenceSql})
     AND (SELECT count(*)=3 FROM pg_attribute
       WHERE attrelid='whaleu_identity.accounts'::regclass AND NOT attisdropped
       AND attname=ANY(ARRAY['lifecycle','lifecycle_generation','deletion_request_id'])) AS exact`);

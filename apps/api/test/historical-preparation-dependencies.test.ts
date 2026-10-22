@@ -169,6 +169,7 @@ test('reviewed config additions preserve the historical enrollment and old-input
         NATIVE_VERIFICATION_ENROLLMENT: enrollment ?? 'disabled',
       });
       assert.equal(current.REAL_ACCOUNT_DELETION_ENTRY, 'disabled');
+      assert.equal(current.REAL_ACCOUNT_DELETION_NEW_REQUESTS, 'disabled');
       assert.deepEqual(input, before);
       assert.deepEqual(
         loadConfig({ ...input, HISTORICAL_UNRELATED_INPUT: 'ignored' }),
@@ -246,12 +247,12 @@ test('only disabled and prepare_only are admitted; neither enables other histori
     });
     assertHistoricalConfigProjection(config);
     assert.equal(config.REAL_ACCOUNT_DELETION_ENTRY, mode ?? 'disabled');
+    assert.equal(config.REAL_ACCOUNT_DELETION_NEW_REQUESTS, 'disabled');
     for (const key of [
       'WECHAT_APP_ID',
       'WECHAT_APP_SECRET',
       'AUTH_RATE_LIMIT_KEY',
       'IDENTITY_DELETION_DIGEST_KEYRING',
-      'REAL_ACCOUNT_DELETION_NEW_REQUESTS',
     ])
       assert.equal(key in config, false, key);
   }
@@ -566,6 +567,35 @@ test('content-definition runtime closure records only the explicit preparation s
     new Set(review.files.map((entry) => entry.path)).size,
     review.files.length,
   );
+  const requestBytes = await readFile(
+    new URL(
+      './support/historical-content-definition/request-runtime-successor.json',
+      import.meta.url,
+    ),
+  );
+  assert.equal(
+    createHash('sha256').update(requestBytes).digest('hex'),
+    '9ceb24a5a0313ba053a2b2f319da70e2e746913e2ce6babcdb82d796f75111cb',
+  );
+  const requestReview = JSON.parse(requestBytes.toString('utf8'));
+  assert.equal(
+    requestReview.preparationReviewSha256,
+    createHash('sha256').update(bytes).digest('hex'),
+  );
+  assert.equal(
+    requestReview.baseTree,
+    '61669dbb2e0adbb1e12ce4597b2e964be19515c4',
+  );
+  assert.deepEqual(
+    requestReview.changed.map((entry: { path: string }) => entry.path),
+    ['apps/api/src/config/config.ts'],
+  );
+  assert.equal(
+    requestReview.changed[0].beforeSha256,
+    review.files.find(
+      (entry) => entry.path === 'apps/api/src/config/config.ts',
+    )!.sha256,
+  );
   const byPath = new Map(review.files.map((entry) => [entry.path, entry]));
   const reached = new Set<string>();
   const visit = (path: string): void => {
@@ -585,7 +615,9 @@ test('content-definition runtime closure records only the explicit preparation s
     const live = await readFile(new URL(entry.path, root));
     assert.equal(
       createHash('sha256').update(live).digest('hex'),
-      entry.sha256,
+      entry.path === 'apps/api/src/config/config.ts'
+        ? requestReview.changed[0].sha256
+        : entry.sha256,
       entry.path,
     );
     if (entry.path === 'apps/api/src/config/config.ts')

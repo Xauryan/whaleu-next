@@ -20,9 +20,9 @@ const signature = z.strictObject({
   safe: z.literal(true),
 });
 const protocolSchema = z.strictObject({
-  version: z.literal(1),
-  protocol: z.literal('real-account-deletion-preparation-v1'),
-  migration: z.literal('0181_identity_real_deletion_preparations.sql'),
+  version: z.literal(2),
+  protocol: z.literal('real-account-deletion-preparation-v2'),
+  migration: z.literal('0182_real_deletion_request_authority.sql'),
   acceptance: z.literal('unavailable'),
   catalog: z.string().regex(/^[a-f0-9]{64}$/),
 });

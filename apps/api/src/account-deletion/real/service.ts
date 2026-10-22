@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { APP_CONFIG, type RuntimeConfig } from '../../config/config.js';
 import { DatabaseService } from '../../database/database.js';
@@ -26,6 +26,7 @@ import {
   retainPreparation,
   type PreparationRow,
 } from './preparation-repository.js';
+import { RealRequestCoordinator } from './request-coordinator.js';
 import { retainPreparationSchema } from './qualification.js';
 
 const unavailable = () => new ApplicationError('REAL_DELETION_UNAVAILABLE');
@@ -52,6 +53,9 @@ export class RealDeletionService {
     @Inject(APP_CONFIG) private readonly config: RuntimeConfig,
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(IdentityService) private readonly identity: IdentityService,
+    @Optional()
+    @Inject(RealRequestCoordinator)
+    private readonly requests?: RealRequestCoordinator,
   ) {}
   private async transaction<T>(
     work: (tx: PoolClient) => Promise<T>,
@@ -167,11 +171,19 @@ export class RealDeletionService {
       if (!state || state.generation !== command.expectedGeneration)
         throw missing();
       if (state.active >= 4) throw unavailable();
-      // Fixed account-local cleanup budget. No global scan and no unexpired erase.
+      // Fixed account-local cleanup budget. Linked request/attempt evidence is
+      // owned separately and must never be erased through preparation cleanup.
       await tx.query(
-        `DELETE FROM whaleu_real_deletion.preparations WHERE intent_id IN(SELECT intent_id FROM whaleu_real_deletion.preparations WHERE account_id=$1 AND expires_at<=clock_timestamp() ORDER BY expires_at,intent_id LIMIT 4)`,
+        `DELETE FROM whaleu_real_deletion.preparations WHERE intent_id IN(SELECT p.intent_id FROM whaleu_real_deletion.preparations p WHERE p.account_id=$1 AND p.expires_at<=clock_timestamp() AND NOT EXISTS(SELECT 1 FROM whaleu_real_deletion.requests r WHERE r.id=p.intent_id) AND NOT EXISTS(SELECT 1 FROM whaleu_real_deletion.reauthentication_attempts a WHERE a.intent_id=p.intent_id) ORDER BY p.expires_at,p.intent_id LIMIT 4)`,
         [session.accountId],
       );
+      const retained = (
+        await tx.query<{ n: number }>(
+          'SELECT count(*)::integer n FROM(SELECT 1 FROM whaleu_real_deletion.preparations WHERE account_id=$1 LIMIT 64) limited',
+          [session.accountId],
+        )
+      ).rows[0];
+      if (!retained || retained.n >= 64) throw unavailable();
       await tx.query(
         `INSERT INTO whaleu_real_deletion.preparations(intent_id,account_id,session_id,app_id,base_generation,next_generation,intent_hash,recovery_hash,consent,created_at,expires_at,created_transaction)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,clock_timestamp(),clock_timestamp(),pg_current_xact_id())`,
@@ -193,29 +205,38 @@ export class RealDeletionService {
       return preparationReceipt(created);
     });
   }
+  private recoveryEnabled(): void {
+    // A closed new-acceptance flag does not disable recovery of existing facts.
+    // Rate-limit secret remains required; no new secret is generated here.
+    if (!this.config.AUTH_RATE_LIMIT_KEY) throw unavailable();
+  }
   @AccountPolicy('restricted_self_service', 'restricted')
   status(raw: unknown) {
-    this.enabled();
+    this.recoveryEnabled();
     const command = deletionStatusSchema.parse(raw);
-    return this.transaction(async (tx) =>
-      preparationReceipt(await this.scope(tx, command)),
-    );
+    return this.statusReceipt(command);
+  }
+  private async statusReceipt(command: DeletionStatusCommand) {
+    const existing = await this.requests?.status(command);
+    if (existing) return existing;
+    return this.transaction(async (tx) => {
+      const prepared = await this.scope(tx, command);
+      // Validate the private capability before revealing a disabled new-entry
+      // mode. Unknown and wrong-secret targets always share the scope failure.
+      this.enabled();
+      return preparationReceipt(prepared);
+    });
   }
   @AccountPolicy('restricted_self_service', 'restricted')
-  async accept(raw: unknown): Promise<never> {
-    this.enabled();
-    acceptDeletionSchema.parse(raw);
-    // Neither env nor a caller-supplied evidence flag can activate real acceptance.
-    // Owner coverage, reader retirement, dedicated accept proof and cooling recovery
-    // must land together. In particular, do not consume a provider code here.
-    throw unavailable();
+  async accept(raw: unknown, authorization?: unknown) {
+    this.recoveryEnabled();
+    if (!this.requests) throw unavailable();
+    return this.requests.accept(acceptDeletionSchema.parse(raw), authorization);
   }
   @AccountPolicy('restricted_self_service', 'restricted')
-  async cancel(raw: unknown): Promise<never> {
-    this.enabled();
-    cancelDeletionSchema.parse(raw);
-    // A not-yet-accepted preparation is not a successful cancellation of an in-flight
-    // acceptance. Never return a fabricated cancelled receipt.
-    throw unavailable();
+  async cancel(raw: unknown) {
+    this.recoveryEnabled();
+    if (!this.requests) throw unavailable();
+    return this.requests.cancel(cancelDeletionSchema.parse(raw));
   }
 }

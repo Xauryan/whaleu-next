@@ -92,6 +92,6 @@ export class IdentityController {
       useFactory: (config: RuntimeConfig) => new WechatIdentityProvider(config),
     },
   ],
-  exports: [IdentityService, IdentityRateLimiter],
+  exports: [IdentityService, IdentityRateLimiter, IDENTITY_PROVIDER],
 })
 export class IdentityModule {}

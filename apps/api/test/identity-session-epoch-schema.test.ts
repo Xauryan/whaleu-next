@@ -13,13 +13,18 @@ const migration = await readFile(
   ),
   'utf8',
 );
-test('epoch trigger bodies and closed marker are exactly the runtime-qualified constants', () => {
-  for (const body of [
-    sessionEpochAccountBody,
-    sessionEpochIssuedBody,
-    sessionEpochMarkerBody,
-  ])
-    assert.ok(migration.includes('$epoch$' + body + '$epoch$'));
+const successor = await readFile(
+  new URL(
+    '../migrations/0182_real_deletion_request_authority.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
+test('latest epoch trigger bodies are exact and predecessor remains immutable/write-closed', () => {
+  assert.ok(migration.includes('$epoch$' + sessionEpochIssuedBody + '$epoch$'));
+  for (const body of [sessionEpochAccountBody, sessionEpochMarkerBody])
+    assert.ok(successor.includes('$successor$' + body + '$successor$'));
+  assert.match(migration, /"bumpAuthority":"unavailable"/);
   assert.match(
     sessionEpochAccountBody,
     /NEW\.session_revocation_epoch IS DISTINCT FROM 0::bigint/,
@@ -33,7 +38,18 @@ test('epoch trigger bodies and closed marker are exactly the runtime-qualified c
     /NEW\.id,NEW\.account_id,NEW\.issued_revocation_epoch/,
   );
   assert.match(sessionEpochIssuedBody, /FOR SHARE NOWAIT/);
-  assert.match(sessionEpochMarkerBody, /"bumpAuthority":"unavailable"/);
+  assert.match(
+    sessionEpochMarkerBody,
+    /"bumpAuthority":"exact-real-request-with-qualified-admission"/,
+  );
+  assert.match(
+    sessionEpochAccountBody,
+    /r\.accepted_transaction=pg_current_xact_id\(\)/,
+  );
+  assert.match(
+    sessionEpochAccountBody,
+    /NEW\.session_revocation_epoch<>OLD\.session_revocation_epoch\+1/,
+  );
 });
 test('successor qualifies all 22 exact prior signatures before preserving their bodies and adding equality', () => {
   assert.equal((migration.match(/DO \$qualify\$/g) ?? []).length, 22);

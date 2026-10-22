@@ -1,4 +1,9 @@
-# Real account deletion preparations:0181 intermediate foundation
+# Real account deletion preparations: immutable0181 foundation
+
+This document records the0181 foundation. The current binary additionally includes
+[0182 request coordination](REAL_DELETION_REQUEST_ENTRY.md), requires the full
+chain through0182, and keeps production acceptance and erasure unavailable.
+Statements below about0180 remaining write-closed describe the0181-only stage.
 
 This is not completed account deletion. Real prepare/status are connected to the
 production AppModule and PostgreSQL, disabled by default. Acceptance/cancel routes
@@ -138,11 +143,11 @@ Completion requires exact terminal owner evidence and private provider digest
 capture bound before mapping removal, then completed_at and all registration
 ban rows atomically. Neither preparing nor accepting starts the30-day ban.
 
-## Replay onto the current 0180 integration
+## Historical0181 replay onto the0180 integration
 
 This preparation-only replay is based on tree
 `62546a2f94ca41033b30d3beb87cfe9a95538586`, not the original da278 stack.
-Its current binary requires the complete shipped chain through 0181, even when
+That0181 binary requires the complete shipped chain through 0181, even when
 prepare/status are disabled. It retains the current readiness owner, epoch
 runtime, source/manual-review integration, Home behavior and current CI inventory.
 Original v3 tests are historical evidence only. No new-stack type, unit, PG,

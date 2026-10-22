@@ -41,6 +41,9 @@ const schema = z.object({
     .string()
     .regex(/^[a-fA-F0-9]{64}$/)
     .optional(),
+  REAL_ACCOUNT_DELETION_NEW_REQUESTS: z
+    .enum(['disabled', 'qualified_owner'])
+    .default('disabled'),
   REAL_ACCOUNT_DELETION_ENTRY: z
     .enum(['disabled', 'prepare_only'])
     .default('disabled'),
@@ -153,6 +156,14 @@ export function loadConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
   const config = result.data;
   if (config.IDENTITY_DELETION_DIGEST_KEYRING)
     parseDigestKeyRing(config.IDENTITY_DELETION_DIGEST_KEYRING);
+  if (
+    config.REAL_ACCOUNT_DELETION_NEW_REQUESTS === 'qualified_owner' &&
+    (config.REAL_ACCOUNT_DELETION_ENTRY !== 'prepare_only' ||
+      !config.IDENTITY_DELETION_DIGEST_KEYRING)
+  )
+    throw new Error(
+      'New real requests require preparation entry and IDENTITY_DELETION_DIGEST_KEYRING; these do not qualify an admission owner',
+    );
   if (
     config.IDENTITY_REGISTRATION_GUARD === 'required' &&
     !config.IDENTITY_DELETION_DIGEST_KEYRING

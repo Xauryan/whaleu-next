@@ -129,6 +129,24 @@ function assertOnlyAbsenceSuccessor(
   source: string,
   record: (typeof successors)[number],
 ) {
+  const requestImport = record.file.includes('historical-deletion-peer')
+    ? "import { historicalRealRequestAbsenceSql } from './historical-real-request-absence.js';\n"
+    : "import { historicalRealRequestAbsenceSql } from '../historical-real-request-absence.js';\n";
+  const requestAdditions = record.file.endsWith('/deletion.ts')
+    ? [
+        requestImport,
+        '  (${historicalRealRequestAbsenceSql}) AS real_request_absent,\n',
+        "          'real_request_absent',\n",
+      ]
+    : [
+        requestImport,
+        (record.file.includes('historical-m1') ? '    ' : '  ') +
+          'AND (${historicalRealRequestAbsenceSql})\n',
+      ];
+  for (const addition of requestAdditions) {
+    assert.equal(source.split(addition).length, 2, addition);
+    source = source.replace(addition, '');
+  }
   for (const addition of record.additions) {
     assert.equal(source.split(addition).length, 2, addition);
     source = source.replace(addition, '');

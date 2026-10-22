@@ -13,7 +13,7 @@ import type { Migration } from '../database/migrations.js';
 // A floor, not a replacement for the deployed migration directory. A future
 // deployment with additional checked-in migrations must require those too.
 export const APPLICATION_SCHEMA_FLOOR =
-  '0181_identity_real_deletion_preparations.sql';
+  '0182_real_deletion_request_authority.sql';
 const minimumMigrationCount = Number(APPLICATION_SCHEMA_FLOOR.slice(0, 4));
 const maximumMigrationCount = 9999;
 export const APPLICATION_MIGRATIONS = Symbol('APPLICATION_MIGRATIONS');

@@ -1,3 +1,4 @@
+import { historicalRealRequestPartials } from '../support/historical-real-request-absence.js';
 /** Exact 0173/0174 historical Identity only. Real managed transactions, real
  * predecessor SQL and observed PostgreSQL locks; not current epoch acceptance.
  * Requires the centrally coordinated disposable database, with no skip mode. */
@@ -30,6 +31,17 @@ import {
 } from '../support/historical-real-deletion-partials.js';
 
 type Fixture = Awaited<ReturnType<typeof accountDeletionFixture>>;
+const historicalSchemaFlags = {
+  lifecycle_present: true,
+  deletion_present: true,
+  real_deletion_absent: true,
+  real_request_absent: true,
+  registration_absent: true,
+  epoch_absent: true,
+  source_absent: true,
+  reading_absent: true,
+  home_absent: true,
+} as const;
 const denied = (error: unknown) =>
   error instanceof ApplicationError && error.code === 'AUTH_NOT_CONFIGURED';
 const signal = () => {
@@ -55,35 +67,36 @@ async function schema(f: Fixture) {
   const result = (
     await f.pool.query<Record<string, boolean>>(historicalDeletionSchemaSql)
   ).rows[0]!;
-  assert.equal(Object.keys(result).length, 8);
-  assert.ok(
-    Object.values(result).every((value) => value === true),
-    JSON.stringify(result),
-  );
+  assert.deepEqual(result, historicalSchemaFlags);
 }
-async function realDeletionAbsenceControls(
+async function realSuccessorAbsenceControls(
   f: Fixture,
   t: TestContext,
   prefix: 173 | 174,
   access: string,
   accountId: string,
 ) {
-  for (const [label, statement] of historicalRealDeletionPartials)
-    await t.test(`exact${prefix} rejects unledgered0181 ${label}`, async () => {
+  for (const [label, statement, absentFlag] of [
+    ...historicalRealDeletionPartials.map(
+      ([label, statement]) =>
+        [`0181 ${label}`, statement, 'real_deletion_absent'] as const,
+    ),
+    ...historicalRealRequestPartials.map(
+      ([label, statement]) =>
+        [label, statement, 'real_request_absent'] as const,
+    ),
+  ])
+    await t.test(`exact${prefix} rejects unledgered ${label}`, async () => {
       await assert.rejects(
         f.repository.transaction(async (tx) => {
           await tx.query(statement);
           const shape = (
             await tx.query<Record<string, boolean>>(historicalDeletionSchemaSql)
           ).rows[0]!;
-          assert.equal(shape['real_deletion_absent'], false);
-          assert.ok(
-            Object.entries(shape).every(
-              ([key, value]) =>
-                key === 'real_deletion_absent' || value === true,
-            ),
-            JSON.stringify(shape),
-          );
+          assert.deepEqual(shape, {
+            ...historicalSchemaFlags,
+            [absentFlag]: false,
+          });
           await f.identity.authenticate(access, tx);
         }),
         denied,
@@ -179,7 +192,7 @@ test(
       (await f.identity.authenticate(hashToken(actor.accessToken))).accountId,
       actor.accountId,
     );
-    await realDeletionAbsenceControls(
+    await realSuccessorAbsenceControls(
       f,
       t,
       173,
@@ -218,7 +231,7 @@ test(
     const f = await accountDeletionFixture({ throughMigration: 174 });
     t.after(() => f.close());
     await t.test(
-      'exact original 0088 Ratings columns coexist with all eight true boundary flags',
+      'exact original 0088 Ratings columns coexist with all nine named true boundary flags',
       async () => {
         await schema(f);
         const columns = (
@@ -276,7 +289,7 @@ test(
       },
     );
 
-    await realDeletionAbsenceControls(f, t, 174, access, actor.accountId);
+    await realSuccessorAbsenceControls(f, t, 174, access, actor.accountId);
 
     // Each unledgered identity is tested independently. No real epoch authority
     // is installed, and every mutation must roll back before baseline recheck.

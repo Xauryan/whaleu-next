@@ -549,6 +549,8 @@ test(
           const grants = [
             'USAGE ON SCHEMA whaleu_identity,whaleu_real_deletion,whaleu_account_deletion',
             'SELECT(account_id) ON whaleu_account_deletion.fixture_accounts',
+            'SELECT(id) ON whaleu_real_deletion.requests',
+            'SELECT(intent_id) ON whaleu_real_deletion.reauthentication_attempts',
             'SELECT ON TABLE whaleu_identity.accounts,whaleu_identity.sessions,whaleu_identity.access_tokens,whaleu_identity.provider_identities,whaleu_identity.rate_buckets,whaleu_real_deletion.preparations',
             'UPDATE(id) ON whaleu_identity.accounts',
             'UPDATE(id) ON whaleu_identity.sessions',
@@ -626,6 +628,8 @@ test(
               'USAGE ON SCHEMA whaleu_identity',
               'USAGE ON SCHEMA whaleu_account_deletion',
               'SELECT(account_id) ON whaleu_account_deletion.fixture_accounts',
+              'SELECT(id) ON whaleu_real_deletion.requests',
+              'SELECT(intent_id) ON whaleu_real_deletion.reauthentication_attempts',
               'SELECT ON whaleu_identity.accounts',
               'SELECT ON whaleu_identity.sessions',
               'SELECT ON whaleu_identity.access_tokens',

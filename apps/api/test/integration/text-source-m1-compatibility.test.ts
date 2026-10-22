@@ -1,3 +1,4 @@
+import { historicalRealRequestPartials } from '../support/historical-real-request-absence.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -583,7 +584,10 @@ test(
           );
           await db.transaction(inspectExactM1);
         });
-      for (const [label, statement] of historicalRealDeletionPartials)
+      for (const [label, statement] of [
+        ...historicalRealDeletionPartials,
+        ...historicalRealRequestPartials,
+      ])
         await t.test(`exact175 rejects unledgered0181 ${label}`, async () => {
           await assert.rejects(
             db.transaction(async (tx) => {

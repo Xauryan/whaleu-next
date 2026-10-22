@@ -4,16 +4,35 @@ import type { RuntimeConfig } from '../../../src/config/config.js';
 
 const sha = (value: string) => createHash('sha256').update(value).digest('hex');
 
-// Exact da278/62546 config and its preparation-only 0181 successor.
+// Exact da278/62546 config, preparation-only0181, and request-entry0182 successor.
 // These hashes do not assert new signer trust or acceptance authority.
 export const historicalConfigProvenance = Object.freeze({
   acceptedCommit: 'da2784781db741e2fff5ad279fe3bc853bab0552',
   acceptedBlob: '8ded484925429b7da13de0a2ca7ac41d59c8a494',
   acceptedSha256:
     '7c5b02c13ba0ad5b689e239f47cb8952e908239babdde04bb1f2c2d86e3e2268',
+  requestsSha256:
+    'e5797289e280504c5304284f1e32514092aa7192238d0e7fc078f63fb0ba4701',
   preparationsSha256:
     '55d5ecdb4a48112659ab9da267212ff345f5de2d5ea71a9c4cd25eb9643b685d',
 });
+const requestField = `  REAL_ACCOUNT_DELETION_NEW_REQUESTS: z
+    .enum(['disabled', 'qualified_owner'])
+    .default('disabled'),
+`;
+const requestFieldAnchor = '  REAL_ACCOUNT_DELETION_ENTRY: z\n';
+const requestCondition = `  if (
+    config.REAL_ACCOUNT_DELETION_NEW_REQUESTS === 'qualified_owner' &&
+    (config.REAL_ACCOUNT_DELETION_ENTRY !== 'prepare_only' ||
+      !config.IDENTITY_DELETION_DIGEST_KEYRING)
+  )
+    throw new Error(
+      'New real requests require preparation entry and IDENTITY_DELETION_DIGEST_KEYRING; these do not qualify an admission owner',
+    );
+`;
+const requestConditionAnchor = `  if (
+    config.IDENTITY_REGISTRATION_GUARD === 'required' &&
+`;
 const preparationField = `  REAL_ACCOUNT_DELETION_ENTRY: z
     .enum(['disabled', 'prepare_only'])
     .default('disabled'),
@@ -42,8 +61,26 @@ function insertBefore(source: string, addition: string, anchor: string) {
 /** Exact reversible byte proof, not a broad REAL_* removal or hash refresh. */
 export function restoreAcceptedHistoricalConfig(bytes: Buffer): string {
   const current = bytes.toString('utf8');
-  assert.equal(sha(current), historicalConfigProvenance.preparationsSha256);
-  const accepted = removeBefore(current, preparationField, preparationAnchor);
+  assert.equal(sha(current), historicalConfigProvenance.requestsSha256);
+  const preparation = removeBefore(
+    removeBefore(current, requestCondition, requestConditionAnchor),
+    requestField,
+    requestFieldAnchor,
+  );
+  assert.equal(sha(preparation), historicalConfigProvenance.preparationsSha256);
+  assert.equal(
+    insertBefore(
+      insertBefore(preparation, requestField, requestFieldAnchor),
+      requestCondition,
+      requestConditionAnchor,
+    ),
+    current,
+  );
+  const accepted = removeBefore(
+    preparation,
+    preparationField,
+    preparationAnchor,
+  );
   assert.equal(sha(accepted), historicalConfigProvenance.acceptedSha256);
   assert.equal(
     createHash('sha1')
@@ -54,7 +91,7 @@ export function restoreAcceptedHistoricalConfig(bytes: Buffer): string {
   );
   assert.equal(
     insertBefore(accepted, preparationField, preparationAnchor),
-    current,
+    preparation,
   );
   return accepted;
 }
@@ -112,7 +149,10 @@ export function assertHistoricalConfigProjection(
   config: RuntimeConfig,
   overrides: Record<string, unknown> = {},
 ): void {
-  const added = new Set(['REAL_ACCOUNT_DELETION_ENTRY']);
+  const added = new Set([
+    'REAL_ACCOUNT_DELETION_ENTRY',
+    'REAL_ACCOUNT_DELETION_NEW_REQUESTS',
+  ]);
   assert.deepEqual(
     Object.fromEntries(
       Object.entries(config).filter(([key]) => !added.has(key)),

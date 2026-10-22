@@ -7,7 +7,7 @@ The integrated implementation starts from published commit
 `apps/api/migrations/0175_community_text_sources.sql` and formal durable-formatting
 migration `apps/api/migrations/0176_durable_reading_formatting.sql` are in the
 normal checksum/prefix-verified migration sequence. The current binary requires
-the complete chain through `0181_identity_real_deletion_preparations.sql`, including
+the complete chain through `0182_real_deletion_request_authority.sql`, including
 Home 0177/0178 and the closed 0180 epoch foundation, before startup, consistent with
 [Home activation](../apps/api/docs/HOME_PUBLICATION_ACTIVATION.md) and the
 [registration guard](IDENTITY_REGISTRATION_GUARD.md). Published 0001–0174 bytes
@@ -52,7 +52,7 @@ These are local validation results, not cloud CI, production or device acceptanc
 Snapshot names identify frozen evidence bundles, not deployment environments.
 The results below belong to those prior exact inputs, not new acceptance of the
 current binary. Current production API/PTY and worker fixtures install the full
-chain through 0181. That fixture requirement is not a new exact-stack pass.
+chain through 0182. That fixture requirement is not a new exact-stack pass.
 The Home worker fixture first captures the six pre-Home bodies
 at the explicit through-0177 prefix, then upgrades the full chain before creating
 runtime actors. It retains the predecessor and original 0176 catalog checks.
@@ -61,7 +61,7 @@ Historical exact-0175 producer/current six-reader compatibility is separate in
 production deployment on a truncated schema.
 
 The current API `/health/ready` additionally validates runtime configuration and
-the exact complete deployed migration ledger (currently through 0181), even with
+the exact complete deployed migration ledger (currently through 0182), even with
 formatting and preparations disabled; see
 [application readiness](APPLICATION_READINESS.md). This is not live catalog or
 policy attestation, and does not retroactively change the health behavior or
@@ -148,8 +148,15 @@ not a real seven-day wait. These historical construction choices remain useful
 provenance; old statements that M2 was only a draft, production CLI was forbidden,
 or all PostgreSQL/native gates were unrun no longer describe the current source.
 
-The 0181 deployment requirement above is a source contract, not evidence that
+The 0182 deployment requirement above is a source contract, not evidence that
 this new replay stack passed its type, unit, PostgreSQL, CLI, OpenAPI, TLS or cloud
 acceptance gates. Earlier recorded results, including 0180 qualification, remain
 tied to their original exact commits and schema stacks; this documentation update
 neither extends nor invalidates that evidence.
+
+Current0182 boundary: full deployment includes the request substrate and local
+accept/cancel HTTP coordination, but production admission remains explicitly
+unavailable. Neither configuration nor a completed migration establishes owner
+erasure, reader retirement, lost-secret recovery or completed-at guard writing.
+Earlier validation results retain their original exact-source scope; this
+documentation does not inherit them as new-stack passes.

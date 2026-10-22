@@ -21,7 +21,15 @@ import {
 } from '../../src/community/reading-formatting/runtime.js';
 import { ReadingFormattingWorker } from '../../src/community/reading-formatting/worker.js';
 import { formatSource } from '../../src/community/reading-formatting/formatter.js';
-import { inventory } from '../../src/account-deletion/owners/preflight.js';
+import {
+  inventory,
+  relationSql,
+} from '../../src/account-deletion/owners/preflight.js';
+import {
+  deletionMetadataRelations,
+  reviewedRelations,
+  supportedTables,
+} from '../../src/account-deletion/owner-registry.js';
 import { DeletionError } from '../../src/account-deletion/contracts.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
@@ -59,6 +67,36 @@ import {
   withCommunityScopeWriter,
 } from '../support/community-scope-fixtures.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
+
+/** Capture all installed application rows, not only the formatter result count.
+ * Catalog names and ownership/grants are retained, including protected schemas. */
+async function readingOwnerState(pool: Pool) {
+  const schemas = (
+    await pool.query<{ name: string; owner: number; acl: string | null }>(
+      "SELECT nspname name,nspowner owner,nspacl::text acl FROM pg_namespace WHERE nspname LIKE 'whaleu\\_%' ESCAPE '\\' ORDER BY nspname COLLATE \"C\"",
+    )
+  ).rows;
+  const relations = (
+    await pool.query<{
+      relation: string;
+      kind: string;
+      owner: number;
+      acl: string | null;
+    }>(
+      "SELECT n.nspname||'.'||c.relname relation,c.relkind kind,c.relowner owner,c.relacl::text acl FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname LIKE 'whaleu\\_%' ESCAPE '\\' AND c.relkind IN('r','p','m','f') ORDER BY (n.nspname||'.'||c.relname) COLLATE \"C\"",
+    )
+  ).rows;
+  const rows: Record<string, string[]> = {};
+  for (const { relation, kind } of relations) {
+    assert.ok(['r', 'p'].includes(kind));
+    rows[relation] = (
+      await pool.query<{ raw: string }>(
+        `SELECT to_jsonb(t)::text raw FROM ${relationSql(relation)} t ORDER BY to_jsonb(t)::text COLLATE "C"`,
+      )
+    ).rows.map(({ raw }) => raw);
+  }
+  return { schemas, relations, rows };
+}
 
 /** Real runtime HTTP and real local issuer. Only identity/scope/phone facts are
  * synthetic disposable fixtures; this is not a real WeChat-device acceptance. */
@@ -136,6 +174,84 @@ test(
       assert.deepEqual(await inspectReadingSchema(suite), {
         status: 'missing',
       });
+      const readingPrefix = migrations.filter(
+        (m) => Number(m.name.slice(0, 4)) <= 176,
+      );
+      assert.equal(
+        readingPrefix.at(-1)?.name,
+        '0176_durable_reading_formatting.sql',
+      );
+      await runMigrations(pool, readingPrefix, { mode: 'up' });
+      await t.test(
+        'historical 0176 empty derived owner exceeds the exact reviewed inventory bound',
+        async () => {
+          assert.deepEqual(
+            (
+              await pool.query<{ name: string; checksum: string }>(
+                'SELECT name,checksum FROM whaleu_meta.schema_migrations ORDER BY name',
+              )
+            ).rows,
+            readingPrefix.map(({ name, checksum }) => ({ name, checksum })),
+          );
+          const before = await readingOwnerState(pool);
+          assert.deepEqual(
+            before.schemas.map(({ name }) => name),
+            [
+              ...new Set([
+                ...[...reviewedRelations].map((name) => name.split('.')[0]),
+                'whaleu_account_deletion',
+                'whaleu_meta',
+              ]),
+            ].sort(),
+          );
+          const derived = [
+            'whaleu_community.reading_format_heads',
+            'whaleu_community.reading_format_jobs',
+            'whaleu_community.reading_format_results',
+            'whaleu_community.reading_format_slots',
+          ];
+          assert.deepEqual(
+            before.relations.map(({ relation }) => relation),
+            [
+              ...reviewedRelations,
+              ...deletionMetadataRelations,
+              'whaleu_community.community_text_sources',
+              ...derived,
+            ].sort(),
+          );
+          for (const relation of derived) {
+            assert.equal(reviewedRelations.has(relation), false);
+            assert.equal(supportedTables.has(relation), false);
+          }
+          for (const relation of [
+            'whaleu_community.community_text_sources',
+            ...derived.slice(0, 3),
+          ])
+            assert.deepEqual(before.rows[relation], []);
+          assert.deepEqual(
+            before.rows['whaleu_community.reading_format_slots']!.map(
+              (row) => JSON.parse(row) as unknown,
+            ),
+            [1, 2].map((slot_id) => ({
+              slot_id,
+              job_key: null,
+              lease_token: null,
+              lease_fence: null,
+              lease_until: null,
+              row_version: 1,
+            })),
+          );
+          // This genuine prefix reaches the relation bound, not the later
+          // per-relation check. No owner is registered or granted erasure here.
+          await assert.rejects(
+            inTransaction(pool, (tx) => inventory(tx)),
+            (e: unknown) =>
+              e instanceof DeletionError &&
+              e.code === 'INVENTORY_BOUND_EXCEEDED',
+          );
+          assert.deepEqual(await readingOwnerState(pool), before);
+        },
+      );
       // The current application includes registration admission and requires
       // the complete current epoch chain. Exact 0175 producer/current-reader behavior
       // is exercised separately by text-source-m1-compatibility.test.ts.
@@ -143,7 +259,7 @@ test(
         migrations
           .filter((m) => {
             const version = Number(m.name.slice(0, 4));
-            return version >= 178 && version <= 181;
+            return version >= 178 && version <= 182;
           })
           .map((m) => m.name),
         [
@@ -151,6 +267,7 @@ test(
           '0179_identity_registration_guard.sql',
           '0180_identity_session_revocation_epoch.sql',
           '0181_identity_real_deletion_preparations.sql',
+          '0182_real_deletion_request_authority.sql',
         ],
       );
       await runMigrations(pool, migrations, { mode: 'up' });
@@ -1885,17 +2002,31 @@ test(
         },
       );
       await t.test(
-        'new derived owner remains unqualified for erasure, including empty/offset-only rows',
+        'current 0182 namespace gate denies erasure without mutating populated source or derived owners',
         async () => {
+          const before = await readingOwnerState(pool);
+          const knownSchemas = new Set(
+            [...reviewedRelations].map((name) => name.split('.')[0]),
+          );
+          assert.deepEqual(
+            before.schemas
+              .map(({ name }) => name)
+              .filter(
+                (name) =>
+                  !knownSchemas.has(name) &&
+                  !['whaleu_account_deletion', 'whaleu_meta'].includes(name),
+              ),
+            ['whaleu_real_deletion', 'whaleu_real_deletion_admission'],
+          );
+          // 0181/0182 add protected namespaces. This earlier denial must not
+          // masquerade as execution of the historical relation-bound branch.
           await assert.rejects(
             inTransaction(pool, (tx) => inventory(tx)),
             (e: unknown) =>
               e instanceof DeletionError &&
-              [
-                'INVENTORY_BOUND_EXCEEDED',
-                'UNREGISTERED_OWNER_RELATION',
-              ].includes(e.code),
+              e.code === 'UNREGISTERED_OWNER_SCHEMA',
           );
+          assert.deepEqual(await readingOwnerState(pool), before);
           assert.ok(
             (
               await pool.query(

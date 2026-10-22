@@ -109,8 +109,26 @@ a production fallback or current epoch acceptance. That replay's API and TLS fix
 installed the complete chain through 0180 and retained genuine current Identity.
 No 0181/0182 request authority or 0185 erasure was included in that increment.
 
-The subsequent [0181 preparation/status increment](REAL_DELETION_PREPARATIONS.md)
-raises the current full-application installation floor to 0181, including with
+The historical [0181 preparation/status increment](REAL_DELETION_PREPARATIONS.md)
+raised that binary's full-application installation floor to0181, including with
 preparations disabled. Its new-stack qualification is separate from every earlier
 0180 result. Preparation mode defaults to disabled; even `prepare_only` grants no
 accept/cancel authority, epoch advance, provider dispatch or erasure.
+
+## Current0182 request successor
+
+The current application requires the full checked-in migration chain through
+`0182_real_deletion_request_authority.sql`, even with both deletion flags disabled.
+The immutable0180 file remains unchanged.0182 supplies the exact same-transaction
+real-request epoch+1 branch and updates the runtime body and inert protocol
+qualification; no ordinary session proof is weakened. The read-only epoch CLI
+now reports protocol v2, exact-qualified-request advance authority, independent
+owner qualification required, and legacy-reader cutover unproven. This output is
+not a production admission certificate.
+
+Production `RealRequestAdmission` still refuses every new acceptance. Explicit
+local-validation acceptance/cancellation proves only the request lifecycle;
+cancellation never reduces the epoch or restores old credentials. Actual erasure,
+completion and30-day registration guards are not implemented by this increment.
+Old types/PG/natural-expiry results are tied to their frozen prior inputs and are
+not new qualification. See [current entry limits](REAL_DELETION_REQUEST_ENTRY.md).

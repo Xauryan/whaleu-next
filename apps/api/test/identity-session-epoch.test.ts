@@ -193,10 +193,10 @@ test('operator preflight is read-only and cannot authorize bump or attest old-re
   startTransactionDeadlines(f.tx);
   try {
     assert.deepEqual(await sessionEpochStatus(f.tx), {
-      protocol: 'identity-session-revocation-epoch-v1',
+      protocol: 'identity-session-revocation-epoch-v2',
       schema: 'qualified',
-      advanceAuthority: 'unavailable',
-      realDeletionAdmission: 'unavailable',
+      advanceAuthority: 'exact-real-request-with-qualified-admission',
+      realDeletionAdmission: 'requires-independent-owner-qualification',
       legacyReaderCutover: 'unproven',
     });
     await checkTransactionDeadlines(f.tx);
