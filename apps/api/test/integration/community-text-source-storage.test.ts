@@ -353,6 +353,23 @@ test(
         ORDER BY relation`)
       ).rows;
       assert.ok(originalSources.length > 40);
+      // 0178 adds two actor-generation sources with its own Home closure.
+      // They are not members of the unchanged 0175 text-source trigger set.
+      // Assert this extension independently rather than changing 61 to 63.
+      const homeActorSources = [
+        'whaleu_community.home_discussion_parent_bindings',
+        'whaleu_community.home_post_dispositions',
+      ];
+      assert.deepEqual(
+        originalSources
+          .map((row) => row.relation)
+          .filter((relation) => homeActorSources.includes(relation))
+          .sort(),
+        homeActorSources,
+      );
+      const originalTextSourceRelations = originalSources
+        .map((row) => row.relation)
+        .filter((relation) => !homeActorSources.includes(relation));
       const directSources = [
         'whaleu_safety.account_punishment_heads',
         'whaleu_safety.account_punishments',
@@ -368,10 +385,7 @@ test(
         'whaleu_community.text_review_requests',
       ];
       const expectedSources = [
-        ...new Set([
-          ...originalSources.map((row) => row.relation),
-          ...directSources,
-        ]),
+        ...new Set([...originalTextSourceRelations, ...directSources]),
       ].sort();
       assert.equal(expectedSources.length, 61);
       assert.deepEqual(
