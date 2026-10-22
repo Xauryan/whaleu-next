@@ -243,3 +243,65 @@ export function sourceOriginalIntentHash(
     appendTextSource(intent, descriptor),
   );
 }
+
+/** Additive composition only; historical v6 intent reconstruction remains frozen. */
+export function composedSourceOriginalIntentHash(
+  envelope:
+    | import('../content-review/contracts.js').EffectiveContentEnvelopeV7
+    | import('../content-review/contracts.js').EffectiveContentEnvelopeV8,
+  requestedMode: 'named' | 'anonymous',
+): string {
+  if (envelope.version !== 7 && envelope.version !== 8)
+    throw new TypeError('Unknown composed source version');
+  if (envelope.textSource === null)
+    throw new TypeError('Missing composed source');
+  if (envelope.version === 7) {
+    if (
+      envelope.home.requestedIntent.authorMode !== requestedMode ||
+      envelope.home.requestedIntent.textSource === undefined
+    )
+      throw new TypeError('Invalid original composed mode');
+    const requested = envelope.home.requestedIntent;
+    if (
+      requested.component !== undefined ||
+      requested.imageAssetIds.length !== 0 ||
+      requested.syncToRelatedCampuses === true ||
+      requested.allowAnonymousDm === true
+    )
+      throw new TypeError('Invalid composed source request');
+    const intent = {
+      spaceId: requested.spaceId,
+      category: requested.category,
+      text: requested.text,
+      imageAssetIds: [],
+      authorMode: requestedMode,
+      commentsPolicy: requested.commentsPolicy,
+      ...(requested.allowAnonymousDm === false
+        ? { allowAnonymousDm: false }
+        : {}),
+    };
+    return textSourceIntentHash(
+      'publish_post',
+      appendTextSource(intent, requested.textSource),
+    );
+  }
+  const intent =
+    envelope.purpose === 'publish_comment'
+      ? {
+          postId: envelope.postId,
+          text: envelope.text,
+          imageAssetIds: [],
+          authorMode: requestedMode,
+        }
+      : {
+          rootCommentId: envelope.rootCommentId,
+          targetReplyId: envelope.targetReplyId,
+          text: envelope.text,
+          imageAssetIds: [],
+          authorMode: requestedMode,
+        };
+  return textSourceIntentHash(
+    envelope.purpose,
+    appendTextSource(intent, sourceDescriptor(envelope.textSource)),
+  );
+}

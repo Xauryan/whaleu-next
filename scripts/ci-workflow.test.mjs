@@ -629,6 +629,9 @@ test('reading worker production acceptance requires the real build and password-
       cwd: root,
     }).sort(),
     [
+      'apps/api/test/production-integration/home-policy-admission-cli.test.ts',
+      'apps/api/test/production-integration/home-publication-activation-cli.test.ts',
+      'apps/api/test/production-integration/home-reading-worker-production.test.ts',
       'apps/api/test/production-integration/reading-worker-process-production.test.ts',
       'apps/api/test/production-integration/text-source-manual-production.test.ts',
     ],
@@ -704,4 +707,25 @@ test('ordinary CI files use fresh-cluster lifecycle while browser setup and orig
   );
   for (const job of ['semantic-integration', 'source-manual-production'])
     assert.doesNotMatch(jobs[job], /WHALEU_TEST_PG_ISOLATION|cleanup-per-file/);
+});
+
+test('Home production admission and activation each have explicit serial TLS acceptance', () => {
+  const scripts = JSON.parse(read('apps/api/package.json')).scripts;
+  assert.equal(
+    scripts['test:home-admission:production'],
+    'node --import tsx --test --test-concurrency=1 test/production-integration/home-policy-admission-cli.test.ts',
+  );
+  assert.equal(
+    scripts['test:home-activation:production'],
+    'node --import tsx --test --test-concurrency=1 test/production-integration/home-publication-activation-cli.test.ts',
+  );
+
+  assert.equal(
+    scripts['test:home-reading:production'],
+    'node --import tsx --test --test-concurrency=1 test/production-integration/home-reading-worker-production.test.ts',
+  );
+  assert.match(
+    read('scripts/source-manual-tls-sandbox.sh'),
+    /npm run test:reading-worker:production -w @whaleu\/api\nnpm run test:home-admission:production -w @whaleu\/api\nnpm run test:home-activation:production -w @whaleu\/api\nnpm run test:home-reading:production -w @whaleu\/api/,
+  );
 });

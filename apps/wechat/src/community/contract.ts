@@ -57,7 +57,9 @@ export const categories = [
   'deep_sea',
   'trading',
 ] as const;
+/** Client publication vocabulary. System placements are never write intents. */
 export type Category = (typeof categories)[number];
+export type ReadableCategory = Category | 'water';
 export type AuthorMode = 'named' | 'anonymous';
 export type Operation = 'publish_post' | 'publish_comment' | 'publish_reply';
 export type CommentsPolicy = 'open' | 'restricted';
@@ -160,7 +162,7 @@ export interface Post extends RelatedCampusDisplay {
     readonly kind: 'regional' | 'global';
     readonly name: string;
   };
-  readonly category: Category;
+  readonly category: ReadableCategory;
   readonly text: string;
   readonly images: readonly MediaView[];
   readonly author: Author;
@@ -214,7 +216,7 @@ export interface OwnPublication {
   readonly ownerVisibility?: OwnerVisibilityState;
   readonly id: string;
   readonly spaceId: string;
-  readonly category: Category;
+  readonly category: ReadableCategory;
   readonly status: 'published' | 'hidden' | 'deleted';
   readonly publishedAt: string;
 }
@@ -330,6 +332,9 @@ export const uuid4 = (value: unknown): value is string =>
   isUuid(value) && value[14] === '4';
 export const isCategory = (value: unknown): value is Category =>
   typeof value === 'string' && categories.includes(value as Category);
+/** Bounded response vocabulary, separate from client publication authority. */
+export const isReadableCategory = (value: unknown): value is ReadableCategory =>
+  value === 'water' || isCategory(value);
 const mode = (value: unknown): value is AuthorMode =>
   value === 'named' || value === 'anonymous';
 const policy = (value: unknown): value is CommentsPolicy =>
@@ -494,7 +499,7 @@ export function decodePost(value: unknown): Post {
     !isUuid(value.space.id) ||
     !['regional', 'global'].includes(String(value.space.kind)) ||
     !boundedText(value.space.name, 1, 200) ||
-    !isCategory(value.category) ||
+    !isReadableCategory(value.category) ||
     (value.space.kind === 'global' &&
       value.category !== 'discussion' &&
       value.category !== 'feedback') ||
@@ -705,7 +710,7 @@ export function decodeOwnPublications(value: unknown): OwnPublications {
     if (
       !isUuid(item.id) ||
       !isUuid(item.spaceId) ||
-      !isCategory(item.category) ||
+      !isReadableCategory(item.category) ||
       !['published', 'hidden', 'deleted'].includes(String(item.status)) ||
       !timestamp(item.publishedAt)
     )

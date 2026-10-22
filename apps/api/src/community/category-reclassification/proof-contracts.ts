@@ -25,7 +25,8 @@ export interface CategoryCommandReviewEnvelope {
   readonly previous: {
     readonly revision: number;
     readonly eventId: string | null;
-    readonly category: ReclassificationCategory;
+    /** System water may be an original source, never a command target. */
+    readonly category: ReclassificationCategory | 'water';
   };
   readonly targetCategory: ReclassificationCategory;
   readonly policy: {

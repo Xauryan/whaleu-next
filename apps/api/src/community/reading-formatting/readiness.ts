@@ -3,14 +3,17 @@ import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import { ApplicationError } from '../../http/application-error.js';
 import { boundedOwnerProof } from '../../database/required-owner-proof.js';
+import { MIGRATION_LOCK } from '../../database/migrations.js';
 import {
   enableRequiredTransactionProof,
   registerRequiredTransactionFact,
   transactionReadEpoch,
+  transactionLifetime,
 } from '../../database/transaction-deadlines.js';
 import type { RequiredTransactionProof } from '../../database/transaction-deadlines.js';
 import { FORMATTER } from './contracts.js';
 import { readingCatalogSnapshotSql } from './catalog.js';
+import { inspectHomeReadingSchema } from './home-schema.js';
 
 /** Fixed formal-migration function body, not a self-attesting SQL return value. */
 const catalogBodySha256 =
@@ -30,7 +33,7 @@ const snapshotSchema = z.strictObject({
 });
 export type ReadingSchema =
   | Readonly<{ status: 'missing' }>
-  | Readonly<{ status: 'ready'; catalog: string }>;
+  | Readonly<{ status: 'ready'; catalog: string; homeCatalog?: string }>;
 const unavailable = () => new ApplicationError('COMMUNITY_UNAVAILABLE');
 /** Catalog/protocol metadata only; never source or account-processing authority. */
 export async function inspectReadingSchema(
@@ -51,8 +54,11 @@ async function inspect(tx: PoolClient): Promise<ReadingSchema> {
       catalog: boolean;
       marker: unknown;
       catalogFunction: unknown;
+      homePresent: boolean;
     }>(
       `SELECT
+      (EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='whaleu_community' AND starts_with(c.relname,'home_') AND NOT starts_with(c.relname,'home_policy_'))
+       OR EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='whaleu_community' AND starts_with(p.proname,'home_') AND NOT starts_with(p.proname,'home_policy_'))) "homePresent",
       (SELECT count(*)::integer FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='whaleu_community' AND c.relname LIKE 'reading_format_%') relations,
       (SELECT count(*)::integer FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='whaleu_community' AND p.proname LIKE 'reading_format_%') functions,
       to_regprocedure('whaleu_community.reading_format_protocol()') IS NOT NULL protocol,
@@ -64,14 +70,16 @@ async function inspect(tx: PoolClient): Promise<ReadingSchema> {
   if (
     !presence ||
     !Number.isInteger(presence.relations) ||
-    !Number.isInteger(presence.functions)
+    !Number.isInteger(presence.functions) ||
+    typeof presence.homePresent !== 'boolean'
   )
     throw unavailable();
   if (
     presence.relations === 0 &&
     presence.functions === 0 &&
     presence.protocol === false &&
-    presence.catalog === false
+    presence.catalog === false &&
+    !presence.homePresent
   )
     return Object.freeze({ status: 'missing' });
   if (presence.relations < 4 || !presence.protocol || !presence.catalog)
@@ -112,7 +120,35 @@ async function inspect(tx: PoolClient): Promise<ReadingSchema> {
   const parsed = snapshotSchema.safeParse(raw);
   if (!parsed.success || parsed.data.catalog !== protocol.data.catalog)
     throw unavailable();
-  return Object.freeze({ status: 'ready', catalog: parsed.data.catalog });
+  if (!presence.homePresent)
+    return Object.freeze({ status: 'ready', catalog: parsed.data.catalog });
+  const homeCatalog = await inspectHomeReadingSchema(tx);
+  // The existing required and optional finalizers compare this entire identity.
+  // The unambiguous domain-separated pair never replaces the original seal.
+  const catalog = createHash('sha256')
+    .update(
+      'whaleu-reading-home-schema:v1\n' +
+        parsed.data.catalog +
+        '\n' +
+        homeCatalog,
+    )
+    .digest('hex');
+  return Object.freeze({ status: 'ready', catalog, homeCatalog });
+}
+// A mark records only that a matching REQUIRED final proof was retained.
+// It cannot manufacture authority: inspect never sets it, and the transaction
+// wrapper rechecks the composite schema after deferred work before COMMIT.
+const retainedHome = new WeakMap<
+  PoolClient,
+  { lifetime: object; epoch: object }
+>();
+export function hasRetainedHomeReadingSchema(tx: PoolClient): boolean {
+  const retained = retainedHome.get(tx);
+  return (
+    !!retained &&
+    retained.lifetime === transactionLifetime(tx) &&
+    retained.epoch === transactionReadEpoch(tx)
+  );
 }
 const proof: RequiredTransactionProof<string> = {
   maximumFacts: 1,
@@ -133,7 +169,23 @@ const proof: RequiredTransactionProof<string> = {
 /** Required schema closure for writes. An absent entire owner remains distinguishable
  * from a partial, unsupported or modified owner, which always rejects. */
 export async function retainReadingSchema(tx: PoolClient): Promise<boolean> {
-  if (!transactionReadEpoch(tx)) throw unavailable();
+  const epoch = transactionReadEpoch(tx),
+    lifetime = transactionLifetime(tx);
+  if (!epoch || !lifetime) throw unavailable();
+  retainedHome.delete(tx);
+  // The official migrator already owns this same key exclusively. Take its
+  // transaction-scoped shared counterpart before the first catalog proof and
+  // keep it through final validation/COMMIT, without waiting or new privileges.
+  // Standalone inspection deliberately does not imply this managed boundary.
+  try {
+    const gate = await tx.query<{ locked: boolean }>(
+      'SELECT pg_try_advisory_xact_lock_shared($1, $2) AS locked',
+      [...MIGRATION_LOCK],
+    );
+    if (gate.rows[0]?.locked !== true) throw unavailable();
+  } catch {
+    throw unavailable();
+  }
   const current = await inspectReadingSchema(tx);
   if (current.status === 'missing') return false;
   enableRequiredTransactionProof(tx, proof);
@@ -143,6 +195,7 @@ export async function retainReadingSchema(tx: PoolClient): Promise<boolean> {
     'reading-schema-v1',
     current.catalog,
   );
+  if (current.homeCatalog) retainedHome.set(tx, { lifetime, epoch });
   return true;
 }
 export async function requireReadingSchema(tx: PoolClient): Promise<void> {

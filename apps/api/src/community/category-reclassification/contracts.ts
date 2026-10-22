@@ -2,6 +2,7 @@
  * All candidates remain in the non-trading profile partition; indexed profile
  * membership relies on this invariant and must be revisited before expansion. */
 import { z } from 'zod';
+import { readableCategorySchema } from '../contracts.js';
 
 export const reclassificationCategorySchema = z.enum([
   'discussion',
@@ -97,19 +98,7 @@ export const reclassificationEmptyBodySchema = z.union([
 export const categoryManagementSchema = z
   .strictObject({
     postId: id,
-    currentCategory: z.enum([
-      'discussion',
-      'feedback',
-      'confession',
-      'companions',
-      'pets',
-      'internships',
-      'scenery',
-      'dorms',
-      'research',
-      'deep_sea',
-      'trading',
-    ]),
+    currentCategory: readableCategorySchema,
     revision,
     canChange: z.boolean(),
     blocker: z.literal('related_sync_unsupported').optional(),

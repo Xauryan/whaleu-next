@@ -135,7 +135,7 @@ test('hot exact decimal ordering and strict private position never use lexicogra
   assert.notEqual(hotCursorScope(query, null), scope);
 });
 
-test('hot original indexed candidates depend on the fixed regional nine-category membership invariant', async () => {
+test('hot indexed candidates preserve ordinary membership and independently exclude current water', async () => {
   assert.deepEqual(reclassificationCategorySchema.options, [
     'discussion',
     'confession',
@@ -196,12 +196,18 @@ test('hot original indexed candidates depend on the fixed regional nine-category
     );
     const [candidates, structural] = statements.slice(-2);
     const categories =
-      kind === 'regional' ? categorySchema.options : ['discussion', 'feedback'];
+      kind === 'regional'
+        ? [...categorySchema.options, 'water']
+        : ['discussion', 'feedback'];
     assert.deepEqual(candidates!.values[1], categories);
     assert.deepEqual(structural!.values[2], categories);
     for (const statement of [candidates!, structural!]) {
       assert.match(statement.sql, /whaleu_community\.posts p/);
-      assert.doesNotMatch(statement.sql, /post_category_|UNION ALL/);
+      assert.doesNotMatch(statement.sql, /UNION ALL/);
+      assert.match(statement.sql, /home_category.post_id=p.id/);
+      assert.match(statement.sql, /home_category.current_category/);
+      assert.match(statement.sql, /p.category\)<>'water'/);
+      assert.match(statement.sql, /home_disposition.post_id=p.id/);
     }
   }
 });

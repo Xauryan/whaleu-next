@@ -33,7 +33,10 @@
     "campus-tools": "node --import tsx src/campus-tools/cli.ts",
     "reading:process": "node --env-file-if-exists=../../.env --import tsx src/community/reading-formatting/process-reading.ts",
     "test:source-manual:production": "node --import tsx --test --test-concurrency=1 test/production-integration/text-source-manual-production.test.ts",
-    "test:reading-worker:production": "node --import tsx --test --test-concurrency=1 test/production-integration/reading-worker-process-production.test.ts"
+    "test:reading-worker:production": "node --import tsx --test --test-concurrency=1 test/production-integration/reading-worker-process-production.test.ts",
+    "test:home-admission:production": "node --import tsx --test --test-concurrency=1 test/production-integration/home-policy-admission-cli.test.ts",
+    "test:home-activation:production": "node --import tsx --test --test-concurrency=1 test/production-integration/home-publication-activation-cli.test.ts",
+    "test:home-reading:production": "node --import tsx --test --test-concurrency=1 test/production-integration/home-reading-worker-production.test.ts"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",
@@ -42,6 +45,7 @@
     "@nestjs/schedule": "12.0.2",
     "@nestjs/swagger": "12.0.2",
     "@nestjs/throttler": "6.7.1",
+    "entities": "8.1.0",
     "helmet": "8.3.0",
     "pg": "8.23.1",
     "pino": "10.4.0",

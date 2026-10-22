@@ -11,7 +11,7 @@ import {
   transactionReadEpoch,
 } from '../../database/transaction-deadlines.js';
 import type { RequiredTransactionProof } from '../../database/transaction-deadlines.js';
-import { categorySchema, idSchema } from '../contracts.js';
+import { readableCategorySchema, idSchema } from '../contracts.js';
 import type { Category } from '../contracts.js';
 import { reclassificationCategorySchema } from './contracts.js';
 
@@ -95,7 +95,7 @@ function validateFact(fact: CategoryEvidence): void {
     !validId(fact.postId) ||
     (fact.originalCategory === null
       ? fact.originalSpaceId !== null || fact.headPostId !== null
-      : !categorySchema.safeParse(fact.originalCategory).success ||
+      : !readableCategorySchema.safeParse(fact.originalCategory).success ||
         !validId(fact.originalSpaceId))
   )
     throw unavailable();

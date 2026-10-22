@@ -1,7 +1,6 @@
-import {
-  withReviewedTextSource,
-  requireOrdinarySourceParent,
-} from '../text-source/publication.js';
+import { insertHomePublicationEvidence } from '../home-feed-policy/publication-evidence.js';
+import { canonicalEnvelope } from '../content-review/contracts.js';
+import { withReviewedTextSource } from '../text-source/publication.js';
 import { insertTextSource } from '../text-source/repository.js';
 import { appendTextSource } from '../text-source/protocol.js';
 import { AccountPolicy } from '../../safety/account-policy/decorator.js';
@@ -102,7 +101,7 @@ export class ReplyPublicationService {
             );
           if (!root) throw new ApplicationError('REPLY_NOT_FOUND');
           if (body.textSource !== undefined)
-            await requireOrdinarySourceParent(post.id, tx);
+            await this.approval.requireSourceParent(post.id, tx);
           const { images: assets, approval } = await this.approval.approved(
             actor,
             'publish_reply',
@@ -123,7 +122,7 @@ export class ReplyPublicationService {
               effectiveAuthorMode: mode,
             },
             withReviewedTextSource(
-              {
+              canonicalEnvelope({
                 ...(await this.approval.discussionScope(
                   authority,
                   space,
@@ -143,7 +142,8 @@ export class ReplyPublicationService {
                 text: body.text,
                 component: { kind: 'none' },
                 trading: null,
-              },
+                images: [],
+              }),
               body.textSource,
             ),
             {
@@ -164,6 +164,7 @@ export class ReplyPublicationService {
             [id, post.id, root.id, body.targetReplyId, actor, body.text, mode],
           );
           await this.repository.attach('reply', id, assets, tx);
+          await insertHomePublicationEvidence(approval, 'reply', id, tx);
           await insertTextSource(
             {
               kind: 'reply',

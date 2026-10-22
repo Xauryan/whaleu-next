@@ -59,6 +59,19 @@ const query: SearchStructuralScope = {
   to: null,
   postId: null,
 };
+const historicalHomeRows = (ids: string[]) =>
+  ids.map((postId) => ({
+    postId,
+    accountId: id(99),
+    authorMode: 'named',
+    version: 4,
+    dispositionId: null,
+    decisionId: null,
+    digest: null,
+    result: null,
+    surfaces: null,
+    valid: true,
+  }));
 
 test('related view cursors bind current generation, completeness, view and session without exposing members', () => {
   const scope = distributionCursorScope('feed', view, 'session-a');
@@ -332,6 +345,8 @@ test('unknown native proof in a related candidate fails the required feed before
       if (sql.startsWith('SELECT version::text'))
         return { rows: [{ version: '1' }] };
       if (sql.startsWith('SELECT p.* FROM')) return { rows: [candidate] };
+      if (sql.includes('home_post_disposition_valid(p.id)'))
+        return { rows: historicalHomeRows(values[0] as string[]) };
       if (sql.startsWith('SELECT requested.post_id'))
         return {
           rows: untouchedCategoryRows(
@@ -402,6 +417,8 @@ test('feed resolves topology once and finishes branded reads before projection c
       if (sql.startsWith('SELECT version::text'))
         return { rows: [{ version: '1' }] };
       if (sql.startsWith('SELECT p.* FROM')) return { rows: candidates };
+      if (sql.includes('home_post_disposition_valid(p.id)'))
+        return { rows: historicalHomeRows(values[0] as string[]) };
       if (sql.startsWith('SELECT requested.post_id'))
         return {
           rows: untouchedCategoryRows(

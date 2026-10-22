@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { homeDistributionCandidateSql } from '../community/home-distribution/candidate-sql.js';
 import { ApplicationError } from '../http/application-error.js';
 import { captureOfficialRoots, OFFICIAL_TIME_FRONTIER } from './coverage.js';
 import { compareOfficialScore, OFFICIAL_PROFILE } from './profile.js';
@@ -23,6 +24,7 @@ export class OfficialSourceSelector {
     tx: PoolClient,
   ): Promise<OfficialSelection> {
     const daily = input.kind === 'daily_hot';
+    const home = homeDistributionCandidateSql('p', null, 'official', []);
     const limit = input.limit ?? (daily ? 30 : 10);
     if (!Number.isInteger(limit) || limit < 1 || limit > (daily ? 30 : 10))
       throw new ApplicationError('OFFICIAL_REQUEST_INVALID');
@@ -43,8 +45,8 @@ export class OfficialSourceSelector {
       if (daily) {
         const unknown = (
           await tx.query(
-            `SELECT post_id FROM whaleu_official.source_ranks
-      WHERE space_id=$1 AND daily_active AND decision='unknown' AND published_at>$2::timestamptz-interval '26 hours' AND published_at<=$2 LIMIT 1`,
+            `SELECT r.post_id FROM whaleu_official.source_ranks r JOIN whaleu_community.posts p ON p.id=r.post_id
+      WHERE r.space_id=$1 AND r.daily_active AND r.decision='unknown' AND r.published_at>$2::timestamptz-interval '26 hours' AND r.published_at<=$2 AND ${home} LIMIT 1`,
             [space, selectionAt],
           )
         ).rows;
@@ -72,11 +74,11 @@ export class OfficialSourceSelector {
         const rows: { id: string; at: string; score: string | null }[] = (
           await tx.query<{ id: string; at: string; score: string | null }>(
             daily
-              ? `SELECT post_id id,to_char(published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') at,score::text FROM whaleu_official.source_ranks
-         WHERE space_id=$1 AND daily_active AND $2::timestamptz IS NOT NULL
-         AND decision='allow' AND ($3::numeric IS NULL OR (score,post_id)<($3::numeric,$4::uuid)) ORDER BY score DESC,post_id DESC LIMIT $5`
-              : `SELECT id,to_char(published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') at,NULL::text score FROM whaleu_community.posts
-         WHERE space_id=$1 AND published_at<=$2 AND ($3::timestamptz IS NULL OR (published_at,id)<($3::timestamptz,$4::uuid)) ORDER BY published_at DESC,id DESC LIMIT $5`,
+              ? `SELECT r.post_id id,to_char(r.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') at,r.score::text FROM whaleu_official.source_ranks r JOIN whaleu_community.posts p ON p.id=r.post_id
+         WHERE r.space_id=$1 AND r.daily_active AND $2::timestamptz IS NOT NULL AND ${home}
+         AND r.decision='allow' AND ($3::numeric IS NULL OR (r.score,r.post_id)<($3::numeric,$4::uuid)) ORDER BY r.score DESC,r.post_id DESC LIMIT $5`
+              : `SELECT p.id,to_char(p.published_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') at,NULL::text score FROM whaleu_community.posts p
+         WHERE p.space_id=$1 AND p.published_at<=$2 AND ${home} AND ($3::timestamptz IS NULL OR (p.published_at,p.id)<($3::timestamptz,$4::uuid)) ORDER BY p.published_at DESC,p.id DESC LIMIT $5`,
             [
               space,
               selectionAt,
@@ -119,8 +121,8 @@ export class OfficialSourceSelector {
           const lookahead = (
             await tx.query(
               daily
-                ? `SELECT post_id FROM whaleu_official.source_ranks WHERE space_id=$1 AND daily_active AND $2::timestamptz IS NOT NULL AND decision='allow' AND (score,post_id)<($3::numeric,$4::uuid) ORDER BY score DESC,post_id DESC LIMIT 1`
-                : `SELECT id FROM whaleu_community.posts WHERE space_id=$1 AND published_at<=$2 AND (published_at,id)<($3::timestamptz,$4::uuid) ORDER BY published_at DESC,id DESC LIMIT 1`,
+                ? `SELECT r.post_id FROM whaleu_official.source_ranks r JOIN whaleu_community.posts p ON p.id=r.post_id WHERE r.space_id=$1 AND r.daily_active AND $2::timestamptz IS NOT NULL AND ${home} AND r.decision='allow' AND (r.score,r.post_id)<($3::numeric,$4::uuid) ORDER BY r.score DESC,r.post_id DESC LIMIT 1`
+                : `SELECT p.id FROM whaleu_community.posts p WHERE p.space_id=$1 AND p.published_at<=$2 AND ${home} AND (p.published_at,p.id)<($3::timestamptz,$4::uuid) ORDER BY p.published_at DESC,p.id DESC LIMIT 1`,
               [space, selectionAt, daily ? after!.score : after!.at, after!.id],
             )
           ).rows;

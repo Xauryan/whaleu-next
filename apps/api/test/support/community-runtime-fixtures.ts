@@ -9,7 +9,10 @@ import { mintToken, hashToken } from '../../src/identity/tokens.js';
 import { DatabaseService } from '../../src/database/database.js';
 import { CommunityAccessService } from '../../src/community/community-access.service.js';
 import { CommunityRepository } from '../../src/community/community.repository.js';
-import { publishPostSchema } from '../../src/community/contracts.js';
+import {
+  publishPostSchema,
+  legacyCategorySchema,
+} from '../../src/community/contracts.js';
 import type {
   PublishPost,
   PublishComment,
@@ -185,7 +188,7 @@ export async function discussionApprovalEnvelope(
       accountId,
       purpose: rootCommentId ? 'publish_reply' : 'publish_comment',
       spaceId: space.id,
-      category: post.category,
+      category: legacyCategorySchema.parse(post.category),
       authorMode:
         post.author_mode === 'anonymous' && post.account_id === accountId
           ? 'anonymous'

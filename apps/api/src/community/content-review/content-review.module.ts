@@ -8,7 +8,11 @@ import { WindowDiscussionReviewFacade } from './window-discussion-review.facade.
 import { DishReviewFacade } from './dish-review.facade.js';
 import { CourseCommentReviewFacade } from './course-comment-review.facade.js';
 import { RatingCategoryIconReviewFacade } from './rating-category-icon-review.facade.js';
-import { TextReviewRuntime } from '../text-review/runtime.js';
+import {
+  TextReviewRuntime,
+  HOME_REVIEW_ADMISSION,
+} from '../text-review/runtime.js';
+import { CurrentHomeReviewAdmission } from '../home-feed-policy/runtime-admission.js';
 import { ProfileAvatarReviewFacade } from './profile-avatar-review.facade.js';
 import {
   MediaContentSnapshotFacade,
@@ -34,6 +38,8 @@ import { LocalApprovedContentVisibility } from './local-approved-content-visibil
 @Module({
   imports: [CampusModule],
   providers: [
+    CurrentHomeReviewAdmission,
+    { provide: HOME_REVIEW_ADMISSION, useExisting: CurrentHomeReviewAdmission },
     CurrentRatingLinkDependency,
     CommunityDistributionService,
     WindowDiscussionReviewFacade,

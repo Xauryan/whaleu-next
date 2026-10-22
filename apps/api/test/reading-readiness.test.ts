@@ -35,6 +35,7 @@ const protocol = {
 };
 function fixture() {
   const presence = {
+    homePresent: false,
     relations: 8,
     functions: 13,
     protocol: true,
@@ -75,6 +76,8 @@ function fixture() {
   const tx = {
     query: async (sql: string) => {
       state.queries.push(sql);
+      if (sql === 'SELECT pg_try_advisory_xact_lock_shared($1, $2) AS locked')
+        return { rows: [{ locked: true }] };
       if (
         state.fail === 'rollback' &&
         sql === 'ROLLBACK TO SAVEPOINT optional_final_count_proof'
@@ -125,6 +128,7 @@ test('complete owner is sealed; a wholly absent owner is distinct from partial m
     catalog,
   });
   f.state.presence = {
+    homePresent: false,
     relations: 0,
     functions: 0,
     protocol: false,
@@ -134,8 +138,20 @@ test('complete owner is sealed; a wholly absent owner is distinct from partial m
   };
   assert.deepEqual(await inspectReadingSchema(f.tx), { status: 'missing' });
   for (const partial of [
-    { relations: 1, functions: 0, protocol: false, catalog: false },
-    { relations: 0, functions: 1, protocol: false, catalog: false },
+    {
+      homePresent: false,
+      relations: 1,
+      functions: 0,
+      protocol: false,
+      catalog: false,
+    },
+    {
+      homePresent: false,
+      relations: 0,
+      functions: 1,
+      protocol: false,
+      catalog: false,
+    },
     { ...f.presence, relations: 3 },
   ]) {
     f.state.presence = partial;

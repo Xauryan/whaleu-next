@@ -145,9 +145,19 @@ test(
       );
       owned = true;
       const migrations = await readMigrations(join(apiRoot, 'migrations'));
+      // The updated restricted worker runs the complete installed prefix,
+      // including Home dependency proof. Preserve every original V6 claim,
+      // fencing, failure and process-lifecycle assertion below.
+      assert.equal(
+        migrations.filter(
+          (migration) =>
+            migration.name === '0176_durable_reading_formatting.sql',
+        ).length,
+        1,
+      );
       assert.equal(
         migrations.at(-1)?.name,
-        '0176_durable_reading_formatting.sql',
+        '0178_home_publication_protocol.sql',
       );
       await runMigrations(pool, migrations, { mode: 'up' });
       const scope = await seedCommunityScope(pool);

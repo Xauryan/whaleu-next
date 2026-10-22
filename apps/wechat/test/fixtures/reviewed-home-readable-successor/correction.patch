@@ -1,0 +1,197 @@
+--- a/apps/wechat/src/community/contract.ts
++++ b/apps/wechat/src/community/contract.ts
+@@ -57,7 +57,9 @@
+   'deep_sea',
+   'trading',
+ ] as const;
++/** Client publication vocabulary. System placements are never write intents. */
+ export type Category = (typeof categories)[number];
++export type ReadableCategory = Category | 'water';
+ export type AuthorMode = 'named' | 'anonymous';
+ export type Operation = 'publish_post' | 'publish_comment' | 'publish_reply';
+ export type CommentsPolicy = 'open' | 'restricted';
+@@ -160,7 +162,7 @@
+     readonly kind: 'regional' | 'global';
+     readonly name: string;
+   };
+-  readonly category: Category;
++  readonly category: ReadableCategory;
+   readonly text: string;
+   readonly images: readonly MediaView[];
+   readonly author: Author;
+@@ -214,7 +216,7 @@
+   readonly ownerVisibility?: OwnerVisibilityState;
+   readonly id: string;
+   readonly spaceId: string;
+-  readonly category: Category;
++  readonly category: ReadableCategory;
+   readonly status: 'published' | 'hidden' | 'deleted';
+   readonly publishedAt: string;
+ }
+@@ -330,6 +332,9 @@
+   isUuid(value) && value[14] === '4';
+ export const isCategory = (value: unknown): value is Category =>
+   typeof value === 'string' && categories.includes(value as Category);
++/** Bounded response vocabulary, separate from client publication authority. */
++export const isReadableCategory = (value: unknown): value is ReadableCategory =>
++  value === 'water' || isCategory(value);
+ const mode = (value: unknown): value is AuthorMode =>
+   value === 'named' || value === 'anonymous';
+ const policy = (value: unknown): value is CommentsPolicy =>
+@@ -494,7 +499,7 @@
+     !isUuid(value.space.id) ||
+     !['regional', 'global'].includes(String(value.space.kind)) ||
+     !boundedText(value.space.name, 1, 200) ||
+-    !isCategory(value.category) ||
++    !isReadableCategory(value.category) ||
+     (value.space.kind === 'global' &&
+       value.category !== 'discussion' &&
+       value.category !== 'feedback') ||
+@@ -705,7 +710,7 @@
+     if (
+       !isUuid(item.id) ||
+       !isUuid(item.spaceId) ||
+-      !isCategory(item.category) ||
++      !isReadableCategory(item.category) ||
+       !['published', 'hidden', 'deleted'].includes(String(item.status)) ||
+       !timestamp(item.publishedAt)
+     )
+--- a/apps/wechat/src/community/gateway.ts
++++ b/apps/wechat/src/community/gateway.ts
+@@ -90,11 +90,13 @@
+   invalid,
+   exact,
+   isCategory,
++  isReadableCategory,
+   uuid4,
+   type CommunitySpace,
+   type Capabilities,
+   type CommentCapabilities,
+   type Category,
++  type ReadableCategory,
+   type CommentIntent,
+   type Comment,
+   type Comments,
+@@ -142,7 +144,7 @@
+ export interface CommunityGateway {
+   textSourceCapabilities?(
+     spaceId: string,
+-    category: Category,
++    category: ReadableCategory,
+     authorMode: 'named' | 'anonymous',
+     cancel: Cancellation,
+   ): Promise<TextSourceCapability>;
+@@ -348,11 +350,14 @@
+ export class HttpCommunityGateway implements CommunityGateway {
+   async textSourceCapabilities(
+     spaceId: string,
+-    category: Category,
++    category: ReadableCategory,
+     authorMode: 'named' | 'anonymous',
+     cancel: Cancellation,
+   ): Promise<TextSourceCapability> {
+-    if (!isCategory(category) || !['named', 'anonymous'].includes(authorMode))
++    if (
++      !isReadableCategory(category) ||
++      !['named', 'anonymous'].includes(authorMode)
++    )
+       invalid();
+     const result = await this.api.request(
+       endpoint(
+--- a/apps/wechat/src/community/search-contract.ts
++++ b/apps/wechat/src/community/search-contract.ts
+@@ -13,7 +13,9 @@
+   exact,
+   invalid,
+   isCategory,
++  isReadableCategory,
+   type Category,
++  type ReadableCategory,
+   type Author,
+ } from './contract';
+ import { isTradingSubtype, type TradingSubtype } from './trading-contract';
+@@ -79,7 +81,7 @@
+     readonly kind: 'regional' | 'global';
+     readonly name: string;
+   };
+-  readonly category: Category;
++  readonly category: ReadableCategory;
+   readonly tradingSubtype: TradingSubtype | null;
+   readonly tradingUrgency: 'normal' | 'urgent' | null;
+   readonly createdAt: string;
+@@ -243,7 +245,7 @@
+     !isUuid(value.space.id) ||
+     !['regional', 'global'].includes(String(value.space.kind)) ||
+     !boundedText(value.space.name, 1, 200) ||
+-    !isCategory(value.category) ||
++    !isReadableCategory(value.category) ||
+     (value.space.kind === 'global' &&
+       value.category !== 'discussion' &&
+       value.category !== 'feedback') ||
+--- a/apps/wechat/src/pages/community-search/community-search.ts
++++ b/apps/wechat/src/pages/community-search/community-search.ts
+@@ -29,6 +29,7 @@
+       { key: 'reply', label: '后续回复' },
+     ],
+     categoryLabels: {
++      water: '水区',
+       discussion: '校园日常',
+       confession: '表白心事',
+       companions: '找搭子',
+--- a/apps/wechat/src/category-reclassification/contract.ts
++++ b/apps/wechat/src/category-reclassification/contract.ts
+@@ -1,6 +1,11 @@
+ import { ClientError, isRecord } from '../api/errors';
+-import { exact, isCategory, timestamp, uuid4 } from '../community/contract';
+-import type { Category } from '../community/contract';
++import {
++  exact,
++  isReadableCategory,
++  timestamp,
++  uuid4,
++} from '../community/contract';
++import type { ReadableCategory } from '../community/contract';
+ import { isUuid } from '../profile/contract';
+ 
+ /** Membership describes the wire vocabulary, never accepted policy or authority. */
+@@ -17,8 +22,11 @@
+ ] as const;
+ export type ReclassificationCategory =
+   (typeof reclassificationCategories)[number];
+-export const reclassificationLabels: Readonly<Record<Category, string>> = {
++export const reclassificationLabels: Readonly<
++  Record<ReadableCategory, string>
++> = {
+   discussion: '校园讨论',
++  water: '水区',
+   confession: '表白',
+   companions: '找搭子',
+   pets: '萌宠',
+@@ -38,7 +46,7 @@
+ 
+ export interface CategoryManagement {
+   readonly postId: string;
+-  readonly currentCategory: Category;
++  readonly currentCategory: ReadableCategory;
+   readonly revision: number;
+   readonly canChange: boolean;
+   readonly blocker?: 'related_sync_unsupported';
+@@ -105,7 +113,7 @@
+       (raw.blocker !== 'related_sync_unsupported' ||
+         raw.canChange !== false)) ||
+     !isUuid(raw.postId) ||
+-    !isCategory(raw.currentCategory) ||
++    !isReadableCategory(raw.currentCategory) ||
+     !revision(raw.revision) ||
+     typeof raw.canChange !== 'boolean' ||
+     !Array.isArray(raw.targets) ||
+@@ -114,7 +122,8 @@
+     new Set(raw.targets).size !== raw.targets.length ||
+     (!raw.canChange && raw.targets.length !== 0) ||
+     (raw.canChange &&
+-      (!isReclassificationCategory(raw.currentCategory) ||
++      ((raw.currentCategory !== 'water' &&
++        !isReclassificationCategory(raw.currentCategory)) ||
+         raw.revision === 2147483647 ||
+         raw.targets.length === 0))
+   )

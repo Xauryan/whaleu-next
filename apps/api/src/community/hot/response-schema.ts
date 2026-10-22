@@ -1,7 +1,7 @@
 import { ratingTargetLinkViewSchema } from '../rating-target-link/contracts.js';
 import { mediaAttachmentDescriptorSchema } from '../../media/contracts.js';
 import { z } from 'zod';
-import { categorySchema } from '../contracts.js';
+import { readableCategorySchema } from '../contracts.js';
 import { tradingSubtypeSchema } from '../trading/contracts.js';
 const uuid = z.uuid(),
   text = z.string(),
@@ -124,7 +124,7 @@ export const hotPostViewSchema = z
       kind: z.enum(['regional', 'global']),
       name: text,
     }),
-    category: categorySchema,
+    category: readableCategorySchema,
     text,
     images: z.array(media),
     author,

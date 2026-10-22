@@ -1,3 +1,4 @@
+import { readHomeDefinitionEvidence } from '../home-feed-policy/definition-evidence.js';
 import { readTextSources } from '../text-source/repository.js';
 import { readRatingTargetLinks } from '../rating-target-link/binding.js';
 import {
@@ -208,6 +209,16 @@ export class ContentDefinitionRepository {
       creators: [],
       ...(source ? { textSource: source } : {}),
     };
+    if (post.publication_envelope_version === 7) {
+      const homeEvidence = await readHomeDefinitionEvidence(
+        kind,
+        id,
+        post.id,
+        tx,
+      );
+      if (!homeEvidence) return { kind: 'unavailable' };
+      Object.assign(facts, homeEvidence);
+    }
     if (images.some((image, position) => image.position !== position))
       return { kind: 'unavailable' };
     if (kind === 'post') {

@@ -1,3 +1,12 @@
+import { loadActiveHomePublication } from './home-feed-policy/active-publication.js';
+import { planHomePublication } from './home-feed-policy/publication-plan.js';
+import type { HomePublicationPlan } from './home-feed-policy/publication-plan.js';
+import { reviewedTextSource } from './text-source/protocol.js';
+import type { TextSourceDescriptor } from './text-source/contracts.js';
+import { insertHomePublicationEvidence } from './home-feed-policy/publication-evidence.js';
+import { ApprovalRepository } from './content-review/approval.repository.js';
+import { ContentDefinitionRepository } from './content-review/content-definition.repository.js';
+import { requireCurrentHomeParent } from './home-feed-policy/parent-proof.js';
 import {
   withReviewedTextSource,
   requireOrdinarySourceParent,
@@ -96,6 +105,12 @@ export class PublicationService {
     @Optional()
     @Inject(CurrentRatingLinkDependency)
     private readonly targetLinks: CurrentRatingLinkDependency = new CurrentRatingLinkDependency(),
+    @Optional()
+    @Inject(ApprovalRepository)
+    private readonly homeApprovals?: ApprovalRepository,
+    @Optional()
+    @Inject(ContentDefinitionRepository)
+    private readonly homeDefinitions?: ContentDefinitionRepository,
   ) {}
   async approved(
     actor: string,
@@ -113,6 +128,14 @@ export class PublicationService {
     images: ApprovedAsset[];
     approval: AcceptedApproval | undefined;
   }> {
+    if (envelope?.version === 7 || envelope?.version === 8) {
+      if (!this.reviews || !this.content.bind)
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      await this.reviews.requireEnvelope(
+        canonicalEnvelope({ ...envelope, images: [] }),
+        tx,
+      );
+    }
     if (envelope?.version === 6) {
       if (
         !this.reviews ||
@@ -227,6 +250,48 @@ export class PublicationService {
     );
   }
 
+  private reviewedPostEnvelope(
+    draft: unknown,
+    source: TextSourceDescriptor | undefined,
+    plan: HomePublicationPlan | null,
+  ): EffectiveContentEnvelopeDraft {
+    if (plan?.lane === 'home') {
+      if (!draft || typeof draft !== 'object')
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const value = draft as Record<string, unknown>;
+      return canonicalEnvelope({
+        ...value,
+        images: [],
+        version: 7,
+        allowAnonymousDm: value['allowAnonymousDm'] ?? null,
+        home: plan.evidence,
+        textSource: source
+          ? reviewedTextSource(
+              plan.evidence.requestedIntent.text,
+              source,
+              'post',
+            )
+          : null,
+      });
+    }
+    if (!draft || typeof draft !== 'object')
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    return withReviewedTextSource(
+      canonicalEnvelope({ ...draft, images: [] }),
+      source,
+    );
+  }
+
+  async requireSourceParent(postId: string, tx: PoolClient): Promise<void> {
+    await requireOrdinarySourceParent(
+      postId,
+      tx,
+      this.homeApprovals && this.homeDefinitions
+        ? { approvals: this.homeApprovals, definitions: this.homeDefinitions }
+        : undefined,
+    );
+  }
+
   async discussionScope(
     authority: Authority,
     space: CommunitySpace,
@@ -234,10 +299,40 @@ export class PublicationService {
     envelopeVersion: number | undefined,
     tx: PoolClient,
   ): Promise<
+    | {
+        version: 8;
+        scope: LegacyContentScope;
+        allowAnonymousDm: null;
+        textSource: null;
+        homeParent: { postId: string; decisionId: string; digest: string };
+      }
     | { version: 1; scope: LegacyContentScope }
     | { version: 4; allowAnonymousDm: null; scope: InheritedRelatedScope }
   > {
     const actorScope = this.scope(authority, space.id, space.operatingRegionId);
+    if (envelopeVersion === 7) {
+      if (!this.homeApprovals || !this.homeDefinitions)
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const parent = await requireCurrentHomeParent(
+        postId,
+        tx,
+        this.homeApprovals,
+        this.homeDefinitions,
+      );
+      if (
+        parent.envelope.spaceId !== space.id ||
+        parent.envelope.scope.originalRegionId !== space.operatingRegionId
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      return {
+        version: 8,
+        scope: actorScope,
+        allowAnonymousDm: null,
+        textSource: null,
+        homeParent: parent.reference,
+      };
+    }
+
     if (!this.distribution) {
       if (envelopeVersion === 4)
         throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -263,8 +358,8 @@ export class PublicationService {
   ): Promise<PublicationReceipt | TextReviewStatus> {
     const {
       clientRequestId,
-      spaceId,
-      category,
+      spaceId: requestedSpaceId,
+      category: requestedCategory,
       text,
       imageAssetIds,
       authorMode,
@@ -277,6 +372,9 @@ export class PublicationService {
       'publish_post',
       intent,
       async (actor, tx) => {
+        let spaceId = requestedSpaceId;
+        let category: import('./contracts.js').Category = requestedCategory;
+        let homePlan: HomePublicationPlan | null = null;
         if (body.syncToRelatedCampuses === true) {
           if (
             !relatedCanonicalIdentifiersSchema.safeParse({
@@ -288,9 +386,9 @@ export class PublicationService {
             throw new ApplicationError('COMMUNITY_UNAVAILABLE');
           await this.distribution.observeRootAdmission(tx);
         }
-        const space = await this.repository.space(spaceId, tx);
+        let space = await this.repository.space(spaceId, tx);
         if (category === 'feedback') await requireFeedbackSpace(space, tx);
-        const authority = await this.access.authority(actor, space, tx, {
+        let authority = await this.access.authority(actor, space, tx, {
           publication: true,
           managementRequired: commentsPolicy === 'restricted',
         });
@@ -333,8 +431,44 @@ export class PublicationService {
             binding: qualified.binding,
           };
         }
+        if (category !== 'feedback' && category !== 'trading') {
+          const admission = await loadActiveHomePublication(tx);
+          if (admission) {
+            homePlan = planHomePublication(
+              body,
+              space,
+              authority.publicationScope?.authorOriginRegionId ?? null,
+              admission,
+              new Date(),
+            );
+            if (homePlan.lane === 'home') {
+              if (homePlan.spaceId !== space.id) {
+                space = await this.repository.space(homePlan.spaceId, tx);
+                authority = await this.access.authority(actor, space, tx, {
+                  publication: true,
+                  managementRequired: commentsPolicy === 'restricted',
+                });
+                requirePublication(
+                  authority,
+                  space,
+                  requestedCategory,
+                  authorMode,
+                  'publish_post',
+                );
+                if (
+                  space.operatingRegionId !== homePlan.regionId ||
+                  (commentsPolicy === 'restricted' &&
+                    !(authority.canDisableComments ?? authority.canManage))
+                )
+                  throw new ApplicationError('COMMUNITY_ACTION_RESTRICTED');
+              }
+              spaceId = homePlan.spaceId;
+              category = homePlan.category;
+            }
+          }
+        }
         const relatedScope =
-          body.syncToRelatedCampuses === true
+          body.syncToRelatedCampuses === true && !homePlan?.suppressDistribution
             ? await (() => {
                 if (!this.distribution)
                   throw new ApplicationError('COMMUNITY_UNAVAILABLE');
@@ -386,7 +520,7 @@ export class PublicationService {
                     component: body.component,
                   }
                 : undefined,
-          withReviewedTextSource(
+          this.reviewedPostEnvelope(
             {
               accountId: actor,
               purpose: 'publish_post',
@@ -446,6 +580,7 @@ export class PublicationService {
                     }),
             },
             body.textSource,
+            homePlan,
           ),
           {
             clientRequestId,
@@ -459,10 +594,12 @@ export class PublicationService {
           (!this.content.bind ||
             (approval?.version !== 2 &&
               approval?.version !== 4 &&
-              approval?.version !== 6) ||
+              approval?.version !== 6 &&
+              approval?.version !== 7) ||
             (approval.envelope.version !== 2 &&
               approval.envelope.version !== 4 &&
-              approval.envelope.version !== 6) ||
+              approval.envelope.version !== 6 &&
+              approval.envelope.version !== 7) ||
             approval.envelope.allowAnonymousDm !== body.allowAnonymousDm)
         )
           throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -478,17 +615,19 @@ export class PublicationService {
             text,
             authorMode,
             commentsPolicy,
-            body.textSource
-              ? 6
-              : ratingLink
-                ? 5
-                : relatedScope
-                  ? 4
-                  : body.feedback
-                    ? 3
-                    : body.allowAnonymousDm === undefined
-                      ? 1
-                      : 2,
+            homePlan?.lane === 'home'
+              ? 7
+              : body.textSource
+                ? 6
+                : ratingLink
+                  ? 5
+                  : relatedScope
+                    ? 4
+                    : body.feedback
+                      ? 3
+                      : body.allowAnonymousDm === undefined
+                        ? 1
+                        : 2,
             body.allowAnonymousDm ?? null,
             ...(body.feedback ? [JSON.stringify(body.feedback)] : []),
           ],
@@ -518,6 +657,7 @@ export class PublicationService {
             ],
           );
         }
+        await insertHomePublicationEvidence(approval, 'post', id, tx);
         await insertTextSource(
           {
             kind: 'post',
@@ -624,7 +764,7 @@ export class PublicationService {
             authorMode,
           );
           if (body.textSource !== undefined)
-            await requireOrdinarySourceParent(post.id, tx);
+            await this.requireSourceParent(post.id, tx);
           // Recovery happens in execute before this new-v4-only admission rule.
           if (
             post.publication_envelope_version === 4 &&
@@ -641,7 +781,7 @@ export class PublicationService {
             tx,
             undefined,
             withReviewedTextSource(
-              {
+              canonicalEnvelope({
                 ...(await this.discussionScope(
                   authority,
                   space,
@@ -661,7 +801,8 @@ export class PublicationService {
                 text,
                 component: { kind: 'none' },
                 trading: null,
-              },
+                images: [],
+              }),
               body.textSource,
             ),
             {
@@ -680,6 +821,7 @@ export class PublicationService {
           if (effectiveMode === 'anonymous')
             await this.repository.persona(postId, actor, tx);
           await this.repository.attach('comment', id, images, tx);
+          await insertHomePublicationEvidence(approval, 'comment', id, tx);
           await insertTextSource(
             {
               kind: 'comment',

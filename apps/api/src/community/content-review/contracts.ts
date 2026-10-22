@@ -1,6 +1,10 @@
+import { canonicalJson as encodeCanonicalJson } from './canonical-json.js';
+import { homeReviewEvidenceSchema } from '../home-feed-policy/review-evidence.js';
+import type { HomeReviewEvidence } from '../home-feed-policy/review-evidence.js';
 import {
   reviewedTextSourceSchema,
   reviewedTextSourceMatches,
+  sourceDescriptor,
 } from '../text-source/protocol.js';
 import type { ReviewedTextSource } from '../text-source/protocol.js';
 import { reviewedRatingTargetLinkSchema } from '../rating-target-link/contracts.js';
@@ -8,13 +12,17 @@ import type { ReviewedRatingTargetLink } from '../rating-target-link/contracts.j
 import { feedbackInputSchema } from '../feedback/contracts.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { authorModeSchema, categorySchema } from '../contracts.js';
+import {
+  authorModeSchema,
+  legacyCategorySchema,
+  readableCategorySchema,
+} from '../contracts.js';
 import type { PublicationOperation } from '../contracts.js';
 import { formationComponentSchema } from '../formation/contracts.js';
 import { pollComponentSchema } from '../polls/contracts.js';
 import { tradingInputSchema } from '../trading/contracts.js';
 import { textSchema } from '../text.js';
-import type { AuthorMode, Category } from '../contracts.js';
+import type { AuthorMode, Category, LegacyCategory } from '../contracts.js';
 import type { FeedbackInput } from '../feedback/contracts.js';
 import type { FormationComponent } from '../formation/contracts.js';
 import type { PollComponent } from '../polls/contracts.js';
@@ -51,7 +59,7 @@ const contentEnvelopeShape = {
   accountId: z.uuid(),
   purpose: z.enum(['publish_post', 'publish_comment', 'publish_reply']),
   spaceId: z.uuid(),
-  category: categorySchema,
+  category: legacyCategorySchema,
   authorMode: authorModeSchema,
   commentsPolicy: z.enum(['open', 'restricted']),
   postId: z.uuid().nullable(),
@@ -124,6 +132,32 @@ const contentEnvelopeV6Schema = z.strictObject({
   allowAnonymousDm: z.literal(false).nullable(),
   textSource: reviewedTextSourceSchema,
 });
+const contentEnvelopeV7Schema = z.strictObject({
+  ...contentEnvelopeShape,
+  version: z.literal(7),
+  purpose: z.literal('publish_post'),
+  category: readableCategorySchema,
+  trading: z.null(),
+  allowAnonymousDm: z.boolean().nullable(),
+  textSource: reviewedTextSourceSchema.nullable(),
+  home: homeReviewEvidenceSchema,
+});
+/** A child inherits exact parent Review authority, never its Home classification. */
+const contentEnvelopeV8Schema = z.strictObject({
+  ...contentEnvelopeShape,
+  version: z.literal(8),
+  purpose: z.enum(['publish_comment', 'publish_reply']),
+  category: readableCategorySchema,
+  component: z.strictObject({ kind: z.literal('none') }),
+  trading: z.null(),
+  allowAnonymousDm: z.null(),
+  textSource: reviewedTextSourceSchema.nullable(),
+  homeParent: z.strictObject({
+    postId: z.uuid(),
+    decisionId: z.uuid(),
+    digest: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+});
 const exactContentEnvelopeSchema = z
   .discriminatedUnion('version', [
     contentEnvelopeV1Schema,
@@ -132,10 +166,79 @@ const exactContentEnvelopeSchema = z
     contentEnvelopeV4Schema,
     contentEnvelopeV5Schema,
     contentEnvelopeV6Schema,
+    contentEnvelopeV7Schema,
+    contentEnvelopeV8Schema,
   ])
   .superRefine((value, ctx) => {
     const invalid = (message: string) =>
       ctx.addIssue({ code: 'custom', message });
+    if (value.version === 8) {
+      if (
+        value.category === 'feedback' ||
+        value.category === 'trading' ||
+        value.scope.sync !== 'none' ||
+        value.homeParent.postId !== value.postId
+      )
+        invalid('Invalid composed Home parent');
+      if (
+        value.textSource !== null &&
+        (value.images.length !== 0 ||
+          value.commentsPolicy !== 'open' ||
+          !reviewedTextSourceMatches(
+            value.text,
+            value.textSource,
+            value.purpose === 'publish_comment' ? 'comment' : 'reply',
+          ))
+      )
+        invalid('Invalid composed discussion source');
+    }
+    if (value.version === 7) {
+      const requested = value.home.requestedIntent;
+      const restricted = value.home.result !== null;
+      if (
+        value.category === 'feedback' ||
+        value.category === 'trading' ||
+        value.scope.sync !== 'none' ||
+        value.text !== requested.text ||
+        value.commentsPolicy !== requested.commentsPolicy ||
+        !canonicalEqual(
+          value.images.map((image) => image.assetId),
+          requested.imageAssetIds,
+        ) ||
+        !canonicalEqual(
+          value.component,
+          requested.component ?? { kind: 'none' },
+        ) ||
+        value.allowAnonymousDm !==
+          (value.authorMode === 'named'
+            ? (requested.allowAnonymousDm ?? null)
+            : null) ||
+        value.category !== (restricted ? 'water' : requested.category) ||
+        value.spaceId !==
+          (restricted ? value.home.targetWaterSpaceId : requested.spaceId) ||
+        value.scope.originalRegionId !==
+          (restricted
+            ? value.home.targetWaterRegionId
+            : value.home.requestedRegionId)
+      )
+        invalid('Invalid composed Home definition');
+      if (
+        value.textSource === null
+          ? requested.textSource !== undefined
+          : requested.textSource === undefined ||
+            !canonicalEqual(
+              sourceDescriptor(value.textSource),
+              requested.textSource,
+            ) ||
+            !reviewedTextSourceMatches(value.text, value.textSource, 'post') ||
+            value.images.length !== 0 ||
+            value.component.kind !== 'none' ||
+            value.commentsPolicy !== 'open' ||
+            requested.allowAnonymousDm === true ||
+            requested.syncToRelatedCampuses === true
+      )
+        invalid('Invalid composed reviewed source');
+    }
     if (value.version === 6) {
       if (
         value.category === 'feedback' ||
@@ -246,7 +349,7 @@ interface ContentEnvelopeFields {
   accountId: string;
   purpose: 'publish_post' | 'publish_comment' | 'publish_reply';
   spaceId: string;
-  category: Category;
+  category: LegacyCategory;
   authorMode: AuthorMode;
   commentsPolicy: 'open' | 'restricted';
   postId: string | null;
@@ -310,24 +413,56 @@ export interface EffectiveContentEnvelopeV6 extends Omit<
   allowAnonymousDm: false | null;
   textSource: ReviewedTextSource;
 }
+/** Additive post-only Home/source composition; no historical envelope widens. */
+export interface EffectiveContentEnvelopeV7 extends Omit<
+  ContentEnvelopeFields,
+  'category' | 'purpose' | 'trading'
+> {
+  version: 7;
+  purpose: 'publish_post';
+  category: Category;
+  trading: null;
+  scope: LegacyContentScope;
+  allowAnonymousDm: boolean | null;
+  textSource: ReviewedTextSource | null;
+  home: HomeReviewEvidence;
+}
+export interface EffectiveContentEnvelopeV8 extends Omit<
+  ContentEnvelopeFields,
+  'category' | 'purpose' | 'component' | 'trading'
+> {
+  version: 8;
+  purpose: 'publish_comment' | 'publish_reply';
+  category: Category;
+  component: { kind: 'none' };
+  trading: null;
+  scope: LegacyContentScope;
+  allowAnonymousDm: null;
+  textSource: ReviewedTextSource | null;
+  homeParent: { postId: string; decisionId: string; digest: string };
+}
 export type EffectiveContentEnvelope =
   | EffectiveContentEnvelopeV1
   | EffectiveContentEnvelopeV2
   | EffectiveContentEnvelopeV3
   | EffectiveContentEnvelopeV4
   | EffectiveContentEnvelopeV5
-  | EffectiveContentEnvelopeV6;
+  | EffectiveContentEnvelopeV6
+  | EffectiveContentEnvelopeV7
+  | EffectiveContentEnvelopeV8;
 export type EffectiveContentEnvelopeDraft =
   | Omit<EffectiveContentEnvelopeV1, 'images'>
   | Omit<EffectiveContentEnvelopeV2, 'images'>
   | Omit<EffectiveContentEnvelopeV3, 'images'>
   | Omit<EffectiveContentEnvelopeV4, 'images'>
   | Omit<EffectiveContentEnvelopeV5, 'images'>
-  | Omit<EffectiveContentEnvelopeV6, 'images'>;
+  | Omit<EffectiveContentEnvelopeV6, 'images'>
+  | Omit<EffectiveContentEnvelopeV7, 'images'>
+  | Omit<EffectiveContentEnvelopeV8, 'images'>;
 export interface AcceptedApproval {
   decisionId: string;
   digest: string;
-  version: 1 | 2 | 3 | 4 | 5 | 6;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   envelope: EffectiveContentEnvelope;
 }
 export interface ContentApprovalInput {
@@ -356,24 +491,6 @@ export function canonicalJson(value: unknown): string {
     return encoded;
   }
   return encodeCanonicalJson(value);
-}
-function encodeCanonicalJson(value: unknown): string {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean')
-    return JSON.stringify(value);
-  if (typeof value === 'number' && Number.isFinite(value))
-    return JSON.stringify(value);
-  if (Array.isArray(value))
-    return `[${value.map(encodeCanonicalJson).join(',')}]`;
-  if (typeof value === 'object' && value !== null) {
-    const object = value as Record<string, unknown>;
-    return `{${Object.keys(object)
-      .sort()
-      .map(
-        (key) => `${JSON.stringify(key)}:${encodeCanonicalJson(object[key])}`,
-      )
-      .join(',')}}`;
-  }
-  throw new TypeError('Unsupported canonical content');
 }
 /** Equality of supported canonical JSON values without allocating/sorting two
  * strings. Object-key order is irrelevant; array order and every own field are

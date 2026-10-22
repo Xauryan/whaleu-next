@@ -1,10 +1,14 @@
 import { readTextSources } from '../text-source/repository.js';
+import { homeReviewEvidenceSchema } from '../home-feed-policy/review-evidence.js';
+import type { HomeReviewEvidence } from '../home-feed-policy/review-evidence.js';
+import type { HomeParentReference } from '../home-feed-policy/definition-evidence.js';
 import { readRatingTargetLinks } from '../rating-target-link/binding.js';
 import { readDistributionBindings } from '../related-sync/binding.js';
 import { readPostCategorySnapshot } from '../category-reclassification/read-proof.js';
 import { batchCategoryChildContextSnapshot } from '../category-reclassification/child-context.js';
 import { Injectable } from '@nestjs/common';
 import { types } from 'pg';
+import { z } from 'zod';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../../http/application-error.js';
 import type { StoredComment, StoredReply } from '../community.repository.js';
@@ -114,6 +118,79 @@ export interface SnapshotReferences {
   roots: string[];
   replies: string[];
 }
+const homePostRowSchema = z.strictObject({
+  postId: z.uuid(),
+  evidence: homeReviewEvidenceSchema,
+});
+const homeParentRowSchema = z.strictObject({
+  kind: z.enum(['comment', 'reply']),
+  id: z.uuid(),
+  postId: z.uuid(),
+  decisionId: z.uuid(),
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+/** These publication-owner rows are immutable and share the existing content
+ * identities/fences. Read only the v7 ancestry in this batch, never a Home feed
+ * view or current admission, and keep both queries inside its wire budget. */
+async function readHomeDefinitions(
+  posts: ReadonlyMap<string, DefinitionPost>,
+  roots: ReadonlyMap<string, StoredComment>,
+  replies: ReadonlyMap<string, StoredReply>,
+  tx: PoolClient,
+  budget: SnapshotReadBudget,
+) {
+  const homePostIds = [...posts.values()]
+    .filter((post) => post.publication_envelope_version === 7)
+    .map((post) => post.id);
+  const expectedPosts = new Set(homePostIds);
+  const result = new Map<
+    string,
+    { home: HomeReviewEvidence } | { homeParent: HomeParentReference }
+  >();
+  for (const raw of await budget.rows<unknown>(
+    tx,
+    `SELECT post_id AS "postId",evidence FROM whaleu_community.home_post_dispositions WHERE post_id=ANY($1::uuid[])`,
+    [homePostIds],
+    homePostIds.length,
+  )) {
+    const parsed = homePostRowSchema.safeParse(raw);
+    if (!parsed.success) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const row = parsed.data;
+    const key = contentKey('post', row.postId);
+    if (!expectedPosts.has(row.postId) || result.has(key))
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    result.set(key, { home: row.evidence });
+  }
+  const children = [
+    ...[...roots.values()].map((row) => ({ kind: 'comment' as const, row })),
+    ...[...replies.values()].map((row) => ({ kind: 'reply' as const, row })),
+  ].filter(({ row }) => expectedPosts.has(row.post_id));
+  const expectedChildren = new Map(
+    children.map(({ kind, row }) => [contentKey(kind, row.id), row.post_id]),
+  );
+  for (const raw of await budget.rows<unknown>(
+    tx,
+    `SELECT b.content_kind AS kind,b.content_id AS id,b.post_id AS "postId",b.parent_decision_id AS "decisionId",b.parent_digest AS digest
+     FROM unnest($1::text[],$2::uuid[],$3::uuid[]) wanted(kind,id,post_id)
+     JOIN whaleu_community.home_discussion_parent_bindings b
+       ON b.content_kind=wanted.kind AND b.content_id=wanted.id AND b.post_id=wanted.post_id`,
+    [
+      children.map(({ kind }) => kind),
+      children.map(({ row }) => row.id),
+      children.map(({ row }) => row.post_id),
+    ],
+    children.length,
+  )) {
+    const parsed = homeParentRowSchema.safeParse(raw);
+    if (!parsed.success) throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    const { kind, id, ...homeParent } = parsed.data;
+    const key = contentKey(kind, id);
+    if (expectedChildren.get(key) !== homeParent.postId || result.has(key))
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    result.set(key, { homeParent });
+  }
+  return result;
+}
 @Injectable()
 export class ContentReviewCountRepository {
   async read(references: SnapshotReferences, tx: PoolClient) {
@@ -199,6 +276,13 @@ export class ContentReviewCountRepository {
     ];
     const nodeIds = [...postIds, ...rootIds, ...replyIds];
     const textSources = await readTextSources(kinds, nodeIds, tx, budget);
+    const homeDefinitions = await readHomeDefinitions(
+      posts,
+      roots,
+      replies,
+      tx,
+      budget,
+    );
     // Account existence is the same binding anchor as ApprovalRepository.current;
     // no lifecycle, verification or publication-eligibility query is introduced.
     const bindingRows = await budget.rows<ApprovalBinding>(
@@ -305,6 +389,7 @@ export class ContentReviewCountRepository {
     return {
       posts,
       ...(textSources.size ? { textSources } : {}),
+      ...(homeDefinitions.size ? { homeDefinitions } : {}),
       ...(ratingTargetLinks.size ? { ratingTargetLinks } : {}),
       ...(distributionBindings ? { distributionBindings } : {}),
       roots,

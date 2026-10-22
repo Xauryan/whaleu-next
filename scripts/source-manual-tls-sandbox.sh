@@ -98,3 +98,6 @@ try { await assert.rejects(async()=>{const client=await pool.connect();client.re
 JS
 npm run test:source-manual:production
 npm run test:reading-worker:production -w @whaleu/api
+npm run test:home-admission:production -w @whaleu/api
+npm run test:home-activation:production -w @whaleu/api
+npm run test:home-reading:production -w @whaleu/api

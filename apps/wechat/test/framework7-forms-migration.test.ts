@@ -1,4 +1,5 @@
 import { assertReviewedBusinessSuccessor } from './reviewed-business-successor';
+import { assertReviewedHomeReadableSuccessor } from './reviewed-home-readable-successor';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -108,11 +109,17 @@ for (const [page, baseline] of Object.entries(before)) {
       current.splice(index, 1);
     }
     assert.equal(current.length, 0);
-    assert.equal(
-      hash(source(page, 'ts')),
-      baseline.typescriptSha256,
-      'Page handlers and lifecycle are byte-identical',
-    );
+    if (
+      !assertReviewedHomeReadableSuccessor(
+        `src/pages/${page}/${page}.ts`,
+        baseline.typescriptSha256,
+      )
+    )
+      assert.equal(
+        hash(source(page, 'ts')),
+        baseline.typescriptSha256,
+        'Page handlers and lifecycle are byte-identical',
+      );
   });
   test(`${page}: registered native F7 components contain no provider data, DOM or nested actionable slots`, () => {
     const nodes = flatten(parse(source(page)));

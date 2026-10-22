@@ -1,6 +1,8 @@
 /** Exact managed-worker privilege contract. SQL role custody excludes arbitrary
  * clients. MAINTAIN authorizes existing SHARE table fences without UPDATE rights;
  * the named UPDATE columns are PostgreSQL's minimum for existing row-lock reads.
+ * The 0178 worker additionally needs SELECT only on the two immutable Home
+ * evidence tables. No new Home MAINTAIN or row-lock UPDATE is permitted.
  * This module provisions nothing and does not claim a raw-DML temporal boundary. */
 export const readingTablePrivileges = Object.freeze(
   [
@@ -54,6 +56,14 @@ export const readingTablePrivileges = Object.freeze(
     },
     {
       relation: 'whaleu_community.formations',
+      privilege: 'SELECT',
+    },
+    {
+      relation: 'whaleu_community.home_post_dispositions',
+      privilege: 'SELECT',
+    },
+    {
+      relation: 'whaleu_community.home_discussion_parent_bindings',
       privilege: 'SELECT',
     },
     {

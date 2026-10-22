@@ -242,6 +242,7 @@ class SnapshotEvaluator {
       kind === 'post' ? this.snapshot.formations.get(id) : undefined;
     return reconstructDefinition(kind, post, content, rootId, scope, parents, {
       images: this.snapshot.images.get(contentKey(kind, id)) ?? [],
+      ...this.snapshot.homeDefinitions?.get(contentKey(kind, id)),
       ...(this.snapshot.textSources?.get(contentKey(kind, id))
         ? { textSource: this.snapshot.textSources.get(contentKey(kind, id))! }
         : {}),

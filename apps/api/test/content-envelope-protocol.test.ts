@@ -14,6 +14,8 @@ import type {
   EffectiveContentEnvelopeV4,
   EffectiveContentEnvelopeV5,
   EffectiveContentEnvelopeV6,
+  EffectiveContentEnvelopeV7,
+  EffectiveContentEnvelopeV8,
 } from '../src/community/content-review/contracts.js';
 import type { ReviewedRatingTargetLink } from '../src/community/rating-target-link/contracts.js';
 import { reviewedTextSource } from '../src/community/text-source/protocol.js';
@@ -30,7 +32,7 @@ type Same<Left, Right> = [Left] extends [Right]
 export type EnvelopeVersionRegressionAgreement = [
   RequireAgreement<ContentEnvelopeProtocolAgreement>,
   RequireAgreement<
-    Same<EffectiveContentEnvelope['version'], 1 | 2 | 3 | 4 | 5 | 6>
+    Same<EffectiveContentEnvelope['version'], 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>
   >,
   RequireAgreement<
     Same<
@@ -68,6 +70,32 @@ export type EnvelopeVersionRegressionAgreement = [
       EffectiveContentEnvelopeV6
     >
   >,
+  RequireAgreement<
+    Same<
+      Extract<EffectiveContentEnvelope, { version: 7 }>,
+      EffectiveContentEnvelopeV7
+    >
+  >,
+  RequireAgreement<
+    Same<
+      Extract<EffectiveContentEnvelope, { version: 8 }>,
+      EffectiveContentEnvelopeV8
+    >
+  >,
+  RequireAgreement<Same<EffectiveContentEnvelopeV7['purpose'], 'publish_post'>>,
+  RequireAgreement<
+    Same<
+      EffectiveContentEnvelopeV8['purpose'],
+      'publish_comment' | 'publish_reply'
+    >
+  >,
+  RequireAgreement<
+    Same<Extract<'home', keyof EffectiveContentEnvelopeV8>, never>
+  >,
+  RequireAgreement<
+    Same<Extract<'homeParent', keyof EffectiveContentEnvelopeV7>, never>
+  >,
+  RequireAgreement<Same<EffectiveContentEnvelopeV8['allowAnonymousDm'], null>>,
   RequireAgreement<Same<EffectiveContentEnvelopeV5['images'], []>>,
   RequireAgreement<Same<EffectiveContentEnvelopeV6['images'], []>>,
   RequireAgreement<

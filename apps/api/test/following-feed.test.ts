@@ -43,6 +43,24 @@ function fixture() {
         return { rows: [{ revision: epoch }] };
       if (sql.startsWith('SELECT version::text'))
         return { rows: [{ version: '0' }] };
+      if (sql.includes('home_post_disposition_valid(p.id)'))
+        return {
+          rows: (params[0] as string[]).map((id) => {
+            const post = rows.find((row) => row.id === id)!;
+            return {
+              postId: id,
+              accountId: post.account_id,
+              authorMode: post.author_mode,
+              version: 1,
+              dispositionId: null,
+              decisionId: null,
+              digest: null,
+              result: null,
+              surfaces: null,
+              valid: true,
+            };
+          }),
+        };
       if (sql.startsWith('SELECT p.*'))
         return {
           rows: rows.filter(

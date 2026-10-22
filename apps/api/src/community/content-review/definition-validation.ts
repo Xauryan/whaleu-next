@@ -1,4 +1,9 @@
-import { sourceOriginalIntentHash } from '../text-source/protocol.js';
+import type { HomeReviewEvidence } from '../home-feed-policy/review-evidence.js';
+import type { EffectiveContentEnvelopeV8 } from './contracts.js';
+import {
+  sourceOriginalIntentHash,
+  composedSourceOriginalIntentHash,
+} from '../text-source/protocol.js';
 import { reconstructTextSource } from '../text-source/repository.js';
 import type { StoredTextSource } from '../text-source/repository.js';
 import type { ReviewedRatingTargetLink } from '../rating-target-link/contracts.js';
@@ -75,6 +80,8 @@ export interface DefinitionListing {
   resolution?: string;
 }
 export interface DefinitionPayload {
+  home?: HomeReviewEvidence;
+  homeParent?: EffectiveContentEnvelopeV8['homeParent'];
   textSource?: StoredTextSource;
   ratingTargetLink?: ReviewedRatingTargetLink | undefined;
   images: DefinitionImage[];
@@ -201,11 +208,25 @@ export function reconstructDefinition(
   const version =
     kind === 'post'
       ? (post.publication_envelope_version ?? 1)
-      : facts.textSource
-        ? 6
-        : scope.sync === 'inherited_related'
-          ? 4
-          : 1;
+      : facts.homeParent
+        ? 8
+        : facts.textSource
+          ? 6
+          : scope.sync === 'inherited_related'
+            ? 4
+            : 1;
+  if (
+    (version === 7) !== !!facts.home ||
+    (version === 8) !== !!facts.homeParent ||
+    (version === 8 &&
+      (kind === 'post' ||
+        post.publication_envelope_version !== 7 ||
+        facts.homeParent?.postId !== post.id)) ||
+    (kind !== 'post' &&
+      post.publication_envelope_version === 7 &&
+      version !== 8)
+  )
+    return { kind: 'unavailable' };
   if (
     kind === 'post' &&
     ((version === 5) !== !!ratingTargetLink ||
@@ -245,7 +266,10 @@ export function reconstructDefinition(
         content.text,
       )
     : null;
-  if ((version === 6) !== !!textSource || (facts.textSource && !textSource))
+  if (
+    (version !== 7 && version !== 8 && (version === 6) !== !!textSource) ||
+    (facts.textSource && !textSource)
+  )
     return { kind: 'unavailable' };
   if (
     version === 6 &&
@@ -257,7 +281,9 @@ export function reconstructDefinition(
   try {
     const envelope = canonicalEnvelope({
       version,
-      ...(version === 6
+      ...(version === 7 ? { home: facts.home } : {}),
+      ...(version === 8 ? { homeParent: facts.homeParent } : {}),
+      ...(version === 6 || version === 7 || version === 8
         ? {
             textSource,
             allowAnonymousDm:
@@ -289,13 +315,20 @@ export function reconstructDefinition(
       scope,
     });
     if (
-      envelope.version === 6 &&
+      (envelope.version === 6 ||
+        ((envelope.version === 7 || envelope.version === 8) &&
+          envelope.textSource !== null)) &&
       (!facts.textSource ||
         facts.textSource.original_intent_hash !==
-          sourceOriginalIntentHash(
-            envelope,
-            facts.textSource.requested_author_mode,
-          ) ||
+          (envelope.version === 6
+            ? sourceOriginalIntentHash(
+                envelope,
+                facts.textSource.requested_author_mode,
+              )
+            : composedSourceOriginalIntentHash(
+                envelope,
+                facts.textSource.requested_author_mode,
+              )) ||
         content.author_mode !==
           (kind !== 'post' &&
           post.author_mode === 'anonymous' &&
@@ -330,7 +363,16 @@ export function definitionMatchesApproval(
 ): boolean {
   return (
     canonicalEqual(stored.envelope, accepted.envelope) &&
-    (stored.envelope.version !== 6 ||
+    (!(
+      (stored.envelope.version === 7 || stored.envelope.version === 8) &&
+      stored.envelope.textSource === null
+    ) ||
+      !stored.textSource) &&
+    ((stored.envelope.version !== 6 &&
+      !(
+        (stored.envelope.version === 7 || stored.envelope.version === 8) &&
+        stored.envelope.textSource !== null
+      )) ||
       (!!stored.textSource &&
         stored.textSource.decision_id === accepted.decisionId &&
         stored.textSource.approval_digest === accepted.digest &&

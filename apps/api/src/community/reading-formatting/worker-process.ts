@@ -49,8 +49,8 @@ export async function assertReadingWorkerRole(tx: PoolClient): Promise<void> {
     AND NOT EXISTS(SELECT 1 FROM owned o WHERE pg_has_role(current_user,o.relowner,'MEMBER'))
     AND NOT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE starts_with(n.nspname,'whaleu_') AND (pg_has_role(current_user,p.proowner,'MEMBER') OR (p.prosecdef AND has_function_privilege(current_user,p.oid,'EXECUTE'))))
     AND NOT EXISTS(SELECT 1 FROM pg_namespace n WHERE starts_with(n.nspname,'whaleu_') AND (has_schema_privilege(current_user,n.oid,'CREATE') OR pg_has_role(current_user,n.nspowner,'MEMBER')))
-    AND NOT EXISTS(SELECT 1 FROM allowed a WHERE NOT has_table_privilege(current_user,a.relation,a.privilege))
-    AND NOT EXISTS(SELECT 1 FROM columns_allowed a WHERE NOT has_column_privilege(current_user,a.relation,a."column",a.privilege))
+    AND NOT EXISTS(SELECT 1 FROM allowed a WHERE to_regclass(a.relation) IS NULL OR NOT coalesce(has_table_privilege(current_user,to_regclass(a.relation)::oid,a.privilege),false))
+    AND NOT EXISTS(SELECT 1 FROM columns_allowed a WHERE to_regclass(a.relation) IS NULL OR NOT coalesce(has_column_privilege(current_user,to_regclass(a.relation)::oid,a."column",a.privilege),false))
     AND NOT EXISTS(SELECT 1 FROM forbidden f WHERE has_table_privilege(current_user,f.oid,f.privilege))
     AND NOT EXISTS(SELECT 1 FROM owned o JOIN pg_attribute c ON c.attrelid=o.oid AND c.attnum>0 AND NOT c.attisdropped CROSS JOIN (VALUES('INSERT'),('UPDATE'),('REFERENCES')) p(privilege)
       WHERE has_column_privilege(current_user,o.oid,c.attnum,p.privilege)
@@ -65,7 +65,7 @@ export async function assertReadingWorkerRole(tx: PoolClient): Promise<void> {
   ).rows[0];
   if (value?.admitted !== true)
     throw new Error(
-      'Reading worker requires a separately provisioned least-privilege managed-runtime role',
+      'Reading worker requires complete 0178 Home migration and a separately provisioned least-privilege managed-runtime role',
     );
 }
 export interface ReadingProcessHealth {

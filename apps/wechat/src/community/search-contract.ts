@@ -13,7 +13,9 @@ import {
   exact,
   invalid,
   isCategory,
+  isReadableCategory,
   type Category,
+  type ReadableCategory,
   type Author,
 } from './contract';
 import { isTradingSubtype, type TradingSubtype } from './trading-contract';
@@ -79,7 +81,7 @@ export interface SearchHit extends RelatedCampusDisplay {
     readonly kind: 'regional' | 'global';
     readonly name: string;
   };
-  readonly category: Category;
+  readonly category: ReadableCategory;
   readonly tradingSubtype: TradingSubtype | null;
   readonly tradingUrgency: 'normal' | 'urgent' | null;
   readonly createdAt: string;
@@ -243,7 +245,7 @@ function decodeHit(value: unknown, requireMatch: boolean): SearchHit {
     !isUuid(value.space.id) ||
     !['regional', 'global'].includes(String(value.space.kind)) ||
     !boundedText(value.space.name, 1, 200) ||
-    !isCategory(value.category) ||
+    !isReadableCategory(value.category) ||
     (value.space.kind === 'global' &&
       value.category !== 'discussion' &&
       value.category !== 'feedback') ||

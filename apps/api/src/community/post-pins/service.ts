@@ -1,4 +1,6 @@
 import { CommunityDistributionService } from '../related-sync/service.js';
+import { homeDistributionCandidateSql } from '../home-distribution/candidate-sql.js';
+import { homeDistributionAllowed } from '../home-distribution/read-proof.js';
 import type { CommunityDistributionScope } from '../related-sync/contracts.js';
 import { requireContentDistributionGrant } from '../../authorization/content-distribution-grant.js';
 import { enforceAccountPunishment } from '../../safety/account-moderation/policy.js';
@@ -167,14 +169,25 @@ export class PostPinsService {
       tx,
     );
   }
-  private async current(scope: Scope, tx: PoolClient): Promise<Pin | null> {
+  private async current(
+    scope: Scope,
+    tx: PoolClient,
+    viewer?: string | null,
+  ): Promise<Pin | null> {
     // The slot remains occupied while hidden or Review-denied. Only expiry,
     // explicit closure or canonical deletion release it.
+    const parameters: unknown[] = [scope.id];
+    // List distribution is distinct from slot occupancy/management. A restricted
+    // pin still occupies its slot, including for managers who cannot see its list.
+    const home =
+      viewer === undefined
+        ? ''
+        : ` AND ${homeDistributionCandidateSql('post', viewer, 'home', parameters)}`;
     const row =
       (
         await tx.query<Pin>(
-          `SELECT p.*,p.pinned_until::text AS until FROM whaleu_community.post_pin_heads h JOIN whaleu_community.post_pins p ON p.id=h.pin_id JOIN whaleu_community.posts post ON post.id=p.post_id WHERE h.scope_id=$1 AND p.pinned_until>clock_timestamp() AND post.deleted_at IS NULL AND NOT EXISTS(SELECT 1 FROM whaleu_community.post_pin_closures c WHERE c.pin_id=p.id) FOR SHARE OF post`,
-          [scope.id],
+          `SELECT p.*,p.pinned_until::text AS until FROM whaleu_community.post_pin_heads h JOIN whaleu_community.post_pins p ON p.id=h.pin_id JOIN whaleu_community.posts post ON post.id=p.post_id WHERE h.scope_id=$1 AND p.pinned_until>clock_timestamp() AND post.deleted_at IS NULL AND NOT EXISTS(SELECT 1 FROM whaleu_community.post_pin_closures c WHERE c.pin_id=p.id)${home} FOR SHARE OF post`,
+          parameters,
         )
       ).rows[0] ?? null;
     if (row) registerTransactionExactDeadline(tx, row.until, 'POST_PIN_STALE');
@@ -253,7 +266,7 @@ export class PostPinsService {
         }
         throw error;
       }
-      const pin = await this.current(scope, tx);
+      const pin = await this.current(scope, tx, actor);
       if (!pin) {
         await retainPostPinProof(
           {
@@ -280,6 +293,7 @@ export class PostPinsService {
         return { spaceId: space.id, status: 'unavailable', items: [] };
       if (
         projected.kind !== 'allow' ||
+        !(await homeDistributionAllowed(post.id, actor, 'home', tx)) ||
         (currentCategory !== null &&
           query.category &&
           query.category !== currentCategory) ||

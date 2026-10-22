@@ -29,6 +29,7 @@ Page({
       { key: 'reply', label: '后续回复' },
     ],
     categoryLabels: {
+      water: '水区',
       discussion: '校园日常',
       confession: '表白心事',
       companions: '找搭子',

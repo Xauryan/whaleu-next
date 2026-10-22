@@ -7,7 +7,16 @@ import type {
 } from '../content-review/contracts.js';
 import type { SnapshotReadBudget } from '../content-review/count-snapshot.repository.js';
 import type { TextSourceDescriptor } from './contracts.js';
-import { reviewedTextSource } from './protocol.js';
+import {
+  reviewedTextSource,
+  composedSourceOriginalIntentHash,
+} from './protocol.js';
+import {
+  canonicalEnvelope,
+  canonicalEqual,
+  approvalDigest,
+  operationForKind,
+} from '../content-review/contracts.js';
 import type { ReviewedTextSource } from './protocol.js';
 
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
@@ -117,6 +126,57 @@ export async function insertTextSource(
   },
   tx: PoolClient,
 ): Promise<void> {
+  if (
+    input.approval &&
+    (![1, 2, 3, 4, 5, 6, 7, 8].includes(input.approval.version) ||
+      input.approval.version !== input.approval.envelope.version)
+  )
+    throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+  const composed = input.approval?.envelope;
+  if (
+    input.approval?.version === 7 ||
+    input.approval?.version === 8 ||
+    composed?.version === 7 ||
+    composed?.version === 8
+  ) {
+    try {
+      if (
+        !input.approval ||
+        !composed ||
+        (composed.version !== 7 && composed.version !== 8) ||
+        input.approval.version !== composed.version ||
+        !canonicalEqual(canonicalEnvelope(composed), composed) ||
+        approvalDigest(composed) !== input.approval.digest ||
+        composed.accountId !== input.accountId ||
+        composed.text !== input.text ||
+        composed.purpose !== operationForKind(input.kind) ||
+        (composed.version === 7 &&
+          (input.kind !== 'post' ||
+            composed.home.requestedIntent.authorMode !==
+              input.requestedAuthorMode ||
+            composed.home.requestedIntentHash !== input.originalIntentHash))
+      )
+        throw new Error('Invalid composed approval');
+      if (input.source === undefined) {
+        if (composed.textSource !== null) throw new Error('Missing source');
+        return;
+      }
+      if (
+        composed.textSource === null ||
+        !canonicalEqual(
+          composed.textSource,
+          reviewedTextSource(input.text, input.source, input.kind),
+        ) ||
+        composedSourceOriginalIntentHash(
+          composed,
+          input.requestedAuthorMode,
+        ) !== input.originalIntentHash
+      )
+        throw new Error('Invalid composed source');
+    } catch {
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    }
+  }
   if (input.source === undefined) {
     if (input.approval?.version === 6)
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
@@ -125,9 +185,11 @@ export async function insertTextSource(
   const source = reviewedTextSource(input.text, input.source, input.kind);
   if (
     !input.approval ||
-    input.approval.version !== 6 ||
-    input.approval.envelope.version !== 6 ||
-    input.approval.envelope.textSource.sourceHash !== source.sourceHash
+    ![6, 7, 8].includes(input.approval.version) ||
+    (input.approval.envelope.version !== 6 &&
+      input.approval.envelope.version !== 7 &&
+      input.approval.envelope.version !== 8) ||
+    input.approval.envelope.textSource?.sourceHash !== source.sourceHash
   )
     throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
   await tx.query(

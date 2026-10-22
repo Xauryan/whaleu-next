@@ -15,7 +15,7 @@ import type { PollView } from './polls/contracts.js';
 import type { ApplicationErrorCode } from '../http/application-error.js';
 import type { PublicExperienceDisplay } from '../experience/public-display.contract.js';
 
-export const categorySchema = z.enum([
+export const legacyCategorySchema = z.enum([
   'discussion',
   'feedback',
   'confession',
@@ -28,7 +28,13 @@ export const categorySchema = z.enum([
   'deep_sea',
   'trading',
 ]);
-export type Category = z.infer<typeof categorySchema>;
+export type LegacyCategory = z.infer<typeof legacyCategorySchema>;
+/** Readable taxonomy. Historical Review envelopes retain legacyCategorySchema. */
+export const categorySchema = legacyCategorySchema;
+export const readableCategorySchema = legacyCategorySchema.or(
+  z.literal('water'),
+);
+export type Category = z.infer<typeof readableCategorySchema>;
 export const authorModeSchema = z.enum(['named', 'anonymous']);
 export type AuthorMode = z.infer<typeof authorModeSchema>;
 const imagesSchema = (maximum: number) =>
@@ -41,7 +47,7 @@ export const publishPostSchema = z
   .strictObject({
     clientRequestId: z.uuidv4(),
     spaceId: z.uuid(),
-    category: categorySchema,
+    category: legacyCategorySchema,
     text: textSchema(2500).refine((value) => value.trim().length > 0),
     imageAssetIds: imagesSchema(9),
     authorMode: authorModeSchema,

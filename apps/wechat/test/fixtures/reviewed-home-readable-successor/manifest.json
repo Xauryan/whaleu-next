@@ -1,0 +1,284 @@
+{
+  "predecessorCommit": "89e829a10b664d300089e531e3b0b9cef17fa60d",
+  "readingManifestSha256": "3b7a3281fbf23af3f88fedd64614f8ab935977cc71b6a0dcf887153b3979bec2",
+  "sources": [
+    {
+      "path": "src/community/contract.ts",
+      "before": "112b3d9965ffba1c1929daee06af7565399e4c7225472b8dea296b5285a3cff0",
+      "after": "162c62699ab92c1c49d851acc1a48532c2f4efba0ea30a522ad6a655d930a3a7",
+      "beforeBytes": 36318,
+      "afterBytes": 36685,
+      "gitBlob": "f82d616e9ac23de17c18f02454064e954189cea9",
+      "evidence": "before/src/community/contract.ts.txt"
+    },
+    {
+      "path": "src/community/gateway.ts",
+      "before": "ff921502b70a270ebfc4d8583163b7fde41065f661cb45f2f38a7fd5c154ebc7",
+      "after": "dbad219fcf9df1471a9cde0622015eac3317c6cdedffdb517a909762e7e00f14",
+      "beforeBytes": 38076,
+      "afterBytes": 38165,
+      "gitBlob": "350fb206b77347f201fd8a604e5067d560775b3d",
+      "evidence": "before/src/community/gateway.ts.txt"
+    },
+    {
+      "path": "src/community/search-contract.ts",
+      "before": "b50868ffdf3df26ad5d62bb530a2dcaf1279b4f3d55a2c1d7561024e97bc9e9b",
+      "after": "7cee4e1b66013d9175290c01ae467bd1900a8e6d197d3552b51a7cfeeb693082",
+      "beforeBytes": 13927,
+      "afterBytes": 13990,
+      "gitBlob": "84e56024926cc145e0680c38ca7d4fb2ef341054",
+      "evidence": "before/src/community/search-contract.ts.txt"
+    },
+    {
+      "path": "src/pages/community-search/community-search.ts",
+      "before": "b048c307b17a164be82ebd01b940e25579372bf45b2213e5b4132b766503dc2e",
+      "after": "032b729bb26ab1920f4eb72724ab212330090d22fe015603d727f36b60077056",
+      "beforeBytes": 6620,
+      "afterBytes": 6643,
+      "gitBlob": "290318a226ca5eac31ebef263423fc10e164b45a",
+      "evidence": "before/src/pages/community-search/community-search.ts.txt"
+    },
+    {
+      "path": "src/category-reclassification/contract.ts",
+      "before": "03e027f2c5e459d29e5d970a9f2f87e1a3d96502e2e2c496ea6a07372615ac7a",
+      "after": "79498ee2e67fb436a278f234ed84713f2b57555a1b4d45bac1b2c79d4fa528ed",
+      "beforeBytes": 6894,
+      "afterBytes": 7011,
+      "gitBlob": "a9eb3ba4d8ba16582b56eb71042626c2fb03fc6f",
+      "evidence": "before/src/category-reclassification/contract.ts.txt"
+    }
+  ],
+  "unchanged": [
+    {
+      "path": "src/pages/community-feed/community-feed.json",
+      "sha256": "d77eca4782f35c05728bf6434e130845cffbb88d8cacb9ed43a93b51e438acf6",
+      "bytes": 255
+    },
+    {
+      "path": "src/pages/community-feed/community-feed.ts",
+      "sha256": "5818a4d223752ed38b7f68671c9225a67c8a1cadcd4dc481268a662db8fdd13c",
+      "bytes": 25484
+    },
+    {
+      "path": "src/pages/community-feed/community-feed.wxml",
+      "sha256": "6547bf5f8cfa51de9a36e655a3c028c82a75cc082f6581458ea56a349e810e2e",
+      "bytes": 19653
+    },
+    {
+      "path": "src/pages/community-feed/community-feed.wxss",
+      "sha256": "29c03a8bc4f0d9151d72aeb98ef60c45e811042537d88bb92b77d41256fcc74a",
+      "bytes": 11989
+    },
+    {
+      "path": "src/pages/community-feed/controller.ts",
+      "sha256": "d2a8122fcf62548edf24d6b6d217fb062ec0aa7d64dd0bfb05ff91cfdfb49d45",
+      "bytes": 17777
+    },
+    {
+      "path": "src/pages/inbox/inbox.json",
+      "sha256": "e8c518bdc8a20185f2dbbd9a0865caeb52a94289c7ee7d26b3cf5c461343243b",
+      "bytes": 288
+    },
+    {
+      "path": "src/pages/inbox/inbox.ts",
+      "sha256": "988a75f80580df67c06a43fe3ceb1633a5b53161b6b1928de267d27a868803cc",
+      "bytes": 6809
+    },
+    {
+      "path": "src/pages/inbox/inbox.wxml",
+      "sha256": "5203c8d3e7d48cede8774a97e0461b0361dc3b5aab211b39acf07c9143b45b28",
+      "bytes": 5534
+    },
+    {
+      "path": "src/pages/inbox/inbox.wxss",
+      "sha256": "b9e68f2351109637dc3c0b466a80083603209d8bd315a2114f9a130b1e8ed894",
+      "bytes": 7770
+    },
+    {
+      "path": "src/pages/me/me.json",
+      "sha256": "0f5a4f3373ca1dcc2603111f12502898a3f587afd918c33861335c010825409d",
+      "bytes": 370
+    },
+    {
+      "path": "src/pages/me/me.ts",
+      "sha256": "5334362728bd196984fa83798d80eb9942211c0a9a697c10a72290092ec25ac2",
+      "bytes": 14859
+    },
+    {
+      "path": "src/pages/me/me.wxml",
+      "sha256": "0a651d36de09711d3c9482aa4a8283b5ae217f3caf2ecd0c38a84866e3e8f72b",
+      "bytes": 16155
+    },
+    {
+      "path": "src/pages/me/me.wxss",
+      "sha256": "4faf9fc959621b88570cbf3a9fd8c2aadf472fc4925c567697973546d206f805",
+      "bytes": 13045
+    },
+    {
+      "path": "src/pages/me/controller.ts",
+      "sha256": "e8d8714f507b5a1be0a53f08c3021056b32fc32ed38720fede804f7d5bf97a4a",
+      "bytes": 8788
+    },
+    {
+      "path": "src/pages/community-compose/community-compose.json",
+      "sha256": "b848fea39093209472463e992ece61f13a516be95912ed252981fd133c8b86e4",
+      "bytes": 476
+    },
+    {
+      "path": "src/pages/community-compose/community-compose.ts",
+      "sha256": "9868b2168963929b69b1871281d67cfd9c77ebb117fa029a50e0ce4eb5409a2c",
+      "bytes": 10490
+    },
+    {
+      "path": "src/pages/community-compose/community-compose.wxml",
+      "sha256": "6958d1570c8ba993688996d1ae115d467904618593beadc9a7da6722b62bfa18",
+      "bytes": 24820
+    },
+    {
+      "path": "src/pages/community-compose/community-compose.wxss",
+      "sha256": "5b97c6ab85f6d1d660b3ebd5d43613b7bfd816116037c5ccd4f915f0fc179e1f",
+      "bytes": 5537
+    },
+    {
+      "path": "src/pages/community-compose/controller.ts",
+      "sha256": "d001002d3a935a6347267838b1fd22a2f06b1526790af1ecedaa9f626bed43d8",
+      "bytes": 89263
+    },
+    {
+      "path": "src/pages/community-detail/community-detail.json",
+      "sha256": "6eb0a289f427545d263bf091b20752cd9c60dac440889bf970735b34a8a0be6c",
+      "bytes": 557
+    },
+    {
+      "path": "src/pages/community-detail/community-detail.ts",
+      "sha256": "f912899e7bbbb3adee93f41d9739e996c51f34586ba7b7a34731c410afe3ee4e",
+      "bytes": 54745
+    },
+    {
+      "path": "src/pages/community-detail/community-detail.wxml",
+      "sha256": "5e44fe537940275147bbae25e8620bcdcbbc99338bea4921d85d638c2b9ec420",
+      "bytes": 55248
+    },
+    {
+      "path": "src/pages/community-detail/community-detail.wxss",
+      "sha256": "ec43d45240fbfb130d4ef948e0fb31cdb02abe584d3a7f7d6a799a58d25a8e1d",
+      "bytes": 12507
+    },
+    {
+      "path": "src/pages/community-detail/controller.ts",
+      "sha256": "2154c01da6dfe09ac85c0c8ef45f4650ff119b7680bec56d5eccd5560ef029dd",
+      "bytes": 11734
+    },
+    {
+      "path": "src/pages/community-thread/community-thread.json",
+      "sha256": "0722d482b221c3ad1192f4c3b57c6220f667c9c372b1c7f88a90e968833f77e2",
+      "bytes": 419
+    },
+    {
+      "path": "src/pages/community-thread/community-thread.ts",
+      "sha256": "504f5ce58b3465bed8aa80d39bdcb4fd5ab921183fef61b547ba393a276ee718",
+      "bytes": 21891
+    },
+    {
+      "path": "src/pages/community-thread/community-thread.wxml",
+      "sha256": "e9aa1a8717045003b78136ddc6ee8132f1a3289b7f09d42cb74a2845e3fd4bbd",
+      "bytes": 20525
+    },
+    {
+      "path": "src/pages/community-thread/community-thread.wxss",
+      "sha256": "9dcabc97fb1856dafb5a2d1cd3ddcb34339ba40aac2a860a0d931ed99a1ddc01",
+      "bytes": 4934
+    },
+    {
+      "path": "src/pages/community-thread/controller.ts",
+      "sha256": "c1e301377fbb92326817cf813b20d46af741ddbd83cf1d99d448fb2e3861e4e5",
+      "bytes": 8001
+    },
+    {
+      "path": "src/pages/community-search/community-search.json",
+      "sha256": "0831c22f0c301c95e5dab75614a5f8929cda7f4e6c82e2ca493f532f2c1840ea",
+      "bytes": 305
+    },
+    {
+      "path": "src/pages/community-search/community-search.wxml",
+      "sha256": "4f8901e0570a96ae3cbc289f275f1cace3ba8c2db3497d920740dbda80fb3578",
+      "bytes": 12486
+    },
+    {
+      "path": "src/pages/community-search/community-search.wxss",
+      "sha256": "596414de7c3e107de23818bc3d3db9c78a3b0ceba82a9b91d6584c9ee9a35dcc",
+      "bytes": 2203
+    },
+    {
+      "path": "src/pages/community-search/controller.ts",
+      "sha256": "22f3683e0c93dc31c4953562b49071f05cbcdfa258877f012eebd6f9cd5561d0",
+      "bytes": 25066
+    },
+    {
+      "path": "test/fixtures/core-product-action-inventory.json",
+      "sha256": "6f7fe3551e931add3f448f3c3601d0c761db7f947d72138885484512c42ae9ec",
+      "bytes": 70677
+    },
+    {
+      "path": "test/fixtures/framework7-composer-before-actions.json",
+      "sha256": "357870457423c65d3c87379c751e586120381d835ccbd3078d19a3fb9f019309",
+      "bytes": 139095
+    },
+    {
+      "path": "test/fixtures/framework7-composer-before-protected.json",
+      "sha256": "0f5c60ae41c6c243f167fd990a4099581a757daaed234dc5d6dbb604f158d73b",
+      "bytes": 22756
+    },
+    {
+      "path": "test/fixtures/framework7-forms-before-actions.json",
+      "sha256": "d1530432cb583c13fab4df71ebf60394c687ff3c75430d9c076c1d7b065253bd",
+      "bytes": 21614
+    },
+    {
+      "path": "test/fixtures/framework7-forms-before-protected.json",
+      "sha256": "e82e6060679db7159c72b1d08c193084258a8682147e1a172075780ab7f54c79",
+      "bytes": 2398
+    },
+    {
+      "path": "test/fixtures/framework7-collections-before-actions.json",
+      "sha256": "145c7ba9f0e4ee420243192dd76aed7034fea1a41fc0ebb327499059faae7fb2",
+      "bytes": 24742
+    },
+    {
+      "path": "test/fixtures/framework7-collections-before-protected.json",
+      "sha256": "4d248313796e25087b38f1ab2c79f8d1bdf396507860a0f02f74cce80f52526d",
+      "bytes": 18958
+    },
+    {
+      "path": "test/fixtures/framework7-notifications-before-actions.json",
+      "sha256": "2fd4d3c0a456be925aa3b69668a931f1bfb127485b498fc638101b8b812cb549",
+      "bytes": 19873
+    },
+    {
+      "path": "test/fixtures/framework7-notifications-before-protected.json",
+      "sha256": "6bbc2023784fc6b2cdf0a0f727472f77ec823759b9def8331c74eacfe203bada",
+      "bytes": 33148
+    },
+    {
+      "path": "test/fixtures/framework7-support-before-actions.json",
+      "sha256": "f946196852841ff1aec513681e6545888469e107d1de5861633509188ac0322c",
+      "bytes": 23708
+    },
+    {
+      "path": "test/fixtures/framework7-support-before-protected.json",
+      "sha256": "811167d3767fe8d370eee9722f8815c4ce95801be813b5c406d01e958da41766",
+      "bytes": 14875
+    },
+    {
+      "path": "test/framework7-action-parity.ts",
+      "sha256": "e1e3232ed46e9efff16205b431469caac8491869c90b7f2a1867cfa8162e5c09",
+      "bytes": 2433
+    },
+    {
+      "path": "scripts/preview-wxml.mjs",
+      "sha256": "7fdc11c3056d0a6061053eaaaee6f624c08fb8511afe33db02531931a350cfa7",
+      "bytes": 2860
+    }
+  ],
+  "patchSha256": "8890ae00295f220a913e7446a0b8f6361e32f4f3925a09d241c221ba29baa62b"
+}

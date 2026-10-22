@@ -638,19 +638,24 @@
                 "additionalProperties": false
               },
               "category": {
-                "type": "string",
-                "enum": [
-                  "discussion",
-                  "feedback",
-                  "confession",
-                  "companions",
-                  "pets",
-                  "internships",
-                  "scenery",
-                  "dorms",
-                  "research",
-                  "deep_sea",
-                  "trading"
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "discussion",
+                      "feedback",
+                      "confession",
+                      "companions",
+                      "pets",
+                      "internships",
+                      "scenery",
+                      "dorms",
+                      "research",
+                      "deep_sea",
+                      "trading"
+                    ]
+                  },
+                  { "type": "string", "const": "water" }
                 ]
               },
               "text": { "type": "string" },

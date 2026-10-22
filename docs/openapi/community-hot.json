@@ -346,20 +346,28 @@
             ]
           },
           "category": {
-            "enum": [
-              "discussion",
-              "feedback",
-              "confession",
-              "companions",
-              "pets",
-              "internships",
-              "scenery",
-              "dorms",
-              "research",
-              "deep_sea",
-              "trading"
-            ],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "discussion",
+                  "feedback",
+                  "confession",
+                  "companions",
+                  "pets",
+                  "internships",
+                  "scenery",
+                  "dorms",
+                  "research",
+                  "deep_sea",
+                  "trading"
+                ],
+                "type": "string"
+              },
+              {
+                "enum": ["water"],
+                "type": "string"
+              }
+            ]
           },
           "commentCount": {
             "maximum": 9007199254740991,

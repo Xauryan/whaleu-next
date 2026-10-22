@@ -1,6 +1,11 @@
 import { ClientError, isRecord } from '../api/errors';
-import { exact, isCategory, timestamp, uuid4 } from '../community/contract';
-import type { Category } from '../community/contract';
+import {
+  exact,
+  isReadableCategory,
+  timestamp,
+  uuid4,
+} from '../community/contract';
+import type { ReadableCategory } from '../community/contract';
 import { isUuid } from '../profile/contract';
 
 /** Membership describes the wire vocabulary, never accepted policy or authority. */
@@ -17,8 +22,11 @@ export const reclassificationCategories = [
 ] as const;
 export type ReclassificationCategory =
   (typeof reclassificationCategories)[number];
-export const reclassificationLabels: Readonly<Record<Category, string>> = {
+export const reclassificationLabels: Readonly<
+  Record<ReadableCategory, string>
+> = {
   discussion: '校园讨论',
+  water: '水区',
   confession: '表白',
   companions: '找搭子',
   pets: '萌宠',
@@ -38,7 +46,7 @@ export const isReclassificationCategory = (
 
 export interface CategoryManagement {
   readonly postId: string;
-  readonly currentCategory: Category;
+  readonly currentCategory: ReadableCategory;
   readonly revision: number;
   readonly canChange: boolean;
   readonly blocker?: 'related_sync_unsupported';
@@ -105,7 +113,7 @@ export function decodeCategoryManagement(raw: unknown): CategoryManagement {
       (raw.blocker !== 'related_sync_unsupported' ||
         raw.canChange !== false)) ||
     !isUuid(raw.postId) ||
-    !isCategory(raw.currentCategory) ||
+    !isReadableCategory(raw.currentCategory) ||
     !revision(raw.revision) ||
     typeof raw.canChange !== 'boolean' ||
     !Array.isArray(raw.targets) ||
@@ -114,7 +122,8 @@ export function decodeCategoryManagement(raw: unknown): CategoryManagement {
     new Set(raw.targets).size !== raw.targets.length ||
     (!raw.canChange && raw.targets.length !== 0) ||
     (raw.canChange &&
-      (!isReclassificationCategory(raw.currentCategory) ||
+      ((raw.currentCategory !== 'water' &&
+        !isReclassificationCategory(raw.currentCategory)) ||
         raw.revision === 2147483647 ||
         raw.targets.length === 0))
   )

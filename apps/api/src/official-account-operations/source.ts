@@ -7,6 +7,7 @@ import { HotScoreStorage } from '../community/hot-score/storage.js';
 import { CommunityRepository } from '../community/community.repository.js';
 import { CommunityAccessService } from '../community/community-access.service.js';
 import { ownerPostVisibilityAllowed } from '../community/owner-visibility/read-proof.js';
+import { homeDistributionAllowed } from '../community/home-distribution/read-proof.js';
 import { officialDigest } from './profile.js';
 
 export interface OfficialSourceFact {
@@ -95,9 +96,18 @@ export class CommunityOfficialSource implements OfficialSourcePort {
       'list_projection',
       tx,
     );
+    const distributionAllowed = await homeDistributionAllowed(
+      postId,
+      null,
+      'official',
+      tx,
+    );
     if (eligibility?.current) {
       decision =
-        !visible || !ownerVisible || eligibility.decision === 'deny'
+        !visible ||
+        !ownerVisible ||
+        !distributionAllowed ||
+        eligibility.decision === 'deny'
           ? 'deny'
           : eligibility.decision;
     }
@@ -135,7 +145,9 @@ export class CommunityOfficialSource implements OfficialSourcePort {
         : null,
     };
   }
-  project(postId: string, tx: PoolClient) {
+  async project(postId: string, tx: PoolClient) {
+    if (!(await homeDistributionAllowed(postId, null, 'official', tx)))
+      throw new ApplicationError('OFFICIAL_SOURCE_UNAVAILABLE');
     return this.projection.read(postId, tx);
   }
 }
@@ -159,6 +171,8 @@ export class CommunityOfficialPublicProjection implements OfficialPublicProjecti
     postId: string,
     tx: PoolClient,
   ): Promise<OfficialPublicProjection> {
+    if (!(await homeDistributionAllowed(postId, null, 'official', tx)))
+      throw new ApplicationError('OFFICIAL_SOURCE_UNAVAILABLE');
     await this.access.projectionPost(postId, null, tx);
     const view = await this.serializer.publicExport(postId, tx);
     const count = (n: number) => {

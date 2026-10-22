@@ -1,4 +1,8 @@
 import { runtimeIdentityPredecessor } from './reviewed-reading-runtime-identity-successor';
+import {
+  assertReviewedHomeReadableSuccessor,
+  homeReadablePredecessor,
+} from './reviewed-home-readable-successor';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -300,7 +304,11 @@ function authenticate(
           entry.path,
           runtimeIdentityPredecessor(
             entry.path,
-            readSource(entry.path),
+            homeReadablePredecessor(
+              entry.path,
+              readSource(entry.path),
+              readSource,
+            ),
             readSource,
           ),
           readSource,
@@ -341,7 +349,12 @@ export function assertReviewedReadingSuccessor(
 ): boolean {
   const key = keyFor(file),
     entry = readingSuccessors.find((item) => item.path === key);
-  if (!entry || expected !== entry.before) return false;
+  // The three Home-only owners have an exact 89e seal of their own. Existing
+  // reading owners retain their historical hash interface and must compose
+  // through the authenticated predecessor rather than accepting newer hashes.
+  if (!entry)
+    return assertReviewedHomeReadableSuccessor(file, expected, readSource);
+  if (expected !== entry.before) return false;
   authenticate(readSource);
   return true;
 }
@@ -357,7 +370,11 @@ export function readingPredecessor(
     sha(
       nullablePredecessor(
         key,
-        runtimeIdentityPredecessor(key, current, readSource),
+        runtimeIdentityPredecessor(
+          key,
+          homeReadablePredecessor(key, current, readSource),
+          readSource,
+        ),
         readSource,
       ),
     ),

@@ -34,6 +34,31 @@ export interface ApprovalBinding {
   envelope: EffectiveContentEnvelope;
   scope: ContentScopeSnapshot;
 }
+/** Composition does not create a policy owner. Explicit source remains with its
+ * source-aware reviewer; source absence retains ordinary manual Review. Unknown
+ * versions must never acquire the legacy owner's authority by fallthrough. */
+export function approvalPolicyKey(
+  envelope: EffectiveContentEnvelope,
+): 'local-explicit-v1' | 'local-related-v1' | 'local-text-source-v1' | null {
+  switch (envelope.version) {
+    case 1:
+    case 2:
+    case 3:
+    case 5:
+      return 'local-explicit-v1';
+    case 4:
+      return 'local-related-v1';
+    case 6:
+      return 'local-text-source-v1';
+    case 7:
+    case 8:
+      return envelope.textSource === null
+        ? 'local-explicit-v1'
+        : 'local-text-source-v1';
+    default:
+      return null;
+  }
+}
 /** Shared canonical evaluation; callers explicitly choose locked deadline registration
  * or conditional snapshot facts. Consumption expiry is not ongoing expiry. */
 export function validateApprovalRow(
@@ -62,16 +87,15 @@ export function validateApprovalRow(
     row.operation !== envelope.purpose
   )
     return { decision: { kind: 'unavailable' }, optionalUntil: null };
+  const policyKey = approvalPolicyKey(envelope);
+  if (policyKey === null)
+    return { decision: { kind: 'unavailable' }, optionalUntil: null };
   const result = validateApprovalMetadata(
     row,
     consume,
     now,
     'POST_NOT_FOUND',
-    envelope.version === 6
-      ? 'local-text-source-v1'
-      : envelope.version === 4
-        ? 'local-related-v1'
-        : 'local-explicit-v1',
+    policyKey,
   );
   return {
     optionalUntil: result.optionalUntil,

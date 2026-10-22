@@ -1,4 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { homeDistributionCandidateSql } from '../home-distribution/candidate-sql.js';
+import {
+  homeDistributionAllowed,
+  prepareHomeDistribution,
+} from '../home-distribution/read-proof.js';
 import { createHash } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { CampusCommunityPolicyService } from '../../campus/community-policy/campus-community-policy.service.js';
@@ -525,7 +530,7 @@ export class CommunityDistributionService {
     const remote = parameters.length;
     // Keep malformed native roots in the structural window, so the owner can
     // report unknown rather than silently certify a complete corpus without them.
-    return `(${alias}.space_id=$${local}::uuid OR (${alias}.space_id=ANY($${remote}::uuid[]) AND (${alias}.publication_envelope_version=4 OR EXISTS(SELECT 1 FROM whaleu_community.post_distribution_bindings ds WHERE ds.post_id=${alias}.id))))`;
+    return `(${alias}.space_id=$${local}::uuid OR (${alias}.space_id=ANY($${remote}::uuid[]) AND ${homeDistributionCandidateSql(alias, null, 'related_sync', parameters)} AND (${alias}.publication_envelope_version=4 OR EXISTS(SELECT 1 FROM whaleu_community.post_distribution_bindings ds WHERE ds.post_id=${alias}.id))))`;
   }
   display(
     scope: CommunityDistributionScope,
@@ -586,6 +591,15 @@ export class CommunityDistributionService {
     const versions = new Map(
       roots.map((p) => [p.id, p.publication_envelope_version]),
     );
+    // Canonical versions, never the reference supplied by a caller. Local reads
+    // (including search/detail) retain their own access semantics. Only actual
+    // remote distribution consumes this immutable Home suppression proof.
+    await prepareHomeDistribution(
+      roots
+        .filter((post) => post.publication_envelope_version === 7)
+        .map((post) => post.id),
+      tx,
+    );
     const result = new Map<string, Decision<RelatedCampusDisplay>>();
     for (const post of posts) {
       if (post.space_id === scope.viewSpaceId) {
@@ -593,6 +607,13 @@ export class CommunityDistributionService {
           kind: 'allow',
           value: { isRelatedCampusSync: false },
         });
+        continue;
+      }
+      if (
+        versions.get(post.id) === 7 &&
+        !(await homeDistributionAllowed(post.id, null, 'related_sync', tx))
+      ) {
+        result.set(post.id, { kind: 'deny', reason: 'POST_NOT_FOUND' });
         continue;
       }
       if (scope.relatedCampusDistribution === 'unavailable') {

@@ -1,4 +1,9 @@
 import type { PoolClient } from 'pg';
+import { homeDistributionCandidateSql } from './home-distribution/candidate-sql.js';
+import {
+  homeDistributionAllowed,
+  prepareHomeDistribution,
+} from './home-distribution/read-proof.js';
 import { FollowingService, followingRevision } from './following/service.js';
 import type { RelatedCampusDisplay } from './related-sync/contracts.js';
 import { CommunityDistributionService } from './related-sync/service.js';
@@ -255,14 +260,24 @@ export class FeedService {
           const followingSql = followingOnly
             ? ` AND p.author_mode='named' AND EXISTS(SELECT 1 FROM whaleu_community.user_follows f WHERE f.follower_id=$${parameters.push(actor)}::uuid AND f.followed_id=p.account_id) AND EXISTS(SELECT 1 FROM whaleu_profile.profiles profile WHERE profile.account_id=p.account_id AND profile.preferences->>'hideProfilePosts'='false')`
             : '';
+          const homeSql = homeDistributionCandidateSql(
+            'p',
+            actor,
+            followingOnly ? 'following' : 'home',
+            parameters,
+          );
           const rows = await tx.query<StoredPost>(
-            `SELECT p.* FROM whaleu_community.posts p JOIN ${classifiedSource} classified ON classified.id=p.id WHERE $1::uuid IS NOT NULL AND ${eligibility}${followingSql} AND ($2::text IS NULL OR classified.current_category=$2) AND p.deleted_at IS NULL AND p.visibility='approved' AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5)) AND ($2::text IS NOT NULL OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent')) AND ($3::timestamptz IS NULL OR (classified.published_at,classified.id)<($3::timestamptz,$4::uuid)) ORDER BY classified.published_at DESC,classified.id DESC LIMIT 32 FOR SHARE OF p`,
+            `SELECT p.* FROM whaleu_community.posts p JOIN ${classifiedSource} classified ON classified.id=p.id WHERE $1::uuid IS NOT NULL AND ${eligibility}${followingSql} AND ${homeSql} AND ($2::text IS NULL OR classified.current_category=$2) AND p.deleted_at IS NULL AND p.visibility='approved' AND ($5::text IS NULL OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.subtype=$5)) AND ($2::text IS NOT NULL OR NOT EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='urgent')) AND ($3::timestamptz IS NULL OR (classified.published_at,classified.id)<($3::timestamptz,$4::uuid)) ORDER BY classified.published_at DESC,classified.id DESC LIMIT 32 FOR SHARE OF p`,
             parameters,
           );
           scanned += rows.rows.length;
           if (scanned > 1024)
             throw new ApplicationError('COMMUNITY_UNAVAILABLE');
           if (!rows.rows.length) break;
+          await prepareHomeDistribution(
+            rows.rows.map((post) => post.id),
+            tx,
+          );
           await resolvePostCategories(
             rows.rows.map((post) => post.id),
             tx,
@@ -289,6 +304,12 @@ export class FeedService {
             if (projection?.kind === 'unavailable')
               throw new ApplicationError('COMMUNITY_UNAVAILABLE');
             if (
+              (await homeDistributionAllowed(
+                post.id,
+                actor,
+                followingOnly ? 'following' : 'home',
+                tx,
+              )) &&
               (!followingOnly ||
                 (post.author_mode === 'named' &&
                   (await this.follows!.eligibleFeedAuthor(

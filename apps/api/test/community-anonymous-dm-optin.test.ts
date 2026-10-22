@@ -332,6 +332,11 @@ function publicationHarness(unreviewed = false) {
     bindings: string[] = [];
   const tx = {
     query: async (sql: string, values: unknown[]) => {
+      if (
+        sql ===
+        'SELECT whaleu_community.home_publication_current() AS activation'
+      )
+        return { rows: [{ activation: null }] };
       assert.ok(sql.startsWith('INSERT INTO whaleu_community.posts'));
       writes.push(values);
       return { rows: [{ published_at: new Date('2026-10-09T12:00:00Z') }] };

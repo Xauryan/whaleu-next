@@ -1,3 +1,4 @@
+import { assertHomeReviewAdmission } from '../home-feed-policy/runtime-admission.js';
 import 'reflect-metadata';
 import { hostname, userInfo } from 'node:os';
 import { Pool } from 'pg';
@@ -29,6 +30,8 @@ async function main(): Promise<void> {
         new CampusCommunityPolicyService(),
         new RegionalCommunityPolicyService(),
       ),
+      undefined,
+      { requireEnvelope: assertHomeReviewAdmission },
     ),
     operator,
   );

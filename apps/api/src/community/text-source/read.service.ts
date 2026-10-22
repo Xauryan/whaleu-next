@@ -1,3 +1,4 @@
+import { requireCurrentHomeParent } from '../home-feed-policy/parent-proof.js';
 import {
   observeReadingFormatter,
   readingCapabilitySchema,
@@ -130,14 +131,19 @@ export class TextSourceReadService {
   /** Internal: caller has proved and serialized this exact stored node in tx.
    * Null means explicitly verified legacy, never missing source authority.
    * Required Community/Campus evidence is enrolled before optional formatting.
-   * Never accepts HTTP source markers, never falls back after a v6 failure. */
+   * Never accepts HTTP source markers, never falls back after a source-aware proof failure. */
   async authorizedReading(
     kind: ContentKind,
     row: StoredPost | StoredComment | StoredReply,
     tx: PoolClient,
   ): Promise<TextSourceReadV2 | null> {
     const authority = await this.publicationAuthority(kind, row, tx);
-    if (authority.version !== 6) return null;
+    if (
+      authority.version !== 6 &&
+      authority.version !== 7 &&
+      authority.version !== 8
+    )
+      return null;
     await canonicalCommunityEpoch(tx);
     await canonicalCampusEpoch(tx);
     const identity = {
@@ -150,34 +156,40 @@ export class TextSourceReadService {
             : (row as StoredReply).root_comment_id,
       text: row.text,
     };
-    return optionalReadingPresentation(
-      await this.boundSource(
-        kind,
-        row.id,
-        identity,
-        tx,
-        row.account_id,
-        authority.binding,
-      ),
+    const source = await this.boundSource(
+      kind,
+      row.id,
+      identity,
       tx,
+      row.account_id,
+      authority.binding,
     );
+    // A composed null source has now passed actual Review + reconstructed definition.
+    return source.classification === 'legacyPlain'
+      ? null
+      : optionalReadingPresentation(source, tx);
   }
   private async publicationAuthority(
     kind: ContentKind,
     row: StoredPost | StoredComment | StoredReply,
     tx: PoolClient,
-  ): Promise<{ version: 1 | 2 | 3 | 4 | 5 | 6; binding?: ApprovalBinding }> {
+  ): Promise<{
+    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+    binding?: ApprovalBinding;
+  }> {
     if (kind === 'post') {
       // Only posts has this physical column. An omitted/future marker is not
       // evidence of legacy, including in historical internal fixture shapes.
-      const version = (row as StoredPost).publication_envelope_version;
+      const version: number | undefined = (row as StoredPost)
+        .publication_envelope_version;
       if (
         version === 1 ||
         version === 2 ||
         version === 3 ||
         version === 4 ||
         version === 5 ||
-        version === 6
+        version === 6 ||
+        version === 7
       )
         return { version };
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
@@ -206,7 +218,8 @@ export class TextSourceReadService {
       binding.envelope_version !== envelope.version ||
       (envelope.version !== 1 &&
         envelope.version !== 4 &&
-        envelope.version !== 6) ||
+        envelope.version !== 6 &&
+        envelope.version !== 8) ||
       envelope.accountId !== row.account_id ||
       envelope.purpose !== `publish_${kind}` ||
       envelope.text !== row.text ||
@@ -249,7 +262,9 @@ export class TextSourceReadService {
     const envelope = stored.value.envelope;
     if (
       sourceAccountId !== undefined &&
-      (envelope.version !== 6 ||
+      ((envelope.version !== 6 &&
+        envelope.version !== 7 &&
+        envelope.version !== 8) ||
         stored.value.authorAccountId !== sourceAccountId ||
         envelope.accountId !== sourceAccountId ||
         envelope.purpose !== `publish_${kind}` ||
@@ -258,7 +273,40 @@ export class TextSourceReadService {
           (kind === 'reply' ? identity.rootCommentId : null))
     )
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
-    if (envelope.version !== 6)
+    if (envelope.version === 8) {
+      const parent = await requireCurrentHomeParent(
+        identity.postId,
+        tx,
+        this.approvals,
+        this.definitions,
+        envelope.homeParent,
+      );
+      if (
+        parent.envelope.category !== envelope.category ||
+        parent.envelope.spaceId !== envelope.spaceId ||
+        parent.envelope.commentsPolicy !== envelope.commentsPolicy ||
+        parent.envelope.scope.originalRegionId !==
+          envelope.scope.originalRegionId
+      )
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    }
+    if (
+      envelope.version !== 1 &&
+      envelope.version !== 2 &&
+      envelope.version !== 3 &&
+      envelope.version !== 4 &&
+      envelope.version !== 5 &&
+      envelope.version !== 6 &&
+      envelope.version !== 7 &&
+      envelope.version !== 8
+    )
+      throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+    if (
+      (envelope.version !== 6 &&
+        envelope.version !== 7 &&
+        envelope.version !== 8) ||
+      envelope.textSource === null
+    )
       return textSourceReadSchema.parse({
         version: 1,
         classification: 'legacyPlain',

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { categorySchema } from '../contracts.js';
+import { readableCategorySchema } from '../contracts.js';
 import { hotPostViewSchema } from '../hot/response-schema.js';
 import { tradingSubtypeSchema } from '../trading/contracts.js';
 import { searchKindSchema } from './contracts.js';
@@ -30,7 +30,7 @@ function createSearchHitSchema(requireLiteralMatch: boolean) {
       kind: z.enum(['regional', 'global']),
       name: z.string(),
     }),
-    category: categorySchema,
+    category: readableCategorySchema,
     tradingSubtype: tradingSubtypeSchema.nullable(),
     tradingUrgency: z.enum(['normal', 'urgent']).nullable(),
     createdAt: z.iso.datetime({ precision: 6 }),

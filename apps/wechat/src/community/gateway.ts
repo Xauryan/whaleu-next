@@ -90,11 +90,13 @@ import {
   invalid,
   exact,
   isCategory,
+  isReadableCategory,
   uuid4,
   type CommunitySpace,
   type Capabilities,
   type CommentCapabilities,
   type Category,
+  type ReadableCategory,
   type CommentIntent,
   type Comment,
   type Comments,
@@ -142,7 +144,7 @@ export interface FeedQuery {
 export interface CommunityGateway {
   textSourceCapabilities?(
     spaceId: string,
-    category: Category,
+    category: ReadableCategory,
     authorMode: 'named' | 'anonymous',
     cancel: Cancellation,
   ): Promise<TextSourceCapability>;
@@ -348,11 +350,14 @@ const postComponentBody = (component: NonNullable<PostIntent['component']>) =>
 export class HttpCommunityGateway implements CommunityGateway {
   async textSourceCapabilities(
     spaceId: string,
-    category: Category,
+    category: ReadableCategory,
     authorMode: 'named' | 'anonymous',
     cancel: Cancellation,
   ): Promise<TextSourceCapability> {
-    if (!isCategory(category) || !['named', 'anonymous'].includes(authorMode))
+    if (
+      !isReadableCategory(category) ||
+      !['named', 'anonymous'].includes(authorMode)
+    )
       invalid();
     const result = await this.api.request(
       endpoint(

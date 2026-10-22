@@ -86,7 +86,7 @@ export function publicationHash(
     )
     .digest('hex');
 }
-/** Narrow startup admission only. Real actor, scope, parent and exact v6
+/** Narrow startup admission only. Real actor, scope, parent and exact source
  * envelope are rebuilt below; this descriptor is never authorization evidence. */
 function sourceManualIntent(intent: unknown): boolean {
   if (!intent || typeof intent !== 'object') return false;
@@ -292,7 +292,10 @@ export class PublicationRepository {
           // envelope twice; never queue a legacy or unrelated prepared result.
           if (
             sourceOnlyReview &&
-            (current.envelope.version !== 6 ||
+            ((current.envelope.version !== 6 &&
+              current.envelope.version !== 7 &&
+              current.envelope.version !== 8) ||
+              current.envelope.textSource === null ||
               canonicalJson(sourceDescriptor(current.envelope.textSource)) !==
                 canonicalJson(
                   (intent as Record<string, unknown>)['textSource'],

@@ -19,6 +19,7 @@ import {
   canonicalJson,
 } from '../content-review/contracts.js';
 import { TextReviewRuntime } from './runtime.js';
+import { approvalPolicyKey } from '../content-review/approval-validation.js';
 import type { TextReviewRequest } from './contracts.js';
 
 export const reviewOperatorCommandSchema = z.discriminatedUnion('command', [
@@ -173,7 +174,7 @@ export class TextReviewOperator {
         await tx.query<TextReviewRequest>(
           `SELECT q.* FROM whaleu_community.text_review_requests q
         JOIN whaleu_community.publication_requests p USING(account_id,client_request_id)
-        WHERE ($5::boolean=false OR q.envelope->>'version'='6') AND q.expires_at<=clock_timestamp() AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$4 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb))
+        WHERE ($5::boolean=false OR q.envelope->>'version'='6' OR (q.envelope->>'version' IN ('7','8') AND jsonb_typeof(q.envelope->'textSource')='object')) AND q.expires_at<=clock_timestamp() AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$4 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb))
         AND NOT EXISTS(SELECT 1 FROM whaleu_community.publication_cancel_fences f WHERE f.account_id=q.account_id AND f.client_request_id=q.client_request_id)
         ORDER BY q.account_id,q.client_request_id LIMIT $3`,
           [
@@ -210,7 +211,7 @@ export class TextReviewOperator {
         await tx.query(
           `SELECT q.account_id,q.client_request_id,q.operation,q.digest,q.created_at
         FROM whaleu_community.text_review_requests q JOIN whaleu_community.publication_requests p USING(account_id,client_request_id)
-        WHERE ($4::boolean=false OR (q.envelope->>'version'='6' AND q.expires_at>clock_timestamp() AND NOT EXISTS(SELECT 1 FROM whaleu_community.publication_cancel_fences f WHERE f.account_id=q.account_id AND f.client_request_id=q.client_request_id))) AND q.decision_id IS NULL AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$3 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb)) ORDER BY q.created_at LIMIT 100`,
+        WHERE ($4::boolean=false OR (q.envelope->>'version'='6' OR (q.envelope->>'version' IN ('7','8') AND jsonb_typeof(q.envelope->'textSource')='object')) AND q.expires_at>clock_timestamp() AND NOT EXISTS(SELECT 1 FROM whaleu_community.publication_cancel_fences f WHERE f.account_id=q.account_id AND f.client_request_id=q.client_request_id)) AND q.decision_id IS NULL AND p.receipt IS NULL AND ((q.envelope->>'spaceId'=$1 AND q.envelope->'scope'->>'originalRegionId'=$2) OR (q.envelope->>'spaceId'=$3 AND q.envelope->>'category'='feedback' AND q.envelope->'scope'->'originalRegionId'='null'::jsonb)) ORDER BY q.created_at LIMIT 100`,
           [
             config.COMMUNITY_TEXT_REVIEW_SPACE_ID,
             config.COMMUNITY_TEXT_REVIEW_REGION_ID,
@@ -240,9 +241,16 @@ export class TextReviewOperator {
     ).rows[0];
     if (!row) throw new Error('Review unavailable');
     const envelope = canonicalEnvelope(row.envelope);
-    if (sourceOnly && envelope.version !== 6)
+    if (sourceOnly && approvalPolicyKey(envelope) !== 'local-text-source-v1')
       throw new Error('Source manual review requires an exact source envelope');
     if (
+      ((envelope.version === 7 || envelope.version === 8) &&
+        (row.account_id !== command.accountId ||
+          row.account_id !== envelope.accountId ||
+          row.client_request_id !== command.requestId ||
+          row.operation !== envelope.purpose ||
+          (envelope.version === 7 &&
+            row.intent_hash !== envelope.home.requestedIntentHash))) ||
       row.digest !== approvalDigest(envelope) ||
       canonicalJson(envelope) !== canonicalJson(row.envelope)
     )

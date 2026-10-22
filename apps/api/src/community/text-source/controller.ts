@@ -15,7 +15,11 @@ import {
 } from '@nestjs/swagger';
 import { SchemaValidationPipe } from '../../http/validation.js';
 import { bearerToken } from '../../identity/tokens.js';
-import { capabilitiesQuerySchema, authorModeSchema } from '../contracts.js';
+import {
+  capabilitiesQuerySchema,
+  authorModeSchema,
+  readableCategorySchema,
+} from '../contracts.js';
 import type { Category, AuthorMode } from '../contracts.js';
 import type { ContentKind } from '../content-review/contracts.js';
 import {
@@ -28,7 +32,7 @@ import {
 import { TextSourceReadService } from './read.service.js';
 
 export const textSourceCapabilitiesQuerySchema = capabilitiesQuerySchema.extend(
-  { authorMode: authorModeSchema },
+  { authorMode: authorModeSchema, category: readableCategorySchema },
 );
 
 /** Separate versioned routes. No legacy DTO acquires even an optional key. */

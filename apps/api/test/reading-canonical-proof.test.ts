@@ -90,6 +90,7 @@ function fixture(
         return {
           rows: [
             {
+              homePresent: false,
               relations: 0,
               functions: 0,
               protocol: false,
@@ -103,6 +104,7 @@ function fixture(
         return {
           rows: [
             {
+              homePresent: false,
               relations: 8,
               functions: 13,
               protocol: true,

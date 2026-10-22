@@ -25,7 +25,10 @@ import {
   reconstructTextSource,
   storedSourceDescriptor,
 } from '../text-source/repository.js';
-import type { ContentKind } from '../content-review/contracts.js';
+import type {
+  ContentKind,
+  EffectiveContentEnvelopeV7,
+} from '../content-review/contracts.js';
 import { eligible, sourceIdentitySchema, sameIdentity } from './contracts.js';
 import type { SourceIdentity, SourceSnapshot } from './contracts.js';
 const communityEpoch = requiredOwnerEpoch(
@@ -141,6 +144,13 @@ export class ReadingSourceOwner {
     )
       throw new ApplicationError('COMMUNITY_UNAVAILABLE');
     let source: SourceSnapshot | undefined;
+    let homePost:
+      | {
+          decisionId: string;
+          digest: string;
+          envelope: EffectiveContentEnvelopeV7;
+        }
+      | undefined;
     for (const [index, node] of nodes.entries()) {
       await tx.query(
         `SELECT id FROM whaleu_community.${tables[node.kind]} WHERE id=$1 FOR SHARE NOWAIT`,
@@ -163,7 +173,7 @@ export class ReadingSourceOwner {
         e = actual.envelope;
       if (
         actual.authorAccountId !== node.account_id ||
-        ![1, 2, 6].includes(e.version) ||
+        ![1, 2, 6, 7, 8].includes(e.version) ||
         e.scope.sync !== 'none' ||
         e.component.kind !== 'none' ||
         e.trading !== null ||
@@ -174,16 +184,58 @@ export class ReadingSourceOwner {
           )
       )
         throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      // Composed children inherit an actual parent already proved in this same
+      // locked walk, never caller JSON or a category-only assertion. The child's
+      // publication-time actor identity/origin/topology remain its own evidence.
+      if (e.version === 7 || e.version === 8) {
+        if (
+          binding.content_kind !== node.kind ||
+          binding.content_id !== node.id ||
+          binding.content_version !== 1 ||
+          binding.envelope_version !== e.version ||
+          binding.account_id !== node.account_id ||
+          binding.decision_id !== accepted.value.decisionId ||
+          binding.digest !== accepted.value.digest ||
+          accepted.value.version !== e.version
+        )
+          throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      }
+      if (e.version === 7 && node.kind !== 'post')
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      if (
+        e.version === 8 &&
+        (node.kind === 'post' ||
+          !homePost ||
+          e.homeParent.postId !== postId ||
+          e.homeParent.decisionId !== homePost.decisionId ||
+          e.homeParent.digest !== homePost.digest ||
+          e.category !== homePost.envelope.category ||
+          e.spaceId !== homePost.envelope.spaceId ||
+          e.scope.originalSpaceId !== homePost.envelope.scope.originalSpaceId ||
+          e.scope.originalRegionId !==
+            homePost.envelope.scope.originalRegionId ||
+          e.commentsPolicy !== homePost.envelope.commentsPolicy)
+      )
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      if (homePost && node.kind !== 'post' && e.version !== 8)
+        throw new ApplicationError('COMMUNITY_UNAVAILABLE');
       const media = new CurrentContentMediaProof();
       const mediaDecision = e.images.length
         ? await media.current(node.kind, node.id, e.images, tx)
         : await media.absent(node.kind, node.id, tx);
       if (mediaDecision.kind !== 'allow')
         throw new ApplicationError('COMMUNITY_UNAVAILABLE');
+      if (e.version === 7)
+        homePost = {
+          decisionId: accepted.value.decisionId,
+          digest: accepted.value.digest,
+          envelope: e,
+        };
       if (node.kind === expected.kind && node.id === expected.id) {
         const stored = actual.textSource;
         if (
-          e.version !== 6 ||
+          (e.version !== 6 && e.version !== 7 && e.version !== 8) ||
+          e.textSource === null ||
           !stored ||
           !reconstructTextSource(
             stored,

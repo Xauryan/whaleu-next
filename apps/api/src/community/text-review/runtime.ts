@@ -9,14 +9,34 @@ import { APP_CONFIG } from '../../config/config.js';
 import type { RuntimeConfig } from '../../config/config.js';
 import { ApplicationError } from '../../http/application-error.js';
 import { ApprovalRepository } from '../content-review/approval.repository.js';
-import { approvalDigest, canonicalJson } from '../content-review/contracts.js';
+import { approvalPolicyKey } from '../content-review/approval-validation.js';
+import {
+  approvalDigest,
+  canonicalEnvelope,
+  canonicalEqual,
+  canonicalJson,
+} from '../content-review/contracts.js';
 import type {
   AcceptedApproval,
   EffectiveContentEnvelope,
+  EffectiveContentEnvelopeV7,
+  EffectiveContentEnvelopeV8,
 } from '../content-review/contracts.js';
 import type { CommunitySpace } from '../contracts.js';
 import type { PublicationMediaContext } from '../../media/batch-protocol.js';
 import type { TextReviewRequest, TextReviewStatus } from './contracts.js';
+
+export const HOME_REVIEW_ADMISSION = Symbol('HOME_REVIEW_ADMISSION');
+export interface HomeReviewAdmissionGuard {
+  requireEnvelope(
+    envelope: EffectiveContentEnvelopeV7 | EffectiveContentEnvelopeV8,
+    tx: PoolClient,
+  ): Promise<void>;
+}
+const composed = (
+  envelope: EffectiveContentEnvelope,
+): envelope is EffectiveContentEnvelopeV7 | EffectiveContentEnvelopeV8 =>
+  envelope.version === 7 || envelope.version === 8;
 
 @Injectable()
 export class TextReviewRuntime {
@@ -29,6 +49,9 @@ export class TextReviewRuntime {
     @Optional()
     @Inject(CurrentRatingLinkDependency)
     private readonly targetLinks: CurrentRatingLinkDependency = new CurrentRatingLinkDependency(),
+    @Optional()
+    @Inject(HOME_REVIEW_ADMISSION)
+    private readonly homeAdmission?: HomeReviewAdmissionGuard,
   ) {}
   configured(): boolean {
     return (
@@ -87,11 +110,16 @@ export class TextReviewRuntime {
     ).rows[0];
   }
   policyId(envelope: EffectiveContentEnvelope): string | undefined {
-    return envelope.version === 6
-      ? this.config.COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID
-      : envelope.version === 4
-        ? this.config.COMMUNITY_RELATED_REVIEW_POLICY_ID
-        : this.config.COMMUNITY_TEXT_REVIEW_POLICY_ID;
+    switch (approvalPolicyKey(envelope)) {
+      case 'local-text-source-v1':
+        return this.config.COMMUNITY_TEXT_SOURCE_REVIEW_POLICY_ID;
+      case 'local-related-v1':
+        return this.config.COMMUNITY_RELATED_REVIEW_POLICY_ID;
+      case 'local-explicit-v1':
+        return this.config.COMMUNITY_TEXT_REVIEW_POLICY_ID;
+      default:
+        return undefined;
+    }
   }
   async relatedAvailable(
     space: Pick<CommunitySpace, 'id' | 'operatingRegionId'>,
@@ -159,6 +187,44 @@ export class TextReviewRuntime {
     envelope: EffectiveContentEnvelope,
     tx: PoolClient,
   ): Promise<void> {
+    if (approvalPolicyKey(envelope) === null)
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    if (composed(envelope)) {
+      try {
+        if (!canonicalEqual(envelope, canonicalEnvelope(envelope)))
+          throw new Error('Noncanonical composed Review');
+      } catch {
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      }
+      // These are the existing manual owners' text-only profiles, not a new
+      // authority for media, components, anonymous DM or related distribution.
+      if (
+        !this.homeAdmission ||
+        envelope.images.length !== 0 ||
+        envelope.scope.sync !== 'none' ||
+        envelope.category === 'feedback' ||
+        envelope.category === 'trading' ||
+        envelope.component.kind !== 'none' ||
+        envelope.trading !== null ||
+        envelope.commentsPolicy !== 'open' ||
+        envelope.allowAnonymousDm === true ||
+        (envelope.textSource === null
+          ? envelope.authorMode !== 'named'
+          : !sourceTextAvailable(envelope.text, envelope.textSource))
+      )
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      const space = {
+        id: envelope.spaceId,
+        operatingRegionId: envelope.scope.originalRegionId,
+      };
+      const available =
+        envelope.textSource === null
+          ? await this.available(space, tx, envelope.category)
+          : await this.sourceAvailable(space, tx);
+      if (!available) throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+      await this.homeAdmission.requireEnvelope(envelope, tx);
+      return;
+    }
     if (envelope.version === 6) {
       // This locally admitted profile is genuinely text-only. Media remains
       // unavailable until a separate source-aware Media policy is reviewed.
@@ -276,6 +342,7 @@ export class TextReviewRuntime {
     context: PublicationMediaContext,
     tx: PoolClient,
   ): Promise<TextReviewStatus> {
+    this.requireComposedContext(envelope, context);
     await this.requireEnvelope(envelope, tx);
     const digest = approvalDigest(envelope);
     let row = await this.request(
@@ -319,6 +386,10 @@ export class TextReviewRuntime {
       ))!;
     }
     if (
+      (composed(envelope) &&
+        (row.account_id !== envelope.accountId ||
+          row.client_request_id !== context.clientRequestId ||
+          !this.composedRequestMatches(row))) ||
       row.operation !== context.operation ||
       row.intent_hash !== context.intentHash ||
       row.digest !== digest ||
@@ -336,6 +407,11 @@ export class TextReviewRuntime {
       operation: row.operation,
       status: 'unavailable',
     };
+    if (
+      approvalPolicyKey(row.envelope) === null ||
+      (composed(row.envelope) && !this.composedRequestMatches(row))
+    )
+      return result;
     const terminal = (
       await tx.query(
         `SELECT receipt FROM whaleu_community.publication_requests
@@ -392,20 +468,58 @@ export class TextReviewRuntime {
     ).rows[0];
     return !!row.decision_id && latest?.id === row.decision_id;
   }
+  private requireComposedContext(
+    envelope: EffectiveContentEnvelope,
+    context: PublicationMediaContext,
+  ): void {
+    if (approvalPolicyKey(envelope) === null)
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    if (
+      composed(envelope) &&
+      (context.operation !== envelope.purpose ||
+        (envelope.version === 7 &&
+          context.intentHash !== envelope.home.requestedIntentHash))
+    )
+      throw new ApplicationError('REQUEST_CONFLICT');
+  }
+  private composedRequestMatches(row: TextReviewRequest): boolean {
+    try {
+      const envelope = canonicalEnvelope(row.envelope);
+      return (
+        composed(envelope) &&
+        canonicalEqual(envelope, row.envelope) &&
+        row.account_id === envelope.accountId &&
+        row.operation === envelope.purpose &&
+        row.digest === approvalDigest(envelope) &&
+        (envelope.version !== 7 ||
+          row.intent_hash === envelope.home.requestedIntentHash)
+      );
+    } catch {
+      return false;
+    }
+  }
   async requireRequest(
     envelope: EffectiveContentEnvelope,
     context: PublicationMediaContext,
     tx: PoolClient,
   ): Promise<void> {
-    if (envelope.version === 6) await this.requireEnvelope(envelope, tx);
+    this.requireComposedContext(envelope, context);
+    if (envelope.version === 6 || composed(envelope))
+      await this.requireEnvelope(envelope, tx);
     if (!(await this.storageAvailable(tx))) return;
     const row = await this.request(
       envelope.accountId,
       context.clientRequestId,
       tx,
     );
+    if (composed(envelope) && !row)
+      throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     if (row) {
       if (
+        (composed(envelope) &&
+          (row.account_id !== envelope.accountId ||
+            row.client_request_id !== context.clientRequestId ||
+            !this.composedRequestMatches(row))) ||
         row.intent_hash !== context.intentHash ||
         row.operation !== context.operation ||
         row.digest !== approvalDigest(envelope) ||
@@ -452,7 +566,9 @@ export class TextReviewRuntime {
     accepted: AcceptedApproval | undefined,
     tx: PoolClient,
   ): Promise<void> {
-    if (envelope.version === 6) await this.requireEnvelope(envelope, tx);
+    this.requireComposedContext(envelope, context);
+    if (envelope.version === 6 || composed(envelope))
+      await this.requireEnvelope(envelope, tx);
     if (!(await this.storageAvailable(tx))) return;
     const row = await this.request(
       envelope.accountId,
@@ -460,6 +576,8 @@ export class TextReviewRuntime {
       tx,
     );
     if (!row) {
+      if (composed(envelope))
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
       if (
         accepted &&
         (
@@ -483,13 +601,33 @@ export class TextReviewRuntime {
     )
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
     if (
+      (composed(envelope) &&
+        (row.account_id !== envelope.accountId ||
+          row.client_request_id !== context.clientRequestId ||
+          !this.composedRequestMatches(row))) ||
       row.intent_hash !== context.intentHash ||
       row.operation !== context.operation ||
       row.digest !== approvalDigest(envelope) ||
       canonicalJson(row.envelope) !== canonicalJson(envelope)
     )
       throw new ApplicationError('REQUEST_CONFLICT');
-    if (!accepted || accepted.decisionId !== row.decision_id)
+    if (composed(envelope)) {
+      registerTransactionDeadline(
+        tx,
+        row.expires_at.getTime(),
+        'CONTENT_REVIEW_UNAVAILABLE',
+      );
+      if (!(await this.isCurrentDecision(row, tx)))
+        throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
+    }
+    if (
+      !accepted ||
+      accepted.decisionId !== row.decision_id ||
+      (composed(envelope) &&
+        (accepted.version !== envelope.version ||
+          accepted.digest !== row.digest ||
+          !canonicalEqual(accepted.envelope, envelope)))
+    )
       throw new ApplicationError('CONTENT_REVIEW_UNAVAILABLE');
   }
 }

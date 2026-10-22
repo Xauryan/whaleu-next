@@ -1,4 +1,8 @@
 import { CommunityDistributionService } from '../related-sync/service.js';
+import {
+  homeDistributionCandidateSql,
+  hotCurrentWaterExcludedSql,
+} from '../home-distribution/candidate-sql.js';
 import type { CommunityDistributionScope } from '../related-sync/contracts.js';
 import { ApplicationError } from '../../http/application-error.js';
 import { Inject, Injectable, Optional } from '@nestjs/common';
@@ -41,12 +45,13 @@ export class HotRepository {
     after: HotAnchor | null,
     tx: PoolClient,
     distribution?: CommunityDistributionScope,
+    viewer: string | null = null,
   ): Promise<HotCandidate[]> {
     const parameters: unknown[] = [
       space.id,
       space.kind === 'global'
         ? ['discussion', 'feedback']
-        : categorySchema.options,
+        : [...categorySchema.options, 'water'],
       clock,
       HOT_RANGES[query.range].days,
       after?.score ?? null,
@@ -62,14 +67,14 @@ export class HotRepository {
           parameters,
         )
       : 'p.space_id=$1';
-    // Hot has no category filter. The bounded nine-category regional move
-    // cannot change space or trading membership; global posts cannot move.
-    // Keep score candidates independent of classification proof planning.
+    const home = homeDistributionCandidateSql('p', viewer, 'hot', parameters);
+    // Preserve indexed score candidates. Only an exact current-category head
+    // lookup is added for the independent water exclusion, never a full UNION.
     return (
       await tx.query<HotCandidate>(
         `SELECT p.id,p.space_id AS "spaceId",${published} AS at,hs.score::text
       FROM whaleu_post_hotness.scores hs JOIN whaleu_community.posts p ON p.id=hs.post_id ${HOT_CURRENT_JOINS}
-      WHERE $1::uuid IS NOT NULL AND ${eligibility} AND p.category=ANY($2::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
+      WHERE $1::uuid IS NOT NULL AND ${eligibility} AND ${home} AND ${hotCurrentWaterExcludedSql('p')} AND p.category=ANY($2::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
       AND p.published_at<=$3::timestamptz AND ($4::integer IS NULL OR p.published_at>=$3::timestamptz-make_interval(hours=>$4::integer*24))
       AND (p.category<>'trading' OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='normal' AND t.resolution='open'))
       AND (${HOT_CURRENT_HINT}) AND ($5::numeric IS NULL OR (hs.score,p.id)<($5::numeric,$6::uuid))
@@ -95,13 +100,14 @@ export class HotRepository {
     clock: string,
     tx: PoolClient,
     distribution?: CommunityDistributionScope,
+    viewer: string | null = null,
   ): Promise<boolean> {
     const parameters: unknown[] = [
       id,
       space.id,
       space.kind === 'global'
         ? ['discussion', 'feedback']
-        : categorySchema.options,
+        : [...categorySchema.options, 'water'],
       clock,
       HOT_RANGES[query.range].days,
     ];
@@ -115,11 +121,12 @@ export class HotRepository {
           parameters,
         )
       : 'p.space_id=$2';
+    const home = homeDistributionCandidateSql('p', viewer, 'hot', parameters);
     return (
       (
         await tx.query(
           `SELECT p.id FROM whaleu_community.posts p
-      WHERE p.id=$1 AND $2::uuid IS NOT NULL AND ${eligibility} AND p.category=ANY($3::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
+      WHERE p.id=$1 AND $2::uuid IS NOT NULL AND ${eligibility} AND ${home} AND ${hotCurrentWaterExcludedSql('p')} AND p.category=ANY($3::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
       AND p.published_at<=$4::timestamptz AND ($5::integer IS NULL OR p.published_at>=$4::timestamptz-make_interval(hours=>$5::integer*24))`,
           parameters,
         )

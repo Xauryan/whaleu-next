@@ -1,4 +1,8 @@
 import { CommunityDistributionService } from '../related-sync/service.js';
+import {
+  homeDistributionAllowed,
+  prepareHomeDistribution,
+} from '../home-distribution/read-proof.js';
 import type {
   CommunityDistributionScope,
   RelatedCampusDisplay,
@@ -77,6 +81,13 @@ export class HotFeedService {
     tx: PoolClient,
     distribution?: CommunityDistributionScope,
   ): Promise<RelatedCampusDisplay | null> {
+    const currentCategory = await resolvePostCategory(post.id, tx);
+    if (
+      currentCategory === null ||
+      currentCategory === 'water' ||
+      !(await homeDistributionAllowed(post.id, actor, 'hot', tx))
+    )
+      return null;
     if (
       !(await this.hot.structurallyAllowed(
         post.id,
@@ -85,6 +96,7 @@ export class HotFeedService {
         clock,
         tx,
         distribution,
+        actor,
       ))
     )
       return null;
@@ -193,6 +205,7 @@ export class HotFeedService {
             seek,
             tx,
             distribution,
+            actor,
           );
           this.validate(candidates, seek, space.id, distribution);
           const held = new Map<string, HotVisible>();
@@ -208,6 +221,7 @@ export class HotFeedService {
               throw new ApplicationError('DISCOVERY_RESTART_REQUIRED');
           }
           await resolvePostCategories([...held.keys()], tx);
+          await prepareHomeDistribution([...held.keys()], tx);
           // Guard intentionally has no score/vector check: accepted exposure and
           // live score movement cannot force a restart. Publication/scope is stable.
           if (guard) {
