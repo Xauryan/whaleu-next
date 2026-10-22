@@ -40,7 +40,7 @@ test(
 );
 
 test(
-  'real current service and worker fail closed after M1 and M2 installation without erasing any owner data',
+  'real current service and worker fail closed after source, reading, Home and registration installation without erasing any owner data',
   { timeout: 240000 },
   async (t) => {
     const f = await accountDeletionFixture({ throughMigration: 174 });
@@ -186,18 +186,72 @@ test(
     );
     assert.deepEqual(await immutableSeal(), beforeSeal);
     let previousWaiting: typeof accepted.status | undefined;
-    for (const stage of ['M1 source only', 'M2 empty derived owner'] as const) {
-      if (stage === 'M2 empty derived owner') {
-        await runMigrations(f.pool, migrations, { mode: 'up' });
-      }
-      const addedRelations = ['whaleu_community.community_text_sources'];
-      if (stage === 'M2 empty derived owner')
-        addedRelations.push(
+    // Keep the original 0175/0176 inventories exact. Later owners are separate
+    // upgrade stages, not an expansion of the deletion owner's reviewed bound.
+    const stages = [
+      {
+        stage: 'M1 source only',
+        throughMigration: 175,
+        relations: ['whaleu_community.community_text_sources'],
+      },
+      {
+        stage: 'M2 empty derived owner',
+        throughMigration: 176,
+        relations: [
           'whaleu_community.reading_format_heads',
           'whaleu_community.reading_format_jobs',
           'whaleu_community.reading_format_results',
           'whaleu_community.reading_format_slots',
+        ],
+      },
+      {
+        stage: 'Home policy admission owner',
+        throughMigration: 177,
+        relations: [
+          'whaleu_community.home_policy_admissions',
+          'whaleu_community.home_policy_head',
+          'whaleu_community.home_policy_preparations',
+        ],
+      },
+      {
+        stage: 'Home publication owner',
+        throughMigration: 178,
+        relations: [
+          'whaleu_community.home_discussion_parent_bindings',
+          'whaleu_community.home_post_dispositions',
+          'whaleu_community.home_publication_activations',
+          'whaleu_community.home_publication_head',
+          'whaleu_community.home_publication_preparations',
+        ],
+      },
+      {
+        stage: 'Current registration owner',
+        // Still install the full current catalog. A future unreviewed relation
+        // must fail the exact inventory comparison, never disappear behind a pin.
+        throughMigration: undefined,
+        relations: [
+          'whaleu_identity.registration_guard_key_epochs',
+          'whaleu_identity.registration_guard_policy',
+          'whaleu_identity.registration_guards',
+        ],
+      },
+    ] as const;
+    const addedRelations: string[] = [];
+    for (const { stage, throughMigration, relations } of stages) {
+      if (throughMigration !== 175) {
+        await runMigrations(
+          f.pool,
+          throughMigration === undefined
+            ? migrations
+            : migrations.filter(
+                (m) => Number(m.name.slice(0, 4)) <= throughMigration,
+              ),
+          { mode: 'up' },
         );
+      }
+      addedRelations.push(...relations);
+      const hasDerivedOwner =
+        throughMigration === undefined || throughMigration >= 176;
       assert.deepEqual(
         await catalog(),
         [...historicalCatalog, ...addedRelations].sort(),
@@ -209,17 +263,16 @@ test(
         )
       ).rows[0]!.count;
       assert.equal(sourceBefore, 0, stage);
-      const derivedBefore =
-        stage === 'M2 empty derived owner'
-          ? (
-              await f.pool.query<{ value: unknown }>(`SELECT jsonb_build_object(
+      const derivedBefore = hasDerivedOwner
+        ? (
+            await f.pool.query<{ value: unknown }>(`SELECT jsonb_build_object(
               'heads',(SELECT count(*) FROM whaleu_community.reading_format_heads),
               'jobs',(SELECT count(*) FROM whaleu_community.reading_format_jobs),
               'results',(SELECT count(*) FROM whaleu_community.reading_format_results),
               'slots',(SELECT jsonb_agg(to_jsonb(s) ORDER BY slot_id) FROM whaleu_community.reading_format_slots s)
             ) value`)
-            ).rows[0]!.value
-          : null;
+          ).rows[0]!.value
+        : null;
       await assert.rejects(
         f.repository.transaction((tx) => inventory(tx, true)),
         inventoryDenied,
@@ -318,7 +371,7 @@ test(
         ).rows[0]!.count,
         sourceBefore,
       );
-      if (stage === 'M2 empty derived owner') {
+      if (hasDerivedOwner) {
         const after = (
           await f.pool.query<{ value: unknown }>(`SELECT jsonb_build_object(
           'heads',(SELECT count(*) FROM whaleu_community.reading_format_heads),
