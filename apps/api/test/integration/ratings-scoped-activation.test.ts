@@ -494,10 +494,36 @@ for (const operation of ['M1', 'M3A'] as const)
         observer = observeDirectoryQueries(f.app),
         barrier = gate();
       let expected: Awaited<ReturnType<typeof publicationSnapshot>> | undefined,
-        legacyPid: number | undefined;
-      observer.setHook(async ({ sql }, tx) => {
-        if (sql !== 'SET CONSTRAINTS ALL IMMEDIATE') return;
+        legacyPid: number | undefined,
+        legacyTransaction: symbol | undefined;
+      observer.setHook(async ({ sql, transactionId }, tx) => {
+        // The request guard authenticates in its own transaction and reaches the
+        // same deferred boundary. Follow the actual management lock owner, not
+        // the first (or any fixed number of) SET CONSTRAINTS statements.
+        if (
+          sql ===
+          "SELECT pg_advisory_xact_lock(hashtextextended('whaleu:named-block-policy:v1',0))"
+        )
+          legacyTransaction = transactionId;
+        if (
+          sql !== 'SET CONSTRAINTS ALL IMMEDIATE' ||
+          transactionId !== legacyTransaction
+        )
+          return;
         observer.setHook(null);
+        const receipt = (
+          await tx.query<{ operation: string; outcome: string }>(
+            "SELECT operation,receipt->>'outcome' outcome FROM whaleu_ratings.requests WHERE account_id=$1 AND request_id=$2",
+            [f.actor.accountId, command.requestId],
+          )
+        ).rows;
+        assert.deepEqual(receipt, [
+          {
+            operation:
+              operation === 'M1' ? 'create_target' : 'create_categories',
+            outcome: 'applied',
+          },
+        ]);
         legacyPid = (
           await tx.query<{ pid: number }>('SELECT pg_backend_pid() pid')
         ).rows[0]!.pid;
