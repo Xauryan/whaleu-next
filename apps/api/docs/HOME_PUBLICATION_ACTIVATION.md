@@ -6,11 +6,20 @@ It is not a visibility permission or a replacement for content Review.
 
 ## Deployment boundaries
 
-Install the normal complete migration chain, including 0177 and 0178, before
-running this application version. Neither migration seeds an admission or an
-activation. An installation with no activation head continues the existing
-publication lane. A configured but expired or invalid activation fails closed;
+Install the normal complete checksum/prefix-verified migration chain through
+`0181_identity_real_deletion_preparations.sql`, including Home 0177/0178 and the
+closed 0180 epoch foundation, before running this application version. The Home
+0177/0178 feature boundaries are not the current application's migration cutoff.
+Neither Home migration seeds an admission or an activation. An installation with
+no activation head continues the existing publication lane. A configured but expired or invalid activation fails closed;
 it never silently falls back to a lane that bypasses the policy.
+
+The full 0181 chain is required even when formatting and preparations are
+disabled. `REAL_ACCOUNT_DELETION_ENTRY=disabled` remains the default; explicit
+`prepare_only` implements only non-destructive prepare/status, not acceptance,
+cancellation, epoch advancement or erasure. It does not activate Home publication.
+See [application readiness](../../../docs/APPLICATION_READINESS.md) and
+[real deletion preparations](../../../docs/REAL_DELETION_PREPARATIONS.md).
 
 The implemented production reviewer is `source_manual`, with explicit plain or
 Markdown source. Set the existing `COMMUNITY_TEXT_REVIEW` configuration and its
@@ -87,3 +96,8 @@ until its real PostgreSQL, production-configuration CLI, count/visibility and
 full integration gates finish. Static tests or this document are not deployment
 or production acceptance. Cloud container lifecycle and physical-device checks
 remain separate from a local PostgreSQL run.
+
+The current 0181 deployment requirement is a source contract, not evidence that
+this new replay stack passed its type, unit, PostgreSQL, CLI, OpenAPI or deployment
+gates. Earlier Home and 0180 results remain tied to their original exact inputs;
+this documentation update neither extends nor invalidates that evidence.

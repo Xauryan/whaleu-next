@@ -1,14 +1,14 @@
 # M1/M2 integration on published c27
 
-## Current delivery status, 2026-10-21
+## Current delivery status, 2026-10-22
 
 The integrated implementation starts from published commit
 `c27f173d8057f349469f4f96855d31edb9cff7c5`. Immutable source migration
 `apps/api/migrations/0175_community_text_sources.sql` and formal durable-formatting
 migration `apps/api/migrations/0176_durable_reading_formatting.sql` are in the
 normal checksum/prefix-verified migration sequence. The current binary requires
-the complete chain through `0180_identity_session_revocation_epoch.sql`, including
-Home 0177/0178, before startup, consistent with
+the complete chain through `0181_identity_real_deletion_preparations.sql`, including
+Home 0177/0178 and the closed 0180 epoch foundation, before startup, consistent with
 [Home activation](../apps/api/docs/HOME_PUBLICATION_ACTIVATION.md) and the
 [registration guard](IDENTITY_REGISTRATION_GUARD.md). Published 0001–0174 bytes
 remain unchanged. M2 is no longer an unnumbered deployment draft, and its CLI is
@@ -39,13 +39,21 @@ Deployment details are in [M2_DEPLOYMENT.md](M2_DEPLOYMENT.md) and
 Native routing and privacy are in
 [READING_NATIVE_INTEGRATION.md](READING_NATIVE_INTEGRATION.md).
 
+The preparation-only 0181 successor remains disabled by default through
+`REAL_ACCOUNT_DELETION_ENTRY=disabled`. Explicit `prepare_only` implements only
+non-destructive prepare/status; no acceptance, cancellation, epoch advancement or
+erasure is enabled. It does not change the historical exact-0175 producer/current
+reader contract or qualify this new full-chain stack. See
+[real deletion preparations](REAL_DELETION_PREPARATIONS.md).
+
 ## Exact-input validation attribution
 
 These are local validation results, not cloud CI, production or device acceptance.
 Snapshot names identify frozen evidence bundles, not deployment environments.
 The results below belong to those prior exact inputs, not new acceptance of the
 current binary. Current production API/PTY and worker fixtures install the full
-chain through 0180. The Home worker fixture first captures the six pre-Home bodies
+chain through 0181. That fixture requirement is not a new exact-stack pass.
+The Home worker fixture first captures the six pre-Home bodies
 at the explicit through-0177 prefix, then upgrades the full chain before creating
 runtime actors. It retains the predecessor and original 0176 catalog checks.
 Historical exact-0175 producer/current six-reader compatibility is separate in
@@ -53,7 +61,8 @@ Historical exact-0175 producer/current six-reader compatibility is separate in
 production deployment on a truncated schema.
 
 The current API `/health/ready` additionally validates runtime configuration and
-the exact complete deployed migration ledger (currently through 0179); see
+the exact complete deployed migration ledger (currently through 0181), even with
+formatting and preparations disabled; see
 [application readiness](APPLICATION_READINESS.md). This is not live catalog or
 policy attestation, and does not retroactively change the health behavior or
 acceptance results of the earlier snapshots below.
@@ -139,6 +148,8 @@ not a real seven-day wait. These historical construction choices remain useful
 provenance; old statements that M2 was only a draft, production CLI was forbidden,
 or all PostgreSQL/native gates were unrun no longer describe the current source.
 
-The 0180 deployment requirement above is a source contract, not evidence that
-this newly composed stack passed PostgreSQL, TLS or cloud acceptance. Earlier
-recorded results remain tied to their original commits and schema stacks.
+The 0181 deployment requirement above is a source contract, not evidence that
+this new replay stack passed its type, unit, PostgreSQL, CLI, OpenAPI, TLS or cloud
+acceptance gates. Earlier recorded results, including 0180 qualification, remain
+tied to their original exact commits and schema stacks; this documentation update
+neither extends nor invalidates that evidence.

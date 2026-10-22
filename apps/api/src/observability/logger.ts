@@ -14,6 +14,10 @@ export function createLogger(
     base: { service: 'whaleu-api' },
     redact: {
       paths: [
+        'recoverySecret',
+        'replacementSecret',
+        '*.recoverySecret',
+        '*.replacementSecret',
         'accessToken',
         'refreshToken',
         'session_key',

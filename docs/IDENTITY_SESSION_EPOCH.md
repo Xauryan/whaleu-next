@@ -100,11 +100,17 @@ is completion of full account deletion.
 ## Replay integration boundary
 
 The original foundation above was authored on da278. Its first replay was composed
-on `b93a78ec03a67db9200c76c4fedfdfaf3bca98d2`. The current integration is based on
+on `b93a78ec03a67db9200c76c4fedfdfaf3bca98d2`. That 0180 replay integration was based on
 `af9d847e4491ee10c5eaf21179bfeacbaf0b0b7f`, retaining the newer readiness gate
 and raising its deployment-artifact floor to 0180. Earlier validation does not
-certify this new stack. Exact 173/174 synthetic compatibility uses a test-only pinned
+certify that replay stack. Exact 173/174 synthetic compatibility uses a test-only pinned
 lifecycle-aware predecessor with original refresh/logout/lifecycle denial, not
-a production fallback or current epoch acceptance. Current API and TLS fixtures
-install the complete chain through 0180 and retain genuine current Identity.
-No 0181/0182 request authority or 0185 erasure is included.
+a production fallback or current epoch acceptance. That replay's API and TLS fixtures
+installed the complete chain through 0180 and retained genuine current Identity.
+No 0181/0182 request authority or 0185 erasure was included in that increment.
+
+The subsequent [0181 preparation/status increment](REAL_DELETION_PREPARATIONS.md)
+raises the current full-application installation floor to 0181, including with
+preparations disabled. Its new-stack qualification is separate from every earlier
+0180 result. Preparation mode defaults to disabled; even `prepare_only` grants no
+accept/cancel authority, epoch advance, provider dispatch or erasure.

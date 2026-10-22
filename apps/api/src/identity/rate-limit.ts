@@ -12,7 +12,14 @@ export class IdentityRateLimiter {
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
   async consume(
-    operation: 'login' | 'refresh' | 'logout',
+    operation:
+      | 'login'
+      | 'refresh'
+      | 'logout'
+      | 'deletion-prepare'
+      | 'deletion-status'
+      | 'deletion-accept'
+      | 'deletion-cancel',
     address: string,
   ): Promise<void> {
     const key = this.config.AUTH_RATE_LIMIT_KEY;
@@ -28,7 +35,7 @@ export class IdentityRateLimiter {
         [hash(`global:${operation}`), 300],
         [
           hash(`${operation}:${address.slice(0, 128)}`),
-          operation === 'login' ? 20 : 60,
+          operation === 'login' || operation.startsWith('deletion-') ? 20 : 60,
         ],
       ] as const) {
         const result = await client.query<{ hits: number }>(

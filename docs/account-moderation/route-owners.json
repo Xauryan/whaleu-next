@@ -12023,6 +12023,74 @@
     ]
   },
   {
+    "handler": "RealDeletionController.accept",
+    "method": "POST",
+    "path": "/v1/account-deletion/accept",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/account-deletion/real/module.ts",
+    "ownerCalls": [
+      {
+        "owner": "RealDeletionService",
+        "method": "accept",
+        "file": "apps/api/src/account-deletion/real/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RealDeletionController.cancel",
+    "method": "POST",
+    "path": "/v1/account-deletion/cancel",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/account-deletion/real/module.ts",
+    "ownerCalls": [
+      {
+        "owner": "RealDeletionService",
+        "method": "cancel",
+        "file": "apps/api/src/account-deletion/real/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RealDeletionController.prepare",
+    "method": "POST",
+    "path": "/v1/account-deletion/prepare",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/account-deletion/real/module.ts",
+    "ownerCalls": [
+      {
+        "owner": "RealDeletionService",
+        "method": "prepare",
+        "file": "apps/api/src/account-deletion/real/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
+    "handler": "RealDeletionController.status",
+    "method": "POST",
+    "path": "/v1/account-deletion/status",
+    "action": "restricted_self_service",
+    "phase": "restricted",
+    "controllerFile": "apps/api/src/account-deletion/real/module.ts",
+    "ownerCalls": [
+      {
+        "owner": "RealDeletionService",
+        "method": "status",
+        "file": "apps/api/src/account-deletion/real/service.ts",
+        "policy": ["AccountPolicy('restricted_self_service', 'restricted')"],
+        "resolution": "concrete"
+      }
+    ]
+  },
+  {
     "handler": "ReportingController.progress",
     "method": "GET",
     "path": "/v1/me/safety/report-progress/:kind/:id",

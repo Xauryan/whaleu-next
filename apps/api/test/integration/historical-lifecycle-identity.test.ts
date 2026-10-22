@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { setTimeout } from 'node:timers/promises';
 import test from 'node:test';
+import type { TestContext } from 'node:test';
 import type { Notification, Pool, PoolClient } from 'pg';
 import { inTransaction } from '../../src/database/database.js';
 import {
@@ -23,6 +24,10 @@ import { hashToken } from '../../src/identity/tokens.js';
 import { accountDeletionFixture } from '../support/account-deletion-fixture.js';
 import { historicalDeletionSchemaSql } from '../support/historical-lifecycle-identity/deletion.js';
 import { inspectHistoricalDeletionPeer174 } from '../support/historical-deletion-peer.js';
+import {
+  historicalRealDeletionPartials,
+  historicalRealDeletionLookalikeSql,
+} from '../support/historical-real-deletion-partials.js';
 
 type Fixture = Awaited<ReturnType<typeof accountDeletionFixture>>;
 const denied = (error: unknown) =>
@@ -50,10 +55,98 @@ async function schema(f: Fixture) {
   const result = (
     await f.pool.query<Record<string, boolean>>(historicalDeletionSchemaSql)
   ).rows[0]!;
-  assert.equal(Object.keys(result).length, 7);
+  assert.equal(Object.keys(result).length, 8);
   assert.ok(
     Object.values(result).every((value) => value === true),
     JSON.stringify(result),
+  );
+}
+async function realDeletionAbsenceControls(
+  f: Fixture,
+  t: TestContext,
+  prefix: 173 | 174,
+  access: string,
+  accountId: string,
+) {
+  for (const [label, statement] of historicalRealDeletionPartials)
+    await t.test(`exact${prefix} rejects unledgered0181 ${label}`, async () => {
+      await assert.rejects(
+        f.repository.transaction(async (tx) => {
+          await tx.query(statement);
+          const shape = (
+            await tx.query<Record<string, boolean>>(historicalDeletionSchemaSql)
+          ).rows[0]!;
+          assert.equal(shape['real_deletion_absent'], false);
+          assert.ok(
+            Object.entries(shape).every(
+              ([key, value]) =>
+                key === 'real_deletion_absent' || value === true,
+            ),
+            JSON.stringify(shape),
+          );
+          await f.identity.authenticate(access, tx);
+        }),
+        denied,
+      );
+      if (prefix === 174) {
+        await assert.rejects(
+          f.repository.transaction(async (tx) => {
+            await tx.query(statement);
+            await inspectHistoricalDeletionPeer174(tx);
+          }),
+          /Partial or future schema is not an exact 0174 peer boundary/,
+        );
+        await f.repository.transaction(inspectHistoricalDeletionPeer174);
+      }
+      await schema(f);
+      assert.equal(
+        (await f.identity.authenticate(access)).accountId,
+        accountId,
+      );
+    });
+  await t.test(
+    `exact${prefix} rejects namespace added after first proof`,
+    async () => {
+      await assert.rejects(
+        f.repository.transaction(async (tx) => {
+          await f.identity.authenticate(access, tx);
+          await tx.query('CREATE SCHEMA whaleu_real_deletion');
+        }),
+        denied,
+      );
+      await schema(f);
+      assert.equal(
+        (await f.identity.authenticate(access)).accountId,
+        accountId,
+      );
+    },
+  );
+  await t.test(
+    `exact${prefix} preserves similarly named namespace acceptance`,
+    async () => {
+      const rollback = new Error('Rollback accepted lookalike test objects');
+      await assert.rejects(
+        f.repository.transaction(async (tx) => {
+          await tx.query(historicalRealDeletionLookalikeSql);
+          assert.equal(
+            (await f.identity.authenticate(access, tx)).accountId,
+            accountId,
+          );
+          if (prefix === 174) await inspectHistoricalDeletionPeer174(tx);
+          throw rollback;
+        }),
+        (error: unknown) => error === rollback,
+      );
+      await schema(f);
+      assert.equal(
+        (
+          await f.pool.query<{ namespace: string | null }>(
+            "SELECT to_regnamespace('whaleu_real_deletion_archive')::text namespace",
+          )
+        ).rows[0]?.namespace,
+        null,
+      );
+    },
   );
 }
 async function seals(f: Fixture) {
@@ -84,6 +177,13 @@ test(
       before = await seals(f);
     assert.equal(
       (await f.identity.authenticate(hashToken(actor.accessToken))).accountId,
+      actor.accountId,
+    );
+    await realDeletionAbsenceControls(
+      f,
+      t,
+      173,
+      hashToken(actor.accessToken),
       actor.accountId,
     );
     const migrations = (
@@ -118,7 +218,7 @@ test(
     const f = await accountDeletionFixture({ throughMigration: 174 });
     t.after(() => f.close());
     await t.test(
-      'exact original 0088 Ratings columns coexist with all seven true boundary flags',
+      'exact original 0088 Ratings columns coexist with all eight true boundary flags',
       async () => {
         await schema(f);
         const columns = (
@@ -175,6 +275,8 @@ test(
         );
       },
     );
+
+    await realDeletionAbsenceControls(f, t, 174, access, actor.accountId);
 
     // Each unledgered identity is tested independently. No real epoch authority
     // is installed, and every mutation must roll back before baseline recheck.

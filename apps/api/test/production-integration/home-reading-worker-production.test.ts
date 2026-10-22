@@ -239,13 +239,14 @@ test(
         migrations
           .filter((m) => {
             const version = Number(m.name.slice(0, 4));
-            return version >= 178 && version <= 180;
+            return version >= 178 && version <= 181;
           })
           .map((m) => m.name),
         [
           '0178_home_publication_protocol.sql',
           '0179_identity_registration_guard.sql',
           '0180_identity_session_revocation_epoch.sql',
+          '0181_identity_real_deletion_preparations.sql',
         ],
       );
       // Capture the exact pre-Home bodies before 0178, independently of the

@@ -7,7 +7,7 @@ current runtime behavior, install later migrations, or bypass Review validation.
 ## Provenance and scope
 
 - Source commit: `c27f173d8057f349469f4f96855d31edb9cff7c5`.
-- Current dependency review: `b53198d`.
+- Original dependency review: `b53198d`; retained as historical evidence, not a claim that every current dependency is still byte-identical.
 - `provenance.json` records the complete source commit, original Git blob and
   SHA-256 for both saved files. Tests reverse only import-path relocation and
   compare the reconstructed original bytes to both original hashes.
@@ -48,14 +48,15 @@ as newly introduced objects; ordinary application validation stays in place.
 
 ## Recursive dependency review
 
-`import-provenance.tsv` enumerates the entire current local import closure, with
-original/current Git blobs, current SHA-256, and runtime versus type-only
-reachability. There are 115 dependencies: 30 runtime-reachable and 85 type-only.
+`import-provenance.tsv` preserves the original b531 local import-closure review,
+with c27/b531 Git blobs, b531 SHA-256, and runtime versus type-only reachability.
+It is not rewritten when a later dependency successor is reviewed. There are 115 dependencies: 30 runtime-reachable and 85 type-only.
 The reader snapshot removes only the direct source-read import from this
 closure; that module remains reachable through current validation. External
 packages are unchanged by the snapshot.
 
-102 dependencies are byte-identical to c27. The 13 changed/new dependencies are:
+At that original b531 review, 102 dependencies were byte-identical to c27. The
+13 changed/new dependencies in that review were:
 
 | Dependency                                              | Reachability and legacy effect                                                                                                                                                                                                                                                                                                |
 | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -145,3 +146,35 @@ current, and prove ordinary current enrollment still throws on missing storage.
 Both publication-upgrade tests assert the current formatter constructor is
 restored after restart; the 0144 test also probes its real missing-table failure
 before upgrade without altering the historical command or replay assertions.
+
+## Preparation-only 0181 dependency successor
+
+`preparation-runtime-successor.json` separately pins the current reader's finite
+runtime closure at base tree `62546a2f94ca41033b30d3beb87cfe9a95538586` and the
+0181 candidate: the saved reader plus 38 runtime-reachable local dependencies.
+The complete import-edge graph is unchanged by this increment. Every source is
+pinned, and all but the following three sources remain byte-identical to that
+base. This does not retroactively replace the original 115-entry TSV, c27
+snapshot identities, original differential oracle, or previous review history.
+
+- `config/config.ts`: only the disabled/prepare_only field with disabled default
+  is added. The exact successor helper removes that unique anchored span,
+  reconstructs the entire accepted 7c5 source SHA-256 and Git blob, then replays
+  it exactly. Historical enrollment, source/manual-review and registration-guard
+  parsing/defaults remain independently exercised with negative controls.
+- `http/application-error.ts`: only three static preparation errors are added.
+  The exact helper restores the complete b8e predecessor SHA-256 and Git blob;
+  runtime tests cover all 308 old conditions, both specialized subclasses and
+  the three new sanitized transport envelopes. No old condition is relabeled.
+- `observability/logger.ts`: only four top-level/nested recovery/replacement
+  secret redaction paths are added. A complete-source restoration test and real
+  logger output tests verify the narrow addition and retained access-token
+  redaction; no new runtime import or deletion work is introduced.
+
+`historical-preparation-dependencies.test.ts` authenticates this separate record,
+all current closure bytes, the original unchanged TSV and package-lock, and both
+exact restorers. Neither the reader nor its runtime closure imports a real
+account-deletion module. These are source and database-free semantic checks,
+not fresh PostgreSQL compatibility, full-application acceptance, or permission
+to enable preparation mode. The historical-owner integration suites and current
+application gates must run on the final composed 0181 source separately.

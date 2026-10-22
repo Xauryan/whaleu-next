@@ -1,0 +1,327 @@
+{
+  "kind": "0181 additive dependency review, not a replacement historical snapshot",
+  "baseTree": "62546a2f94ca41033b30d3beb87cfe9a95538586",
+  "entry": "apps/api/test/support/historical-content-definition/content-definition.repository.ts",
+  "originalImportProvenanceSha256": "4ff7d09f66e566ff60038226b455a3b7fb807b7c7253f2ad69f85d1c07f5f857",
+  "packageLockSha256": "471f900e205e18fc4a2c2216f3d7da4de8e819d62ae6ae2be76fb27e5c2b4f1c",
+  "changed": [
+    "apps/api/src/config/config.ts",
+    "apps/api/src/http/application-error.ts",
+    "apps/api/src/observability/logger.ts"
+  ],
+  "files": [
+    {
+      "path": "apps/api/src/campus/campus.repository.ts",
+      "baseSha256": "b3b3f6e9caffb1c3ba033e8646a57fce6ed5c43c8d8575693425efa3fb8078e9",
+      "sha256": "b3b3f6e9caffb1c3ba033e8646a57fce6ed5c43c8d8575693425efa3fb8078e9",
+      "imports": ["apps/api/src/database/database.ts"]
+    },
+    {
+      "path": "apps/api/src/campus/campus.service.ts",
+      "baseSha256": "9613e912262c5ace2c93e48aa12e55bf390ba510c749de5cffd8f1e0d7a5401a",
+      "sha256": "9613e912262c5ace2c93e48aa12e55bf390ba510c749de5cffd8f1e0d7a5401a",
+      "imports": [
+        "apps/api/src/campus/campus.repository.ts",
+        "apps/api/src/http/application-error.ts",
+        "apps/api/src/safety/account-policy/decorator.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/content-review/canonical-json.ts",
+      "baseSha256": "58df3ebe5795aae07d980b559376f4f93e71e09aa040f297f55a5c413f2c74e5",
+      "sha256": "58df3ebe5795aae07d980b559376f4f93e71e09aa040f297f55a5c413f2c74e5",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/community/content-review/contracts.ts",
+      "baseSha256": "09f361e356bcbfe94fc1babfc44688b304d091ad6437951d5e1636e87643d277",
+      "sha256": "09f361e356bcbfe94fc1babfc44688b304d091ad6437951d5e1636e87643d277",
+      "imports": [
+        "apps/api/src/community/content-review/canonical-json.ts",
+        "apps/api/src/community/content-review/scope-contracts.ts",
+        "apps/api/src/community/contracts.ts",
+        "apps/api/src/community/feedback/contracts.ts",
+        "apps/api/src/community/formation/contracts.ts",
+        "apps/api/src/community/home-feed-policy/review-evidence.ts",
+        "apps/api/src/community/polls/contracts.ts",
+        "apps/api/src/community/rating-target-link/contracts.ts",
+        "apps/api/src/community/text-source/protocol.ts",
+        "apps/api/src/community/text.ts",
+        "apps/api/src/community/trading/contracts.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/content-review/definition-validation.ts",
+      "baseSha256": "96bc98889f1426416b4bd1d1c577969408abe2a95ff7b00b29eb987c78e34002",
+      "sha256": "96bc98889f1426416b4bd1d1c577969408abe2a95ff7b00b29eb987c78e34002",
+      "imports": [
+        "apps/api/src/community/content-review/contracts.ts",
+        "apps/api/src/community/text-source/protocol.ts",
+        "apps/api/src/community/text-source/repository.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/content-review/scope-contracts.ts",
+      "baseSha256": "db66cd4d2d56f18a53ecf178045a285c0b8ed79df0ad80da083f57f0b2b9c81c",
+      "sha256": "db66cd4d2d56f18a53ecf178045a285c0b8ed79df0ad80da083f57f0b2b9c81c",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/community/content-review/search-source-reads.ts",
+      "baseSha256": "2ba04a1e4da73e320e07b7cd261de6ad2ef7ef3e9583c18e9209905aa519fef1",
+      "sha256": "2ba04a1e4da73e320e07b7cd261de6ad2ef7ef3e9583c18e9209905aa519fef1",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/community/contracts.ts",
+      "baseSha256": "be473c28eadb9e74982909dd8c29a65536a28705439fe8fc958bbde4f62a5093",
+      "sha256": "be473c28eadb9e74982909dd8c29a65536a28705439fe8fc958bbde4f62a5093",
+      "imports": [
+        "apps/api/src/community/feedback/contracts.ts",
+        "apps/api/src/community/polls/contracts.ts",
+        "apps/api/src/community/text-source/protocol.ts",
+        "apps/api/src/community/text.ts",
+        "apps/api/src/community/trading/contracts.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/feedback/contracts.ts",
+      "baseSha256": "72fde708eaed6927d209d5c4cb939232b1076c035084cfa306d88ba1be3be308",
+      "sha256": "72fde708eaed6927d209d5c4cb939232b1076c035084cfa306d88ba1be3be308",
+      "imports": ["apps/api/src/community/text.ts"]
+    },
+    {
+      "path": "apps/api/src/community/formation/contracts.ts",
+      "baseSha256": "318e8dfc02717252a412db3f1d95a0021c1c4d60ebf6672467a87fcd74785330",
+      "sha256": "318e8dfc02717252a412db3f1d95a0021c1c4d60ebf6672467a87fcd74785330",
+      "imports": ["apps/api/src/community/text.ts"]
+    },
+    {
+      "path": "apps/api/src/community/home-feed-policy/legacy-lowercase.ts",
+      "baseSha256": "4916d27925840014ef16a4bc379d3b04bc3909e10373d4d15a052ce4fe2d2e90",
+      "sha256": "4916d27925840014ef16a4bc379d3b04bc3909e10373d4d15a052ce4fe2d2e90",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/community/home-feed-policy/legacy-plain-text.ts",
+      "baseSha256": "037e6685eb16ead1849d41a69336d8856d433c4cb8301921562def4badd3a49b",
+      "sha256": "037e6685eb16ead1849d41a69336d8856d433c4cb8301921562def4badd3a49b",
+      "imports": [
+        "apps/api/src/community/home-feed-policy/legacy-lowercase.ts",
+        "apps/api/src/community/home-feed-policy/legacy-unicode.ts",
+        "apps/api/src/community/home-feed-policy/php-text.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/home-feed-policy/legacy-unicode.ts",
+      "baseSha256": "6fa55ef5f32f7d1519744f3c4b78dc3275f10a9d54a7061ffb78ca9d3f814546",
+      "sha256": "6fa55ef5f32f7d1519744f3c4b78dc3275f10a9d54a7061ffb78ca9d3f814546",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/community/home-feed-policy/php-text.ts",
+      "baseSha256": "852d767e85326cee0369cb608e3b5445a9b885149cb5a37e58f4367fff9cc369",
+      "sha256": "852d767e85326cee0369cb608e3b5445a9b885149cb5a37e58f4367fff9cc369",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/community/home-feed-policy/policy.ts",
+      "baseSha256": "dc1acd406c59750298876f6b7b32431d8b532f67b79dd09cd9e4d45602ae6cdc",
+      "sha256": "dc1acd406c59750298876f6b7b32431d8b532f67b79dd09cd9e4d45602ae6cdc",
+      "imports": [
+        "apps/api/src/community/home-feed-policy/legacy-plain-text.ts",
+        "apps/api/src/community/home-feed-policy/php-text.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/home-feed-policy/review-evidence.ts",
+      "baseSha256": "3da4368c97f0c603686c7d10fee6b416de6c9599cd7bb3539065baaf44939a32",
+      "sha256": "3da4368c97f0c603686c7d10fee6b416de6c9599cd7bb3539065baaf44939a32",
+      "imports": [
+        "apps/api/src/community/contracts.ts",
+        "apps/api/src/community/formation/contracts.ts",
+        "apps/api/src/community/home-feed-policy/policy.ts",
+        "apps/api/src/community/polls/contracts.ts",
+        "apps/api/src/community/text-source/protocol.ts",
+        "apps/api/src/community/text.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/polls/contracts.ts",
+      "baseSha256": "47aca55be5356f1ceb800690e2e2a310ee5e7cb337b4673d3ad9bd2c16b387a9",
+      "sha256": "47aca55be5356f1ceb800690e2e2a310ee5e7cb337b4673d3ad9bd2c16b387a9",
+      "imports": [
+        "apps/api/src/community/formation/contracts.ts",
+        "apps/api/src/community/rating-target-link/contracts.ts",
+        "apps/api/src/community/text.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/rating-target-link/binding.ts",
+      "baseSha256": "3d569a47874efc336dc9eb8050a98080779807b4fcd7502fd26787f1c4844276",
+      "sha256": "3d569a47874efc336dc9eb8050a98080779807b4fcd7502fd26787f1c4844276",
+      "imports": [
+        "apps/api/src/community/rating-target-link/contracts.ts",
+        "apps/api/src/http/application-error.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/rating-target-link/contracts.ts",
+      "baseSha256": "ea2bf7f0e8f8a71ea8d511bee90c905248fb8351452eb06dfbf9754f9e01c592",
+      "sha256": "ea2bf7f0e8f8a71ea8d511bee90c905248fb8351452eb06dfbf9754f9e01c592",
+      "imports": ["apps/api/src/community/text.ts"]
+    },
+    {
+      "path": "apps/api/src/community/related-sync/binding.ts",
+      "baseSha256": "177760477a9428beda87657a296605e205874dcc9ba3e59b1ff50f025cbda660",
+      "sha256": "177760477a9428beda87657a296605e205874dcc9ba3e59b1ff50f025cbda660",
+      "imports": [
+        "apps/api/src/community/content-review/contracts.ts",
+        "apps/api/src/community/content-review/scope-contracts.ts",
+        "apps/api/src/http/application-error.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/text-source/contracts.ts",
+      "baseSha256": "25cf2075de593376bba7616951cb92049855c4305adb5240edb12669dfac849a",
+      "sha256": "25cf2075de593376bba7616951cb92049855c4305adb5240edb12669dfac849a",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/community/text-source/protocol.ts",
+      "baseSha256": "c7c4483b508794a43eaf0c26fdc88f845899c22c75b4e75b60f022c80414ded3",
+      "sha256": "c7c4483b508794a43eaf0c26fdc88f845899c22c75b4e75b60f022c80414ded3",
+      "imports": ["apps/api/src/community/text-source/source.ts"]
+    },
+    {
+      "path": "apps/api/src/community/text-source/repository.ts",
+      "baseSha256": "1cf290756597abace80127b774e06399b4bf14283b121aca7085e2185a04a159",
+      "sha256": "1cf290756597abace80127b774e06399b4bf14283b121aca7085e2185a04a159",
+      "imports": [
+        "apps/api/src/community/content-review/contracts.ts",
+        "apps/api/src/community/text-source/protocol.ts",
+        "apps/api/src/http/application-error.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/community/text-source/source.ts",
+      "baseSha256": "61ab3e8af95291688dfcd94edbc762bafec530bd00ee3526b44ec72d1416d8c8",
+      "sha256": "61ab3e8af95291688dfcd94edbc762bafec530bd00ee3526b44ec72d1416d8c8",
+      "imports": ["apps/api/src/community/text-source/contracts.ts"]
+    },
+    {
+      "path": "apps/api/src/community/text.ts",
+      "baseSha256": "8f8cfaba89a9c361ac9c06bed794b81ee156a8ec5bd920016ad8e90715110e6a",
+      "sha256": "8f8cfaba89a9c361ac9c06bed794b81ee156a8ec5bd920016ad8e90715110e6a",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/community/trading/contracts.ts",
+      "baseSha256": "f90710caf89c8ffeea212be9e68f49a55be9cfc0de368220831c37bb0e30f106",
+      "sha256": "f90710caf89c8ffeea212be9e68f49a55be9cfc0de368220831c37bb0e30f106",
+      "imports": ["apps/api/src/community/text.ts"]
+    },
+    {
+      "path": "apps/api/src/config/config.ts",
+      "baseSha256": "7c5b02c13ba0ad5b689e239f47cb8952e908239babdde04bb1f2c2d86e3e2268",
+      "sha256": "55d5ecdb4a48112659ab9da267212ff345f5de2d5ea71a9c4cd25eb9643b685d",
+      "imports": ["apps/api/src/identity/registration/digests.ts"]
+    },
+    {
+      "path": "apps/api/src/database/database.ts",
+      "baseSha256": "3875dcf2d64561bd842aafb65c26787152078d721d1f18bce8f1bb0f9839c9cb",
+      "sha256": "3875dcf2d64561bd842aafb65c26787152078d721d1f18bce8f1bb0f9839c9cb",
+      "imports": [
+        "apps/api/src/config/config.ts",
+        "apps/api/src/database/transaction-deadlines.ts",
+        "apps/api/src/observability/logger.ts",
+        "apps/api/src/safety/account-moderation/policy.ts",
+        "apps/api/src/safety/account-policy/punishment-context.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/database/required-owner-proof.ts",
+      "baseSha256": "19d0cde88006c02974beb6e8eab4b8d212234b2fbc637d0ae5c977a14ceb629e",
+      "sha256": "19d0cde88006c02974beb6e8eab4b8d212234b2fbc637d0ae5c977a14ceb629e",
+      "imports": [
+        "apps/api/src/database/transaction-deadlines.ts",
+        "apps/api/src/http/application-error.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/database/transaction-deadlines.ts",
+      "baseSha256": "284f2b448d005f9235059217e121efb858fffec3852fd29ef0bbd5ec1e924877",
+      "sha256": "284f2b448d005f9235059217e121efb858fffec3852fd29ef0bbd5ec1e924877",
+      "imports": ["apps/api/src/http/application-error.ts"]
+    },
+    {
+      "path": "apps/api/src/http/application-error.ts",
+      "baseSha256": "b8e891df9541f420b0739a79c804848b86ff5554c8977fbd6c8b2b0854050d84",
+      "sha256": "b6cef32d245eb7e04375618f243c5d0dfcdce522e4163b2a4c44b1075048df1e",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/http/session-policy-context.ts",
+      "baseSha256": "af5fd35970d9ce2c6c7ac6c5ea8a34342477536689739faa39abf8a1233476e5",
+      "sha256": "af5fd35970d9ce2c6c7ac6c5ea8a34342477536689739faa39abf8a1233476e5",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/identity/registration/digests.ts",
+      "baseSha256": "4645d4a300a19ca06a63397308bc21c4727c61db72a40dc267cf2a7366ead63c",
+      "sha256": "4645d4a300a19ca06a63397308bc21c4727c61db72a40dc267cf2a7366ead63c",
+      "imports": ["apps/api/src/http/application-error.ts"]
+    },
+    {
+      "path": "apps/api/src/observability/logger.ts",
+      "baseSha256": "8d17a1817a463929e7b6188cb0e676c9a5e1be54373c049fe633c9f3b07c76f1",
+      "sha256": "d066b4150aa33e7f714259dedac9793836b9b4fad5faa08d387135f73eb4c303",
+      "imports": ["apps/api/src/config/config.ts"]
+    },
+    {
+      "path": "apps/api/src/safety/account-moderation/policy.ts",
+      "baseSha256": "e8fe4e911dad9815ae8af4bee78e53dc69eac43c01a5410046076acb0c237ce2",
+      "sha256": "e8fe4e911dad9815ae8af4bee78e53dc69eac43c01a5410046076acb0c237ce2",
+      "imports": [
+        "apps/api/src/database/required-owner-proof.ts",
+        "apps/api/src/database/transaction-deadlines.ts",
+        "apps/api/src/http/application-error.ts",
+        "apps/api/src/safety/account-policy/punishment-context.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/safety/account-policy/context.ts",
+      "baseSha256": "2d368f6f5071b57c5b9d5279d309ce9c8950d3d5b6d8c3998a3edda04c6e44b0",
+      "sha256": "2d368f6f5071b57c5b9d5279d309ce9c8950d3d5b6d8c3998a3edda04c6e44b0",
+      "imports": []
+    },
+    {
+      "path": "apps/api/src/safety/account-policy/decorator.ts",
+      "baseSha256": "6258a7e6e37d62aae18bbcd640c48ba0ed1671604f7b37c9b7437e890cba8c14",
+      "sha256": "6258a7e6e37d62aae18bbcd640c48ba0ed1671604f7b37c9b7437e890cba8c14",
+      "imports": [
+        "apps/api/src/http/session-policy-context.ts",
+        "apps/api/src/safety/account-moderation/policy.ts",
+        "apps/api/src/safety/account-policy/context.ts"
+      ]
+    },
+    {
+      "path": "apps/api/src/safety/account-policy/punishment-context.ts",
+      "baseSha256": "a1d11c02e20a8b0acc4cacd485305a06f3be101f002a386103c08e3b78e05b4f",
+      "sha256": "a1d11c02e20a8b0acc4cacd485305a06f3be101f002a386103c08e3b78e05b4f",
+      "imports": ["apps/api/src/database/transaction-deadlines.ts"]
+    },
+    {
+      "path": "apps/api/test/support/historical-content-definition/content-definition.repository.ts",
+      "baseSha256": "2c0825cf770782f82456a7e76e593fadbda617a7112eec7f7f19770f404085aa",
+      "sha256": "2c0825cf770782f82456a7e76e593fadbda617a7112eec7f7f19770f404085aa",
+      "imports": [
+        "apps/api/src/campus/campus.service.ts",
+        "apps/api/src/community/content-review/definition-validation.ts",
+        "apps/api/src/community/content-review/search-source-reads.ts",
+        "apps/api/src/community/rating-target-link/binding.ts",
+        "apps/api/src/community/related-sync/binding.ts"
+      ]
+    }
+  ]
+}

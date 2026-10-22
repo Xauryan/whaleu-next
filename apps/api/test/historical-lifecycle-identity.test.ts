@@ -30,6 +30,8 @@ import {
   historicalDeletionSchemaSql,
   isHistoricalDeletionIdentity,
 } from './support/historical-lifecycle-identity/deletion.js';
+import { restoreAcceptedHistoricalConfig } from './support/historical-lifecycle-identity/config-compatibility.js';
+import { restoreAcceptedHistoricalErrors } from './support/historical-lifecycle-identity/application-error-compatibility.js';
 const config = loadConfig({
   NODE_ENV: 'test',
   DATABASE_URL: 'postgres://fixture@127.0.0.1/whaleu_test',
@@ -136,14 +138,26 @@ test('full snapshot reverses ONLY import relocation to the pinned 2f9f Git blob 
     [...dependencies].sort(),
     Object.keys(dependencyHashes).sort(),
   );
-  for (const [file, digest] of Object.entries(dependencyHashes))
+  for (const [file, digest] of Object.entries(dependencyHashes)) {
+    const dependency = await readFile(
+      new URL('../src/' + file, import.meta.url),
+    );
     assert.equal(
-      sha(await readFile(new URL('../src/' + file, import.meta.url))),
+      sha(
+        file === 'config/config.ts'
+          ? restoreAcceptedHistoricalConfig(dependency)
+          : file === 'http/application-error.ts'
+            ? restoreAcceptedHistoricalErrors(dependency)
+            : dependency,
+      ),
       digest,
       `Review changed snapshot dependency ${file}`,
     );
-  // Config is the only changed direct dependency; retain current config. The
-  // original config blob hash was 59e88185c9d9dd8124f884e4bb6f221dcbfcd4b56b9e048b6e932620dbcc52ef.
+  }
+  // Original pins remain immutable. Only the exact disabled preparation field
+  // and three static error conditions are reversibly restored, never broad REAL_*
+  // filtering. Dedicated successor units verify semantics and tamper rejection.
+  // Original config SHA: 59e88185c9d9dd8124f884e4bb6f221dcbfcd4b56b9e048b6e932620dbcc52ef.
   assert.deepEqual(
     [...restored.matchAll(/this\.config\??\.([A-Z_]+)/g)].map((m) => m[1]),
     ['NATIVE_VERIFICATION_ENROLLMENT'],
@@ -184,6 +198,7 @@ function fixture(prefix: 173 | 174 = 174) {
       deletion_present: true,
       registration_absent: true,
       epoch_absent: true,
+      real_deletion_absent: true,
       source_absent: true,
       reading_absent: true,
       home_absent: true,
@@ -651,6 +666,7 @@ for (const family of [
   'deletion_present',
   'registration_absent',
   'epoch_absent',
+  'real_deletion_absent',
   'source_absent',
   'reading_absent',
   'home_absent',

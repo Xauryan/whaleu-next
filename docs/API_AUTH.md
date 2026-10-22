@@ -292,18 +292,35 @@ foundation-only CI does not verify this new module.
 
 The normal login transaction now checks the persistent [registration-guard
 contract](IDENTITY_REGISTRATION_GUARD.md) only when no provider mapping exists.
-Existing-account login/session rules are unchanged. Apply 0179 after its complete
-0178 predecessor before this runtime. Its initial inactive, empty, unavailable
-completion source preserves ordinary new registration; missing schema or unknown
+Existing-account login/session rules are unchanged. Install 0179 after its complete
+0178 predecessor as part of the current application's full verified chain
+through 0181. Its initial inactive, empty, unavailable completion source preserves ordinary new registration; missing schema or unknown
 policy fails closed. Real account deletion and guard-writing authority are still
 unavailable, not enabled by the optional secret keyring or configuration.
 
 ### Closed session epoch foundation (0180)
 
-The current Identity runtime requires the complete verified migration chain
-through `0180_identity_session_revocation_epoch.sql`. Missing or drifted epoch
-schema fails closed, rather than treating missing epoch values as zero. Existing
+The closed epoch foundation requires the verified migration chain through
+`0180_identity_session_revocation_epoch.sql`; 0180 is its feature boundary, not
+the current application's migration cutoff. The current application requires the
+complete chain through `0181_identity_real_deletion_preparations.sql`, even with
+preparations disabled. Missing or drifted epoch schema fails closed, rather than
+treating missing epoch values as zero. Existing
 zero-epoch credentials retain their original absolute lifetime; refresh-replay
 revocation and logout semantics remain genuine. Epoch advancement and actual
 account erasure are not enabled by this foundation. See
 [the session epoch contract](IDENTITY_SESSION_EPOCH.md) for cutover limits.
+
+### Preparation-only foundation (0181)
+
+`REAL_ACCOUNT_DELETION_ENTRY=disabled` remains the default. Explicit `prepare_only`
+supports non-destructive ordinary-bearer prepare and purpose-secret POST status.
+It does not authorize acceptance, cancellation, provider dispatch, epoch
+advancement, cooling, erasure or registration-ban issuance. The 0180 foundation
+remains write-closed, and no 0182 acceptance/cancellation or 0185 erasure is
+included. See [real deletion preparations](REAL_DELETION_PREPARATIONS.md).
+
+This 0181 deployment requirement is not a new exact-stack qualification. Earlier
+0180 and historical authentication results retain their original source/schema
+scope; no new-stack type, unit, PostgreSQL, CLI, OpenAPI or production pass is
+claimed by this documentation update.

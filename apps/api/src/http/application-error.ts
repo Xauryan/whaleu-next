@@ -3,6 +3,18 @@ import { HttpException } from '@nestjs/common';
 // Shared business conditions stay distinct from transport failures. Defining these
 // codes is not an implementation of authentication, verification, or moderation.
 const conditions = {
+  REAL_DELETION_UNAVAILABLE: {
+    status: 503,
+    message: 'Account deletion is unavailable.',
+  },
+  REAL_DELETION_SCOPE_UNAVAILABLE: {
+    status: 404,
+    message: 'Account deletion scope is unavailable.',
+  },
+  REAL_DELETION_INTENT_CONFLICT: {
+    status: 409,
+    message: 'Account deletion request conflicts.',
+  },
   REFERENCE_NOT_FOUND: {
     status: 404,
     message: 'Content reference is unavailable.',

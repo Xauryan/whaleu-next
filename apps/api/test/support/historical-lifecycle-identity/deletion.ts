@@ -25,6 +25,7 @@ import { ApplicationError } from '../../../src/http/application-error.js';
 import { IdentityRepository } from '../../../src/identity/identity.repository.js';
 import type { ProviderIdentity } from '../../../src/identity/contracts.js';
 import { IdentityRepository as PredecessorIdentityRepository } from '../historical-m1/identity.repository.js';
+import { historicalRealDeletionAbsenceSql } from '../historical-real-deletion-absence.js';
 
 // These exact checked-in manifests were independently compared, file for file,
 // with 2f9f77260119664af3a06c488963153fdc12dab3. Never accept a prefix range.
@@ -112,6 +113,7 @@ export const historicalDeletionSchemaSql = `WITH application_namespaces AS MATER
     WHERE NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
       WHERE n.nspname='whaleu_account_deletion' AND c.relname=required.name AND c.relkind='r')
   ) AS deletion_present,
+  (${historicalRealDeletionAbsenceSql}) AS real_deletion_absent,
   NOT EXISTS (SELECT 1 FROM application_objects WHERE name ~ '^_?registration_guard') AS registration_absent,
   NOT EXISTS (SELECT 1 FROM application_objects WHERE name ~ '^_?session_epoch_' OR name IN ('session_revocation_epoch','issued_revocation_epoch')) AS epoch_absent,
   NOT EXISTS (SELECT 1 FROM application_objects WHERE name ~ '^_?(text_source_|community_text_sources)' OR name='profile_moderation_definition_pre_text_source') AS source_absent,
@@ -236,6 +238,7 @@ export async function historicalDeletionBoundary(
         [
           'lifecycle_present',
           'deletion_present',
+          'real_deletion_absent',
           'registration_absent',
           'epoch_absent',
           'source_absent',

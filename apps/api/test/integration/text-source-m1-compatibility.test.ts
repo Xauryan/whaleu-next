@@ -62,9 +62,13 @@ import {
 } from '../support/community-scope-fixtures.js';
 import { setRuntimeVerification } from '../support/community-runtime-fixtures.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
+import {
+  historicalRealDeletionPartials,
+  historicalRealDeletionLookalikeSql,
+} from '../support/historical-real-deletion-partials.js';
 
 /** Compatibility, NOT current registration or production/TLS acceptance.
- * The real immutable 0001..0175 schema has no 0176/0177/0178/0179/0180 objects.
+ * The real immutable 0001..0175 schema has no 0176/0177/0178/0179/0180/0181 objects.
  * Only lifecycle-aware historical Identity and pre-Home PublicationService are
  * saved producers, with the pinned original source-helper module mapped only
  * at the two producer import edges. Review, receipts, source storage, native HTTP controllers,
@@ -579,6 +583,42 @@ test(
           );
           await db.transaction(inspectExactM1);
         });
+      for (const [label, statement] of historicalRealDeletionPartials)
+        await t.test(`exact175 rejects unledgered0181 ${label}`, async () => {
+          await assert.rejects(
+            db.transaction(async (tx) => {
+              await tx.query(statement);
+              await inspectExactM1(tx);
+            }),
+            /Partial\/future owners are not exact M1/,
+          );
+          await db.transaction(inspectExactM1);
+        });
+      await t.test(
+        'exact175 preserves similarly named namespace acceptance',
+        async () => {
+          const rollback = new Error(
+            'Rollback accepted lookalike test objects',
+          );
+          await assert.rejects(
+            db.transaction(async (tx) => {
+              await tx.query(historicalRealDeletionLookalikeSql);
+              await inspectExactM1(tx);
+              throw rollback;
+            }),
+            (error: unknown) => error === rollback,
+          );
+          await db.transaction(inspectExactM1);
+          assert.equal(
+            (
+              await db.query<{ namespace: string | null }>(
+                "SELECT to_regnamespace('whaleu_real_deletion_archive')::text namespace",
+              )
+            ).rows[0]?.namespace,
+            null,
+          );
+        },
+      );
       // There is still no formatting queue/head/result, Home or registration owner.
       await db.transaction(async (tx) => {
         await inspectExactM1(tx);

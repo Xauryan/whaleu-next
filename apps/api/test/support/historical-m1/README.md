@@ -180,3 +180,30 @@ ordinary relative relocation and still recovers every original f21 body byte,
 SHA-256 and Git blob. Explicit negative units reject water and Home versions
 7/8 and preserve an actual authorization denial. The exact175 retained schema
 fence still applies; this does not add a current writer-on175 deployment claim.
+
+## Preparation-only 0181 shared dependency successor
+
+The original `provenance.json`, source snapshots, complete 51-dependency inventory,
+and every recorded predecessor hash stay unchanged. Only the current config and
+error-map dependencies use explicit test-only restorers before comparison to
+those existing pins. The helpers accept one exact 0181 successor each, remove
+only a unique anchored addition, prove the full predecessor SHA-256 and Git
+blob, and replay the complete successor bytes. They are not generic hash
+allowlists or source evaluation, and they do not admit 0182 acceptance/cancel
+configuration.
+
+`historical-preparation-dependencies.test.ts` checks the accepted historical
+config projection, enrollment/source-manual/registration behavior and negative
+controls for changed defaults or guards; all 308 old error conditions and both
+specialized classes; and the three new sanitized error envelopes. The current
+preparation field defaults to disabled. All other 49 direct dependencies retain
+their ordinary exact byte checks. This successor is separate from the earlier
+recorded b531/f578 review and makes no new current writer-on-0175 claim.
+
+The exact175 catalog fence also rejects the exact new `whaleu_real_deletion`
+namespace, even empty or unledgered. Its older predicates and retained/final
+migration fences remain intact. Pure source tests prove this additive change
+restores the complete prior boundary source; PostgreSQL controls separately
+cover all eight partial0181 namespace/table/function/trigger identities,
+lookalike namespace acceptance and rollback restoration. Those PG controls must
+run on the composed candidate before claiming new-stack compatibility.

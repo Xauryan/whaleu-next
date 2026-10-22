@@ -1,3 +1,4 @@
+import { writeRealDeletionOpenApi } from './real-deletion-openapi-document.js';
 import { writeReadingCapabilityOpenApi } from './reading-capability-openapi-document.js';
 import { writeReadingContentOpenApi } from './reading-content-openapi-document.js';
 import { writeContentReferencesOpenApi } from './content-references-openapi-document.js';
@@ -382,3 +383,5 @@ await writeContentReferencesOpenApi(args[0] === '--check');
 await writeReadingContentOpenApi(args[0] === '--check');
 
 await writeReadingCapabilityOpenApi(args[0] === '--check');
+
+await writeRealDeletionOpenApi(args[0] === '--check');

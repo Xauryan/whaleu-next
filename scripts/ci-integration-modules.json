@@ -391,6 +391,7 @@
           "identity-session-epoch-deadlines.test.ts",
           "identity-session-epoch-final-fence.test.ts",
           "identity-session-epoch-media.test.ts",
+          "real-deletion-preparations.test.ts",
           "identity.test.ts",
           "messaging-cancel-recovery.test.ts",
           "messaging-concurrency.test.ts",

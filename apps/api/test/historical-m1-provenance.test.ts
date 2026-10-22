@@ -45,6 +45,9 @@ import type { CommunityAccessService } from '../src/community/community-access.s
 import type { CommunityRepository } from '../src/community/community.repository.js';
 import type { EffectiveContentEnvelopeDraft } from '../src/community/content-review/contracts.js';
 
+import { restoreAcceptedHistoricalConfig } from './support/historical-lifecycle-identity/config-compatibility.js';
+import { restoreAcceptedHistoricalErrors } from './support/historical-lifecycle-identity/application-error-compatibility.js';
+
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const hash = (bytes: string | Uint8Array) =>
   createHash('sha256').update(bytes).digest('hex');
@@ -166,8 +169,15 @@ test('M1 direct and current-reader seam dependency review is finite and byte-pin
   assert.equal(Object.keys(provenance.dependencies).length, 51);
   const changed = [];
   for (const [name, record] of Object.entries(provenance.dependencies)) {
+    const dependency = await readFile(path.join(root, name));
     assert.equal(
-      hash(await readFile(path.join(root, name))),
+      hash(
+        name === 'apps/api/src/config/config.ts'
+          ? restoreAcceptedHistoricalConfig(dependency)
+          : name === 'apps/api/src/http/application-error.ts'
+            ? restoreAcceptedHistoricalErrors(dependency)
+            : dependency,
+      ),
       record.sha256,
       `Review changed dependency ${name}`,
     );

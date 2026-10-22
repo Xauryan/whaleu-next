@@ -41,6 +41,9 @@ const schema = z.object({
     .string()
     .regex(/^[a-fA-F0-9]{64}$/)
     .optional(),
+  REAL_ACCOUNT_DELETION_ENTRY: z
+    .enum(['disabled', 'prepare_only'])
+    .default('disabled'),
   IDENTITY_REGISTRATION_GUARD: z
     .enum(['automatic', 'required'])
     .default('automatic'),

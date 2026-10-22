@@ -13,6 +13,39 @@ export type AccountRoutePolicy = readonly [
  * Check with node scripts/check-account-policy-routes.mjs. */
 export const accountRoutePolicies = [
   [
+    'RealDeletionController.prepare',
+    'POST',
+    '/v1/account-deletion/prepare',
+    'restricted_self_service',
+    'restricted',
+    'apps/api/src/account-deletion/real/module.ts',
+  ],
+  [
+    'RealDeletionController.status',
+    'POST',
+    '/v1/account-deletion/status',
+    'restricted_self_service',
+    'restricted',
+    'apps/api/src/account-deletion/real/module.ts',
+  ],
+  [
+    'RealDeletionController.accept',
+    'POST',
+    '/v1/account-deletion/accept',
+    'restricted_self_service',
+    'restricted',
+    'apps/api/src/account-deletion/real/module.ts',
+  ],
+  [
+    'RealDeletionController.cancel',
+    'POST',
+    '/v1/account-deletion/cancel',
+    'restricted_self_service',
+    'restricted',
+    'apps/api/src/account-deletion/real/module.ts',
+  ],
+
+  [
     'ReadingContentController.detail',
     'GET',
     '/v2/community/posts/:id',

@@ -10,9 +10,10 @@ source publication. Do not copy development database credentials into production
 
 1. Before running the current API binary, apply the complete normal migration
    chain with `npm run db:migrate` and inspect `npm run db:status`, through
-   `0180_identity_session_revocation_epoch.sql`. This includes source storage (0175),
-   durable formatting (0176), Home admission/publication (0177/0178) and registration
-   (0179) and closed session epochs (0180), as required by [Home activation](../apps/api/docs/HOME_PUBLICATION_ACTIVATION.md)
+   `0181_identity_real_deletion_preparations.sql`. This includes source storage (0175),
+   durable formatting (0176), Home admission/publication (0177/0178), registration
+   (0179), closed session epochs (0180) and non-destructive preparations (0181),
+   as required by [Home activation](../apps/api/docs/HOME_PUBLICATION_ACTIVATION.md)
    and the [registration guard](IDENTITY_REGISTRATION_GUARD.md). Do not stop at
    0175, apply files alone or use draft migrations. `source_manual` selects the
    review issuer, not a schema version. Installation creates no review policy,
@@ -30,6 +31,12 @@ source publication. Do not copy development database credentials into production
    CLI below runs TypeScript through the existing `tsx` dependency, so its secured
    operator installation must retain that dependency and source files. A
    production-only dependency install without `tsx` cannot run that CLI.
+
+The complete chain through 0181 is required even when preparation/status remain
+disabled. `REAL_ACCOUNT_DELETION_ENTRY=disabled` remains the default; source review
+does not opt into preparations. The separate `prepare_only` entry implements only
+non-destructive prepare/status, not acceptance, cancellation, epoch advancement
+or erasure. See [real deletion preparations](REAL_DELETION_PREPARATIONS.md).
 
 Supply these explicit values to both API and authorized reviewer process. The
 angle-bracket values below are placeholders, not usable fixture identities:
@@ -108,7 +115,7 @@ Do not generate another request ID to recover a lost response or bypass a confli
 
 API `/health/ready` checks database connectivity/version, existing runtime
 configuration and the exact complete deployed migration ledger (currently through
-0179). It does not attest live catalog integrity or current source policy; see
+0181). It does not attest live catalog integrity or current source policy; see
 [application readiness](APPLICATION_READINESS.md). Still inspect migration status
 before deployment. With the actual signed-in eligible account, check
 `GET /v1/community/text-source-capabilities` with `spaceId`, `category` and
@@ -179,7 +186,8 @@ rejected/stored receipts and no-side-effects checks. Synthetic identities/scopes
 and a shared disposable role limit that evidence. This earlier pass is
 prior-version evidence, not a current-binary production acceptance or permission
 to run the current binary on exact 0175. Current production API/PTY acceptance
-uses the complete chain through 0180.
+fixtures install the complete chain through 0181; this source requirement is not a new
+acceptance result.
 
 Separately, exact `reading-c27-deployable-cli-stage-v1` passed 6/6 reported tests
 for actual source/ordinary compiled worker entries, direct restricted LOGIN,
@@ -200,6 +208,8 @@ behavior is not current provider-contract or account-qualification acceptance.
 Never substitute an adapter result, external callback or fabricated decision for
 the explicit authorized human review above.
 
-The 0180 deployment requirement above is a source contract, not evidence that
-this newly composed stack passed PostgreSQL, TLS or cloud acceptance. Earlier
-recorded results remain tied to their original commits and schema stacks.
+The 0181 deployment requirement above is a source contract, not evidence that
+this new replay stack passed its type, unit, PostgreSQL, CLI, OpenAPI, TLS or cloud
+acceptance gates. Earlier recorded results, including 0180 qualification, remain
+tied to their original exact commits and schema stacks; this documentation update
+neither extends nor invalidates that evidence.

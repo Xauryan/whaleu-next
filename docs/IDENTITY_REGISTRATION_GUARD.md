@@ -29,13 +29,23 @@ with synthetic test identities, including the actual Identity repository entry.
   nonempty inactive storage reject new registration as `AUTH_NOT_CONFIGURED`.
   A currently blocked identity receives the existing safe `LOGIN_REJECTED` code;
   no deletion request, completion time or digest is disclosed to the client.
-- Apply the complete chain through 0180 before deploying this epoch-aware runtime.
+- Apply the complete chain through 0181 before deploying the current application
+  runtime, including the closed 0180 epoch foundation.
   The registration guard 0179 still requires the recorded full 0178
   predecessor and runs in the normal transactional, checksum-verified migration
   runner. The original registration slice was based on locally signed Home
   commit `2f9f77260119664af3a06c488963153fdc12dab3` and was tested with its
   complete migration sequence in a fresh local test database. That historical
-  result is not qualification of the new 0180 integration.
+  result remains attributed to that exact stack, not qualification of the new
+  0181 replay. Earlier 0180 qualification remains limited to its own exact input.
+
+The 0181 installation requirement applies even when preparations are disabled.
+`REAL_ACCOUNT_DELETION_ENTRY=disabled` remains the default; explicit `prepare_only`
+supports only non-destructive prepare/status. Neither that entry nor the migration
+creates acceptance, cancellation, epoch advancement, erasure or registration-ban
+issuance authority. The 0179 completion writer remains unavailable. See
+[real deletion preparations](REAL_DELETION_PREPARATIONS.md). No new-stack 0181
+qualification is claimed here.
 
 ## Schema qualification, retained fence and privileges
 

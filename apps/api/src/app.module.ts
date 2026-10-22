@@ -1,3 +1,4 @@
+import { RealDeletionModule } from './account-deletion/real/module.js';
 import { SocialUpdatesModule } from './notifications/social/module.js';
 import { PersonalTimetableModule } from './personal-timetable/module.js';
 import { ProfileDetailsModule } from './profile-details/module.js';
@@ -71,6 +72,7 @@ export class AppModule {
         ObservabilityModule,
         HealthModule,
         IdentityModule,
+        RealDeletionModule,
         CampusModule,
         CampusToolsModule,
         OfficialAccountOperationsModule,
