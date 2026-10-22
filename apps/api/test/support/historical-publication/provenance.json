@@ -1,0 +1,13 @@
+{
+  "source": "apps/api/src/community/publication.service.ts",
+  "commit": "c27f173d8057f349469f4f96855d31edb9cff7c5",
+  "blob": "669fee5a87ede58b6f794b0d8b05bb7ec23b09c8",
+  "sourceSha256": "c3aa35f765432b8e7601926de5f286fc5e28bc41d556b4fe5fb1900e5843f1f6",
+  "snapshot": "apps/api/test/support/historical-publication/publication.service.ts",
+  "adaptation": "Relative import specifiers relocated, including the inline import type. One declared discussion-target edge adds checked c27 category/version narrowing after unchanged current authorization. The complete original source body is restored by reversing these import mappings; no contract or Review owner is replaced.",
+  "importAdapter": {
+    "path": "apps/api/test/support/historical-publication/discussion-publication-target.ts",
+    "originalDependency": "apps/api/src/community/discussion/publication-target.ts",
+    "sha256": "1dab96c4c3818048b2372e0898a9fdfefe62a6f27a550f2b69a7386afb2407ad"
+  }
+}

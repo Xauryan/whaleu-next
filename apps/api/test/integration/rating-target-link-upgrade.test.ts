@@ -312,9 +312,11 @@ test(
         Object.hasOwn(row, 'text_source_transition_transaction'),
         false,
       );
-      // 0175 adds only this nullable cohort observation to these whole rows.
+      assert.equal(Object.hasOwn(row, 'home_transition_transaction'), false);
+      // 0175 and 0178 each add only a nullable cohort observation to these rows.
       // Preserve every predecessor field, including all journal/review bytes.
       row['text_source_transition_transaction'] = null;
+      row['home_transition_transaction'] = null;
     }
     await runMigrations(
       f.pool,
@@ -330,10 +332,18 @@ test(
            FROM information_schema.columns
            WHERE table_schema='whaleu_community'
              AND table_name='text_review_requests'
-             AND column_name='text_source_transition_transaction'`,
+             AND column_name IN ('text_source_transition_transaction','home_transition_transaction')
+           ORDER BY column_name`,
         )
       ).rows,
       [
+        {
+          column_name: 'home_transition_transaction',
+          udt_schema: 'pg_catalog',
+          udt_name: 'xid8',
+          is_nullable: 'YES',
+          column_default: null,
+        },
         {
           column_name: 'text_source_transition_transaction',
           udt_schema: 'pg_catalog',

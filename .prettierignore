@@ -21,3 +21,6 @@ apps/api/test/support/historical-content-definition/content-definition.repositor
 apps/api/test/support/historical-m1/identity.repository.ts
 apps/api/test/support/historical-m1/publication.service.ts
 apps/api/test/support/historical-m1/text-source-publication.ts
+
+# Exact c27 publication producer; provenance test reverses import relocation.
+apps/api/test/support/historical-publication/publication.service.ts

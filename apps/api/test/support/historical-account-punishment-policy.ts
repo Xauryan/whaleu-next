@@ -15,6 +15,10 @@ import {
   configureHistoricalContentDefinitions,
   historicalContentDefinitionPrefixes,
 } from './historical-content-definition/configure.js';
+import {
+  configureHistoricalPublication,
+  historicalPublicationPrefixes,
+} from './historical-publication/configure.js';
 import { configureHistoricalIdentity } from './historical-identity/configure.js';
 import { CommunityDistributionService } from '../../src/community/related-sync/service.js';
 import { ContentReferenceAllocation } from '../../src/community/content-references/allocation.js';
@@ -121,6 +125,8 @@ export async function configureHistoricalAccountPolicy(
     `Unregistered historical prefix ${prefix}`,
   );
   await configureHistoricalIdentity(builder, config, prefix);
+  if (historicalPublicationPrefixes.includes(prefix))
+    await configureHistoricalPublication(builder, config, prefix);
   if (prefix < 171)
     builder
       .overrideProvider(ContentReferenceAllocation)

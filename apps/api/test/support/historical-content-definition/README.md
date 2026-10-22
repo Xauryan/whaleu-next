@@ -82,11 +82,22 @@ restoration of the current source-aware reader after restart.
 
 The two publication-upgrade tests keep their genuine commands, original request
 keys, hashes, approved envelopes, receipts and post-upgrade replay assertions.
-Their path is `PublicationService.bind` to the existing publication gate and
-then its injected definition reader. `insertTextSource` returns without SQL for
-an absent source descriptor and a v1–v5 approval. No publication service,
-approval owner or count reader is replaced. Both tests additionally assert
-historical DI/source-schema absence and current DI after restart.
+Their path remains `PublicationService.bind` to the existing publication gate
+and then its injected definition reader. Only their exact **137** and **144**
+historical phases additionally install the complete, hash-pinned c27 publication
+producer described in `../historical-publication/README.md`, because the current
+producer requires Home objects which those schemas intentionally do not contain.
+Its only source changes are declared import mappings, including one checked
+discussion-target adapter that runs current authorization before rejecting
+nonlegacy categories and post-c27 envelope versions. Current Review, Safety,
+Media, authorization and publication-journal dependencies remain in use. No approval
+owner or count reader is replaced. The historical transaction wrapper retains
+exact-prefix and recognized partial-Home fences through the real pre-COMMIT
+proof phase without rewriting results or receipts. Other historical prefixes,
+including **132** and **174**, do not install this producer or transaction wrapper.
+Both upgrade tests retain historical DI/source-schema absence and current DI
+assertions after restart; the unbounded current restart restores the current
+publication producer and unwrapped database owner as well.
 
 The newly authored 0174 fixture uses the same guarded reader through the actual
 Nest repository token, asserts its identity before and after application init,
