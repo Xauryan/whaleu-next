@@ -55,9 +55,14 @@ test(
             "UPDATE whaleu_post_hotness.scores SET certificate_hash=repeat('0',64) WHERE post_id=ANY($1::uuid[])",
             [rows.slice(0, 129)],
           );
-          const seen: { sql: string; rows: number }[] = [];
+          const seen: { sql: string; rows: number; fieldNames: string[] }[] =
+            [];
           f.observer.setHook(async (event) => {
-            seen.push({ sql: event.sql, rows: event.rows });
+            seen.push({
+              sql: event.sql,
+              rows: event.rows,
+              fieldNames: event.fieldNames,
+            });
           });
           const before = await f.domainSnapshot();
           const first = hotOk(await w.hot());
@@ -81,10 +86,13 @@ test(
           assert.ok(batch);
           assert.equal(batch.rows, 129);
           assert.ok(!/SELECT\s+p\.\*/i.test(batch.sql));
-          assert.ok(
-            !/\bp\.(text|account_id)\b/.test(batch.sql),
+          assert.deepEqual(
+            batch.fieldNames,
+            ['id', 'spaceId', 'at', 'score'],
             'Structural lookahead projects no content or actor',
           );
+          assert.match(batch.sql, /home_disposition\.post_id=p\.id/);
+          assert.match(batch.sql, /p\.account_id IS DISTINCT FROM \$\d+::uuid/);
           const second = hotOk(await w.hot({ cursor: first.nextCursor }));
           assert.deepEqual(hotIds(second), [rows[129]]);
           assert.equal(second.continuation, 'end');

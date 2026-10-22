@@ -164,6 +164,8 @@ test(
               'whaleu_community.content_approval_policies',
               'whaleu_community.formation_members',
               'whaleu_community.formations',
+              'whaleu_community.home_discussion_parent_bindings',
+              'whaleu_community.home_post_dispositions',
               'whaleu_community.poll_options',
               'whaleu_community.polls',
               'whaleu_community.post_category_child_bindings',
@@ -237,9 +239,13 @@ test(
               await pool.query(
                 `INSERT INTO ${relation} SELECT * FROM ${relation} WHERE false`,
               );
-            } else if (relation === 'whaleu_community.community_text_sources') {
-              // 0175 sources are statement-immutable, even with no matching
-              // rows. A rejected write must roll the earlier epoch back.
+            } else if (
+              relation === 'whaleu_community.community_text_sources' ||
+              relation === 'whaleu_community.home_discussion_parent_bindings' ||
+              relation === 'whaleu_community.home_post_dispositions'
+            ) {
+              // 0175 text sources and 0178 Home evidence are statement-immutable,
+              // even with no matching rows. A rejected write rolls the epoch back.
               await assert.rejects(
                 pool.query(update),
                 (error: unknown) =>

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-import type { Pool, PoolClient } from 'pg';
+import type { FieldDef, Pool, PoolClient } from 'pg';
 import type { INestApplication } from '@nestjs/common';
 import { DatabaseService } from '../../src/database/database.js';
 import type { TransactionOptions } from '../../src/database/database.js';
@@ -222,6 +222,8 @@ function exactBudgetObservation(
 export interface ExactQueryObservation {
   sql: string;
   values: unknown[];
+  /** Returned column names from pg metadata, including empty result sets. */
+  fieldNames: string[];
   rows: number;
   bytes: number;
   durationMs: number;
@@ -307,6 +309,9 @@ export function observeExactQueries(app: INestApplication) {
           const rows = Array.isArray(result)
             ? result.flatMap((part) => part.rows)
             : result.rows;
+          const fieldNames = (
+            Array.isArray(result) ? result : [result]
+          ).flatMap((part) => part.fields.map((field: FieldDef) => field.name));
           const bytes = Buffer.byteLength(JSON.stringify(rows));
           const budget = exactBudgetObservation(sql, rows);
           if (measurement) {
@@ -358,6 +363,7 @@ export function observeExactQueries(app: INestApplication) {
               {
                 sql,
                 values: values ?? [],
+                fieldNames,
                 rows: rows.length,
                 bytes,
                 durationMs: performance.now() - start,
