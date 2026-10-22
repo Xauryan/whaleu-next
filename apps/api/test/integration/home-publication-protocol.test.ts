@@ -96,14 +96,35 @@ test(
         0,
       );
       owns = true;
-      const migrations = (
+      const currentMigrations = (
         await readMigrations(
           fileURLToPath(new URL('../../migrations', import.meta.url)),
         )
-      ).filter((m) => Number(m.name.slice(0, 4)) <= 178);
+      ).filter((m) => Number(m.name.slice(0, 4)) <= 179);
+      assert.equal(
+        currentMigrations.at(-1)?.name,
+        '0179_identity_registration_guard.sql',
+      );
+      const migrations = currentMigrations.filter(
+        (m) => Number(m.name.slice(0, 4)) <= 178,
+      );
+      const assertInstalledPrefix = async (through: number) => {
+        assert.deepEqual(
+          (
+            await pool.query<{ name: string }>(
+              'SELECT name FROM whaleu_meta.schema_migrations ORDER BY name',
+            )
+          ).rows.map(({ name }) => name),
+          currentMigrations
+            .filter((m) => Number(m.name.slice(0, 4)) <= through)
+            .map(({ name }) => name),
+        );
+      };
       const extension = migrations.at(-1)!;
       assert.equal(extension.name, '0178_home_publication_protocol.sql');
+      assert.equal(migrations.at(-2)?.name, '0177_home_policy_admission.sql');
       await runMigrations(pool, migrations.slice(0, -1), { mode: 'up' });
+      await assertInstalledPrefix(177);
       const frozen = (
         await pool.query<{
           name: string;
@@ -377,6 +398,10 @@ test(
           );
         },
       );
+      // Finish the exact 0177 -> 0178 SQL proof before current Identity starts.
+      await assertInstalledPrefix(178);
+      await runMigrations(pool, currentMigrations, { mode: 'up' });
+      await assertInstalledPrefix(179);
       const scope = await seedCommunityScope(pool);
       const operatorName = `manual:${hostname()}:${userInfo().username}`;
       const config = loadConfig({

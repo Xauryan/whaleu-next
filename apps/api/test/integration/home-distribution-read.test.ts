@@ -132,12 +132,25 @@ test(
         await readMigrations(
           fileURLToPath(new URL('../../migrations', import.meta.url)),
         )
-      ).filter((m) => Number(m.name.slice(0, 4)) <= 178);
+      ).filter((m) => Number(m.name.slice(0, 4)) <= 179);
       assert.equal(
-        migrations.at(-1)?.name,
+        migrations.at(-2)?.name,
         '0178_home_publication_protocol.sql',
       );
+      assert.equal(
+        migrations.at(-1)?.name,
+        '0179_identity_registration_guard.sql',
+      );
+      // Mixed V6/V7 publication runs on the current Identity schema.
       await runMigrations(pool, migrations, { mode: 'up' });
+      assert.deepEqual(
+        (
+          await pool.query<{ name: string }>(
+            'SELECT name FROM whaleu_meta.schema_migrations ORDER BY name',
+          )
+        ).rows.map(({ name }) => name),
+        migrations.map(({ name }) => name),
+      );
       const scope = await seedCommunityScope(pool);
       const operatorName = `manual:${hostname()}:${userInfo().username}`;
       const config = loadConfig({
