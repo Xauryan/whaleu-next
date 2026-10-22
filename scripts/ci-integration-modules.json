@@ -152,6 +152,7 @@
           "ratings-scoped-random-scale.test.ts",
           "ratings-scoped-reverse-boundaries.test.ts",
           "ratings-scoped-upgrade.test.ts",
+          "ratings-scoped-ordinal-pagination.test.ts",
           "ratings-score-bridge-races.test.ts"
         ]
       ]

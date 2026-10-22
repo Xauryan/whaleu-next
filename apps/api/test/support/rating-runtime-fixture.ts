@@ -141,6 +141,8 @@ export async function ratingRuntimeFixture(
       ordinalOffset?: number;
       namePrefix?: string;
       categoryIds?: readonly string[];
+      /** Deterministic synthetic business IDs; all source/Review guards still run. */
+      targetIds?: readonly ReturnType<typeof randomUUID>[];
       sharedTargets?: readonly { id: string; categoryId: string }[];
       validUntil?: Date;
       hidden?: boolean;
@@ -148,6 +150,10 @@ export async function ratingRuntimeFixture(
     } = {},
   ) =>
     withCommunityScopeWriter(f.pool, async (tx) => {
+      if (options.targetIds) {
+        assert.equal(options.targetIds.length, options.count ?? 1);
+        assert.equal(new Set(options.targetIds).size, options.targetIds.length);
+      }
       if (options.distinctTargetLeaves || options.rootSystemKey)
         assert.equal(
           (
@@ -197,7 +203,7 @@ export async function ratingRuntimeFixture(
         categoryRevision = categoryRevisions.at(-1)!,
         targets = [];
       for (let i = 0; i < (options.count ?? 1); i++) {
-        const id = randomUUID(),
+        const id = options.targetIds?.[i] ?? randomUUID(),
           revision = randomUUID(),
           source = randomUUID(),
           name = `${options.namePrefix ?? 'Synthetic'} target ${i + 1}`,

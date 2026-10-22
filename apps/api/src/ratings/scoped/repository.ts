@@ -517,7 +517,7 @@ export class RatingScopedRepository {
       const rows = (
         await tx.query<{ id: string; ordinal: string }>(
           `SELECT category_id id,ordinal::text FROM whaleu_ratings.scoped_categories
-    WHERE catalog_id=$1 AND parent_id IS NOT DISTINCT FROM $2::uuid AND ($3::bigint IS NULL OR ordinal>$3::bigint) ORDER BY ordinal LIMIT 128`,
+    WHERE catalog_id=$1 AND parent_id IS NOT DISTINCT FROM $2::uuid AND ($3::bigint IS NULL OR ordinal>$3::bigint) ORDER BY scoped_categories.ordinal LIMIT 128`,
           [scope.catalog.id, parentId, cursor],
         )
       ).rows;
@@ -1040,7 +1040,7 @@ export class RatingScopedRepository {
     return (
       await tx.query<{ id: string; ordinal: string }>(
         `SELECT target_id id,ordinal::text FROM whaleu_ratings.scoped_target_memberships WHERE catalog_id=$1 AND category_id=$2
-   AND ($3::bigint IS NULL OR ordinal>$3::bigint) ORDER BY ordinal LIMIT $4`,
+   AND ($3::bigint IS NULL OR ordinal>$3::bigint) ORDER BY scoped_target_memberships.ordinal LIMIT $4`,
         [scope.catalog.id, categoryId, after, limit + 1],
       )
     ).rows;
