@@ -68,13 +68,18 @@ export class HotRepository {
         )
       : 'p.space_id=$1';
     const home = homeDistributionCandidateSql('p', viewer, 'hot', parameters);
-    // Preserve indexed score candidates. Only an exact current-category head
-    // lookup is added for the independent water exclusion, never a full UNION.
+    // Keep scope and cheap eligibility outside CASE for natural join/index
+    // planning, and repeat them inside so unrelated/ineligible posts cannot
+    // evaluate the water head. This does not bound score/post scan work.
+    const water = `CASE WHEN $1::uuid IS NOT NULL AND (${eligibility})
+      AND p.category=ANY($2::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
+      AND p.published_at<=$3::timestamptz AND ($4::integer IS NULL OR p.published_at>=$3::timestamptz-make_interval(hours=>$4::integer*24))
+      THEN ${hotCurrentWaterExcludedSql('p')} ELSE false END`;
     return (
       await tx.query<HotCandidate>(
         `SELECT p.id,p.space_id AS "spaceId",${published} AS at,hs.score::text
       FROM whaleu_post_hotness.scores hs JOIN whaleu_community.posts p ON p.id=hs.post_id ${HOT_CURRENT_JOINS}
-      WHERE $1::uuid IS NOT NULL AND ${eligibility} AND ${home} AND ${hotCurrentWaterExcludedSql('p')} AND p.category=ANY($2::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
+      WHERE $1::uuid IS NOT NULL AND ${eligibility} AND ${home} AND ${water} AND p.category=ANY($2::text[]) AND p.deleted_at IS NULL AND p.visibility='approved'
       AND p.published_at<=$3::timestamptz AND ($4::integer IS NULL OR p.published_at>=$3::timestamptz-make_interval(hours=>$4::integer*24))
       AND (p.category<>'trading' OR EXISTS(SELECT 1 FROM whaleu_community.trading_listings t WHERE t.post_id=p.id AND t.urgency='normal' AND t.resolution='open'))
       AND (${HOT_CURRENT_HINT}) AND ($5::numeric IS NULL OR (hs.score,p.id)<($5::numeric,$6::uuid))

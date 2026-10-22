@@ -2127,7 +2127,11 @@ test(
             label: string,
             sql: string,
             values: unknown[],
-            options: { scopeIndex?: boolean; noHeads?: boolean } = {},
+            options: {
+              scopeIndex?: boolean;
+              noHeads?: boolean;
+              expectedFailures?: string[];
+            } = {},
           ) => {
             const result = await f.pool.query<{ 'QUERY PLAN': PlanDocument[] }>(
               `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`,
@@ -2153,7 +2157,8 @@ test(
                 sum + node['Actual Loops'] * Math.max(1, examined(node)),
               0,
             );
-            labels.push(label);
+            const failures = options.expectedFailures ?? planFailures;
+            if (options.expectedFailures === undefined) labels.push(label);
             planTest.diagnostic(
               JSON.stringify({
                 stage,
@@ -2165,6 +2170,7 @@ test(
                 scopedHeads,
                 headWorkLimit,
                 label,
+                negativeControl: options.expectedFailures !== undefined,
                 planningMs: plan['Planning Time'],
                 executionMs: plan['Execution Time'],
                 headWork,
@@ -2186,12 +2192,12 @@ test(
             );
             if (options.noHeads) {
               if (heads.length !== 0)
-                planFailures.push(
+                failures.push(
                   `${label}: category-unfiltered hot structural ordering must not expand category heads`,
                 );
             } else {
               if (!heads.some((node) => node['Actual Loops'] > 0))
-                planFailures.push(`${label}: expected genuine moved-head work`);
+                failures.push(`${label}: expected genuine moved-head work`);
               if (stage === 'large') {
                 if (
                   options.scopeIndex &&
@@ -2201,11 +2207,11 @@ test(
                       node['Actual Loops'] > 0,
                   )
                 )
-                  planFailures.push(
+                  failures.push(
                     `${label}: larger skew must demonstrate the natural scope/category/seek index`,
                   );
                 if (headWork > headWorkLimit)
-                  planFailures.push(
+                  failures.push(
                     `${label}: head work ${headWork} exceeds derived scoped allowance ${headWorkLimit}`,
                   );
                 if (
@@ -2214,7 +2220,7 @@ test(
                       node['Actual Loops'] > 0 && examined(node) > scopedHeads,
                   )
                 )
-                  planFailures.push(
+                  failures.push(
                     `${label}: a head scan examined unrelated-region heads beyond the selected-scope population`,
                   );
               }
@@ -2362,7 +2368,13 @@ test(
                   row.sql.includes('FROM whaleu_post_hotness.scores hs'),
               ),
               cap: 129,
-              noHeads: true,
+              // Home integration 2f9f772 added mandatory current-water exclusion
+              // independently of author-only disposition. Its admitted mapping
+              // pins source 4494e36b9451e3a92874ccf85f574a36e28e3d48 and water=9.
+              // Real V7 water stays covered by home-distribution-read; these are
+              // genuine pets/scenery moves, never fabricated water transitions.
+              // Require head work under the SAME scoped limits as other readers.
+              noHeads: false,
             },
           ];
           for (const { label, query, cap, noHeads } of captured) {
@@ -2380,6 +2392,52 @@ test(
             });
             if (!(root['Actual Rows'] > 0 && root['Actual Rows'] <= cap))
               planFailures.push(`${label}: actual candidate output is bounded`);
+            if (stage === 'large' && label === 'actual-hot-candidates') {
+              // Execute a negative control of the exact captured owner SQL. An
+              // uncorrelated aggregate still returns one scalar but scans the
+              // unrelated heads. Both existing work validators must reject it;
+              // its expected findings never enter the ordinary failure list.
+              const selection = 'SELECT home_category.current_category',
+                correlation = 'WHERE home_category.post_id=p.id';
+              assert.equal(query.sql.split(selection).length, 2);
+              assert.equal(query.sql.split(correlation).length, 2);
+              const mutant = query.sql
+                .replace(
+                  selection,
+                  "SELECT string_agg(home_category.current_category, ',')",
+                )
+                .replace(
+                  correlation,
+                  'WHERE home_category.post_id IS NOT NULL',
+                );
+              const expectedFailures: string[] = [];
+              const mutantRoot = await explain(
+                'actual-hot-uncorrelated-head-mutant',
+                mutant,
+                query.values,
+                { expectedFailures },
+              );
+              assert.equal(mutantRoot['Actual Rows'], root['Actual Rows']);
+              assert.ok(
+                expectedFailures.some((failure) =>
+                  failure.includes('exceeds derived scoped allowance'),
+                ),
+                'An executed broad-head mutant must exceed the unchanged headWorkLimit',
+              );
+              assert.ok(
+                expectedFailures.some((failure) =>
+                  failure.includes('examined unrelated-region heads'),
+                ),
+                'An executed broad-head mutant must exceed the unchanged per-scan scopedHeads bound',
+              );
+              planTest.diagnostic(
+                JSON.stringify({
+                  stage,
+                  label: 'actual-hot-uncorrelated-head-mutant-rejected',
+                  expectedFailures,
+                }),
+              );
+            }
           }
           // Capture the real bounded live projection without exporting or copying
           // production SQL. The proxy only records and forwards ordinary queries.
