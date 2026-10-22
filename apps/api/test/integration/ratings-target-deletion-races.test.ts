@@ -5,6 +5,7 @@ import request from 'supertest';
 import { ratingDiscussionFixture } from '../support/rating-discussion-fixture.js';
 import { withCommunityScopeWriter } from '../support/community-scope-fixtures.js';
 import { observeDirectoryQueries } from '../support/directory-query-observer.js';
+import { finalProofQueryObserver } from '../support/final-proof-query-observer.js';
 import { RatingsRepository } from '../../src/ratings/repository.js';
 import { RatingTargetOwnerDeletionRepository } from '../../src/ratings/management/target-deletion/repository.js';
 import { RatingCompletePoolRepository } from '../../src/ratings/random/complete-pool.repository.js';
@@ -248,11 +249,9 @@ test(
             [actor.sessionId],
           );
           const retryObserver = observeDirectoryQueries(f.app);
-          const finalStatements: string[] = [];
-          let finalized = false;
-          retryObserver.setHook(async ({ sql }) => {
-            if (sql === 'SET CONSTRAINTS ALL IMMEDIATE') finalized = true;
-            else if (finalized) finalStatements.push(sql);
+          const finalProof = finalProofQueryObserver();
+          retryObserver.setHook(async (event) => {
+            finalProof.record(event);
           });
           try {
             const retry = await remove();
@@ -264,19 +263,14 @@ test(
             );
             assert.notEqual(retry.body.revision, target.revision);
             assert.ok(
-              finalStatements.some(
-                (sql) =>
+              finalProof.statements.some(
+                ({ sql }) =>
                   sql.includes('JOIN whaleu_ratings.targets t') &&
                   sql.includes('target_owner_tombstones'),
               ),
               'A real bounded after-state proof ran without retaining stale before state',
             );
-            assert.ok(
-              finalStatements.every(
-                (sql) => !/^\s*(INSERT|UPDATE|DELETE)\b/i.test(sql),
-              ),
-              'Owner final proof remains read-only',
-            );
+            finalProof.assertReadOnly();
             assert.equal(
               (
                 await f.pool.query(

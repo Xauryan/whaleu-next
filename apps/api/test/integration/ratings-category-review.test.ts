@@ -16,6 +16,7 @@ import {
   withCommunityScopeWriter,
 } from '../support/community-scope-fixtures.js';
 import { observeDirectoryQueries } from '../support/directory-query-observer.js';
+import { finalizationAfterStatement } from '../support/final-proof-query-observer.js';
 import { canonicalRatingEnvelope } from '../../src/community/content-review/rating-contracts.js';
 import { canonicalRatingCategoryBase } from '../../src/community/content-review/rating-category-contracts.js';
 import { RatingCategoryContentReviewFacade } from '../../src/community/content-review/rating-category-content-review.facade.js';
@@ -514,10 +515,17 @@ test(
         } else if (mode === 'revoked_ancestor') {
           await setRatingReviewState(f.pool, approval.decisionId, 'revoked');
         } else {
-          observer.setHook(async ({ sql }, tx) => {
-            if (sql.startsWith('UPDATE whaleu_ratings.target_definition_heads'))
+          const ownerFinalization = finalizationAfterStatement(
+            'UPDATE whaleu_ratings.target_definition_heads',
+          );
+          observer.setHook(async (event, tx) => {
+            if (
+              event.sql.startsWith(
+                'UPDATE whaleu_ratings.target_definition_heads',
+              )
+            )
               tentative = true;
-            if (!waited && sql === 'SET CONSTRAINTS ALL IMMEDIATE') {
+            if (!waited && ownerFinalization.record(event)) {
               assert.ok(
                 tentative,
                 'The real new target definition was tentative before finalization',
@@ -537,7 +545,10 @@ test(
         );
         observer.restore();
         if (mode === 'category_deadline') {
-          assert.ok(waited);
+          assert.ok(
+            tentative && waited,
+            `The tentative target edit must reach its own deferred boundary: ${JSON.stringify(response.body)}`,
+          );
           assert.equal(response.status, 503, JSON.stringify(response.body));
           assert.equal(
             (
