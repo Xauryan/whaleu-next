@@ -6,7 +6,11 @@ The integrated implementation starts from published commit
 `c27f173d8057f349469f4f96855d31edb9cff7c5`. Immutable source migration
 `apps/api/migrations/0175_community_text_sources.sql` and formal durable-formatting
 migration `apps/api/migrations/0176_durable_reading_formatting.sql` are in the
-normal checksum/prefix-verified migration sequence. Published 0001–0174 bytes
+normal checksum/prefix-verified migration sequence. The current binary requires
+the complete chain through `0179_identity_registration_guard.sql`, including
+Home 0177/0178, before startup, consistent with
+[Home activation](../apps/api/docs/HOME_PUBLICATION_ACTIVATION.md) and the
+[registration guard](IDENTITY_REGISTRATION_GUARD.md). Published 0001–0174 bytes
 remain unchanged. M2 is no longer an unnumbered deployment draft, and its CLI is
 not prohibited in production: explicit mode, full schema readiness and a bounded
 managed-runtime role are required. No production deployment has occurred.
@@ -20,8 +24,11 @@ Implemented product scope:
   source independently of optional formatting. Mandatory source/authorization
   failure never becomes a legacy or source fallback.
 - Explicit human `source_manual` review is production-capable with configured
-  scope, operator and accepted source policy. It does not require M2. Both review
-  and formatting default to disabled deliberately; migration/startup is not opt-in.
+  scope, operator and accepted source policy. It selects the issuer, not a schema
+  version. Both review and formatting processing default to disabled deliberately;
+  migration/startup is not opt-in. The current deployment nevertheless installs
+  M2 in the complete chain, and fresh eligible publications may create ordinary
+  pending jobs without a running formatter.
 - Optional M2 is deterministic `plain-cjk-slices-v2`, not AI/provider output.
   Fresh reviewed plain+auto sources enroll at 300 Unicode scalars for posts or
   200 for comments/replies. Markdown, opt-out and short sources do not enroll;
@@ -36,6 +43,18 @@ Native routing and privacy are in
 
 These are local validation results, not cloud CI, production or device acceptance.
 Snapshot names identify frozen evidence bundles, not deployment environments.
+The results below belong to those prior exact inputs, not new acceptance of the
+current binary. Current production API/PTY and worker fixtures install the full
+chain through 0179. The Home worker fixture first captures the six pre-Home bodies
+at the explicit through-0177 prefix, then upgrades the full chain before creating
+runtime actors. It retains the predecessor and original 0176 catalog checks.
+Historical exact-0175 producer/current six-reader compatibility is separate in
+`apps/api/test/integration/text-source-m1-compatibility.test.ts`; it is not a current
+production deployment on a truncated schema.
+
+API `/health/ready` only checks PostgreSQL connectivity and supported version
+(`DatabaseService.ready()` in `apps/api/src/database/database.ts`). It cannot confirm the
+minimum migration chain, schema qualification or policy readiness.
 
 - `reading-c27-deployable-cli-stage-v1`: 5,729 source files; source-manifest SHA-256
   `22d480aa5e9ae2ed989585629d1ddacfd1379240910ec430bf248bec796d26e7`.
@@ -69,9 +88,9 @@ Snapshot names identify frozen evidence bundles, not deployment environments.
   `6529db9a4a1fe1f38041fd8b0cad22e1a64f3ea28d03028d4ce985c35c9bfd0a`.
   Its genuine `source_manual` production-mode API/HTTP and private-TTY operator
   whole-file test passed 1/1 under verified TLS/C, with normal 0175 installed and
-  M2 absent. The source-review runtime/operator leaves remain unchanged in the
-  current tree; this is exact-input predecessor evidence, not a rerun of the
-  combined 0176/worker deployment or a least-privilege reviewer-role test.
+  M2 absent. This is prior-version exact-input evidence, not a current-binary
+  production acceptance, permission to deploy current runtime on exact 0175,
+  or a least-privilege reviewer-role test.
 
 ## Remaining acceptance boundaries
 

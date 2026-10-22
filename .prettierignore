@@ -16,3 +16,8 @@ apps/api/test/support/historical-identity/repository.ts
 
 # Byte-preserved c27 definition reader; source hash is checked after import relocation.
 apps/api/test/support/historical-content-definition/content-definition.repository.ts
+
+# Exact historical M1 producer snapshots; provenance tests reverse import relocation.
+apps/api/test/support/historical-m1/identity.repository.ts
+apps/api/test/support/historical-m1/publication.service.ts
+apps/api/test/support/historical-m1/text-source-publication.ts

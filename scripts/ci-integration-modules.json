@@ -39,6 +39,7 @@
           "home-policy-admission.test.ts",
           "home-publication-protocol.test.ts",
           "community-text-source.test.ts",
+          "text-source-m1-compatibility.test.ts",
           "reading-formatting.test.ts",
           "reading-content-native-roundtrip.test.ts",
           "community-text-review-native-roundtrip.test.ts",

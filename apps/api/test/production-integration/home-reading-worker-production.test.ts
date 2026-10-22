@@ -234,14 +234,21 @@ test(
         0,
       );
       owned = true;
-      const migrations = (
-        await readMigrations(join(apiRoot, 'migrations'))
-      ).filter((m) => Number(m.name.slice(0, 4)) <= 178);
+      const migrations = await readMigrations(join(apiRoot, 'migrations'));
       assert.equal(
         migrations.at(-1)?.name,
-        '0178_home_publication_protocol.sql',
+        '0179_identity_registration_guard.sql',
       );
-      await runMigrations(pool, migrations.slice(0, -1), { mode: 'up' });
+      // Capture the exact pre-Home bodies before 0178, independently of the
+      // current migration tail. The production runtime below needs the full chain.
+      const preHomeMigrations = migrations.filter(
+        (migration) => Number(migration.name.slice(0, 4)) <= 177,
+      );
+      assert.equal(
+        preHomeMigrations.at(-1)?.name,
+        '0177_home_policy_admission.sql',
+      );
+      await runMigrations(pool, preHomeMigrations, { mode: 'up' });
       const retainedNames = [
         'profile_moderation_definition',
         'text_source_definition',

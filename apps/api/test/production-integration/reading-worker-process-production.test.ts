@@ -157,7 +157,7 @@ test(
       );
       assert.equal(
         migrations.at(-1)?.name,
-        '0178_home_publication_protocol.sql',
+        '0179_identity_registration_guard.sql',
       );
       await runMigrations(pool, migrations, { mode: 'up' });
       const scope = await seedCommunityScope(pool);

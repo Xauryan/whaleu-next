@@ -55,10 +55,13 @@ import {
  * its CA via NODE_EXTRA_CA_CERTS when starting Node. Never weaken TLS for this test.
  * Identity/campus fixtures are synthetic; all review decisions use the real
  * CLI subprocess in a real util-linux PTY with the actual OS identity. No direct
- * decision insertion or simulated TTY. Synthetic content stays inside captured output.
+ * decision insertion or simulated TTY. This current-binary lane installs the complete
+ * migration chain, with formatter processing disabled, not absent M2 storage.
+ * Exact0175 compatibility is tested separately with historical producers.
+ * Synthetic content stays inside captured output.
  * This is not real-provider or physical-device acceptance. */
 test(
-  'production source_manual: normal M1 migration, real manual issuance, source-only HTTP roundtrip without M2',
+  'production source_manual: current-chain real manual issuance and source HTTP without formatter processing',
   { timeout: 600000 },
   async () => {
     const database = process.env['TEST_DATABASE_URL'];
@@ -71,6 +74,7 @@ test(
       DATABASE_URL: database,
       PG_SSL_MODE: 'verify-full',
       LOG_LEVEL: 'silent',
+      COMMUNITY_READING_FORMATTING_PROCESSING: 'disabled',
       COMMUNITY_UPDATES_PROCESSING: 'disabled',
       EXPERIENCE_PROCESSING: 'disabled',
       VIEW_REPORTING_RETENTION_PROCESSING: 'disabled',
@@ -115,21 +119,54 @@ test(
         0,
       );
       owns = true;
-      const migrations = (
-        await readMigrations(
-          fileURLToPath(new URL('../../migrations', import.meta.url)),
-        )
-      ).filter((m) => m.name <= '0175_community_text_sources.sql');
-      assert.equal(migrations.at(-1)?.name, '0175_community_text_sources.sql');
-      await runMigrations(pool, migrations, { mode: 'up' });
-      assert.equal(
-        (
-          await pool.query(
-            "SELECT to_regclass('whaleu_community.reading_format_heads') absent",
-          )
-        ).rows[0]!.absent,
-        null,
+      const migrations = await readMigrations(
+        fileURLToPath(new URL('../../migrations', import.meta.url)),
       );
+      assert.equal(
+        migrations.at(-1)?.name,
+        '0179_identity_registration_guard.sql',
+      );
+      assert.deepEqual(
+        migrations
+          .filter((m) => Number(m.name.slice(0, 4)) >= 175)
+          .map((m) => m.name),
+        [
+          '0175_community_text_sources.sql',
+          '0176_durable_reading_formatting.sql',
+          '0177_home_policy_admission.sql',
+          '0178_home_publication_protocol.sql',
+          '0179_identity_registration_guard.sql',
+        ],
+      );
+      await runMigrations(pool, migrations, { mode: 'up' });
+      const assertCurrentChain = async () => {
+        assert.deepEqual(
+          (
+            await pool.query(
+              'SELECT name,checksum FROM whaleu_meta.schema_migrations ORDER BY name',
+            )
+          ).rows,
+          migrations.map(({ name, checksum }) => ({ name, checksum })),
+        );
+        assert.deepEqual(
+          (
+            await pool.query(`SELECT
+            whaleu_community.reading_format_protocol()->>'catalog'=whaleu_community.reading_format_catalog() reading,
+            whaleu_community.home_reading_protocol()->>'catalog'=whaleu_community.home_reading_catalog() home_reading,
+            whaleu_community.home_publication_protocol()->>'catalog'=whaleu_community.home_publication_catalog() publication,
+            whaleu_identity.registration_guard_protocol()->>'catalog'=whaleu_identity.registration_guard_catalog() registration,
+            whaleu_community.home_publication_current() activation`)
+          ).rows[0],
+          {
+            reading: true,
+            home_reading: true,
+            publication: true,
+            registration: true,
+            activation: null,
+          },
+        );
+      };
+      await assertCurrentChain();
       const scope = await seedCommunityScope(pool);
       const osOperator = `manual:${hostname()}:${userInfo().username}`;
       const environment = {
@@ -426,6 +463,10 @@ test(
           'whaleu_community.root_comments',
           'whaleu_community.replies',
           'whaleu_community.community_text_sources',
+          'whaleu_community.reading_format_heads',
+          'whaleu_community.reading_format_jobs',
+          'whaleu_community.reading_format_slots',
+          'whaleu_community.reading_format_results',
           'whaleu_community.content_approval_bindings',
           'whaleu_community.outbox',
           'whaleu_community.report_origins',
@@ -610,13 +651,24 @@ test(
         ),
         false,
       );
-      assert.equal(
+      await assertCurrentChain();
+      // The real eligible plain post/comment/reply enroll through the current
+      // publication owner. Disabling processing does not remove M2 storage or
+      // suppress legitimate jobs; no formatter process has claimed any work.
+      assert.deepEqual(
         (
-          await pool.query(
-            "SELECT to_regclass('whaleu_community.reading_format_heads') absent",
-          )
-        ).rows[0]!.absent,
-        null,
+          await pool.query(`SELECT
+          (SELECT count(*)::integer FROM whaleu_community.reading_format_heads) heads,
+          (SELECT count(*)::integer FROM whaleu_community.reading_format_jobs) jobs,
+          (SELECT count(*)::integer FROM whaleu_community.reading_format_jobs
+            WHERE state<>'pending' OR claims<>0 OR lease_fence<>0 OR lease_token IS NOT NULL
+              OR lease_until IS NOT NULL OR slot_id IS NOT NULL OR row_version<>1
+              OR schedule_state<>'runnable' OR probe_count<>0 OR scheduling_reason IS NOT NULL) processed,
+          (SELECT count(*)::integer FROM whaleu_community.reading_format_results) results,
+          (SELECT count(*)::integer FROM whaleu_community.reading_format_slots
+            WHERE job_key IS NOT NULL OR lease_token IS NOT NULL OR lease_fence IS NOT NULL OR lease_until IS NOT NULL) occupied_slots`)
+        ).rows[0],
+        { heads: 3, jobs: 3, processed: 0, results: 0, occupied_slots: 0 },
       );
     } finally {
       await app?.close();

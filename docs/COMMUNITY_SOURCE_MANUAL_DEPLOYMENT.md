@@ -8,10 +8,15 @@ source publication. Do not copy development database credentials into production
 
 ## Preconditions and startup
 
-1. Use the normal accepted migration sequence with `npm run db:migrate` and inspect
-   `npm run db:status`. It must include `0175_community_text_sources.sql`; do not
-   apply that file alone or use draft migrations. It installs immutable source
-   storage, not a review policy, a reviewer, a campus catalog or publication rights.
+1. Before running the current API binary, apply the complete normal migration
+   chain with `npm run db:migrate` and inspect `npm run db:status`, through
+   `0179_identity_registration_guard.sql`. This includes source storage (0175),
+   durable formatting (0176), Home admission/publication (0177/0178) and registration
+   (0179), as required by [Home activation](../apps/api/docs/HOME_PUBLICATION_ACTIVATION.md)
+   and the [registration guard](IDENTITY_REGISTRATION_GUARD.md). Do not stop at
+   0175, apply files alone or use draft migrations. `source_manual` selects the
+   review issuer, not a schema version. Installation creates no review policy,
+   reviewer, campus catalog or publication rights.
 2. Independently provision the real existing regional space/operating region and
    accepted publication policy, account/session, phone and affiliation evidence.
    Never replace missing production facts with test fixtures. This operator cannot
@@ -101,8 +106,10 @@ Do not generate another request ID to recover a lost response or bypass a confli
 
 ## Capability and reading checks
 
-API `/health/ready` confirms database readiness, not reviewer or publication
-availability. With the actual signed-in eligible account, check
+API `/health/ready` only checks database connectivity and the supported PostgreSQL
+version (`DatabaseService.ready()` in `apps/api/src/database/database.ts`); it does not
+verify the minimum migration chain, schema qualification or policy readiness.
+Check migration status separately. With the actual signed-in eligible account, check
 `GET /v1/community/text-source-capabilities` with `spaceId`, `category` and
 `authorMode=named`. Only a current matching source policy, scope and current
 publication eligibility can advertise source operations. Before explicit setup,
@@ -118,13 +125,22 @@ Draft text can be edited before its intent freezes; **published-source editing i
 not implemented**. Submitted intent changes require explicit recovery/cancellation,
 not in-place modification of the pending review or immutable source revision.
 
-Migration 0175 and source review do not require the optional M2 formatter/queue or
-worker. Without them, the six v2 detail/thread readers retain canonical source:
-post detail, post comments, comment detail, comment replies, reply detail and post
-discussion context. The v1 capability's `formatter: "not_configured"` is a fixed
-wire contract, not proof of running worker health. Formatting never grants reader
-access or changes the reviewed source. Check M2 through its separately versioned
-capability/operations contract if that optional implementation is deployed.
+Formatting processing may remain disabled on the fully migrated current deployment.
+The installed M2 schema is still required as part of the complete chain, and
+fresh eligible source publications may enqueue ordinary pending jobs even with no
+running formatter. Disabled processing does not mean absent queue tables or jobs.
+The six v2 detail/thread readers retain canonical source independently of optional
+formatting: post detail, post comments, comment detail, comment replies, reply detail
+and post discussion context. The v1 capability's `formatter: "not_configured"` is a
+fixed wire contract, not proof of running worker health. Formatting never grants
+reader access or changes the reviewed source. Use M2's separately versioned
+capability/operations contract for its schema/configuration observation.
+
+Exact-0175 source production without M2 remains a historical compatibility contract,
+not a deployment option for the current API binary. The dedicated
+`apps/api/test/integration/text-source-m1-compatibility.test.ts` keeps the historical
+producer and current six-reader compatibility coverage separate from the current
+full-chain production API/PTY acceptance.
 
 ## Expiry, withdrawal and operational limits
 
@@ -159,9 +175,10 @@ The earlier source-only PostgreSQL-backed whole-file test passed 1/1 on exact
 `reading-c27-production-manual-v3` under C/verified TLS with formal 0175 and no M2.
 It exercised the real production-mode API/HTTP and private-TTY operator, including
 rejected/stored receipts and no-side-effects checks. Synthetic identities/scopes
-and a shared disposable role limit that evidence. The source-review runtime and
-operator remain unchanged in the current integration, but this earlier pass is
-not a rerun of the combined 0176/worker tree.
+and a shared disposable role limit that evidence. This earlier pass is
+prior-version evidence, not a current-binary production acceptance or permission
+to run the current binary on exact 0175. Current production API/PTY acceptance
+uses the complete chain through 0179.
 
 Separately, exact `reading-c27-deployable-cli-stage-v1` passed 6/6 reported tests
 for actual source/ordinary compiled worker entries, direct restricted LOGIN,
