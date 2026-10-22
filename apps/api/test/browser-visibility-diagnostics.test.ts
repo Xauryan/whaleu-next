@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { assertSameBrowserWindow } from './support/official-account-browser.js';
 import { browserVisibilityDiagnostics } from './support/browser-visibility-diagnostics.js';
 const targets = [
   { role: 'primary' as const, targetId: 'AAA', sessionId: 'PRIMARY' },
@@ -136,7 +137,7 @@ test('successful original action is unchanged by diagnostic write failure', asyn
     'until-visible',
   ]);
 });
-test('helper retains original browser action sequence, deadline and security flags', async () => {
+test('helper requires a real sibling tab while retaining deadline and security flags', async () => {
   const source = await readFile(
     new URL('./support/official-account-browser.ts', import.meta.url),
     'utf8',
@@ -150,11 +151,22 @@ test('helper retains original browser action sequence, deadline and security fla
     ),
   ].map((x) => x[1]);
   assert.deepEqual(commands, [
+    'activateTarget',
     'createTarget',
-    'activateTarget',
-    'activateTarget',
     'closeTarget',
+    'activateTarget',
+    'activateTarget',
   ]);
+  assert.match(background, /newWindow: false, background: true/);
+  assert.match(
+    background,
+    /assertSameBrowserWindow\(\s*primaryWindow\.windowId,\s*otherWindow\.windowId,?\s*\)/,
+  );
+  assert.ok(
+    background.indexOf('assertSameBrowserWindow(') <
+      background.indexOf("visibility.mark('background-activate-start')"),
+  );
+  assert.match(background, /await closeOther\(\)\.catch\(\(\) => \{\}\);/);
   assert.match(source, /const deadline = Date\.now\(\) \+ 15000/);
   assert.match(
     background,
@@ -284,4 +296,29 @@ test('late rejected observations are consumed and discovery is also bounded', as
   } finally {
     process.off('unhandledRejection', listener);
   }
+});
+
+test('real sibling tab guard rejects mismatched or unavailable window identity', () => {
+  assert.doesNotThrow(() => assertSameBrowserWindow(42, 42));
+  for (const [primary, other] of [
+    [42, 43],
+    [42, undefined],
+    [undefined, 42],
+    [undefined, undefined],
+    [null, null],
+    ['42', '42'],
+    [-1, -1],
+    [NaN, NaN],
+    [1.5, 1.5],
+  ]) {
+    assert.throws(
+      () => assertSameBrowserWindow(primary, other),
+      /Real tab visibility requires matching browser windows/,
+    );
+  }
+  assert.throws(() => assertSameBrowserWindow(42, 43), /primary=42, other=43/);
+  assert.throws(
+    () => assertSameBrowserWindow(42, undefined),
+    /primary=42, other=unavailable/,
+  );
 });

@@ -76,6 +76,15 @@ interface Packet {
   params?: Record<string, unknown>;
   sessionId?: string;
 }
+/** Fail closed: shared storage context does not imply a shared tab strip. */
+export function assertSameBrowserWindow(primary: unknown, other: unknown) {
+  const valid = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+  assert.ok(
+    valid(primary) && valid(other) && primary === other,
+    `Real tab visibility requires matching browser windows: primary=${valid(primary) ? primary : 'unavailable'}, other=${valid(other) ? other : 'unavailable'}`,
+  );
+}
 export async function officialBrowser() {
   const diagnostics = browserDiagnostics();
   const selected = await runtime();
@@ -345,41 +354,74 @@ export async function officialBrowser() {
         }
       },
       background: async () => {
-        const other = await command<{ targetId: string }>(
-          'Target.createTarget',
-          { url: 'about:blank' },
+        // Select the primary window before requesting a real sibling tab.
+        await command(
+          'Target.activateTarget',
+          { targetId: target.targetId },
           '',
         );
+        const other = await command<{ targetId: string }>(
+          'Target.createTarget',
+          { url: 'about:blank', newWindow: false, background: true },
+          '',
+        );
+        let otherClosed = false;
+        const closeOther = async () => {
+          if (otherClosed) return;
+          await command('Target.closeTarget', { targetId: other.targetId }, '');
+          otherClosed = true;
+        };
         const targets = [
           { role: 'primary' as const, targetId: target.targetId, sessionId },
           { role: 'other' as const, targetId: other.targetId },
         ];
-        await visibility.around('background', targets, async () => {
-          visibility.mark('background-activate-start');
-          await command(
-            'Target.activateTarget',
-            { targetId: other.targetId },
-            '',
-          );
-          visibility.mark('background-activate-complete');
-          await until('document.hidden', 'real tab background visibility');
-        });
-        return async () => {
-          await visibility.around('foreground', targets, async () => {
-            visibility.mark('foreground-activate-start');
-            await command(
-              'Target.activateTarget',
+        try {
+          await visibility.around('background', targets, async () => {
+            const primaryWindow = await command<{ windowId?: unknown }>(
+              'Browser.getWindowForTarget',
               { targetId: target.targetId },
               '',
             );
-            visibility.mark('foreground-activate-complete');
-            await command(
-              'Target.closeTarget',
+            const otherWindow = await command<{ windowId?: unknown }>(
+              'Browser.getWindowForTarget',
               { targetId: other.targetId },
               '',
             );
-            await until('!document.hidden', 'real tab foreground visibility');
+            assertSameBrowserWindow(
+              primaryWindow.windowId,
+              otherWindow.windowId,
+            );
+            visibility.mark('background-activate-start');
+            await command(
+              'Target.activateTarget',
+              { targetId: other.targetId },
+              '',
+            );
+            visibility.mark('background-activate-complete');
+            await until('document.hidden', 'real tab background visibility');
           });
+        } catch (error) {
+          // Never close a target we did not create, or replace the real failure.
+          await closeOther().catch(() => {});
+          throw error;
+        }
+        return async () => {
+          try {
+            await visibility.around('foreground', targets, async () => {
+              visibility.mark('foreground-activate-start');
+              await command(
+                'Target.activateTarget',
+                { targetId: target.targetId },
+                '',
+              );
+              visibility.mark('foreground-activate-complete');
+              await closeOther();
+              await until('!document.hidden', 'real tab foreground visibility');
+            });
+          } catch (error) {
+            await closeOther().catch(() => {});
+            throw error;
+          }
         };
       },
     };
