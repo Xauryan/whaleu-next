@@ -24,6 +24,7 @@ import { FeedbackNotificationsFacade } from '../notifications/feedback/facade.js
 import { requireFeedbackSpace } from './feedback/topic.js';
 import {
   canonicalEnvelope,
+  discussionEnvelopeDraft,
   contentScopeSchema,
 } from './content-review/contracts.js';
 import { CommunityDistributionService } from './related-sync/service.js';
@@ -781,7 +782,7 @@ export class PublicationService {
             tx,
             undefined,
             withReviewedTextSource(
-              canonicalEnvelope({
+              discussionEnvelopeDraft({
                 ...(await this.discussionScope(
                   authority,
                   space,
@@ -801,7 +802,6 @@ export class PublicationService {
                 text,
                 component: { kind: 'none' },
                 trading: null,
-                images: [],
               }),
               body.textSource,
             ),

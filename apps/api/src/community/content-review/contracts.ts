@@ -330,6 +330,78 @@ const exactContentEnvelopeSchema = z
         invalid('Missing root');
     }
   });
+/** A discussion draft has no Media-owned images yet. Validate its shape and
+ * ancestry here, without asserting a final nonempty body or granting approval.
+ * The publication owner still parses the full canonical envelope after resolving
+ * the exact owned images, before Review, binding or content writes. */
+const discussionDraftFields = {
+  purpose: z.enum(['publish_comment', 'publish_reply']),
+  text: textSchema(500),
+  component: z.strictObject({ kind: z.literal('none') }),
+  trading: z.null(),
+};
+const discussionEnvelopeDraftSchema = z
+  .discriminatedUnion('version', [
+    contentEnvelopeV1Schema
+      .omit({ images: true })
+      .extend(discussionDraftFields),
+    contentEnvelopeV4Schema
+      .omit({ images: true })
+      .extend(discussionDraftFields),
+    contentEnvelopeV8Schema
+      .omit({ images: true })
+      .extend(discussionDraftFields),
+  ])
+  .superRefine((value, ctx) => {
+    const invalid = (message: string) =>
+      ctx.addIssue({ code: 'custom', message });
+    if (value.spaceId !== value.scope.originalSpaceId)
+      invalid('Scope does not match space');
+    if (!value.postId) invalid('Missing post');
+    if (
+      value.purpose === 'publish_comment'
+        ? value.rootCommentId !== null || value.targetReplyId !== null
+        : !value.rootCommentId
+    )
+      invalid('Invalid discussion ancestry');
+    if (value.category === 'feedback' && value.scope.originalRegionId !== null)
+      invalid('Invalid global feedback definition');
+    if (value.version === 4) {
+      if (
+        value.category === 'feedback' ||
+        value.category === 'trading' ||
+        value.scope.originalRegionId === null ||
+        value.scope.sync !== 'inherited_related' ||
+        value.allowAnonymousDm !== null ||
+        value.scope.parentDistribution.postId !== value.postId
+      )
+        invalid('Invalid inherited distribution scope');
+    }
+    if (value.version === 8) {
+      if (
+        value.category === 'feedback' ||
+        value.category === 'trading' ||
+        value.scope.sync !== 'none' ||
+        value.homeParent.postId !== value.postId
+      )
+        invalid('Invalid composed Home parent');
+      if (
+        value.textSource !== null &&
+        (value.commentsPolicy !== 'open' ||
+          !reviewedTextSourceMatches(
+            value.text,
+            value.textSource,
+            value.purpose === 'publish_comment' ? 'comment' : 'reply',
+          ))
+      )
+        invalid('Invalid composed discussion source');
+    }
+  });
+export function discussionEnvelopeDraft(
+  value: unknown,
+): EffectiveContentEnvelopeDraft {
+  return discussionEnvelopeDraftSchema.parse(value);
+}
 export const effectiveContentEnvelopeSchema: z.ZodType<EffectiveContentEnvelope> =
   exactContentEnvelopeSchema;
 type RequireProtocolAgreement<T extends true> = T;

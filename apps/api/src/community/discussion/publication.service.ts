@@ -1,5 +1,5 @@
 import { insertHomePublicationEvidence } from '../home-feed-policy/publication-evidence.js';
-import { canonicalEnvelope } from '../content-review/contracts.js';
+import { discussionEnvelopeDraft } from '../content-review/contracts.js';
 import { withReviewedTextSource } from '../text-source/publication.js';
 import { insertTextSource } from '../text-source/repository.js';
 import { appendTextSource } from '../text-source/protocol.js';
@@ -122,7 +122,7 @@ export class ReplyPublicationService {
               effectiveAuthorMode: mode,
             },
             withReviewedTextSource(
-              canonicalEnvelope({
+              discussionEnvelopeDraft({
                 ...(await this.approval.discussionScope(
                   authority,
                   space,
@@ -142,7 +142,6 @@ export class ReplyPublicationService {
                 text: body.text,
                 component: { kind: 'none' },
                 trading: null,
-                images: [],
               }),
               body.textSource,
             ),
