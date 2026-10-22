@@ -74,18 +74,9 @@ export const historicalHomeAbsenceSql = `SELECT
   AND NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid=ANY(ARRAY['whaleu_community.content_approval_decisions'::regclass,'whaleu_community.text_review_requests'::regclass]) AND NOT attisdropped AND attname=ANY($4::text[]))
   AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE connamespace=to_regnamespace('whaleu_community') AND conname=ANY($5::text[])) AS absent`;
 
-export async function historicalPublicationBoundary(
-  config: RuntimeConfig,
-  prefix: number,
-) {
-  assert.ok(historicalPublicationPrefixes.includes(prefix));
-  const requirePrefix = await historicalContentDefinitionBoundary(
-    config,
-    prefix,
-  );
+export async function historicalHomeAbsenceBoundary() {
   const names = await homeSuccessors();
   return async (tx: PoolClient): Promise<void> => {
-    await requirePrefix(tx);
     const result = await tx.query<{ absent: boolean }>(
       historicalHomeAbsenceSql,
       [...names],
@@ -95,6 +86,22 @@ export async function historicalPublicationBoundary(
       true,
       'Partial Home ownership is not a historical producer',
     );
+  };
+}
+
+export async function historicalPublicationBoundary(
+  config: RuntimeConfig,
+  prefix: number,
+) {
+  assert.ok(historicalPublicationPrefixes.includes(prefix));
+  const requirePrefix = await historicalContentDefinitionBoundary(
+    config,
+    prefix,
+  );
+  const requireHomeAbsent = await historicalHomeAbsenceBoundary();
+  return async (tx: PoolClient): Promise<void> => {
+    await requirePrefix(tx);
+    await requireHomeAbsent(tx);
   };
 }
 

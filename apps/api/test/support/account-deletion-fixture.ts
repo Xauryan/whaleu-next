@@ -58,6 +58,7 @@ import {
   validateNativeBaseline,
 } from '../../src/account-deletion/owners/baseline.js';
 import { migrationSchemaNames } from './migration-schemas.js';
+import { createHistoricalDeletionPeer } from './historical-deletion-peer.js';
 export async function accountDeletionFixture(
   options: { throughMigration?: 173 | 174 } = {},
 ) {
@@ -320,6 +321,14 @@ export async function accountDeletionFixture(
         );
       return { ...session, subject, accessToken, refreshToken };
     };
+    const createPeer = async () => {
+      assert.equal(
+        options.throughMigration,
+        174,
+        'Historical external peers require the explicit exact 0174 fixture',
+      );
+      return createHistoricalDeletionPeer(database, config);
+    };
     type Actor = Awaited<ReturnType<typeof create>>;
     const populate = async (actor: Actor) => {
       const suffix = randomUUID().slice(0, 8),
@@ -454,6 +463,7 @@ export async function accountDeletionFixture(
       following,
       profiles,
       create,
+      createPeer,
       populate,
       assertion,
       advance,

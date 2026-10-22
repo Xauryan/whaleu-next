@@ -26,6 +26,10 @@ import { SocialUpdatesWorker } from '../../src/notifications/social/worker.js';
 import { SocialUpdatesDispatcher } from '../../src/notifications/social/dispatcher.js';
 import { UpdatesDispatcher } from '../../src/notifications/dispatcher.js';
 import { accountDeletionFixture } from './account-deletion-fixture.js';
+import { PublicationService } from '../../src/community/publication.service.js';
+import { IdentityRepository } from '../../src/identity/identity.repository.js';
+import { HistoricalPublicationService } from './historical-publication/configure.js';
+import { configureHistoricalFollowSocialPublication } from './historical-publication/follow-social.js';
 
 export type FollowDeletionActor = Awaited<
   ReturnType<Awaited<ReturnType<typeof accountDeletionFixture>>['create']>
@@ -46,7 +50,12 @@ export interface FollowDeletionSource {
   notice_id: string | null;
 }
 
-export async function accountDeletionFollowSocialFixture() {
+export async function accountDeletionFollowSocialFixture(
+  options: { publication?: 'c27_0174' } = {},
+) {
+  assert.ok(
+    options.publication === undefined || options.publication === 'c27_0174',
+  );
   // Historical follow/social erasure owner, not current-catalog qualification.
   const base = await accountDeletionFixture({ throughMigration: 174 });
   let app: INestApplication | undefined;
@@ -64,12 +73,29 @@ export async function accountDeletionFollowSocialFixture() {
     // Test-only 0174 adapters: exact predecessor definition reads and guarded
     // source-free same-transaction enrollment absence. All other reading
     // runtime methods remain current.
-    // Deletion, Review, publication, social and validation owners remain current.
+    // Only explicit publication witnesses additionally pin the c27 producer.
+    // Identity lifecycle, deletion, Review, social and validation remain current.
     const builder = Test.createTestingModule({
       imports: [AppModule.register(config)],
     });
     await configureHistoricalContentDefinitions(builder, config, 174);
+    if (options.publication === 'c27_0174')
+      await configureHistoricalFollowSocialPublication(builder, config);
     app = (await builder.compile()).createNestApplication({ logger: false });
+    const producer: unknown = app.get(PublicationService);
+    if (options.publication === 'c27_0174')
+      assert.ok(producer instanceof HistoricalPublicationService);
+    else
+      assert.equal(app.get(PublicationService).constructor, PublicationService);
+    const identity = app.get(IdentityRepository);
+    assert.equal(
+      identity.authenticate,
+      IdentityRepository.prototype.authenticate,
+    );
+    assert.equal(
+      identity.activeAccount,
+      IdentityRepository.prototype.activeAccount,
+    );
     const reader = app.get(ContentDefinitionRepository);
     assert.ok(reader instanceof HistoricalContentDefinitionRepository);
     const reading = app.get(ReadingFormattingRuntime);
@@ -89,6 +115,8 @@ export async function accountDeletionFollowSocialFixture() {
     );
     configureHttp(app);
     await app.init();
+    assert.equal(app.get(PublicationService), producer);
+    assert.equal(app.get(IdentityRepository), identity);
     assert.equal(app.get(ContentDefinitionRepository), reader);
     assert.equal(app.get(ReadingFormattingRuntime), reading);
     await app.get(SocialUpdatesDispatcher).beforeApplicationShutdown();

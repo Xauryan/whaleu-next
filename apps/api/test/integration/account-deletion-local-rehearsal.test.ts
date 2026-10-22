@@ -484,17 +484,7 @@ test(
         // account-deletion-follow-social.test.ts. This negative still uses the real
         // service and exact native source provenance, but the peer is NOT admitted.
         const follower = await f.create(),
-          target = await f.identity.createSession(
-            {
-              provider: 'wechat',
-              appId: 'synthetic-nonfixture-follow-peer',
-              subject: 'generated-' + randomUUID(),
-            },
-            {
-              access: hashToken(randomUUID()),
-              refresh: hashToken(randomUUID()),
-            },
-          );
+          target = await f.createPeer();
         assert.equal(
           (
             await f.pool.query(

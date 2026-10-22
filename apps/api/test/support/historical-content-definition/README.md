@@ -93,8 +93,9 @@ nonlegacy categories and post-c27 envelope versions. Current Review, Safety,
 Media, authorization and publication-journal dependencies remain in use. No approval
 owner or count reader is replaced. The historical transaction wrapper retains
 exact-prefix and recognized partial-Home fences through the real pre-COMMIT
-proof phase without rewriting results or receipts. Other historical prefixes,
-including **132** and **174**, do not install this producer or transaction wrapper.
+proof phase without rewriting results or receipts. The **132** fixture does not install this producer or transaction wrapper. The
+original 137/144 producer entrypoint still rejects **174**; only the separately
+reviewed exact174 follow/social publication opt-in uses the same pinned producer.
 Both upgrade tests retain historical DI/source-schema absence and current DI
 assertions after restart; the unbounded current restart restores the current
 publication producer and unwrapped database owner as well.
@@ -102,8 +103,13 @@ publication producer and unwrapped database owner as well.
 The newly authored 0174 fixture uses the same guarded reader through the actual
 Nest repository token, asserts its identity before and after application init,
 and checks future source-object absence. Its existing genuine like/save POST
-lineage tests remain on the exact 0174 ledger; no deletion owner or runtime is
-replaced. The c27 reader and differential-oracle snapshot bytes are unchanged.
+lineage tests remain on the exact 0174 ledger and explicitly opt into the separate
+publication adapter, as does the content-empty synthetic cooling refusal test.
+All default follow/social callers retain the current producer. The adapter proves
+positive deletion lifecycle ownership and retains current Identity authentication
+and account locking; no deletion owner, new-peer creation contract, Review,
+Safety, Media or publication journal is replaced. The c27 reader, producer and
+differential-oracle snapshot bytes are unchanged.
 
 ## Absent historical reading enrollment
 

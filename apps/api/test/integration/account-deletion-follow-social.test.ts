@@ -34,7 +34,6 @@ import { hashToken } from '../../src/identity/tokens.js';
 import type { SocialNotice } from '../../src/notifications/social/contracts.js';
 import type { PublishPost } from '../../src/community/contracts.js';
 import {
-  createRuntimeActor,
   postApprovalEnvelope,
   setRuntimeVerification,
 } from '../support/community-runtime-fixtures.js';
@@ -1280,7 +1279,7 @@ test(
     const f = await accountDeletionFollowSocialFixture();
     t.after(() => f.close());
     const actor = await f.create(),
-      external = await createRuntimeActor(f.app);
+      external = await f.createPeer();
     const target = await f.profile(external);
     assert.equal(
       (
@@ -1341,7 +1340,9 @@ for (const kind of ['like', 'save'] as const) {
     `0173 keeps genuine ${kind}/content/reward lineage outside the follow-only owner`,
     { timeout: 300000 },
     async (t) => {
-      const f = await accountDeletionFollowSocialFixture();
+      const f = await accountDeletionFollowSocialFixture({
+        publication: 'c27_0174',
+      });
       t.after(() => f.close());
       const actor = await f.create(),
         owner = await f.create();
@@ -1505,6 +1506,64 @@ for (const kind of ['like', 'save'] as const) {
     },
   );
 }
+
+test(
+  '0174 synthetic deletion cooling denies fresh historical publication before journal writes',
+  { timeout: 300000 },
+  async (t) => {
+    const f = await accountDeletionFollowSocialFixture({
+      publication: 'c27_0174',
+    });
+    t.after(() => f.close());
+    // Explicitly synthetic local deletion harness, not production enrollment.
+    // This actor has no content; its real deletion owner can accept cooling.
+    const actor = await f.create();
+    assert.equal(
+      (await f.service.eligibility(f.assertion(actor))).status,
+      'eligible',
+    );
+    const command = deletionRequest();
+    const accepted = await f.service.request(f.assertion(actor), command);
+    assert.equal(accepted.status.phase, 'cooling');
+    assert.equal(
+      (
+        await f.pool.query<{ lifecycle: string }>(
+          'SELECT lifecycle FROM whaleu_identity.accounts WHERE id=$1',
+          [actor.accountId],
+        )
+      ).rows[0]?.lifecycle,
+      'cooling',
+    );
+    const writes = async () =>
+      (
+        await f.pool.query<{ posts: number; requests: number }>(
+          `SELECT
+           (SELECT count(*)::integer FROM whaleu_community.posts WHERE account_id=$1) posts,
+           (SELECT count(*)::integer FROM whaleu_community.publication_requests WHERE account_id=$1) requests`,
+          [actor.accountId],
+        )
+      ).rows[0];
+    assert.deepEqual(await writes(), { posts: 0, requests: 0 });
+    // Valid command shape. Current session authority must reject before looking
+    // up even the space, approval, existing receipt or publication intent.
+    const body: PublishPost = {
+      clientRequestId: randomUUID(),
+      spaceId: randomUUID(),
+      category: 'discussion',
+      text: 'Synthetic cooling actor must not publish',
+      authorMode: 'named',
+      commentsPolicy: 'open',
+      imageAssetIds: [],
+    };
+    const denied = await request(f.http)
+      .post('/v1/community/posts')
+      .set('Authorization', auth(actor))
+      .send(body);
+    assert.equal(denied.status, 401, JSON.stringify(denied.body));
+    assert.equal(denied.body.error.code, 'SESSION_REVOKED');
+    assert.deepEqual(await writes(), { posts: 0, requests: 0 });
+  },
+);
 
 test(
   '0173 rejects null, overflow and impossible-date social cursor coordinates',

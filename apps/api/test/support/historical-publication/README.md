@@ -1,7 +1,9 @@
 # Exact historical publication producers
 
-Only the 0137 related-sync upgrade witness and the 0144 pre0148 in-flight
-rating-card upgrade witness install this test adapter. Their historical phases
+The 0137 related-sync upgrade witness and the 0144 pre0148 in-flight rating-card
+upgrade witness use the closed 137/144 entrypoint. A separate exact0174 entrypoint
+is explicitly opted into only by the like/save deletion-lineage loop and its
+synthetic cooling-refusal witness. Their historical phases
 must genuinely produce the old requests, approvals, content and receipts without
 installing Home or changing the production owner's fail-closed behavior.
 
@@ -44,14 +46,28 @@ function names, renamed predecessors, and bounded triggers/columns/constraints.
 They do not repeat an unrestricted catalog-prefix scan. These are recognized
 successor checks, not a claim to attest every possible arbitrary database edit.
 
-The override is selected only for 137 and 144. Other registered historical
-fixtures retain their current composition; an unbounded/current restart installs
-neither the producer nor the transaction proxy. An already captured historical
+The original override remains selected only for 137 and 144 and still rejects 174. The separate `follow-social.ts` entrypoint accepts no caller-supplied prefix
+and requires exactly 174, plus three correctly typed lifecycle columns and the
+enabled deletion lifecycle guard on the accounts table. It preserves the current
+lifecycle-aware Identity repository, authentication, account locks and new-peer
+creation contract. It does not route through the pre-deletion Identity adapter or
+change the synthetic deletion owner. Existing follow/social fixture callers do
+not opt in by default; local rehearsal and current-source fail-closed tests remain
+unchanged. An unbounded/current restart installs neither the producer nor the
+transaction proxy. An already captured historical
 owner cannot write across a ledger upgrade or recognized partial Home deployment.
 
 Pure tests cover byte provenance, real Nest constructor injection, exact journal
 arguments, closed configuration, source downgrade rejection, prefix/checksum and
 partial deployment failures, options/result/error/savepoint preservation, and a
 DDL change after the callback tail that must roll back before COMMIT. The original
-two integration files remain unchanged and must still run in full to establish
-real PostgreSQL old-producer and post-upgrade replay acceptance.
+two upgrade integration files retain their full commands and replay assertions;
+the rating upgrade explicitly proves only the nullable 0175/0178 cohort-column
+additions before comparing whole rows. Both must still run in full to establish
+real PostgreSQL old-producer and post-upgrade replay acceptance. The original
+follow/social file retains all unsupported-content/reward deletion assertions and
+adds a content-empty synthetic actor entering cooling through the real deletion
+request owner. Its fresh HTTP publication must fail with no post or journal
+writes. No lifecycle SQL override or successful receipt is fabricated. Pure tests
+exercise current Identity and publication-journal refusal before any receipt
+lookup for cooling, erasing and completed accounts.
