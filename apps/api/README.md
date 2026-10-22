@@ -26,8 +26,11 @@ volume is separate from any old deployment. `npm run db:stop` stops the instance
 without deleting its data.
 
 - `GET /health/live`: process liveness; no database dependency
-- `GET /health/ready`: returns 200 only when PostgreSQL answers and its server
-  version is 18.6 or a later 18.x patch; otherwise returns 503
+- `GET /health/ready`: returns 200 only when PostgreSQL answers at a supported
+  18.6-or-later 18.x version, runtime configuration validates, and the exact full
+  deployed migration history is installed (currently 0001–0179); otherwise 503.
+  This is not catalog, business-policy or provider acceptance. See the
+  [application readiness contract](../../docs/APPLICATION_READINESS.md).
 
 Future business APIs will use explicit `/v1` routes and validated domain DTOs.
 The new project does not reproduce old route aliases or old response formats.
@@ -78,6 +81,16 @@ new disposable PostgreSQL database named `whaleu_test` and set:
 
 ```sh
 TEST_DATABASE_URL=postgresql://TEST_USER:TEST_PASSWORD@127.0.0.1:5432/whaleu_test npm run test:integration
+```
+
+The application-readiness file additionally requires the existing controlled
+disposable PostgreSQL runner with explicit `NODE_ENV=test` and
+`WHALEU_TEST_MAINTENANCE=controlled`.
+For this file, `TEST_DATABASE_URL` alone is insufficient. From the repository
+root, use:
+
+```sh
+NODE_ENV=test WHALEU_TEST_MAINTENANCE=controlled bash scripts/run-controlled-test-postgres.sh bash -c 'cd apps/api && TSX_TSCONFIG_PATH=tsconfig.json node --import tsx --test --test-concurrency=1 test/integration/application-readiness.test.ts'
 ```
 
 The suite refuses remote hosts, a different database name, or an existing

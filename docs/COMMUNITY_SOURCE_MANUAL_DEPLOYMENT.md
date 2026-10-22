@@ -106,10 +106,11 @@ Do not generate another request ID to recover a lost response or bypass a confli
 
 ## Capability and reading checks
 
-API `/health/ready` only checks database connectivity and the supported PostgreSQL
-version (`DatabaseService.ready()` in `apps/api/src/database/database.ts`); it does not
-verify the minimum migration chain, schema qualification or policy readiness.
-Check migration status separately. With the actual signed-in eligible account, check
+API `/health/ready` checks database connectivity/version, existing runtime
+configuration and the exact complete deployed migration ledger (currently through
+0179). It does not attest live catalog integrity or current source policy; see
+[application readiness](APPLICATION_READINESS.md). Still inspect migration status
+before deployment. With the actual signed-in eligible account, check
 `GET /v1/community/text-source-capabilities` with `spaceId`, `category` and
 `authorMode=named`. Only a current matching source policy, scope and current
 publication eligibility can advertise source operations. Before explicit setup,

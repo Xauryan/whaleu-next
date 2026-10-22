@@ -593,3 +593,13 @@ test('only browser module requests immediate TAP failure diagnostics', () => {
     assert.equal(called, true);
   }
 });
+
+test('real application readiness qualification belongs exactly once to shared database foundation', () => {
+  const plan = createModulePlan(discoverFiles(), readModules());
+  const selected = plan.shards.filter(({ files }) =>
+    files.includes('test/integration/application-readiness.test.ts'),
+  );
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0].id, 'shared-foundation-1');
+  assert.ok(selected[0].owners.includes('database'));
+});

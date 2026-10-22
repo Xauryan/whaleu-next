@@ -52,9 +52,11 @@ Historical exact-0175 producer/current six-reader compatibility is separate in
 `apps/api/test/integration/text-source-m1-compatibility.test.ts`; it is not a current
 production deployment on a truncated schema.
 
-API `/health/ready` only checks PostgreSQL connectivity and supported version
-(`DatabaseService.ready()` in `apps/api/src/database/database.ts`). It cannot confirm the
-minimum migration chain, schema qualification or policy readiness.
+The current API `/health/ready` additionally validates runtime configuration and
+the exact complete deployed migration ledger (currently through 0179); see
+[application readiness](APPLICATION_READINESS.md). This is not live catalog or
+policy attestation, and does not retroactively change the health behavior or
+acceptance results of the earlier snapshots below.
 
 - `reading-c27-deployable-cli-stage-v1`: 5,729 source files; source-manifest SHA-256
   `22d480aa5e9ae2ed989585629d1ddacfd1379240910ec430bf248bec796d26e7`.

@@ -10,6 +10,7 @@ import { AccountPolicyInterceptor } from '../src/safety/account-policy/intercept
 import { controllerUnitAccountPolicy } from './support/controller-unit-account-policy.js';
 import { loadConfig } from '../src/config/config.js';
 import { DatabaseService } from '../src/database/database.js';
+import { ApplicationReadinessService } from '../src/health/readiness.js';
 import { configureHttp } from '../src/http/http.js';
 import {
   safeErrorResponseSchema,
@@ -108,6 +109,9 @@ before(async () => {
     .overrideProvider(AccountPolicyInterceptor)
     .useValue(controllerUnitAccountPolicy)
     .overrideProvider(DatabaseService)
+    .useValue({ ready: async () => databaseReady })
+    // Envelope tests isolate application readiness; its contract has dedicated units.
+    .overrideProvider(ApplicationReadinessService)
     .useValue({ ready: async () => databaseReady })
     .compile();
   app = module.createNestApplication({ logger: false });

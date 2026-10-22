@@ -5,12 +5,18 @@ import {
   Module,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { DatabaseModule, DatabaseService } from '../database/database.js';
+import { DatabaseModule } from '../database/database.js';
+import {
+  APPLICATION_MIGRATIONS,
+  ApplicationReadinessService,
+  readApplicationMigrations,
+} from './readiness.js';
 
 @Controller('health')
 export class HealthController {
   constructor(
-    @Inject(DatabaseService) private readonly database: DatabaseService,
+    @Inject(ApplicationReadinessService)
+    private readonly readiness: ApplicationReadinessService,
   ) {}
 
   @Get('live')
@@ -20,10 +26,18 @@ export class HealthController {
 
   @Get('ready')
   async ready(): Promise<{ status: 'ok' }> {
-    if (!(await this.database.ready())) throw new ServiceUnavailableException();
+    if (!(await this.readiness.ready()))
+      throw new ServiceUnavailableException();
     return { status: 'ok' };
   }
 }
 
-@Module({ imports: [DatabaseModule], controllers: [HealthController] })
+@Module({
+  imports: [DatabaseModule],
+  controllers: [HealthController],
+  providers: [
+    ApplicationReadinessService,
+    { provide: APPLICATION_MIGRATIONS, useValue: readApplicationMigrations },
+  ],
+})
 export class HealthModule {}
