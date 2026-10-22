@@ -1,4 +1,12 @@
-import { inventory } from '../../src/account-deletion/owners/preflight.js';
+import {
+  inventory,
+  relationSql,
+} from '../../src/account-deletion/owners/preflight.js';
+import {
+  deletionMetadataRelations,
+  reviewedRelations,
+  supportedTables,
+} from '../../src/account-deletion/owner-registry.js';
 import { DeletionError } from '../../src/account-deletion/contracts.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -32,12 +40,42 @@ import type { TextSourceDescriptor } from '../../src/community/text-source/contr
 import type { EffectiveContentEnvelopeV1 } from '../../src/community/content-review/contracts.js';
 import { migrationSchemaNames } from '../support/migration-schemas.js';
 
+/** Capture all installed application rows, not only the source-owner count.
+ * Catalog names and ownership/grants are retained, including protected schemas. */
+async function sourceOwnerState(pool: Pool) {
+  const schemas = (
+    await pool.query<{ name: string; owner: number; acl: string | null }>(
+      "SELECT nspname name,nspowner owner,nspacl::text acl FROM pg_namespace WHERE nspname LIKE 'whaleu\\_%' ESCAPE '\\' ORDER BY nspname COLLATE \"C\"",
+    )
+  ).rows;
+  const relations = (
+    await pool.query<{
+      relation: string;
+      kind: string;
+      owner: number;
+      acl: string | null;
+    }>(
+      "SELECT n.nspname||'.'||c.relname relation,c.relkind kind,c.relowner owner,c.relacl::text acl FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname LIKE 'whaleu\\_%' ESCAPE '\\' AND c.relkind IN('r','p','m','f') ORDER BY (n.nspname||'.'||c.relname) COLLATE \"C\"",
+    )
+  ).rows;
+  const rows: Record<string, string[]> = {};
+  for (const { relation, kind } of relations) {
+    assert.ok(['r', 'p'].includes(kind));
+    rows[relation] = (
+      await pool.query<{ raw: string }>(
+        `SELECT to_jsonb(t)::text raw FROM ${relationSql(relation)} t ORDER BY to_jsonb(t)::text COLLATE "C"`,
+      )
+    ).rows.map(({ raw }) => raw);
+  }
+  return { schemas, relations, rows };
+}
+
 /** Future central PG gate: actual SQL, no mock evaluator. This file is drafted,
  * not execution evidence. The companion HTTP suite owns real publication flows. */
 test(
   '0175 upgrade preserves legacy bytes, independently validates source hashes and ordered intents',
   { timeout: 120000 },
-  async () => {
+  async (t) => {
     const database = process.env['TEST_DATABASE_URL'];
     assert.ok(database);
     const url = new URL(database);
@@ -129,7 +167,89 @@ test(
         return results;
       };
       const beforeLegacy = await queryLegacy();
+      // Preserve the genuine M1 owner boundary before installing later owners.
+      // Use the ordinary checksum/prefix-verified runner, never hide namespaces.
+      const sourcePrefix = migrations.filter(
+        (m) => Number(m.name.slice(0, 4)) <= 175,
+      );
+      assert.equal(sourcePrefix.at(-1)?.name, fresh.name);
+      await runMigrations(pool, sourcePrefix, { mode: 'up' });
+      await t.test(
+        'historical 0175 empty source owner exceeds the exact reviewed inventory bound',
+        async () => {
+          assert.deepEqual(
+            (
+              await pool.query<{ name: string; checksum: string }>(
+                'SELECT name,checksum FROM whaleu_meta.schema_migrations ORDER BY name',
+              )
+            ).rows,
+            sourcePrefix.map(({ name, checksum }) => ({ name, checksum })),
+          );
+          assert.deepEqual(await queryLegacy(), beforeLegacy);
+          const before = await sourceOwnerState(pool);
+          assert.deepEqual(
+            before.schemas.map(({ name }) => name),
+            [
+              ...new Set([
+                ...[...reviewedRelations].map((name) => name.split('.')[0]),
+                'whaleu_account_deletion',
+                'whaleu_meta',
+              ]),
+            ].sort(),
+          );
+          assert.deepEqual(
+            before.relations.map(({ relation }) => relation),
+            [
+              ...reviewedRelations,
+              ...deletionMetadataRelations,
+              'whaleu_community.community_text_sources',
+            ].sort(),
+          );
+          assert.equal(
+            reviewedRelations.has('whaleu_community.community_text_sources'),
+            false,
+          );
+          assert.equal(
+            supportedTables.has('whaleu_community.community_text_sources'),
+            false,
+          );
+          assert.deepEqual(
+            before.rows['whaleu_community.community_text_sources'],
+            [],
+          );
+          // One new unreviewed source relation exceeds the registry bound;
+          // the later UNREGISTERED_OWNER_RELATION branch is not reached.
+          await assert.rejects(
+            inTransaction(pool, (tx) => inventory(tx)),
+            (error: unknown) =>
+              error instanceof DeletionError &&
+              error.code === 'INVENTORY_BOUND_EXCEEDED',
+          );
+          assert.deepEqual(await sourceOwnerState(pool), before);
+        },
+      );
       await runMigrations(pool, migrations, { mode: 'up' });
+      // Require the complete ordered 0182 predecessor prefix, not a latest-version pin.
+      // Later checked-in migrations remain part of the full ledger below.
+      const requiredCurrentPrefix = migrations.slice(0, 182);
+      assert.deepEqual(
+        requiredCurrentPrefix.map(({ name }) => name.slice(0, 4)),
+        Array.from({ length: 182 }, (_, index) =>
+          String(index + 1).padStart(4, '0'),
+        ),
+      );
+      assert.equal(
+        requiredCurrentPrefix.at(-1)?.name,
+        '0182_real_deletion_request_authority.sql',
+      );
+      assert.deepEqual(
+        (
+          await pool.query<{ name: string; checksum: string }>(
+            'SELECT name,checksum FROM whaleu_meta.schema_migrations ORDER BY name',
+          )
+        ).rows,
+        migrations.map(({ name, checksum }) => ({ name, checksum })),
+      );
       assert.deepEqual(
         (
           await pool.query(
@@ -155,13 +275,45 @@ test(
         policies: 0,
         sources: 0,
       });
-      await assert.rejects(
-        inTransaction(pool, (tx) => inventory(tx)),
-        (error: unknown) =>
-          error instanceof DeletionError &&
-          ['INVENTORY_BOUND_EXCEEDED', 'UNREGISTERED_OWNER_RELATION'].includes(
-            error.code,
-          ),
+      await t.test(
+        'current chain namespace gate denies erasure with an empty source owner unchanged',
+        async () => {
+          const before = await sourceOwnerState(pool);
+          const knownSchemas = new Set(
+            [...reviewedRelations].map((name) => name.split('.')[0]),
+          );
+          assert.deepEqual(
+            before.schemas
+              .map(({ name }) => name)
+              .filter(
+                (name) =>
+                  !knownSchemas.has(name) &&
+                  !['whaleu_account_deletion', 'whaleu_meta'].includes(name),
+              ),
+            ['whaleu_real_deletion', 'whaleu_real_deletion_admission'],
+          );
+          assert.equal(
+            reviewedRelations.has('whaleu_community.community_text_sources'),
+            false,
+          );
+          assert.equal(
+            supportedTables.has('whaleu_community.community_text_sources'),
+            false,
+          );
+          assert.deepEqual(
+            before.rows['whaleu_community.community_text_sources'],
+            [],
+          );
+          // The protected 0181/0182 namespaces fail before the relation bound.
+          // This is not evidence of the historical per-owner inventory stage.
+          await assert.rejects(
+            inTransaction(pool, (tx) => inventory(tx)),
+            (error: unknown) =>
+              error instanceof DeletionError &&
+              error.code === 'UNREGISTERED_OWNER_SCHEMA',
+          );
+          assert.deepEqual(await sourceOwnerState(pool), before);
+        },
       );
       const id = (n: number) =>
         `20000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
