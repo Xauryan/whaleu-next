@@ -80,9 +80,23 @@ test(
       delete item.row['lifecycle'];
       delete item.row['lifecycle_generation'];
       delete item.row['deletion_request_id'];
+      // 0180 preserves historical sessions at the exact initial epoch.
+      assert.equal(item.row['session_revocation_epoch'], 0);
+      delete item.row['session_revocation_epoch'];
+      // 0182 adds no real request authority to an existing account.
+      assert.equal(item.row['real_deletion_request_id'], null);
+      delete item.row['real_deletion_request_id'];
     }
-    // Prove 0172's exact additive defaults and 0133's exact additive catalog row;
-    // retain every original field of every historical table in the comparison.
+    const sessionsKey = 'whaleu_identity.sessions';
+    const sessions = after[sessionsKey] as { row: Record<string, unknown> }[];
+    assert.equal(sessions.length, (before[sessionsKey] as unknown[]).length);
+    assert.ok(accounts.length > 0 && sessions.length > 0);
+    for (const item of sessions) {
+      assert.equal(item.row['issued_revocation_epoch'], 0);
+      delete item.row['issued_revocation_epoch'];
+    }
+    // Prove 0172/0180/0182's exact additive defaults and 0133's exact catalog
+    // addition; retain every original historical field and table for equality.
     assert.deepEqual(after, before);
     for (const table of [
       'scoped_source_attestations',

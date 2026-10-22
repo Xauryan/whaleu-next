@@ -20,8 +20,8 @@ import {
 } from '../../src/account-deletion/owners/preflight.js';
 import { accountDeletionFixture } from '../support/account-deletion-fixture.js';
 
-const inventoryDenied = (error: unknown) =>
-  error instanceof DeletionError && error.code === 'INVENTORY_BOUND_EXCEEDED';
+const inventoryDenied = (code: string) => (error: unknown) =>
+  error instanceof DeletionError && error.code === code;
 const command = () => ({
   version: 1,
   requestId: randomUUID(),
@@ -30,17 +30,20 @@ const command = () => ({
 });
 
 test(
-  'default current deletion fixture rejects the unqualified 0175 catalog, even with no source rows',
+  'default current deletion fixture rejects the unregistered real deletion owner, even with no source rows',
   { timeout: 120000 },
   async () => {
     // The fixture owns disposal on failed construction. Its default must still
     // apply the actual full catalog, never silently pin a historical prefix.
-    await assert.rejects(accountDeletionFixture(), inventoryDenied);
+    await assert.rejects(
+      accountDeletionFixture(),
+      inventoryDenied('UNREGISTERED_OWNER_SCHEMA'),
+    );
   },
 );
 
 test(
-  'real current service and worker fail closed after source, reading, Home and registration installation without erasing any owner data',
+  'real current service and worker fail closed after source, reading, Home, registration, epoch, preparation and request installation without erasing any owner data',
   { timeout: 240000 },
   async (t) => {
     const f = await accountDeletionFixture({ throughMigration: 174 });
@@ -130,7 +133,13 @@ test(
       ).rows[0]!.value;
     const activeState = async () =>
       (
-        await f.pool.query<{ value: unknown }>(
+        await f.pool.query<{
+          value: {
+            account: Record<string, unknown>;
+            requests: unknown[];
+            commands: unknown[];
+          };
+        }>(
           `SELECT jsonb_build_object(
             'account',(SELECT to_jsonb(a) FROM whaleu_identity.accounts a WHERE id=$1),
             'requests',(SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY id),'[]'::jsonb) FROM whaleu_account_deletion.requests r WHERE account_id=$1),
@@ -141,7 +150,11 @@ test(
       ).rows[0]!.value;
     const retainedOwnerData = async () =>
       (
-        await f.pool.query<{ value: unknown }>(`SELECT jsonb_build_object(
+        await f.pool.query<{
+          value: Record<string, unknown> & {
+            sessions: Record<string, unknown>[] | null;
+          };
+        }>(`SELECT jsonb_build_object(
           'identities',(SELECT jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text COLLATE "C") FROM whaleu_identity.provider_identities t),
           'sessions',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM whaleu_identity.sessions t),
           'access',(SELECT jsonb_agg(to_jsonb(t) ORDER BY token_hash) FROM whaleu_identity.access_tokens t),
@@ -225,14 +238,35 @@ test(
         ],
       },
       {
-        stage: 'Current registration owner',
-        // Still install the full current catalog. A future unreviewed relation
-        // must fail the exact inventory comparison, never disappear behind a pin.
-        throughMigration: undefined,
+        stage: 'Registration owner',
+        throughMigration: 179,
         relations: [
           'whaleu_identity.registration_guard_key_epochs',
           'whaleu_identity.registration_guard_policy',
           'whaleu_identity.registration_guards',
+        ],
+      },
+      {
+        stage: 'Session epoch foundation',
+        throughMigration: 180,
+        relations: [],
+      },
+      {
+        stage: 'Real deletion preparation owner',
+        throughMigration: 181,
+        relations: ['whaleu_real_deletion.preparations'],
+      },
+      {
+        stage: 'Current real deletion request owner',
+        // Still install the full current catalog. A future unreviewed relation
+        // must fail the exact inventory comparison, never disappear behind a pin.
+        throughMigration: undefined,
+        relations: [
+          'whaleu_real_deletion_admission.receipts',
+          'whaleu_real_deletion.reauthentication_attempts',
+          'whaleu_real_deletion.provider_captures',
+          'whaleu_real_deletion.requests',
+          'whaleu_real_deletion.cancellations',
         ],
       },
     ] as const;
@@ -249,13 +283,50 @@ test(
           { mode: 'up' },
         );
       }
+      // 0180 adds numeric zero epochs; 0182 adds only a null real request pointer.
+      // Qualify full migrated snapshots before testing denied actions. Neither
+      // predecessor fields nor either exact additive default may be ignored.
+      const hasSessionEpoch =
+        throughMigration === undefined || throughMigration >= 180;
+      const hasRealRequest =
+        throughMigration === undefined || throughMigration >= 182;
+      const migratedActive = await activeState();
+      const migratedPrivate = await retainedOwnerData();
+      assert.deepEqual(
+        migratedActive,
+        hasSessionEpoch
+          ? {
+              ...beforeActive,
+              account: {
+                ...beforeActive.account,
+                session_revocation_epoch: 0,
+                ...(hasRealRequest ? { real_deletion_request_id: null } : {}),
+              },
+            }
+          : beforeActive,
+        'Only the initial account epoch and null real request pointer may be added by the current upgrade',
+      );
+      assert.deepEqual(
+        migratedPrivate,
+        hasSessionEpoch
+          ? {
+              ...beforePrivate,
+              sessions:
+                beforePrivate.sessions?.map((session) => ({
+                  ...session,
+                  issued_revocation_epoch: 0,
+                })) ?? null,
+            }
+          : beforePrivate,
+        'Only initial session epochs may be added by the current upgrade',
+      );
       addedRelations.push(...relations);
       const hasDerivedOwner =
         throughMigration === undefined || throughMigration >= 176;
       assert.deepEqual(
         await catalog(),
         [...historicalCatalog, ...addedRelations].sort(),
-        'Only the genuine added source/derived relations exceed the reviewed catalog bound',
+        'Only the exact added owner relations may exceed the reviewed catalog bound',
       );
       const sourceBefore = (
         await f.pool.query<{ count: number }>(
@@ -273,50 +344,67 @@ test(
             ) value`)
           ).rows[0]!.value
         : null;
+      // 0181/0182 introduce new schemas, rejected before the relation-count gate.
+      const denialCode =
+        throughMigration === undefined || throughMigration >= 181
+          ? 'UNREGISTERED_OWNER_SCHEMA'
+          : 'INVENTORY_BOUND_EXCEEDED';
+      const denied = inventoryDenied(denialCode);
       await assert.rejects(
         f.repository.transaction((tx) => inventory(tx, true)),
-        inventoryDenied,
+        denied,
         stage,
       );
       await assert.rejects(
         f.repository.transaction((tx) =>
           preflight(tx, activeContext.sandbox_id),
         ),
-        inventoryDenied,
+        denied,
         stage,
       );
       await assert.rejects(
         f.service.eligibility(f.assertion(active)),
-        inventoryDenied,
+        denied,
         stage,
       );
       await assert.rejects(
         f.service.request(f.assertion(active), command()),
-        inventoryDenied,
+        denied,
         stage,
       );
       assert.deepEqual(
         await activeState(),
-        beforeActive,
+        migratedActive,
         'Rejected new requests cannot change account, command, receipt or lifecycle',
       );
       const waiting = await f.worker.tick(acceptedCommand.requestId);
       assert.equal(waiting.phase, 'waiting', stage);
-      assert.deepEqual(waiting.pending, ['INVENTORY_BOUND_EXCEEDED'], stage);
+      assert.deepEqual(waiting.pending, [denialCode], stage);
       assert.equal(waiting.completedAt, null);
       assert.equal(waiting.reregisterAfter, null);
       if (previousWaiting)
         assert.deepEqual(
           waiting,
-          previousWaiting,
-          'Repeated catalog denial must not advance the waiting cursor',
+          throughMigration === 181
+            ? {
+                ...previousWaiting,
+                pending: [denialCode],
+                revision: String(BigInt(previousWaiting.revision) + 1n),
+              }
+            : previousWaiting,
+          'A new owner schema may only change the waiting reason and its revision',
         );
+      assert.deepEqual(
+        await f.worker.tick(acceptedCommand.requestId),
+        waiting,
+        'Repeated catalog denial must not advance the waiting cursor',
+      );
       previousWaiting = waiting;
       assert.deepEqual(await ownerEvidence(), { causes: 0, receipts: 0 });
       assert.equal(f.media.exists(pendingObject), true);
       assert.deepEqual(
         await retainedOwnerData(),
-        beforePrivate,
+        migratedPrivate,
         'No Identity/Profile/Timetable data can be erased on inventory denial',
       );
       assert.equal(
