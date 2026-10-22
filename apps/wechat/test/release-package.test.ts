@@ -714,6 +714,110 @@ test('WXSS packaging compacts whitespace without rewriting units, calculation se
   }
 });
 
+for (const [label, separator, quote] of [
+  ['compact double-quoted', '', '"'],
+  ['compact single-quoted', '', "'"],
+  ['space-separated double-quoted', ' ', '"'],
+  ['multiline single-quoted', '\t\n', "'"],
+] as const) {
+  test(`WXSS quoted import retains and relocates ${label} dependencies`, () => {
+    const f = fixture();
+    try {
+      f.write(
+        'pages/rating-detail/rating-detail.wxss',
+        `@import${separator}${quote}../../rating/detail.wxss${quote};`,
+      );
+      f.write(
+        'rating/detail.wxss',
+        `@import${separator}${quote}./palette.wxss${quote};`,
+      );
+      f.write('rating/palette.wxss', '.palette { color: #123456; }');
+      const before = digest(f.input);
+      const report = f.run();
+      const runtime = path.join(f.output, 'miniprogram');
+      assert.equal(digest(f.input), before);
+      assert.equal(
+        readFileSync(
+          path.join(
+            runtime,
+            'packages/ratings/pages/rating-detail/rating-detail.wxss',
+          ),
+          'utf8',
+        ),
+        '@import"../../rating/detail.wxss";\n',
+      );
+      assert.equal(
+        readFileSync(
+          path.join(runtime, 'packages/ratings/rating/detail.wxss'),
+          'utf8',
+        ),
+        '@import"./palette.wxss";\n',
+      );
+      assert.equal(
+        readFileSync(
+          path.join(runtime, 'packages/ratings/rating/palette.wxss'),
+          'utf8',
+        ),
+        '.palette{color:#123456}\n',
+      );
+      assert.ok(!existsSync(path.join(runtime, 'rating/palette.wxss')));
+      assert.ok(!report.droppedFiles.includes('rating/palette.wxss'));
+    } finally {
+      f.clean();
+    }
+  });
+}
+
+for (const quote of ['"', "'"]) {
+  for (const [label, target, expected] of [
+    [
+      'missing exact target',
+      './missing.wxss',
+      /Missing dependency: app\.wxss -> \.\/missing\.wxss/,
+    ],
+    [
+      'root escape',
+      '../outside.wxss',
+      /Dependency escapes package: app\.wxss -> \.\.\/outside\.wxss/,
+    ],
+    [
+      'main-to-ratings boundary',
+      '/packages/ratings/private.wxss',
+      /Invalid emitted package boundary: app\.wxss -> packages\/ratings\/private\.wxss/,
+    ],
+    [
+      'main-to-features boundary',
+      '/packages/features/private.wxss',
+      /Invalid emitted package boundary: app\.wxss -> packages\/features\/private\.wxss/,
+    ],
+  ] as const) {
+    test(`compact WXSS import rejects ${label} with ${quote} and preserves prior output`, () => {
+      const f = fixture();
+      try {
+        f.run();
+        const before = digest(f.output);
+        f.write('app.wxss', `@import${quote}${target}${quote};`);
+        // A similarly named file cannot satisfy an exact stylesheet reference.
+        f.write('missing.wxss.js', '');
+        f.write('outside.wxss', '');
+        // Existing targets still cannot cross an emitted package boundary.
+        f.write('packages/ratings/private.wxss', '.private { color: red; }');
+        f.write('packages/features/private.wxss', '.private { color: blue; }');
+        const source = digest(f.input);
+        const result = spawnSync(process.execPath, f.args, {
+          encoding: 'utf8',
+        });
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, expected);
+        assert.equal(digest(f.input), source);
+        assert.equal(digest(f.output), before);
+      } finally {
+        f.clean();
+      }
+    });
+  }
+}
+
 test('major family including recovery shares rating state once and keeps all legacy aliases', () => {
   const f = fixture();
   try {

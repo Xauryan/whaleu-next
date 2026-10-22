@@ -214,7 +214,7 @@ function buildGraph(files) {
         add(specifier, start, start + specifier.length + 2);
       }
     } else if (extension === '.wxss') {
-      for (const match of text.matchAll(/@import\s+(["'])(.*?)\1/g)) {
+      for (const match of text.matchAll(/@import\s*(["'])(.*?)\1/g)) {
         const start = match.index + match[0].indexOf(match[1]);
         add(match[2], start, start + match[2].length + 2);
       }
