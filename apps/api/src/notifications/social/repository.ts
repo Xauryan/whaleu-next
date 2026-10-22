@@ -64,7 +64,7 @@ export class SocialUpdatesRepository {
     return (
       (
         await tx.query<{ ordinal: string }>(
-          'SELECT ordinal::text FROM whaleu_notifications.social_notices WHERE recipient_account_id=$1 AND kind=$2 ORDER BY ordinal DESC LIMIT 1',
+          'SELECT ordinal::text FROM whaleu_notifications.social_notices WHERE recipient_account_id=$1 AND kind=$2 ORDER BY social_notices.ordinal DESC LIMIT 1',
           [account, socialKind(category)],
         )
       ).rows[0]?.ordinal ?? '0'
@@ -79,7 +79,7 @@ export class SocialUpdatesRepository {
   ): Promise<StoredSocialNotice[]> {
     return (
       await tx.query<StoredSocialNotice>(
-        `SELECT ${columns} FROM whaleu_notifications.social_notices WHERE recipient_account_id=$1 AND kind=$2 ${before === null ? '' : 'AND (created_at,ordinal)<($3::timestamptz,$4::bigint)'} ORDER BY created_at DESC,ordinal DESC LIMIT ${before === null ? '$3' : '$5'}`,
+        `SELECT ${columns} FROM whaleu_notifications.social_notices WHERE recipient_account_id=$1 AND kind=$2 ${before === null ? '' : 'AND (created_at,ordinal)<($3::timestamptz,$4::bigint)'} ORDER BY social_notices.created_at DESC,social_notices.ordinal DESC LIMIT ${before === null ? '$3' : '$5'}`,
         before === null
           ? [account, socialKind(category), limit + 1]
           : [
@@ -116,7 +116,7 @@ export class SocialUpdatesRepository {
   ): Promise<StoredSocialNotice[]> {
     return (
       await tx.query<StoredSocialNotice>(
-        `SELECT ${columns} FROM whaleu_notifications.social_notices WHERE recipient_account_id=$1 AND kind=$2 AND read_at IS NULL AND ($4::uuid IS NULL OR id<>$4) ORDER BY ordinal DESC LIMIT $3`,
+        `SELECT ${columns} FROM whaleu_notifications.social_notices WHERE recipient_account_id=$1 AND kind=$2 AND read_at IS NULL AND ($4::uuid IS NULL OR id<>$4) ORDER BY social_notices.ordinal DESC LIMIT $3`,
         [account, socialKind(category), limit, exclude],
       )
     ).rows;
