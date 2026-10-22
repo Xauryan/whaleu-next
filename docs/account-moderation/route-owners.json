@@ -3721,9 +3721,9 @@
     "controllerFile": "apps/api/src/health/health.ts",
     "ownerCalls": [
       {
-        "owner": "DatabaseService",
+        "owner": "ApplicationReadinessService",
         "method": "ready",
-        "file": "apps/api/src/database/database.ts",
+        "file": "apps/api/src/health/readiness.ts",
         "policy": [],
         "resolution": "concrete"
       }
