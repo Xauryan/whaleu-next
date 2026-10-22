@@ -1,3 +1,6 @@
+import type { ChildProcess } from 'node:child_process';
+import { rm } from 'node:fs/promises';
+
 /** Diagnostics deliberately exclude URLs, headers, bodies, console arguments,
  * exception text and CDP command parameters: these can contain fixture tokens. */
 export function browserDiagnostics(
@@ -91,4 +94,27 @@ export async function closeBrowserResources(
       `Browser cleanup failed: ${failed.join(', ')}`,
       { cause: errors[0] },
     );
+}
+
+/** Capture immediately after spawn, before close can occur. Unlike exit, close
+ * also waits for the child process's stdio streams, not detached writers. */
+export function browserProcessClosed(child: Pick<ChildProcess, 'once'>) {
+  return new Promise<void>((resolve) => {
+    child.once('close', () => resolve());
+  });
+}
+
+/** Remove only the mkdtemp-owned profile after the spawned child's close.
+ * Node retries its known transient recursive-rm errors; all others still fail. */
+export async function removeBrowserProfile(
+  directory: string,
+  closed: Promise<void>,
+) {
+  await closed;
+  await rm(directory, {
+    recursive: true,
+    force: true,
+    maxRetries: 3,
+    retryDelay: 100,
+  });
 }

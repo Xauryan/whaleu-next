@@ -4,9 +4,13 @@
  */
 import assert from 'node:assert/strict';
 import { browserVisibilityDiagnostics } from './browser-visibility-diagnostics.js';
-import { browserDiagnostics } from './browser-test-diagnostics.js';
+import {
+  browserDiagnostics,
+  browserProcessClosed,
+  removeBrowserProfile,
+} from './browser-test-diagnostics.js';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -111,6 +115,7 @@ export async function officialBrowser() {
         : process.env,
     },
   );
+  const closed = browserProcessClosed(child);
   // Do not disable Chromium's sandbox. The dedicated CI job needs a supported
   // non-root user / sandbox setup, not a silent --no-sandbox fallback.
   let serial = 0,
@@ -214,7 +219,7 @@ export async function officialBrowser() {
     }
     console.log('[browser-cleanup] profile-remove: begin');
     try {
-      await rm(directory, { recursive: true, force: true });
+      await removeBrowserProfile(directory, closed);
       console.log('[browser-cleanup] profile-remove: done');
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
