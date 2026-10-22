@@ -137,13 +137,30 @@ test(
         status: 'missing',
       });
       // The current application includes registration admission and requires
-      // the complete 0179 prefix. Exact 0175 producer/current-reader behavior
+      // the complete current epoch chain. Exact 0175 producer/current-reader behavior
       // is exercised separately by text-source-m1-compatibility.test.ts.
-      assert.equal(
-        migrations.at(-1)?.name,
-        '0179_identity_registration_guard.sql',
+      assert.deepEqual(
+        migrations
+          .filter((m) => {
+            const version = Number(m.name.slice(0, 4));
+            return version >= 178 && version <= 180;
+          })
+          .map((m) => m.name),
+        [
+          '0178_home_publication_protocol.sql',
+          '0179_identity_registration_guard.sql',
+          '0180_identity_session_revocation_epoch.sql',
+        ],
       );
       await runMigrations(pool, migrations, { mode: 'up' });
+      assert.deepEqual(
+        (
+          await pool.query<{ name: string; checksum: string }>(
+            'SELECT name,checksum FROM whaleu_meta.schema_migrations ORDER BY name',
+          )
+        ).rows,
+        migrations.map(({ name, checksum }) => ({ name, checksum })),
+      );
       assert.equal((await inspectReadingSchema(suite)).status, 'ready');
       const scope = await seedCommunityScope(pool);
       const config = loadConfig({

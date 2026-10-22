@@ -155,11 +155,40 @@ test(
         ).length,
         1,
       );
-      assert.equal(
-        migrations.at(-1)?.name,
-        '0179_identity_registration_guard.sql',
+      // readMigrations enforces unique, sorted four-digit IDs. Require this
+      // exact consecutive predecessor sequence, not a permanent latest version.
+      assert.deepEqual(
+        migrations
+          .filter((m) => {
+            const version = Number(m.name.slice(0, 4));
+            return version >= 178 && version <= 180;
+          })
+          .map((m) => m.name),
+        [
+          '0178_home_publication_protocol.sql',
+          '0179_identity_registration_guard.sql',
+          '0180_identity_session_revocation_epoch.sql',
+        ],
       );
       await runMigrations(pool, migrations, { mode: 'up' });
+      assert.deepEqual(
+        (
+          await pool.query<{ name: string; checksum: string }>(
+            'SELECT name,checksum FROM whaleu_meta.schema_migrations ORDER BY name',
+          )
+        ).rows,
+        migrations.map(({ name, checksum }) => ({ name, checksum })),
+      );
+      // Full-chain execution must retain the original Home/Reading seals.
+      assert.deepEqual(
+        (
+          await pool.query(`SELECT
+            whaleu_community.home_publication_protocol()->>'catalog'=whaleu_community.home_publication_catalog() publication,
+            whaleu_community.home_reading_protocol()->>'catalog'=whaleu_community.home_reading_catalog() home_reading,
+            whaleu_community.reading_format_protocol()->>'catalog'=whaleu_community.reading_format_catalog() reading`)
+        ).rows[0],
+        { publication: true, home_reading: true, reading: true },
+      );
       const scope = await seedCommunityScope(pool);
       const config = loadConfig({
         ...base,

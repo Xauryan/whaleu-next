@@ -122,13 +122,12 @@ test(
       const migrations = await readMigrations(
         fileURLToPath(new URL('../../migrations', import.meta.url)),
       );
-      assert.equal(
-        migrations.at(-1)?.name,
-        '0179_identity_registration_guard.sql',
-      );
       assert.deepEqual(
         migrations
-          .filter((m) => Number(m.name.slice(0, 4)) >= 175)
+          .filter((m) => {
+            const version = Number(m.name.slice(0, 4));
+            return version >= 175 && version <= 180;
+          })
           .map((m) => m.name),
         [
           '0175_community_text_sources.sql',
@@ -136,6 +135,7 @@ test(
           '0177_home_policy_admission.sql',
           '0178_home_publication_protocol.sql',
           '0179_identity_registration_guard.sql',
+          '0180_identity_session_revocation_epoch.sql',
         ],
       );
       await runMigrations(pool, migrations, { mode: 'up' });

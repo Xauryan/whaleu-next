@@ -1,3 +1,7 @@
+import {
+  retainSessionEpochSchema,
+  retainLiveSessionEpoch,
+} from '../identity/session-epoch.js';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
@@ -117,6 +121,7 @@ export class OfficialOperationWorker {
     );
   }
   private async session(command: OfficialStoredCommand, tx: PoolClient) {
+    await retainSessionEpochSchema(tx);
     if (!command.actor_ref)
       throw new ApplicationError('OFFICIAL_AUTHORITY_REQUIRED');
     if (!(await this.service.identity.activeAccount(command.actor_ref, tx)))
@@ -133,13 +138,20 @@ export class OfficialOperationWorker {
             id: string;
             access_expires_at: Date;
             refresh_expires_at: Date;
+            issued_revocation_epoch: string;
           }>(
-            `SELECT id,access_expires_at,refresh_expires_at FROM whaleu_identity.sessions WHERE id=$1 AND account_id=$2 AND revoked_at IS NULL AND access_expires_at>clock_timestamp() AND refresh_expires_at>clock_timestamp() AND absolute_expires_at>clock_timestamp() FOR SHARE`,
+            `SELECT s.id,s.access_expires_at,s.refresh_expires_at,s.issued_revocation_epoch FROM whaleu_identity.sessions s JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE s.id=$1 AND s.account_id=$2 AND s.issued_revocation_epoch=a.session_revocation_epoch AND a.status='active' AND a.lifecycle='active' AND s.revoked_at IS NULL AND s.access_expires_at>clock_timestamp() AND s.refresh_expires_at>clock_timestamp() AND s.absolute_expires_at>clock_timestamp() FOR SHARE OF s`,
             [attachment.session_ref, command.actor_ref],
           )
         ).rows[0]
       : undefined;
     if (!row) throw new ApplicationError('AUTHENTICATION_REQUIRED');
+    retainLiveSessionEpoch(
+      tx,
+      command.actor_ref,
+      row.id,
+      row.issued_revocation_epoch,
+    );
     registerTransactionDeadline(
       tx,
       row.access_expires_at.getTime(),

@@ -7,7 +7,7 @@ The integrated implementation starts from published commit
 `apps/api/migrations/0175_community_text_sources.sql` and formal durable-formatting
 migration `apps/api/migrations/0176_durable_reading_formatting.sql` are in the
 normal checksum/prefix-verified migration sequence. The current binary requires
-the complete chain through `0179_identity_registration_guard.sql`, including
+the complete chain through `0180_identity_session_revocation_epoch.sql`, including
 Home 0177/0178, before startup, consistent with
 [Home activation](../apps/api/docs/HOME_PUBLICATION_ACTIVATION.md) and the
 [registration guard](IDENTITY_REGISTRATION_GUARD.md). Published 0001–0174 bytes
@@ -45,7 +45,7 @@ These are local validation results, not cloud CI, production or device acceptanc
 Snapshot names identify frozen evidence bundles, not deployment environments.
 The results below belong to those prior exact inputs, not new acceptance of the
 current binary. Current production API/PTY and worker fixtures install the full
-chain through 0179. The Home worker fixture first captures the six pre-Home bodies
+chain through 0180. The Home worker fixture first captures the six pre-Home bodies
 at the explicit through-0177 prefix, then upgrades the full chain before creating
 runtime actors. It retains the predecessor and original 0176 catalog checks.
 Historical exact-0175 producer/current six-reader compatibility is separate in
@@ -138,3 +138,7 @@ with a genuine same-transaction cause. Synthetic cooling-clock advancement is
 not a real seven-day wait. These historical construction choices remain useful
 provenance; old statements that M2 was only a draft, production CLI was forbidden,
 or all PostgreSQL/native gates were unrun no longer describe the current source.
+
+The 0180 deployment requirement above is a source contract, not evidence that
+this newly composed stack passed PostgreSQL, TLS or cloud acceptance. Earlier
+recorded results remain tied to their original commits and schema stacks.

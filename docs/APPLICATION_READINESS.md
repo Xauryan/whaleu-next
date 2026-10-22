@@ -22,11 +22,13 @@ migration CLI. Production packaging must include that immutable directory beside
 `dist/`, not just JavaScript. No migration is run by startup or a probe.
 
 The artifact must contain a contiguous numbered chain beginning at 0001 and
-including `0179_identity_registration_guard.sql`. This is the current minimum,
+including `0180_identity_session_revocation_epoch.sql`. This is the current minimum,
 not a permanent cutoff: any additional normal migration shipped in a later
 version automatically becomes required. An unknown installed migration that is
-not in this binary's deployment artifact fails closed. This change introduces
-no 0180 migration or claim of its acceptance.
+not in this binary's deployment artifact fails closed. The epoch-aware runtime
+raises the original 0179 floor to 0180: an artifact truncated before the session
+epoch migration is not ready even if its 0179 ledger is otherwise complete.
+This dependency change does not itself qualify the 0180 business operations.
 
 Every shipped migration must be installed exactly once, with its exact name and
 checksum. Empty, historical-0175, truncated, gapped, duplicate, unknown and drifted
@@ -73,7 +75,7 @@ owner or provider is invoked by this gate.
 
 `apps/api/test/application-readiness.test.ts` uses synthetic migration files and
 an isolated HealthModule with a fake database, not AppModule or external services.
-It covers loader/hash compatibility, current 179 with formatting disabled,
+It covers loader/hash compatibility, current 180 with formatting disabled,
 missing/unknown/drifted/gapped history, invalid configuration, migration contention,
 future artifact extension, caching, sanitized failure and independent liveness.
 The fake-client transaction tests additionally cover statement ordering, explicit
@@ -89,7 +91,7 @@ remain integration/deployment checks.
 once in the existing `shared-foundation-1` CI shard. It requires controlled test
 maintenance, a loopback database named `whaleu_test`, a supported PostgreSQL
 version, the existing suite advisory lease, and no pre-existing `whaleu_` schema.
-It installs the complete actual shipped migration chain, currently 0001–0179.
+It installs the complete actual shipped migration chain, currently 0001–0180.
 It never substitutes a historical prefix, fake checksums or a mocked ready
 provider, and mounts only Configuration, Observability and the real HealthModule.
 

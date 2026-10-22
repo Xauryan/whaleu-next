@@ -1,3 +1,4 @@
+import { historicalEpochAbsenceSql } from '../historical-epoch-absence.js';
 /** Exact-0175 test boundary. Never imported by production source. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -61,7 +62,8 @@ export async function readExactM1Migrations() {
 let manifest: ReturnType<typeof readExactM1Migrations> | undefined;
 
 /** Reject recognized successor catalog families, including unledgered partial
- * Reading/Home/registration relations, functions, types, triggers and columns.
+ * Reading/Home/registration relations, functions, types, triggers and columns,
+ * plus the exact new0180 column/constraint/trigger/function identities.
  * This is a test boundary, not a general full-catalog integrity certificate.
  * Existing lifecycle columns MUST remain.
  * The official migration shared gate, table DDL locks, and ledger SHARE lock
@@ -118,6 +120,7 @@ export async function inspectExactM1(tx: PoolClient): Promise<void> {
     AND NOT EXISTS(SELECT 1 FROM pg_attribute WHERE NOT attisdropped
       AND ((attrelid='whaleu_community.content_approval_decisions'::regclass AND attname='home_issuance_transaction')
         OR (attrelid='whaleu_community.text_review_requests'::regclass AND attname='home_transition_transaction')))
+    AND (${historicalEpochAbsenceSql})
     AND (SELECT count(*)=3 FROM pg_attribute
       WHERE attrelid='whaleu_identity.accounts'::regclass AND NOT attisdropped
       AND attname=ANY(ARRAY['lifecycle','lifecycle_generation','deletion_request_id'])) AS exact`);

@@ -64,7 +64,7 @@ import { setRuntimeVerification } from '../support/community-runtime-fixtures.js
 import { migrationSchemaNames } from '../support/migration-schemas.js';
 
 /** Compatibility, NOT current registration or production/TLS acceptance.
- * The real immutable 0001..0175 schema has no 0176/0177/0178/0179 objects.
+ * The real immutable 0001..0175 schema has no 0176/0177/0178/0179/0180 objects.
  * Only lifecycle-aware historical Identity and pre-Home PublicationService are
  * saved producers, with the pinned original source-helper module mapped only
  * at the two producer import edges. Review, receipts, source storage, native HTTP controllers,
@@ -74,7 +74,7 @@ import { migrationSchemaNames } from '../support/migration-schemas.js';
 test(
   'exact M1 historical producers / current native readers preserve reviewed source without later owners',
   { timeout: 240000 },
-  async () => {
+  async (t) => {
     const database = process.env['TEST_DATABASE_URL'];
     assert.ok(database, 'Explicit disposable TEST_DATABASE_URL required');
     const base = {
@@ -528,6 +528,57 @@ test(
         ).rows[0]!['n'],
         before,
       );
+      // Independent real partial0180 negatives. The full175 source/reader
+      // assertions above remain intact, and no later migration is applied.
+      const partialEpoch = [
+        [
+          'account epoch column',
+          'ALTER TABLE whaleu_identity.accounts ADD COLUMN session_revocation_epoch bigint NOT NULL DEFAULT 0',
+        ],
+        [
+          'session issued epoch column',
+          'ALTER TABLE whaleu_identity.sessions ADD COLUMN issued_revocation_epoch bigint NOT NULL DEFAULT 0',
+        ],
+        [
+          'account epoch constraint',
+          'ALTER TABLE whaleu_identity.accounts ADD CONSTRAINT session_epoch_account_nonnegative CHECK(true)',
+        ],
+        [
+          'session issued epoch constraint',
+          'ALTER TABLE whaleu_identity.sessions ADD CONSTRAINT session_epoch_issued_nonnegative CHECK(true)',
+        ],
+        [
+          'account epoch trigger',
+          'CREATE TRIGGER session_epoch_account BEFORE UPDATE ON whaleu_identity.accounts FOR EACH ROW EXECUTE FUNCTION whaleu_account_deletion.lifecycle_guard()',
+        ],
+        [
+          'session issued epoch trigger',
+          'CREATE TRIGGER session_epoch_issued BEFORE UPDATE ON whaleu_identity.sessions FOR EACH ROW EXECUTE FUNCTION whaleu_account_deletion.lifecycle_guard()',
+        ],
+        [
+          'account epoch guard',
+          'CREATE FUNCTION whaleu_identity.session_epoch_account_guard() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$',
+        ],
+        [
+          'session issued epoch guard',
+          'CREATE FUNCTION whaleu_identity.session_epoch_issued_guard() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$',
+        ],
+        [
+          'epoch protocol',
+          "CREATE FUNCTION whaleu_identity.session_epoch_protocol() RETURNS jsonb LANGUAGE sql AS $$SELECT '{}'::jsonb$$",
+        ],
+      ] as const;
+      for (const [label, statement] of partialEpoch)
+        await t.test(`exact175 rejects unledgered0180 ${label}`, async () => {
+          await assert.rejects(
+            db.transaction(async (tx) => {
+              await tx.query(statement);
+              await inspectExactM1(tx);
+            }),
+            /Partial\/future owners are not exact M1/,
+          );
+          await db.transaction(inspectExactM1);
+        });
       // There is still no formatting queue/head/result, Home or registration owner.
       await db.transaction(async (tx) => {
         await inspectExactM1(tx);

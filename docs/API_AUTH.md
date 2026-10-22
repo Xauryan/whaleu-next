@@ -297,3 +297,13 @@ Existing-account login/session rules are unchanged. Apply 0179 after its complet
 completion source preserves ordinary new registration; missing schema or unknown
 policy fails closed. Real account deletion and guard-writing authority are still
 unavailable, not enabled by the optional secret keyring or configuration.
+
+### Closed session epoch foundation (0180)
+
+The current Identity runtime requires the complete verified migration chain
+through `0180_identity_session_revocation_epoch.sql`. Missing or drifted epoch
+schema fails closed, rather than treating missing epoch values as zero. Existing
+zero-epoch credentials retain their original absolute lifetime; refresh-replay
+revocation and logout semantics remain genuine. Epoch advancement and actual
+account erasure are not enabled by this foundation. See
+[the session epoch contract](IDENTITY_SESSION_EPOCH.md) for cutover limits.

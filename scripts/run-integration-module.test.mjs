@@ -603,3 +603,28 @@ test('real application readiness qualification belongs exactly once to shared da
   assert.equal(selected[0].id, 'shared-foundation-1');
   assert.ok(selected[0].owners.includes('database'));
 });
+
+test('session epoch authority rejection files have one Identity owner', () => {
+  const plan = createModulePlan(discoverFiles(), readModules());
+  const identity = plan.shards.find(
+    (shard) => shard.module === 'identity-messaging',
+  );
+  assert.ok(identity);
+  for (const name of [
+    'identity-session-epoch-admin-delete.test.ts',
+    'identity-session-epoch-authority.test.ts',
+    'identity-session-epoch-community-writes.test.ts',
+    'identity-session-epoch-deadlines.test.ts',
+    'identity-session-epoch-final-fence.test.ts',
+    'identity-session-epoch-media.test.ts',
+  ]) {
+    const file = `test/integration/${name}`;
+    assert.ok(identity.files.includes(file));
+    assert.equal(
+      plan.shards
+        .flatMap((shard) => shard.files)
+        .filter((entry) => entry === file).length,
+      1,
+    );
+  }
+});

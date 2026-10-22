@@ -11,6 +11,7 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { loadConfig } from '../../src/config/config.js';
 import {
+  DatabaseService,
   poolOptions,
   supportedPostgresVersion,
 } from '../../src/database/database.js';
@@ -1164,26 +1165,40 @@ test(
       await t.test(
         'transactional auth waits for the session before locking tokens, matching refresh ordering',
         async () => {
-          const holder = await pool.connect(),
-            waiter = await pool.connect();
+          const holder = await pool.connect();
+          const reached = deferred();
+          let waiterPid = 0;
+          let authenticating:
+            ReturnType<IdentityService['session']> | undefined;
           try {
             await holder.query('BEGIN');
             await holder.query(
               'SELECT id FROM whaleu_identity.sessions WHERE id=$1 FOR UPDATE',
               [first.sessionId],
             );
-            await waiter.query('BEGIN');
             const holderPid = (
               await holder.query<{ pid: number }>(
                 'SELECT pg_backend_pid() AS pid',
               )
             ).rows[0]!.pid;
-            const waiterPid = (
-              await waiter.query<{ pid: number }>(
-                'SELECT pg_backend_pid() AS pid',
-              )
-            ).rows[0]!.pid;
-            const authenticating = identity.session(first.accessToken, waiter);
+            // The real wrapper owns required auth proofs through final checks
+            // and COMMIT; a raw BEGIN cannot represent a managed auth caller.
+            authenticating = app!.get(DatabaseService).transaction(
+              async (waiter) => {
+                waiterPid = (
+                  await waiter.query<{ pid: number }>(
+                    'SELECT pg_backend_pid() AS pid',
+                  )
+                ).rows[0]!.pid;
+                reached.resolve();
+                return identity.session(first.accessToken, waiter);
+              },
+              { isolationLevel: 'read committed' },
+            );
+            // Observe an early failure without leaving an unhandled rejection
+            // or hanging forever if the connection failed before publishing PID.
+            await Promise.race([reached.promise, authenticating]);
+            assert.ok(waiterPid > 0);
             const deadline = Date.now() + 2000;
             let waiting = false;
             while (!waiting && Date.now() < deadline) {
@@ -1209,10 +1224,14 @@ test(
             await holder.query('COMMIT');
             assert.equal((await authenticating).accountId, first.accountId);
           } finally {
-            await holder.query('ROLLBACK');
-            await waiter.query('ROLLBACK');
-            holder.release();
-            waiter.release();
+            try {
+              await holder.query('ROLLBACK');
+            } finally {
+              // Release the holder before draining the managed waiter, including
+              // assertion failures while the session lock is still held.
+              holder.release();
+              await authenticating?.catch(() => undefined);
+            }
           }
         },
       );

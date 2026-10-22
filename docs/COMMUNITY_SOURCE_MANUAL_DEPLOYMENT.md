@@ -10,9 +10,9 @@ source publication. Do not copy development database credentials into production
 
 1. Before running the current API binary, apply the complete normal migration
    chain with `npm run db:migrate` and inspect `npm run db:status`, through
-   `0179_identity_registration_guard.sql`. This includes source storage (0175),
+   `0180_identity_session_revocation_epoch.sql`. This includes source storage (0175),
    durable formatting (0176), Home admission/publication (0177/0178) and registration
-   (0179), as required by [Home activation](../apps/api/docs/HOME_PUBLICATION_ACTIVATION.md)
+   (0179) and closed session epochs (0180), as required by [Home activation](../apps/api/docs/HOME_PUBLICATION_ACTIVATION.md)
    and the [registration guard](IDENTITY_REGISTRATION_GUARD.md). Do not stop at
    0175, apply files alone or use draft migrations. `source_manual` selects the
    review issuer, not a schema version. Installation creates no review policy,
@@ -179,7 +179,7 @@ rejected/stored receipts and no-side-effects checks. Synthetic identities/scopes
 and a shared disposable role limit that evidence. This earlier pass is
 prior-version evidence, not a current-binary production acceptance or permission
 to run the current binary on exact 0175. Current production API/PTY acceptance
-uses the complete chain through 0179.
+uses the complete chain through 0180.
 
 Separately, exact `reading-c27-deployable-cli-stage-v1` passed 6/6 reported tests
 for actual source/ordinary compiled worker entries, direct restricted LOGIN,
@@ -199,3 +199,7 @@ approval and is **not** an automatic production integration. Historical SDK
 behavior is not current provider-contract or account-qualification acceptance.
 Never substitute an adapter result, external callback or fabricated decision for
 the explicit authorized human review above.
+
+The 0180 deployment requirement above is a source contract, not evidence that
+this newly composed stack passed PostgreSQL, TLS or cloud acceptance. Earlier
+recorded results remain tied to their original commits and schema stacks.

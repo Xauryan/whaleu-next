@@ -1,3 +1,4 @@
+import { retainSessionEpochSchema } from './session-epoch.js';
 import type { PoolClient } from 'pg';
 import { ApplicationError } from '../http/application-error.js';
 import { boundedOwnerProof } from '../database/required-owner-proof.js';
@@ -23,7 +24,7 @@ const proof: RequiredTransactionProof<Fact> = {
         if (
           !(
             await read.query(
-              `SELECT 1 FROM whaleu_identity.sessions s JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE s.id=$1 AND s.account_id=$2 AND a.status='active' AND a.lifecycle='active' AND s.revoked_at IS NULL AND least(s.access_expires_at,s.absolute_expires_at)>clock_timestamp()`,
+              `SELECT 1 FROM whaleu_identity.sessions s JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE s.id=$1 AND s.account_id=$2 AND a.status='active' AND s.issued_revocation_epoch=a.session_revocation_epoch AND a.lifecycle='active' AND s.revoked_at IS NULL AND least(s.access_expires_at,s.absolute_expires_at)>clock_timestamp()`,
               [f.session, f.account],
             )
           ).rows[0]
@@ -39,10 +40,11 @@ export async function requireRatingPromotionSession(
   session: string | null,
   tx: PoolClient,
 ) {
+  await retainSessionEpochSchema(tx);
   if (!session) throw new ApplicationError('PROMOTION_SOURCE_CHANGED');
   const row = (
     await tx.query<{ until: string }>(
-      `SELECT least(s.access_expires_at,s.absolute_expires_at)::text until FROM whaleu_identity.sessions s JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE s.id=$1 AND s.account_id=$2 AND a.status='active' AND a.lifecycle='active' AND s.revoked_at IS NULL AND least(s.access_expires_at,s.absolute_expires_at)>clock_timestamp() FOR SHARE OF s,a`,
+      `SELECT least(s.access_expires_at,s.absolute_expires_at)::text until FROM whaleu_identity.sessions s JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE s.id=$1 AND s.account_id=$2 AND a.status='active' AND s.issued_revocation_epoch=a.session_revocation_epoch AND a.lifecycle='active' AND s.revoked_at IS NULL AND least(s.access_expires_at,s.absolute_expires_at)>clock_timestamp() FOR SHARE OF s,a`,
       [session, account],
     )
   ).rows[0];

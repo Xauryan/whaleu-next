@@ -29,11 +29,13 @@ with synthetic test identities, including the actual Identity repository entry.
   nonempty inactive storage reject new registration as `AUTH_NOT_CONFIGURED`.
   A currently blocked identity receives the existing safe `LOGIN_REJECTED` code;
   no deletion request, completion time or digest is disclosed to the client.
-- Apply 0179 before deploying this runtime. It requires the recorded full 0178
+- Apply the complete chain through 0180 before deploying this epoch-aware runtime.
+  The registration guard 0179 still requires the recorded full 0178
   predecessor and runs in the normal transactional, checksum-verified migration
-  runner. This integrated candidate is based on locally signed Home commit
-  `2f9f77260119664af3a06c488963153fdc12dab3`, includes 0177/0178, and has been tested
-  by applying the complete migration sequence in a fresh local test database.
+  runner. The original registration slice was based on locally signed Home
+  commit `2f9f77260119664af3a06c488963153fdc12dab3` and was tested with its
+  complete migration sequence in a fresh local test database. That historical
+  result is not qualification of the new 0180 integration.
 
 ## Schema qualification, retained fence and privileges
 

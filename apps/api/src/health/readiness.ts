@@ -12,7 +12,8 @@ import type { Migration } from '../database/migrations.js';
 
 // A floor, not a replacement for the deployed migration directory. A future
 // deployment with additional checked-in migrations must require those too.
-export const APPLICATION_SCHEMA_FLOOR = '0179_identity_registration_guard.sql';
+export const APPLICATION_SCHEMA_FLOOR =
+  '0180_identity_session_revocation_epoch.sql';
 const minimumMigrationCount = Number(APPLICATION_SCHEMA_FLOOR.slice(0, 4));
 const maximumMigrationCount = 9999;
 export const APPLICATION_MIGRATIONS = Symbol('APPLICATION_MIGRATIONS');

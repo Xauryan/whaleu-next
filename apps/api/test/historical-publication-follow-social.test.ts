@@ -23,6 +23,7 @@ import type { CommunityRepository } from '../src/community/community.repository.
 import { IdentityRepository } from '../src/identity/identity.repository.js';
 import { IdentityService } from '../src/identity/identity.service.js';
 import { mintToken } from '../src/identity/tokens.js';
+import { sessionEpochFixture } from './support/session-epoch-fixture.js';
 import { PublicationService as PredecessorPublicationService } from './support/historical-publication/publication.service.js';
 import {
   guardedHistoricalPublicationDatabase,
@@ -51,7 +52,7 @@ const expected = (prefix: number) =>
     .filter(({ name }) => Number(name.slice(0, 4)) <= prefix)
     .map(({ name, checksum }) => ({ name, checksum }));
 
-function fixture() {
+function fixture(options: { currentEpoch?: boolean } = {}) {
   const state = {
     rows: expected(174),
     locked: true,
@@ -59,6 +60,7 @@ function fixture() {
     homeAbsent: true,
     lifecyclePresent: true,
     lifecycleChecks: 0,
+    epochChecks: 0,
     lifecycle: 'active',
     accountLockError: null as Error | null,
     statements: [] as string[],
@@ -66,6 +68,14 @@ function fixture() {
   const tx = {
     query: async (sql: string, values?: unknown[]) => {
       state.statements.push(sql);
+      if (options.currentEpoch) {
+        const epoch = sessionEpochFixture(sql);
+        if (epoch) {
+          if (sql.includes('identity-session-epoch-schema-v1'))
+            state.epochChecks++;
+          return epoch;
+        }
+      }
       if (sql === 'SELECT clock_timestamp() AS now')
         return { rows: [{ now: new Date() }] };
       if (sql.includes('pg_try_advisory'))
@@ -358,15 +368,13 @@ test('exact174 retains callback semantics and rechecks lifecycle at real pre-COM
 });
 
 test('current Identity and publication journal reject nonactive lifecycle before any receipt lookup or content callback', async () => {
-  const f = fixture(),
-    boundary = await historicalFollowSocialPublicationBoundary(config);
-  const database = guardedHistoricalPublicationDatabase(
-    {
-      transaction: <T>(work: (tx: PoolClient) => Promise<T>) =>
-        inTransaction(f.pool, work),
-    } as unknown as DatabaseService,
-    boundary,
-  );
+  // This unit case targets current epoch-aware authentication, not an impossible
+  // current-owner/exact0174 database. Historical boundary tests above are separate.
+  const f = fixture({ currentEpoch: true });
+  const database = {
+    transaction: <T>(work: (tx: PoolClient) => Promise<T>) =>
+      inTransaction(f.pool, work),
+  } as unknown as DatabaseService;
   const identity = new IdentityRepository(database, config);
   const service = new IdentityService(
     {
@@ -421,6 +429,7 @@ test('current Identity and publication journal reject nonactive lifecycle before
     );
     assert.equal(f.state.statements.at(-1), 'ROLLBACK');
   }
+  assert.equal(f.state.epochChecks, 3);
   assert.ok(
     f.state.statements.some(
       (sql) =>

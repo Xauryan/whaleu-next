@@ -59,6 +59,7 @@ import {
 } from '../../src/account-deletion/owners/baseline.js';
 import { migrationSchemaNames } from './migration-schemas.js';
 import { createHistoricalDeletionPeer } from './historical-deletion-peer.js';
+import { historicalDeletionIdentity } from './historical-lifecycle-identity/deletion.js';
 export async function accountDeletionFixture(
   options: { throughMigration?: 173 | 174 } = {},
 ) {
@@ -187,7 +188,14 @@ export async function accountDeletionFixture(
         repository.transaction(work),
       query: pool.query.bind(pool),
     } as unknown as DatabaseService;
-    const identity = new IdentityRepository(database),
+    const identity =
+        options.throughMigration === undefined
+          ? new IdentityRepository(database)
+          : await historicalDeletionIdentity(
+              database,
+              config,
+              options.throughMigration,
+            ),
       profiles = new ProfileRepository(database),
       details = new ProfileDetailsRepository(),
       timetable = new PersonalTimetableRepository();

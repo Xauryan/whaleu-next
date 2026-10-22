@@ -24,6 +24,7 @@ import type { RequiredTransactionProof } from '../../src/database/transaction-de
 import type { ProviderIdentity } from '../../src/identity/contracts.js';
 import { hashToken, mintToken } from '../../src/identity/tokens.js';
 import { IdentityRepository as PredecessorIdentityRepository } from './historical-m1/identity.repository.js';
+import { historicalEpochAbsenceSql } from './historical-epoch-absence.js';
 
 export const HISTORICAL_DELETION_PEER_APP = 'synthetic-deletion-peer-0174-only';
 export const DELETION_PEER_0174_MANIFEST_SHA256 =
@@ -106,6 +107,7 @@ export const historicalDeletionPeerCatalogSql = `SELECT
   AND NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
     WHERE (n.nspname='whaleu_community' AND (t.typname=ANY(ARRAY['community_text_sources','_community_text_sources']) OR starts_with(t.typname,'text_source_') OR starts_with(t.typname,'_text_source_') OR starts_with(t.typname,'reading_format_') OR starts_with(t.typname,'_reading_format_') OR starts_with(t.typname,'home_') OR starts_with(t.typname,'_home_')))
        OR (n.nspname='whaleu_identity' AND (starts_with(t.typname,'registration_guard') OR starts_with(t.typname,'_registration_guard'))))
+  AND (${historicalEpochAbsenceSql})
   AND (SELECT count(*)=3 FROM pg_attribute WHERE attrelid='whaleu_identity.accounts'::regclass
     AND NOT attisdropped AND attname=ANY(ARRAY['lifecycle','lifecycle_generation','deletion_request_id'])) AS exact`;
 

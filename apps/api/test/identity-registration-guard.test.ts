@@ -1,3 +1,4 @@
+import { sessionEpochFixture } from './support/session-epoch-fixture.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -67,7 +68,7 @@ function fixture(
     query: async (sql: string, values: unknown[] = []) => {
       queries.push({ sql, values });
       if (input.fail) throw new Error('synthetic-private-database-error');
-      const schema = registrationSchemaFixture(sql);
+      const schema = sessionEpochFixture(sql) ?? registrationSchemaFixture(sql);
       if (schema) return schema;
       if (sql.includes('registration_guard_policy'))
         return { rows: [{ policy: input.policy ?? inactive }] };
@@ -246,7 +247,7 @@ function repositoryFixture(existing: boolean, allow = true) {
   const tx = {
     query: async (sql: string) => {
       queries.push(sql);
-      const schema = registrationSchemaFixture(sql);
+      const schema = sessionEpochFixture(sql) ?? registrationSchemaFixture(sql);
       if (schema) return schema;
       if (sql.includes('registration_guard_policy'))
         return { rows: [{ policy: inactive }] };
@@ -258,7 +259,15 @@ function repositoryFixture(existing: boolean, allow = true) {
       )
         return { rows: existing ? [{ account_id: 'account' }] : [] };
       if (sql.startsWith('SELECT status,lifecycle'))
-        return { rows: [{ status: 'active', lifecycle: 'active' }] };
+        return {
+          rows: [
+            {
+              status: 'active',
+              lifecycle: 'active',
+              session_revocation_epoch: '0',
+            },
+          ],
+        };
       if (sql.includes('clock_timestamp() AS now')) return { rows: [{ now }] };
       if (sql.includes('INSERT INTO whaleu_identity.sessions'))
         return {

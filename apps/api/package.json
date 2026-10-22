@@ -15,6 +15,7 @@
     "start": "node --env-file-if-exists=../../.env dist/main.js",
     "db:status": "node --env-file-if-exists=../../.env --import tsx src/database/migrate.ts status",
     "db:migrate": "node --env-file-if-exists=../../.env --import tsx src/database/migrate.ts up",
+    "auth:epoch-status": "node --env-file-if-exists=../../.env --import tsx src/identity/session-epoch-cli.ts status",
     "auth:maintain": "node --env-file-if-exists=../../.env --import tsx src/identity/maintain.ts",
     "schools:migrate": "node --env-file-if-exists=../../.env --import tsx src/campus/school-identifiers/migrate.ts",
     "updates:process": "node --env-file-if-exists=../../.env --import tsx src/notifications/process-updates.ts",

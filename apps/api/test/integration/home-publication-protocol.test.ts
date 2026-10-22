@@ -96,13 +96,14 @@ test(
         0,
       );
       owns = true;
-      const currentMigrations = (
-        await readMigrations(
-          fileURLToPath(new URL('../../migrations', import.meta.url)),
-        )
-      ).filter((m) => Number(m.name.slice(0, 4)) <= 179);
+      const currentMigrations = await readMigrations(
+        fileURLToPath(new URL('../../migrations', import.meta.url)),
+      );
+      const preEpochMigrations = currentMigrations.filter(
+        (m) => Number(m.name.slice(0, 4)) <= 179,
+      );
       assert.equal(
-        currentMigrations.at(-1)?.name,
+        preEpochMigrations.at(-1)?.name,
         '0179_identity_registration_guard.sql',
       );
       const migrations = currentMigrations.filter(
@@ -400,8 +401,41 @@ test(
       );
       // Finish the exact 0177 -> 0178 SQL proof before current Identity starts.
       await assertInstalledPrefix(178);
-      await runMigrations(pool, currentMigrations, { mode: 'up' });
+      await runMigrations(pool, preEpochMigrations, { mode: 'up' });
       await assertInstalledPrefix(179);
+      assert.deepEqual(
+        currentMigrations
+          .filter((m) => {
+            const version = Number(m.name.slice(0, 4));
+            return version >= 178 && version <= 180;
+          })
+          .map((m) => m.name),
+        [
+          '0178_home_publication_protocol.sql',
+          '0179_identity_registration_guard.sql',
+          '0180_identity_session_revocation_epoch.sql',
+        ],
+      );
+      await runMigrations(pool, currentMigrations, { mode: 'up' });
+      assert.deepEqual(
+        (
+          await pool.query<{ name: string; checksum: string }>(
+            'SELECT name,checksum FROM whaleu_meta.schema_migrations ORDER BY name',
+          )
+        ).rows,
+        currentMigrations.map(({ name, checksum }) => ({ name, checksum })),
+      );
+      // Upgrading Identity must preserve the installed Home/Reading seals.
+      assert.deepEqual(
+        (
+          await pool.query(`SELECT
+            whaleu_community.home_publication_protocol()->>'catalog'=whaleu_community.home_publication_catalog() publication,
+            whaleu_community.home_reading_protocol()->>'catalog'=whaleu_community.home_reading_catalog() home_reading,
+            whaleu_community.reading_format_protocol()->>'catalog'=whaleu_community.reading_format_catalog() reading`)
+        ).rows[0],
+        { publication: true, home_reading: true, reading: true },
+      );
+
       const scope = await seedCommunityScope(pool);
       const operatorName = `manual:${hostname()}:${userInfo().username}`;
       const config = loadConfig({

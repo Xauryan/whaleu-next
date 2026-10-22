@@ -139,8 +139,8 @@ test(
       ownsSchemas = true;
 
       const migrations = await readApplicationMigrations();
-      assert.ok(migrations.length >= 179);
-      assert.equal(migrations[178]?.name, APPLICATION_SCHEMA_FLOOR);
+      assert.ok(migrations.length >= 180);
+      assert.equal(migrations[179]?.name, APPLICATION_SCHEMA_FLOOR);
       assert.equal(config.COMMUNITY_READING_FORMATTING_PROCESSING, 'disabled');
       assert.equal(config.COMMUNITY_TEXT_REVIEW, 'disabled');
       assert.equal(config.WECHAT_APP_ID, undefined);
@@ -173,7 +173,7 @@ test(
       );
 
       // No historical prefix or fixture checksum substitute: install every
-      // migration shipped in this exact binary, currently the full 0001–0179.
+      // migration shipped in this exact binary, currently the full 0001–0180.
       await runMigrations(pool, migrations, { mode: 'up' });
       const original = (
         await pool.query<{ name: string; checksum: string; appliedAt: string }>(

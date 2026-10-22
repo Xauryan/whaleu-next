@@ -1,5 +1,12 @@
+import { sessionEpochFixture } from './support/session-epoch-fixture.js';
+import {
+  startTransactionDeadlines,
+  checkTransactionDeadlines,
+  clearTransactionDeadlines,
+} from '../src/database/transaction-deadlines.js';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import type { PoolClient } from 'pg';
 import { loadConfig } from '../src/config/config.js';
@@ -7,6 +14,36 @@ import type { DatabaseService } from '../src/database/database.js';
 import { ApplicationError } from '../src/http/application-error.js';
 import { IdentityRepository } from '../src/identity/identity.repository.js';
 import { IdentityRateLimiter } from '../src/identity/rate-limit.js';
+
+// Rejected refresh paths may read, lock, restore bounded timeouts and force
+// deferred checks, but may not write replacement tokens. These are the exact
+// ten short statements observed through the real0180 refresh/final-proof path.
+// This is deliberately not a general SELECT, SQL-prefix or DML-regex classifier.
+const reviewedRejectedRefreshSql = new Set([
+  'SELECT clock_timestamp() AS now',
+  "SELECT current_setting('transaction_isolation') isolation,current_setting('statement_timeout') statement_timeout,current_setting('lock_timeout') lock_timeout",
+  'SELECT id FROM whaleu_identity.accounts WHERE id=$1 FOR SHARE',
+  'SELECT id FROM whaleu_identity.sessions WHERE id=$1 AND account_id=$2 FOR UPDATE',
+  'SELECT pg_try_advisory_xact_lock_shared($1, $2) AS locked',
+  'SELECT s.*, a.status, a.lifecycle, a.session_revocation_epoch, r.consumed_at\n        FROM whaleu_identity.refresh_tokens r JOIN whaleu_identity.sessions s ON s.id=r.session_id\n        JOIN whaleu_identity.accounts a ON a.id=s.account_id WHERE r.token_hash=$1 AND s.id=$2 AND a.id=$3',
+  'SELECT s.account_id,r.session_id FROM whaleu_identity.refresh_tokens r JOIN whaleu_identity.sessions s ON s.id=r.session_id WHERE r.token_hash=$1',
+  "SELECT set_config('statement_timeout',$1,true),set_config('lock_timeout',$2,true)",
+  'SELECT token_hash FROM whaleu_identity.refresh_tokens WHERE token_hash=$1 AND session_id=$2 FOR UPDATE',
+  'SET CONSTRAINTS ALL IMMEDIATE',
+]);
+// Pin the complete read-only catalog CTE, not its comment or WITH prefix.
+// Any source/whitespace change requires reviewing and repinning that exact SQL.
+const reviewedEpochSchemaSqlSha256 =
+  '10ca0e24a1ff4d49cc3bcc7b54eebb292ccda3b95aac500034b0da452a3854f0';
+function assertRejectedRefreshReadOnly(statements: readonly string[]): void {
+  for (const sql of statements)
+    assert.ok(
+      reviewedRejectedRefreshSql.has(sql) ||
+        createHash('sha256').update(sql).digest('hex') ===
+          reviewedEpochSchemaSqlSha256,
+      'Unexpected SQL outside the rejected-refresh read/control allowlist',
+    );
+}
 
 function fixture(
   query: (sql: string, values: unknown[]) => unknown[],
@@ -18,6 +55,8 @@ function fixture(
   const client = {
     query: async (sql: string, values: unknown[] = []) => {
       statements.push(sql);
+      const epoch = sessionEpochFixture(sql);
+      if (epoch) return epoch;
       if (sql.startsWith('SELECT s.account_id,r.session_id'))
         return {
           rows: [{ account_id: row.account_id, session_id: row.id }],
@@ -40,12 +79,16 @@ function fixture(
   const database = {
     transaction: async <T>(operation: (client: PoolClient) => Promise<T>) => {
       try {
+        startTransactionDeadlines(client);
         const result = await operation(client);
+        await checkTransactionDeadlines(client);
         commits += 1;
         return result;
       } catch (error) {
         rollbacks += 1;
         throw error;
+      } finally {
+        clearTransactionDeadlines(client);
       }
     },
   } as unknown as DatabaseService;
@@ -67,6 +110,8 @@ const row = {
   refresh_expires_at: new Date(now.getTime() + 2000),
   absolute_expires_at: new Date(now.getTime() + 3000),
   revoked_at: null,
+  issued_revocation_epoch: '0',
+  session_revocation_epoch: '0',
   consumed_at: null,
 };
 const hashes = { access: 'a'.repeat(64), refresh: 'b'.repeat(64) };
@@ -127,9 +172,47 @@ test('revoked, blocked, expired and unknown refresh states never write replaceme
       new IdentityRepository(database.database).rotate('c'.repeat(64), hashes),
       (error) => error instanceof ApplicationError && error.code === code,
     );
-    assert.ok(database.statements.every((sql) => sql.startsWith('SELECT')));
+    assertRejectedRefreshReadOnly(database.statements);
     assert.equal(database.commits(), 1);
   }
+});
+
+test('rejected-refresh no-write proof rejects disguised writes and unreviewed controls', async () => {
+  const database = fixture((sql) =>
+    sql.startsWith('SELECT s.*') ? [] : [{ now }],
+  );
+  await assert.rejects(
+    new IdentityRepository(database.database).rotate('c'.repeat(64), hashes),
+    { code: 'AUTHENTICATION_REQUIRED' },
+  );
+  assertRejectedRefreshReadOnly(database.statements);
+  assert.equal(database.commits(), 1);
+  const writes = [
+    "INSERT INTO whaleu_identity.refresh_tokens(token_hash) VALUES ('unexpected')",
+    'update whaleu_identity.refresh_tokens set consumed_at=clock_timestamp()',
+    'delete from whaleu_identity.refresh_tokens',
+    'truncate whaleu_identity.refresh_tokens',
+    '/* read fence */ DELETE FROM whaleu_identity.refresh_tokens',
+    "-- read fence\ninsert into whaleu_identity.refresh_tokens(token_hash) values ('unexpected')",
+    'WITH changed AS (DELETE FROM whaleu_identity.refresh_tokens RETURNING token_hash) SELECT token_hash FROM changed',
+    'with input as (select clock_timestamp() as now) update whaleu_identity.refresh_tokens set consumed_at=input.now from input',
+    '/* identity-session-epoch-schema-v1 */ WITH changed AS (DELETE FROM whaleu_identity.refresh_tokens RETURNING token_hash) SELECT token_hash FROM changed',
+    'EXPLAIN ANALYZE DELETE FROM whaleu_identity.refresh_tokens',
+    'SELECT whaleu_identity.mutate_refresh_tokens()',
+    "SELECT set_config('role',$1,true)",
+    'SET CONSTRAINTS ALL DEFERRED',
+    'WITH unreviewed AS (SELECT 1) SELECT * FROM unreviewed',
+    // Every captured read/control, including the pinned catalog CTE, must reject
+    // an appended write. Observed SQL is mutation input, never allowlist input.
+    ...[...new Set(database.statements)].map(
+      (sql) => `${sql};\ndelete from whaleu_identity.refresh_tokens`,
+    ),
+  ];
+  for (const sql of writes)
+    assert.throws(
+      () => assertRejectedRefreshReadOnly([...database.statements, sql]),
+      /outside the rejected-refresh read\/control allowlist/,
+    );
 });
 
 const config = loadConfig({

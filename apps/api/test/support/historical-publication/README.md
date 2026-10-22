@@ -71,3 +71,9 @@ request owner. Its fresh HTTP publication must fail with no post or journal
 writes. No lifecycle SQL override or successful receipt is fabricated. Pure tests
 exercise current Identity and publication-journal refusal before any receipt
 lookup for cooling, erasing and completed accounts.
+
+For the epoch-aware successor, the exact0174 deletion fixture separately installs
+the pinned lifecycle-aware Identity adapter. The publication adapter itself still
+overrides only its database and producer; it cannot authorize Identity or epoch
+fallback. Current epoch authentication is tested on current schema, while the
+historical owner retains original refresh, logout and lifecycle rejection.

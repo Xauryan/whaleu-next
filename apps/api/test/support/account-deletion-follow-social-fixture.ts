@@ -28,6 +28,11 @@ import { UpdatesDispatcher } from '../../src/notifications/dispatcher.js';
 import { accountDeletionFixture } from './account-deletion-fixture.js';
 import { PublicationService } from '../../src/community/publication.service.js';
 import { IdentityRepository } from '../../src/identity/identity.repository.js';
+import { IdentityService } from '../../src/identity/identity.service.js';
+import {
+  configureHistoricalDeletionIdentity,
+  isHistoricalDeletionIdentity,
+} from './historical-lifecycle-identity/deletion.js';
 import { HistoricalPublicationService } from './historical-publication/configure.js';
 import { configureHistoricalFollowSocialPublication } from './historical-publication/follow-social.js';
 
@@ -74,11 +79,13 @@ export async function accountDeletionFollowSocialFixture(
     // source-free same-transaction enrollment absence. All other reading
     // runtime methods remain current.
     // Only explicit publication witnesses additionally pin the c27 producer.
-    // Identity lifecycle, deletion, Review, social and validation remain current.
+    // Identity uses the exact lifecycle-aware 0174 compatibility owner; it is
+    // not current epoch acceptance. Deletion, Review and social remain current.
     const builder = Test.createTestingModule({
       imports: [AppModule.register(config)],
     });
     await configureHistoricalContentDefinitions(builder, config, 174);
+    await configureHistoricalDeletionIdentity(builder, config, 174);
     if (options.publication === 'c27_0174')
       await configureHistoricalFollowSocialPublication(builder, config);
     app = (await builder.compile()).createNestApplication({ logger: false });
@@ -88,13 +95,15 @@ export async function accountDeletionFollowSocialFixture(
     else
       assert.equal(app.get(PublicationService).constructor, PublicationService);
     const identity = app.get(IdentityRepository);
+    assert.ok(isHistoricalDeletionIdentity(identity));
+    assert.notEqual(identity, base.identity);
     assert.equal(
-      identity.authenticate,
-      IdentityRepository.prototype.authenticate,
-    );
-    assert.equal(
-      identity.activeAccount,
-      IdentityRepository.prototype.activeAccount,
+      (
+        app.get(IdentityService) as unknown as {
+          repository: IdentityRepository;
+        }
+      ).repository,
+      identity,
     );
     const reader = app.get(ContentDefinitionRepository);
     assert.ok(reader instanceof HistoricalContentDefinitionRepository);
@@ -117,6 +126,14 @@ export async function accountDeletionFollowSocialFixture(
     await app.init();
     assert.equal(app.get(PublicationService), producer);
     assert.equal(app.get(IdentityRepository), identity);
+    assert.equal(
+      (
+        app.get(IdentityService) as unknown as {
+          repository: IdentityRepository;
+        }
+      ).repository,
+      identity,
+    );
     assert.equal(app.get(ContentDefinitionRepository), reader);
     assert.equal(app.get(ReadingFormattingRuntime), reading);
     await app.get(SocialUpdatesDispatcher).beforeApplicationShutdown();
