@@ -136,6 +136,15 @@ test(
       assert.deepEqual(await inspectReadingSchema(suite), {
         status: 'missing',
       });
+      // The current application includes registration admission and requires
+      // the complete 0179 prefix. Exact 0175 producer/current-reader behavior
+      // is exercised separately by text-source-m1-compatibility.test.ts.
+      assert.equal(
+        migrations.at(-1)?.name,
+        '0179_identity_registration_guard.sql',
+      );
+      await runMigrations(pool, migrations, { mode: 'up' });
+      assert.equal((await inspectReadingSchema(suite)).status, 'ready');
       const scope = await seedCommunityScope(pool);
       const config = loadConfig({
         ...base,
@@ -364,12 +373,13 @@ test(
         textSource: plain,
       };
       await t.test(
-        'M1 without M2 publishes and reads authorized source, without fabricated formatting',
+        'current full-schema explicit off reads authorized source without formatting jobs',
         async () => {
           const legacyOwner = await reviewed('/v1/community/posts', {
             ...body,
             clientRequestId: randomUUID(),
-            text: 'M1 without M2 ' + body.text,
+            text: 'Current explicit off ' + body.text,
+            textSource: { ...plain, readingFormatting: 'off' },
           });
           const response = await request(http)
             .get(`/v2/community/text-sources/post/${legacyOwner.id}`)
@@ -379,18 +389,27 @@ test(
           assert.equal(decoded.presentation.status, 'source');
           assert.equal(
             decoded.source.text,
-            ('M1 without M2 ' + body.text).replace(/\r\n/g, '\n'),
+            ('Current explicit off ' + body.text).replace(/\r\n/g, '\n'),
           );
-          assert.deepEqual(await inspectReadingSchema(suite!), {
-            status: 'missing',
-          });
+          assert.equal(decoded.source.classification, 'reviewedSource');
+          if (decoded.source.classification !== 'reviewedSource')
+            throw new Error('Expected reviewed source');
+          assert.equal(decoded.source.textSource.format, 'plain');
+          if (decoded.source.textSource.format !== 'plain')
+            throw new Error('Expected explicit plain source');
+          assert.equal(decoded.source.textSource.readingFormatting, 'off');
+          assert.equal(
+            (
+              await pool.query(
+                'SELECT * FROM whaleu_community.reading_format_jobs',
+              )
+            ).rowCount,
+            0,
+          );
+          assert.equal((await inspectReadingSchema(suite!)).status, 'ready');
         },
       );
-      await runMigrations(pool, migrations, { mode: 'up' });
-      assert.equal(
-        migrations.at(-1)?.name,
-        '0176_durable_reading_formatting.sql',
-      );
+
       const initialSchema = await inspectReadingSchema(suite);
       assert.equal(initialSchema.status, 'ready');
       const readinessTimings: number[] = [];

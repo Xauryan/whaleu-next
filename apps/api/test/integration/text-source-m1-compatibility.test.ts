@@ -48,6 +48,7 @@ import {
   readingContextSchema,
 } from '../../src/community/reading-content/contracts.js';
 import { inspectReadingSchema } from '../../src/community/reading-formatting/readiness.js';
+import { textSourceReadV2Schema } from '../../src/community/reading-formatting/reader.js';
 import { installM1ProducerMapping } from '../support/historical-m1/loader.js';
 import {
   M1_SYNTHETIC_APP,
@@ -294,6 +295,28 @@ test(
         assert.equal(first.body.outcome, 'created');
         const id = first.body.resourceId as string;
         expectedSources.set(id, reviewed.expected);
+        // Preserve the original M1-only V2 source-read guarantee using genuine
+        // historical producers, not a current application on an old schema.
+        const sourceRead = await request(http)
+          .get(`/v2/community/text-sources/${kind}/${id}`)
+          .set('Authorization', auth);
+        assert.equal(sourceRead.status, 200, JSON.stringify(sourceRead.body));
+        const decodedSource = textSourceReadV2Schema.parse(sourceRead.body);
+        assert.deepEqual(decodedSource.presentation, { status: 'source' });
+        assert.equal(
+          decodedSource.source.text,
+          reviewed.expected.canonicalText,
+        );
+        assert.equal(decodedSource.source.classification, 'reviewedSource');
+        if (decodedSource.source.classification !== 'reviewedSource')
+          throw new Error('Expected reviewed historical source');
+        assert.deepEqual(decodedSource.source.textSource, {
+          ...reviewed.expected.descriptor,
+          sourceHash: reviewed.expected.sourceHash,
+        });
+        assert.deepEqual(await inspectReadingSchema(suite!), {
+          status: 'missing',
+        });
         assert.deepEqual((await post(path, body)).body, first.body);
         // CRLF normalization is the existing source contract, not trimming/NFC.
         assert.deepEqual(
