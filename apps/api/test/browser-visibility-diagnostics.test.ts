@@ -152,12 +152,14 @@ test('helper requires a real sibling tab while retaining deadline and security f
   ].map((x) => x[1]);
   assert.deepEqual(commands, [
     'activateTarget',
-    'createTarget',
     'closeTarget',
     'activateTarget',
     'activateTarget',
   ]);
-  assert.match(background, /newWindow: false, background: true/);
+  assert.match(background, /openPrimarySiblingTab\(\s*command,\s*listeners,/);
+  assert.ok(!background.includes("'Target.createTarget'"));
+  assert.match(source, /userGesture: true/);
+  assert.match(source, /window\.open\(/);
   assert.match(
     background,
     /assertSameBrowserWindow\(\s*primaryWindow\.windowId,\s*otherWindow\.windowId,?\s*\)/,
@@ -170,7 +172,7 @@ test('helper requires a real sibling tab while retaining deadline and security f
   assert.match(source, /const deadline = Date\.now\(\) \+ 15000/);
   assert.match(
     background,
-    /await until\('document.hidden', 'real tab background visibility'\)/,
+    /await until\(\s*'document.hidden',\s*'real tab background visibility',\s*deadline,?\s*\)/,
   );
   assert.match(
     background,
@@ -188,7 +190,8 @@ test('helper requires a real sibling tab while retaining deadline and security f
     'setFocusEmulationEnabled',
     '--disable-setuid-sandbox',
   ])
-    assert.ok(!diagnostic.includes(forbidden));
+    for (const text of [diagnostic, source])
+      assert.ok(!text.includes(forbidden));
   assert.equal([...diagnostic.matchAll(/Runtime.evaluate/g)].length, 1);
 });
 

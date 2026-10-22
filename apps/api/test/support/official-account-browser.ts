@@ -10,6 +10,7 @@ import {
   removeBrowserProfile,
 } from './browser-test-diagnostics.js';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -75,6 +76,288 @@ interface Packet {
   method?: string;
   params?: Record<string, unknown>;
   sessionId?: string;
+}
+type Command = <T = Record<string, unknown>>(
+  method: string,
+  params?: object,
+  session?: string,
+) => Promise<T>;
+type TargetInfo = {
+  targetId?: unknown;
+  type?: unknown;
+  url?: unknown;
+  openerId?: unknown;
+  browserContextId?: unknown;
+};
+/** Open through the actual primary page, not global last-active-window order.
+ * The marker never leaves about:blank; no application state or visibility is
+ * patched. The browser must report the user gesture and a newly owned page. */
+export async function openPrimarySiblingTab(
+  command: Command,
+  listeners: Set<(packet: Packet) => void>,
+  primary: { targetId: string; sessionId: string },
+  deadline: number,
+  visibility?: Pick<ReturnType<typeof browserVisibilityDiagnostics>, 'capture'>,
+) {
+  let primaryInfo: TargetInfo | undefined;
+  const baseline = new Set<unknown>();
+  const url = `about:blank#whaleu-visibility-${randomUUID()}`;
+  const created = new Set<string>();
+  const observed = new Map<unknown, TargetInfo>();
+  const eventRevisions = new Map<unknown, number>();
+  let eventRevision = 0;
+  const owned = new Set<string>();
+  const windowOpens: boolean[] = [];
+  const closing = new Map<string, Promise<void>>();
+  let failing = false;
+  let active = true;
+  let changed: (() => void) | undefined;
+  const signal = () => {
+    changed?.();
+    changed = undefined;
+  };
+  const expired = new Error(
+    'Real sibling tab creation exceeded the existing visibility deadline',
+  );
+  const requireActive = () => {
+    if (!active || Date.now() >= deadline) throw expired;
+  };
+  const closeOwned = (targetId: string) => {
+    let pending = closing.get(targetId);
+    if (!pending) {
+      pending = command('Target.closeTarget', { targetId }, '')
+        .then(() => {})
+        .catch(() => {});
+      closing.set(targetId, pending);
+    }
+    return pending;
+  };
+  const isOwned = (info: TargetInfo) =>
+    typeof info.targetId === 'string' &&
+    /^[a-fA-F0-9]{1,64}$/.test(info.targetId) &&
+    !baseline.has(info.targetId) &&
+    info.type === 'page' &&
+    info.url === url &&
+    info.openerId === primary.targetId &&
+    !!primaryInfo &&
+    info.browserContextId === primaryInfo.browserContextId;
+  const rememberOwned = (info: TargetInfo) => {
+    observed.set(info.targetId, info);
+    if (isOwned(info) && typeof info.targetId === 'string') {
+      owned.add(info.targetId);
+      if (failing) void closeOwned(info.targetId);
+    }
+  };
+  const record = (packet: Packet) => {
+    if (
+      packet.method === 'Page.windowOpen' &&
+      packet.sessionId === primary.sessionId &&
+      packet.params?.['url'] === url &&
+      packet.params?.['windowName'] === '_blank'
+    )
+      windowOpens.push(packet.params['userGesture'] === true);
+    if (
+      !packet.sessionId &&
+      ['Target.targetCreated', 'Target.targetInfoChanged'].includes(
+        packet.method ?? '',
+      )
+    ) {
+      const info = packet.params?.['targetInfo'] as TargetInfo | undefined;
+      if (!info) return;
+      if (
+        packet.method === 'Target.targetCreated' &&
+        typeof info.targetId === 'string' &&
+        !baseline.has(info.targetId)
+      )
+        created.add(info.targetId);
+      eventRevisions.set(info.targetId, ++eventRevision);
+      rememberOwned(info);
+    }
+    signal();
+  };
+  let timer: NodeJS.Timeout | undefined;
+  const expiration = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => {
+        active = false;
+        signal();
+        reject(expired);
+      },
+      Math.max(0, Math.min(15000, deadline - Date.now())),
+    );
+  });
+  const open = async () => {
+    requireActive();
+    // Discovery is required for identity proof, unlike best-effort diagnostics.
+    await command('Target.setDiscoverTargets', { discover: true }, '');
+    requireActive();
+    const primaryAnswer = await command<{
+      targetInfo?: TargetInfo;
+    }>('Target.getTargetInfo', { targetId: primary.targetId }, '');
+    requireActive();
+    primaryInfo = primaryAnswer.targetInfo;
+    assert.ok(
+      primaryInfo?.targetId === primary.targetId &&
+        primaryInfo.type === 'page' &&
+        typeof primaryInfo.browserContextId === 'string' &&
+        primaryInfo.browserContextId.length > 0,
+      'Primary browser target identity is unavailable',
+    );
+    const before = await command<{ targetInfos?: TargetInfo[] }>(
+      'Target.getTargets',
+      {},
+      '',
+    );
+    requireActive();
+    assert.ok(
+      Array.isArray(before.targetInfos),
+      'Browser target list unavailable',
+    );
+    for (const info of before.targetInfos) baseline.add(info.targetId);
+    assert.ok(
+      baseline.has(primary.targetId),
+      'Primary browser target is not live',
+    );
+    // Observe before initiating the open: creation can precede its response.
+    listeners.add(record);
+    const answer = await command<{
+      result?: { value?: unknown };
+      exceptionDetails?: unknown;
+    }>(
+      'Runtime.evaluate',
+      {
+        expression: `window.open(${JSON.stringify(url)}, '_blank') !== null`,
+        userGesture: true,
+        awaitPromise: true,
+        returnByValue: true,
+      },
+      primary.sessionId,
+    );
+    requireActive();
+    assert.ok(
+      !answer.exceptionDetails && answer.result?.value === true,
+      'Primary page did not open the real sibling tab',
+    );
+    // Reconcile the authoritative list after the open, never pick a preexisting
+    // tab or substitute a candidate after identity/window validation fails.
+    const snapshotRevision = eventRevision;
+    const after = await command<{ targetInfos?: TargetInfo[] }>(
+      'Target.getTargets',
+      {},
+      '',
+    );
+    requireActive();
+    assert.ok(
+      Array.isArray(after.targetInfos),
+      'Browser target list unavailable',
+    );
+    for (const info of after.targetInfos) {
+      // A snapshot response must not overwrite a newer target-info event.
+      if ((eventRevisions.get(info.targetId) ?? 0) <= snapshotRevision)
+        rememberOwned(info);
+    }
+    // about:blank's fragment navigation can commit after window.open returns.
+    // Wait for the same owned target's facts, never open again or choose an
+    // alternate candidate. This shares the original hidden-state deadline.
+    for (;;) {
+      requireActive();
+      const matches = [...observed.values()].filter((info) => info.url === url);
+      assert.ok(matches.length <= 1, 'Real sibling tab identity is ambiguous');
+      if (matches.length === 1) {
+        const other = matches[0]!;
+        assert.ok(
+          typeof other.targetId === 'string' && isOwned(other),
+          'Real sibling tab must be newly created by the primary page in its context',
+        );
+        if (windowOpens.length) {
+          assert.deepEqual(
+            windowOpens,
+            [true],
+            'Real sibling tab requires one primary-page browser-reported user gesture',
+          );
+          if (created.has(other.targetId)) {
+            const primaryWindow = await command<{ windowId?: unknown }>(
+              'Browser.getWindowForTarget',
+              { targetId: primary.targetId },
+              '',
+            );
+            requireActive();
+            const otherWindow = await command<{ windowId?: unknown }>(
+              'Browser.getWindowForTarget',
+              { targetId: other.targetId },
+              '',
+            );
+            requireActive();
+            assertSameBrowserWindow(
+              primaryWindow.windowId,
+              otherWindow.windowId,
+            );
+            return { targetId: other.targetId };
+          }
+        }
+      }
+      await new Promise<void>((resolve) => {
+        changed = resolve;
+      });
+    }
+  };
+  try {
+    return await Promise.race([open(), expiration]);
+  } catch (error) {
+    active = false;
+    signal();
+    failing = true;
+    // Capture only bounded safe target/context/window fields, before cleanup.
+    // The actual version is already recorded at browser startup.
+    if (visibility) {
+      const matching = [...observed.values()].find(
+        (info) => info.url === url && typeof info.targetId === 'string',
+      );
+      await visibility
+        .capture('background-failed', [
+          { role: 'primary', ...primary },
+          ...(matching && typeof matching.targetId === 'string'
+            ? [{ role: 'other' as const, targetId: matching.targetId }]
+            : []),
+        ])
+        .catch(() => {});
+    }
+    await Promise.all([...owned].map(closeOwned));
+    throw error;
+  } finally {
+    active = false;
+    signal();
+    clearTimeout(timer);
+    listeners.delete(record);
+  }
+}
+/** Consume late replies while preserving the original visibility deadline. */
+function beforeVisibilityDeadline<T>(
+  operation: () => Promise<T>,
+  deadline: number,
+  message: string,
+): Promise<T> {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) return Promise.reject(new Error(message));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), remaining);
+    Promise.resolve()
+      .then(() => {
+        if (Date.now() >= deadline) throw new Error(message);
+        return operation();
+      })
+      .then(
+        (value) => {
+          clearTimeout(timer);
+          if (Date.now() >= deadline) reject(new Error(message));
+          else resolve(value);
+        },
+        (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      );
+  });
 }
 /** Fail closed: shared storage context does not imply a shared tab strip. */
 export function assertSameBrowserWindow(primary: unknown, other: unknown) {
@@ -281,15 +564,27 @@ export async function officialBrowser() {
       );
       return answer.result.value;
     };
-    const until = async (expression: string, label: string) => {
-      const deadline = Date.now() + 15000;
-      while (!(await evaluate<boolean>(expression))) {
+    const until = async (
+      expression: string,
+      label: string,
+      deadline = Date.now() + 15000,
+    ) => {
+      let matched = false;
+      while (!matched) {
+        matched = await beforeVisibilityDeadline(
+          () => evaluate<boolean>(expression),
+          deadline,
+          `Browser condition timed out: ${label}`,
+        ).catch((error: unknown) => {
+          if (Date.now() >= deadline) diagnostics.flush('condition-timeout');
+          throw error;
+        });
         if (Date.now() >= deadline) diagnostics.flush('condition-timeout');
         assert.ok(
           Date.now() < deadline,
           `Browser condition timed out: ${label}`,
         );
-        await delay(25);
+        if (!matched) await delay(25);
       }
     };
     const click = async (id: string) => {
@@ -354,16 +649,37 @@ export async function officialBrowser() {
         }
       },
       background: async () => {
-        // Select the primary window before requesting a real sibling tab.
-        await command(
+        const deadline = Date.now() + 15000;
+        const bounded: Command = (method, params, session) =>
+          beforeVisibilityDeadline(
+            () => command(method, params, session),
+            deadline,
+            'Real tab background visibility deadline exceeded',
+          );
+        // Activation alone does not bind createTarget to this window in
+        // headless Chrome. Open from the primary page itself instead.
+        await bounded(
           'Target.activateTarget',
           { targetId: target.targetId },
           '',
         );
-        const other = await command<{ targetId: string }>(
-          'Target.createTarget',
-          { url: 'about:blank', newWindow: false, background: true },
-          '',
+        assert.equal(
+          await beforeVisibilityDeadline(
+            () => evaluate<boolean>('document.hidden'),
+            deadline,
+            'Real tab background visibility deadline exceeded',
+          ),
+          false,
+          'Primary page must be genuinely visible before opening its sibling',
+        );
+        // A normal window.open can foreground the sibling before it returns.
+        // That real tab transition, not a synthetic event, hides the primary.
+        const other = await openPrimarySiblingTab(
+          command,
+          listeners,
+          { targetId: target.targetId, sessionId },
+          deadline,
+          visibility,
         );
         let otherClosed = false;
         const closeOther = async () => {
@@ -377,12 +693,12 @@ export async function officialBrowser() {
         ];
         try {
           await visibility.around('background', targets, async () => {
-            const primaryWindow = await command<{ windowId?: unknown }>(
+            const primaryWindow = await bounded<{ windowId?: unknown }>(
               'Browser.getWindowForTarget',
               { targetId: target.targetId },
               '',
             );
-            const otherWindow = await command<{ windowId?: unknown }>(
+            const otherWindow = await bounded<{ windowId?: unknown }>(
               'Browser.getWindowForTarget',
               { targetId: other.targetId },
               '',
@@ -392,13 +708,17 @@ export async function officialBrowser() {
               otherWindow.windowId,
             );
             visibility.mark('background-activate-start');
-            await command(
+            await bounded(
               'Target.activateTarget',
               { targetId: other.targetId },
               '',
             );
             visibility.mark('background-activate-complete');
-            await until('document.hidden', 'real tab background visibility');
+            await until(
+              'document.hidden',
+              'real tab background visibility',
+              deadline,
+            );
           });
         } catch (error) {
           // Never close a target we did not create, or replace the real failure.
